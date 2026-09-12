@@ -2,79 +2,65 @@ import type { HeroBlock as HeroBlockProps } from '@/payload-types'
 
 import { BrandLogo } from '@/components/BrandLogo'
 import { CMSLink } from '@/components/Link'
-import { Emphasis, Eyebrow, Ornament } from '@/components/Typography'
+import { Emphasis, Label } from '@/components/Typography'
 import { cn } from '@/utilities/ui'
 import React from 'react'
 
 import type { BlockContext } from '../types'
 
+/**
+ * Opening of a page. "Brand" sets the logo large, like a letterhead, above the statement;
+ * "Statement" is a large heading on its own.
+ */
 export const HeroBlock: React.FC<HeroBlockProps & { ctx: BlockContext }> = ({
   variant,
   eyebrow,
   heading,
   subheading,
   links,
-  showOrnament,
   ctx,
 }) => {
   const isBrand = variant === 'brand'
   const HeadingTag = ctx.isFirst ? 'h1' : 'h2'
 
   return (
-    <section
-      className={cn(
-        'relative overflow-hidden',
-        isBrand ? 'pb-[clamp(4.5rem,9vw,8rem)] pt-[clamp(3.5rem,8vw,7rem)]' : 'section',
-      )}
-    >
-      {/* A barely-there wash of paper tone behind the hero */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[80%] bg-[radial-gradient(ellipse_at_top,var(--surface),transparent_70%)]"
-      />
-
-      <div className="container flex flex-col items-center text-center">
+    <section className="pb-[clamp(4rem,8vw,7rem)]">
+      <div className="container">
         {isBrand && (
-          <div className="animate-rise w-[clamp(15rem,40vw,30rem)]">
-            <BrandLogo className="w-full text-primary" priority settings={ctx.settings} />
+          <div className="flex justify-center pb-[clamp(3rem,7vw,5.5rem)] pt-[clamp(3.5rem,9vw,7.5rem)]">
+            <BrandLogo
+              className="w-[clamp(15rem,34vw,27rem)] text-primary"
+              priority
+              settings={ctx.settings}
+            />
           </div>
         )}
 
-        {!isBrand && showOrnament && <Ornament className="animate-rise mb-8 text-primary" />}
-
-        <Eyebrow className={cn('animate-rise [animation-delay:120ms]', isBrand ? 'mt-14' : 'mb-6')}>
-          {eyebrow}
-        </Eyebrow>
-
-        <HeadingTag
+        <div
           className={cn(
-            'animate-rise max-w-[20ch] [animation-delay:180ms]',
-            isBrand ? 'display-lg mt-5' : 'display-xl',
+            'grid gap-x-12 gap-y-5 md:grid-cols-12',
+            isBrand ? 'section-rule' : 'pt-[clamp(4rem,9vw,7.5rem)]',
           )}
         >
-          <Emphasis text={heading} />
-        </HeadingTag>
-
-        {subheading && (
-          <p className="lede animate-rise mt-7 max-w-[40rem] [animation-delay:260ms]">
-            {subheading}
-          </p>
-        )}
-
-        {links && links.length > 0 && (
-          <div className="animate-rise mt-10 flex flex-wrap items-center justify-center gap-4 [animation-delay:340ms]">
-            {links.map(({ link }, i) => (
-              <CMSLink key={i} {...link} />
-            ))}
+          <div className="md:col-span-3">
+            <Label>{eyebrow}</Label>
           </div>
-        )}
-
-        {isBrand && showOrnament && (
-          <Ornament
-            className="animate-rise mt-16 w-full max-w-md text-primary [animation-delay:420ms]"
-            rule
-          />
-        )}
+          <div className="md:col-span-9">
+            <HeadingTag
+              className={cn(isBrand ? 'display-lg max-w-[20ch]' : 'display-xl max-w-[16ch]')}
+            >
+              <Emphasis text={heading} />
+            </HeadingTag>
+            {subheading && <p className="lede measure mt-7">{subheading}</p>}
+            {links && links.length > 0 && (
+              <div className="mt-9 flex flex-wrap items-center gap-x-8 gap-y-4">
+                {links.map(({ link }, i) => (
+                  <CMSLink key={i} {...link} />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </section>
   )

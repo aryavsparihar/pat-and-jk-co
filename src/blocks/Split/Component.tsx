@@ -2,66 +2,71 @@ import type { SplitBlock as SplitBlockProps } from '@/payload-types'
 
 import { CMSLink } from '@/components/Link'
 import { Media } from '@/components/Media'
-import { MotifPanel } from '@/components/MotifPanel'
 import RichText from '@/components/RichText'
-import { Reveal } from '@/components/Reveal'
-import { Emphasis, Eyebrow } from '@/components/Typography'
+import { Heading, Section } from '@/components/Typography'
 import { cn } from '@/utilities/ui'
 import React from 'react'
 
-import type { BlockContext } from '../types'
-
-export const SplitBlock: React.FC<SplitBlockProps & { ctx: BlockContext }> = ({
+/**
+ * A photograph beside text. Until a photograph is uploaded, the heading and text simply sit
+ * side by side, rather than showing an empty placeholder.
+ */
+export const SplitBlock: React.FC<SplitBlockProps> = ({
   eyebrow,
   heading,
   content,
   media,
   mediaPosition,
-  background,
   enableLink,
   link,
-  ctx,
 }) => {
-  const mediaLeft = mediaPosition === 'left'
   const image = media && typeof media === 'object' ? media : null
 
+  const text = (
+    <>
+      {content && <RichText data={content} />}
+      {enableLink && link && (
+        <div className="mt-8">
+          <CMSLink {...link} />
+        </div>
+      )}
+    </>
+  )
+
+  if (!image) {
+    return (
+      <Section label={eyebrow}>
+        <div className="grid gap-x-12 gap-y-8 lg:grid-cols-9">
+          <div className="lg:col-span-4">
+            <Heading className="display-md max-w-[16ch]" text={heading} />
+          </div>
+          <div className="lg:col-span-5">{text}</div>
+        </div>
+      </Section>
+    )
+  }
+
   return (
-    <section className={cn('section', background === 'surface' && 'bg-surface')}>
-      <div className="container grid items-center gap-x-20 gap-y-12 lg:grid-cols-2">
-        <Reveal
+    <Section label={eyebrow}>
+      <div className="grid items-start gap-x-12 gap-y-10 lg:grid-cols-9">
+        <div
           className={cn(
-            'relative aspect-[4/5] w-full overflow-hidden',
-            mediaLeft ? 'lg:order-1' : 'lg:order-2',
+            'relative aspect-[4/5] w-full overflow-hidden bg-surface lg:col-span-4',
+            mediaPosition === 'right' && 'lg:order-2',
           )}
         >
-          {image ? (
-            <Media
-              fill
-              imgClassName="object-cover"
-              resource={image}
-              size="(max-width: 1024px) 100vw, 50vw"
-            />
-          ) : (
-            <MotifPanel
-              className={cn(background === 'surface' && 'bg-background')}
-              size="md"
-              subtitle={ctx.settings?.siteName}
-            />
-          )}
-        </Reveal>
-        <Reveal className={cn(mediaLeft ? 'lg:order-2' : 'lg:order-1')} delay={120}>
-          <Eyebrow className="mb-5">{eyebrow}</Eyebrow>
-          <h2 className="display-lg">
-            <Emphasis text={heading} />
-          </h2>
-          {content && <RichText className="rt-lg mt-8" data={content} />}
-          {enableLink && link && (
-            <div className="mt-10">
-              <CMSLink {...link} />
-            </div>
-          )}
-        </Reveal>
+          <Media
+            fill
+            imgClassName="object-cover"
+            resource={image}
+            size="(max-width: 1024px) 100vw, 35vw"
+          />
+        </div>
+        <div className={cn('lg:col-span-5', mediaPosition === 'right' && 'lg:order-1')}>
+          <Heading className="display-md max-w-[18ch]" text={heading} />
+          <div className="mt-7">{text}</div>
+        </div>
       </div>
-    </section>
+    </Section>
   )
 }

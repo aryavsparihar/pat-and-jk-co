@@ -1,11 +1,12 @@
 import type { PageIntroBlock as PageIntroBlockProps } from '@/payload-types'
 
-import { Emphasis, Eyebrow, Ornament } from '@/components/Typography'
+import { Emphasis, Label } from '@/components/Typography'
 import { cn } from '@/utilities/ui'
 import React from 'react'
 
 import type { BlockContext } from '../types'
 
+/** The title of an inner page: page name in the margin, a large heading and an introduction. */
 export const PageIntroBlock: React.FC<PageIntroBlockProps & { ctx: BlockContext }> = ({
   eyebrow,
   heading,
@@ -13,33 +14,26 @@ export const PageIntroBlock: React.FC<PageIntroBlockProps & { ctx: BlockContext 
   align,
   ctx,
 }) => {
-  const centered = align !== 'left'
   const HeadingTag = ctx.isFirst ? 'h1' : 'h2'
+  const centered = align === 'center'
 
   return (
-    <section className="pb-[clamp(3rem,6vw,5rem)] pt-[clamp(4rem,9vw,7.5rem)]">
-      <div className={cn('container', centered && 'flex flex-col items-center text-center')}>
-        <Eyebrow className="animate-rise mb-6">{eyebrow}</Eyebrow>
-        <HeadingTag className="display-xl animate-rise max-w-[18ch] [animation-delay:100ms]">
-          <Emphasis text={heading} />
-        </HeadingTag>
-        {intro && (
-          <p
-            className={cn(
-              'lede animate-rise mt-8 max-w-[42rem] [animation-delay:200ms]',
-              centered && 'mx-auto',
-            )}
-          >
-            {intro}
-          </p>
+    <section className="pb-[clamp(3.5rem,7vw,6rem)] pt-[clamp(4rem,9vw,7.5rem)]">
+      <div
+        className={cn(
+          'container',
+          centered ? 'text-center' : 'grid gap-x-12 gap-y-5 md:grid-cols-12',
         )}
-        <Ornament
-          className={cn(
-            'animate-rise mt-14 text-primary [animation-delay:300ms]',
-            centered ? 'max-w-sm' : 'ml-0 max-w-xs',
-          )}
-          rule
-        />
+      >
+        <div className={cn(!centered && 'md:col-span-3 md:pt-4')}>
+          <Label className={cn(centered && 'mb-6')}>{eyebrow}</Label>
+        </div>
+        <div className={cn(!centered && 'md:col-span-9')}>
+          <HeadingTag className={cn('display-xl max-w-[16ch]', centered && 'mx-auto')}>
+            <Emphasis text={heading} />
+          </HeadingTag>
+          {intro && <p className={cn('lede measure mt-8', centered && 'mx-auto')}>{intro}</p>}
+        </div>
       </div>
     </section>
   )

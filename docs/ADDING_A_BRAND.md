@@ -59,4 +59,4 @@ If a brand needs a section the block library doesn't cover, add a block once and
 2. Add the config to `src/blocks/index.ts` and the component to `src/blocks/RenderBlocks.tsx`.
 3. `pnpm generate:types`, then `pnpm payload migrate:create add-<name>-block` and commit.
 
-Per-brand fonts are not yet configurable (all brands use Cormorant Garamond + Inter). To add an alternative pairing, load it with `next/font` in `src/app/(frontend)/layout.tsx` and add a select field to Site settings → Brand that switches the `--font-serif`/`--font-sans` variables.
+Per-brand fonts are not yet configurable (all brands use Cormorant Garamond + EB Garamond). To add an alternative pairing, load it with `next/font` in `src/app/(frontend)/layout.tsx` and add a select field to Site settings → Brand that switches the `--font-serif`/`--font-sans` variables.

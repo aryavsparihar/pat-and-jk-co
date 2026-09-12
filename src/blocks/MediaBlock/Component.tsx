@@ -7,7 +7,6 @@ import RichText from '@/components/RichText'
 import type { MediaBlock as MediaBlockProps } from '@/payload-types'
 
 import { Media } from '../../components/Media'
-import { Reveal } from '../../components/Reveal'
 
 type Props = MediaBlockProps & {
   captionClassName?: string
@@ -30,12 +29,12 @@ export const MediaBlock: React.FC<Props> = (props) => {
           className="overflow-hidden bg-surface"
           imgClassName={cn('h-auto w-full', imgClassName)}
           resource={media}
-          size={size === 'wide' ? '100vw' : '(max-width: 1024px) 100vw, 1024px'}
+          size={size === 'wide' ? '100vw' : '(max-width: 1024px) 100vw, 900px'}
           src={staticImage}
         />
       )}
       {caption && (
-        <figcaption className="mt-4 text-sm text-muted-foreground">
+        <figcaption className="muted mt-3 text-base italic">
           <RichText data={caption} />
         </figcaption>
       )}
@@ -45,8 +44,10 @@ export const MediaBlock: React.FC<Props> = (props) => {
   if (!enableGutter) return figure
 
   return (
-    <section className="section-tight">
-      <Reveal className={cn('container', size !== 'wide' && 'max-w-5xl')}>{figure}</Reveal>
+    <section className="section">
+      <div className="container">
+        <div className={cn(size !== 'wide' && 'md:ml-[25%]')}>{figure}</div>
+      </div>
     </section>
   )
 }

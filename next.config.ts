@@ -19,6 +19,8 @@ const securityHeaders = [
 ]
 
 const nextConfig: NextConfig = {
+  // Hide the floating Next.js dev-tools button (it only ever appears in `pnpm dev`)
+  devIndicators: false,
   // Temporarily required on Windows until Next.js fixes Turbopack Sass resolution.
   // See: https://github.com/vercel/next.js/issues/86431
   sassOptions: {

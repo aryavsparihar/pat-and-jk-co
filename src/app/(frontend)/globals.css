@@ -1,13 +1,14 @@
 @import 'tailwindcss';
-@import 'tw-animate-css';
 
 /*
- * PJK design system
+ * PJK design system — "letterhead & catalogue"
  * ------------------------------------------------------------------
- * Base palette tokens (--background, --surface, --foreground, --primary) are the only
- * values a brand sets (Admin → Site settings → Brand). Everything else — hairlines,
- * hover states, muted text, button colours — is derived from them below, so a new brand
- * looks coherent the moment its four colours are chosen.
+ * Entirely serif: Cormorant Garamond for display, EB Garamond for text and small capitals.
+ * Woodland green is the ink — logo, headings, links, rules and buttons — on warm ivory.
+ * Solid green is reserved for the footer and the occasional feature plate.
+ *
+ * A brand only sets four colours (Admin → Site settings → Brand); everything else is
+ * derived below, so each brand stays coherent automatically.
  */
 
 @custom-variant sm (@media (width >= theme(--breakpoint-sm)));
@@ -20,25 +21,11 @@
   --breakpoint-md: 48rem;
   --breakpoint-lg: 64rem;
   --breakpoint-xl: 80rem;
-  --breakpoint-2xl: 90rem;
 
-  --font-serif: var(--font-cormorant), 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-
-  --ease-soft: cubic-bezier(0.2, 0.7, 0.2, 1);
-
-  --animate-rise: rise 1.1s var(--ease-soft) both;
-
-  @keyframes rise {
-    from {
-      opacity: 0;
-      transform: translateY(16px);
-    }
-    to {
-      opacity: 1;
-      transform: none;
-    }
-  }
+  --font-display: var(--font-cormorant), 'Cormorant Garamond', Garamond, Georgia, serif;
+  --font-body: var(--font-eb-garamond), 'EB Garamond', Garamond, Georgia, serif;
+  --font-serif: var(--font-display);
+  --font-sans: var(--font-body);
 }
 
 @theme inline {
@@ -46,7 +33,6 @@
   --color-foreground: var(--foreground);
   --color-surface: var(--surface);
   --color-primary: var(--primary);
-  --color-primary-hover: var(--primary-hover);
   --color-primary-foreground: var(--primary-foreground);
   --color-muted-foreground: var(--muted-foreground);
   --color-border: var(--border);
@@ -54,60 +40,39 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-destructive: var(--destructive);
-  /* shadcn-compatible aliases used by the form primitives */
-  --color-card: var(--surface);
-  --color-card-foreground: var(--foreground);
-  --color-popover: var(--background);
-  --color-popover-foreground: var(--foreground);
-  --color-secondary: var(--surface);
-  --color-secondary-foreground: var(--foreground);
-  --color-muted: var(--surface);
-  --color-accent: var(--surface);
-  --color-accent-foreground: var(--foreground);
-  --color-success: var(--primary);
-  --color-warning: #b7791f;
-  --color-error: var(--destructive);
+  --color-warning: #8a6116;
 }
 
-/* Base brand palette — PJK defaults, overridden per brand on .brand-theme */
+/* Base palette — PJK defaults, overridden per brand on .brand-theme */
 :root {
   --background: #f6f3ec;
-  --surface: #efeae0;
+  --surface: #eeeadf;
   --foreground: #16201a;
   --primary: #0f2a18;
 }
 
-/* Derived tokens are declared on both selectors so they re-resolve from each brand's palette */
+/* Derived tokens, declared on both selectors so they re-resolve from each brand's palette */
 :root,
 .brand-theme {
+  --text: color-mix(in oklab, var(--foreground) 82%, var(--primary));
   --primary-foreground: var(--background);
-  --primary-hover: color-mix(in oklab, var(--primary) 84%, white);
-  --muted-foreground: color-mix(in oklab, var(--foreground) 70%, var(--background));
-  --border: color-mix(in oklab, var(--primary) 14%, transparent);
-  --border-strong: color-mix(in oklab, var(--primary) 34%, transparent);
-  --input: var(--border-strong);
+  --primary-hover: color-mix(in oklab, var(--primary) 80%, black);
+  --muted-foreground: color-mix(in oklab, var(--text) 72%, var(--background));
+  --border: color-mix(in oklab, var(--primary) 18%, transparent);
+  --border-strong: color-mix(in oklab, var(--primary) 45%, transparent);
+  --input: color-mix(in oklab, var(--primary) 40%, transparent);
   --ring: var(--primary);
-  --destructive: #9b2c2c;
-  --radius: 2px;
-
-  /* Buttons read these, so they invert automatically inside .on-dark sections */
-  --btn-bg: var(--primary);
-  --btn-fg: var(--primary-foreground);
-  --btn-hover: var(--primary-hover);
-  --btn-line: var(--border-strong);
-  --btn-ink: var(--primary);
+  --destructive: #8f2a22;
+  --ink: var(--primary);
 }
 
+/* Inverted context: green grounds (footer, feature plates) */
 .on-dark {
-  --foreground: var(--background);
-  --muted-foreground: color-mix(in oklab, var(--background) 72%, var(--primary));
-  --border: color-mix(in oklab, var(--background) 18%, transparent);
-  --border-strong: color-mix(in oklab, var(--background) 40%, transparent);
-  --btn-bg: var(--background);
-  --btn-fg: var(--primary);
-  --btn-hover: color-mix(in oklab, var(--background) 86%, var(--primary));
-  --btn-line: color-mix(in oklab, var(--background) 45%, transparent);
-  --btn-ink: var(--background);
+  --text: var(--background);
+  --ink: var(--background);
+  --muted-foreground: color-mix(in oklab, var(--background) 68%, var(--primary));
+  --border: color-mix(in oklab, var(--background) 20%, transparent);
+  --border-strong: color-mix(in oklab, var(--background) 45%, transparent);
   color: var(--background);
 }
 
@@ -126,27 +91,30 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans antialiased;
-    font-size: 1rem;
-    line-height: 1.7;
     min-height: 100vh;
+    background: var(--background);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 1.1875rem;
+    line-height: 1.6;
+    font-variant-numeric: oldstyle-nums proportional-nums;
+    -webkit-font-smoothing: antialiased;
   }
 
   h1,
   h2,
   h3,
-  h4,
-  h5,
-  h6 {
-    font-family: var(--font-serif);
+  h4 {
+    font-family: var(--font-display);
     font-weight: 500;
-    letter-spacing: -0.012em;
+    color: var(--ink);
     line-height: 1.1;
+    letter-spacing: -0.005em;
     text-wrap: balance;
   }
 
-  em {
-    font-style: italic;
+  p {
+    text-wrap: pretty;
   }
 
   ::selection {
@@ -155,20 +123,13 @@
   }
 
   :focus-visible {
-    outline: 1.5px solid var(--ring);
-    outline-offset: 3px;
+    outline: 1px solid var(--ring);
+    outline-offset: 4px;
   }
 
   @media (prefers-reduced-motion: reduce) {
     html {
       scroll-behavior: auto;
-    }
-    *,
-    ::before,
-    ::after {
-      animation-duration: 0.01ms !important;
-      animation-iteration-count: 1 !important;
-      transition-duration: 0.01ms !important;
     }
   }
 }
@@ -176,260 +137,237 @@
 @layer components {
   .container {
     width: 100%;
-    max-width: 78rem;
+    max-width: 76rem;
     margin-inline: auto;
-    padding-inline: clamp(1.25rem, 4vw, 3rem);
+    padding-inline: clamp(1.25rem, 5vw, 3.5rem);
   }
 
-  .container-narrow {
-    width: 100%;
-    max-width: 46rem;
-    margin-inline: auto;
-    padding-inline: clamp(1.25rem, 4vw, 2rem);
+  .measure {
+    max-width: 34em;
   }
 
+  /* Sections are separated by a hairline, like the rules on a printed page */
   .section {
-    padding-block: clamp(4.5rem, 9vw, 8.5rem);
+    padding-bottom: clamp(4rem, 8vw, 7rem);
   }
 
-  .section-tight {
-    padding-block: clamp(3rem, 6vw, 5rem);
+  .section-rule {
+    border-top: 1px solid var(--border);
+    padding-top: clamp(2.25rem, 4vw, 3.25rem);
   }
 
-  /* Type scale */
+  /* Display sizes */
   .display-xl {
-    font-family: var(--font-serif);
+    font-family: var(--font-display);
     font-weight: 500;
-    font-size: clamp(2.75rem, 6.2vw, 5.5rem);
-    line-height: 1.02;
-    letter-spacing: -0.02em;
+    font-size: clamp(2.9rem, 6vw, 5.25rem);
+    line-height: 1;
+    letter-spacing: -0.015em;
+    color: var(--ink);
   }
 
   .display-lg {
-    font-family: var(--font-serif);
+    font-family: var(--font-display);
     font-weight: 500;
-    font-size: clamp(2.1rem, 4.2vw, 3.6rem);
-    line-height: 1.06;
-    letter-spacing: -0.015em;
+    font-size: clamp(2.2rem, 3.8vw, 3.4rem);
+    line-height: 1.05;
+    letter-spacing: -0.01em;
+    color: var(--ink);
   }
 
   .display-md {
-    font-family: var(--font-serif);
+    font-family: var(--font-display);
     font-weight: 500;
-    font-size: clamp(1.65rem, 2.6vw, 2.25rem);
+    font-size: clamp(1.75rem, 2.6vw, 2.4rem);
     line-height: 1.12;
+    color: var(--ink);
   }
 
   .display-sm {
-    font-family: var(--font-serif);
-    font-weight: 500;
-    font-size: clamp(1.4rem, 1.9vw, 1.7rem);
-    line-height: 1.18;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: clamp(1.45rem, 1.9vw, 1.75rem);
+    line-height: 1.15;
+    color: var(--ink);
   }
 
-  .display-xl em,
-  .display-lg em,
-  .display-md em,
-  .display-sm em {
-    color: var(--btn-ink);
-    font-weight: 400;
+  /* Small capitals — used for labels, navigation, buttons and metadata */
+  .smallcaps {
+    font-family: var(--font-body);
+    font-variant-caps: all-small-caps;
+    font-variant-numeric: lining-nums;
+    letter-spacing: 0.075em;
   }
 
-  .eyebrow {
-    font-family: var(--font-sans);
-    font-size: 0.7rem;
-    font-weight: 500;
-    letter-spacing: 0.28em;
-    text-transform: uppercase;
+  .label {
+    font-family: var(--font-body);
+    font-size: 1.05rem;
+    font-variant-caps: all-small-caps;
+    font-variant-numeric: lining-nums;
+    letter-spacing: 0.075em;
+    line-height: 1.4;
     color: var(--muted-foreground);
   }
 
   .lede {
-    font-size: clamp(1.05rem, 1.4vw, 1.2rem);
-    line-height: 1.7;
+    font-size: clamp(1.25rem, 1.6vw, 1.45rem);
+    line-height: 1.5;
+    color: var(--text);
+  }
+
+  .muted {
     color: var(--muted-foreground);
   }
 
-  /* Buttons */
+  /* Links */
+  .link {
+    color: var(--ink);
+    text-decoration-line: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.22em;
+    text-decoration-color: var(--border-strong);
+    transition: text-decoration-color 0.25s ease;
+  }
+
+  .link:hover {
+    text-decoration-color: currentColor;
+  }
+
+  .link-caps {
+    font-size: 1.05rem;
+    font-variant-caps: all-small-caps;
+    font-variant-numeric: lining-nums;
+    letter-spacing: 0.075em;
+  }
+
+  /* Buttons — plain rectangles set in small capitals */
   .btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 0.6rem;
-    min-height: 3rem;
-    padding: 0.85rem 1.75rem;
-    border-radius: var(--radius);
-    font-family: var(--font-sans);
-    font-size: 0.72rem;
-    font-weight: 500;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
+    min-height: 2.9rem;
+    padding: 0.55rem 1.6rem 0.65rem;
+    border: 1px solid var(--ink);
+    font-family: var(--font-body);
+    font-size: 1.1rem;
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.08em;
     line-height: 1;
     white-space: nowrap;
     transition:
-      background-color 0.35s var(--ease-soft),
-      color 0.35s var(--ease-soft),
-      border-color 0.35s var(--ease-soft);
-  }
-
-  .btn-sm {
-    min-height: 2.5rem;
-    padding: 0.65rem 1.2rem;
-    font-size: 0.66rem;
+      background-color 0.25s ease,
+      color 0.25s ease;
   }
 
   .btn-solid {
-    background: var(--btn-bg);
-    color: var(--btn-fg);
-    border: 1px solid var(--btn-bg);
+    background: var(--ink);
+    color: var(--background);
+  }
+
+  .on-dark .btn-solid {
+    color: var(--primary);
   }
 
   .btn-solid:hover {
-    background: var(--btn-hover);
-    border-color: var(--btn-hover);
+    background: var(--primary-hover);
+    border-color: var(--primary-hover);
+  }
+
+  .on-dark .btn-solid:hover {
+    background: var(--surface);
+    border-color: var(--surface);
   }
 
   .btn-outline {
     background: transparent;
-    color: var(--btn-ink);
-    border: 1px solid var(--btn-line);
+    color: var(--ink);
   }
 
   .btn-outline:hover {
-    background: var(--btn-bg);
-    border-color: var(--btn-bg);
-    color: var(--btn-fg);
+    background: var(--ink);
+    color: var(--background);
   }
 
-  .btn-text {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.55rem;
-    padding-block: 0.35rem;
-    font-family: var(--font-sans);
-    font-size: 0.72rem;
-    font-weight: 500;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    color: var(--btn-ink);
-    background-image: linear-gradient(currentColor, currentColor);
-    background-size: 0% 1px;
-    background-position: 0 100%;
-    background-repeat: no-repeat;
-    transition: background-size 0.45s var(--ease-soft);
+  .on-dark .btn-outline:hover {
+    color: var(--primary);
   }
 
-  .btn-text:hover {
-    background-size: 100% 1px;
-  }
-
-  .btn-text .arrow,
-  .btn .arrow {
-    transition: transform 0.45s var(--ease-soft);
-  }
-
-  .btn-text:hover .arrow,
-  .btn:hover .arrow {
-    transform: translateX(4px);
-  }
-
-  /* Leaf ornament from the PJK logo, recoloured with currentColor via a CSS mask */
+  /* Leaf ornament from the PJK logo, recoloured via a CSS mask */
   .ornament {
     display: inline-block;
-    width: 6.5rem;
+    width: 5.5rem;
     aspect-ratio: 256 / 61;
     background-color: currentColor;
     -webkit-mask: url('/brand/pjk-sprig.svg') center / contain no-repeat;
     mask: url('/brand/pjk-sprig.svg') center / contain no-repeat;
   }
 
-  .ornament-rule {
-    display: flex;
-    align-items: center;
-    gap: 0;
-    width: 100%;
-    max-width: 30rem;
-    margin-inline: auto;
-    color: var(--btn-ink);
-  }
-
-  .ornament-rule::before,
-  .ornament-rule::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: currentColor;
-    opacity: 0.55;
-    margin-top: 1px;
-  }
-
-  /* Framed panel — a nod to picture framing: an outer rule and an inset mat line */
-  .frame {
+  /* A typographic "plate" — the deliberate stand-in where no photograph exists yet */
+  .plate {
     position: relative;
-    background: var(--surface);
-    border: 1px solid var(--border-strong);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    background: var(--primary);
+    color: var(--background);
   }
 
-  .frame::after {
+  .plate::after {
     content: '';
     position: absolute;
-    inset: clamp(0.5rem, 1.2vw, 0.9rem);
-    border: 1px solid var(--border);
+    inset: clamp(0.6rem, 1.4vw, 1rem);
+    border: 1px solid color-mix(in oklab, var(--background) 28%, transparent);
     pointer-events: none;
   }
 
-  .hairline {
-    height: 1px;
-    background: var(--border);
-    border: 0;
+  .plate-paper {
+    background: var(--surface);
+    color: var(--ink);
+  }
+
+  .plate-paper::after {
+    border-color: var(--border);
   }
 
   /* Rich text */
-  .rt {
-    color: var(--foreground);
-  }
-
   .rt > * + * {
-    margin-top: 1.1em;
-  }
-
-  .rt p {
-    color: color-mix(in oklab, var(--foreground) 88%, var(--background));
+    margin-top: 1em;
   }
 
   .rt h2 {
-    font-size: clamp(1.8rem, 3vw, 2.4rem);
-    margin-top: 1.6em;
-  }
-
-  .rt h3 {
-    font-size: clamp(1.45rem, 2.2vw, 1.8rem);
+    font-size: clamp(1.75rem, 2.6vw, 2.2rem);
     margin-top: 1.5em;
   }
 
+  .rt h3 {
+    font-size: clamp(1.4rem, 2vw, 1.65rem);
+    font-weight: 600;
+    margin-top: 1.4em;
+  }
+
   .rt h4 {
-    font-family: var(--font-sans);
-    font-size: 0.75rem;
-    letter-spacing: 0.24em;
-    text-transform: uppercase;
-    font-weight: 500;
-    margin-top: 2em;
+    font-family: var(--font-body);
+    font-size: 1.1rem;
+    font-variant-caps: all-small-caps;
+    letter-spacing: 0.075em;
     color: var(--muted-foreground);
+    margin-top: 1.8em;
   }
 
   .rt h2 + *,
   .rt h3 + *,
   .rt h4 + * {
-    margin-top: 0.6em;
+    margin-top: 0.5em;
   }
 
   .rt a {
-    color: var(--btn-ink);
+    color: var(--ink);
     text-decoration: underline;
     text-decoration-thickness: 1px;
     text-underline-offset: 0.2em;
     text-decoration-color: var(--border-strong);
-    transition: text-decoration-color 0.3s;
   }
 
   .rt a:hover {
@@ -438,7 +376,7 @@
 
   .rt ul,
   .rt ol {
-    padding-left: 1.25em;
+    padding-left: 1.2em;
   }
 
   .rt ul {
@@ -450,13 +388,11 @@
   }
 
   .rt ul > li::before {
-    content: '';
+    content: '·';
     position: absolute;
-    left: -1.1em;
-    top: 0.8em;
-    width: 0.45em;
-    height: 1px;
-    background: var(--btn-ink);
+    left: -0.9em;
+    color: var(--ink);
+    font-weight: 600;
   }
 
   .rt ol {
@@ -464,17 +400,17 @@
   }
 
   .rt li + li {
-    margin-top: 0.4em;
+    margin-top: 0.35em;
   }
 
   .rt blockquote {
-    font-family: var(--font-serif);
+    font-family: var(--font-display);
     font-style: italic;
-    font-size: 1.5rem;
-    line-height: 1.4;
+    font-size: 1.6rem;
+    line-height: 1.35;
+    color: var(--ink);
     padding-left: 1.25rem;
-    border-left: 1px solid var(--btn-ink);
-    color: var(--foreground);
+    border-left: 1px solid var(--border-strong);
   }
 
   .rt hr {
@@ -486,74 +422,26 @@
 
   .rt strong {
     font-weight: 600;
-    color: var(--foreground);
   }
 
-  .rt-lg {
-    font-size: clamp(1.05rem, 1.35vw, 1.175rem);
-    line-height: 1.75;
-  }
-
+  /* First paragraph set larger, like the opening of a chapter */
   .rt-lead > p:first-child {
-    font-family: var(--font-serif);
-    font-size: clamp(1.45rem, 2.2vw, 1.9rem);
-    line-height: 1.35;
-    color: var(--foreground);
+    font-size: clamp(1.3rem, 1.8vw, 1.55rem);
+    line-height: 1.45;
+    color: var(--ink);
   }
 
-  /* Link underline used in navigation */
+  /* Current page in navigation */
   .nav-link {
-    position: relative;
-    padding-block: 0.4rem;
+    text-decoration-line: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.35em;
+    text-decoration-color: transparent;
+    transition: text-decoration-color 0.25s ease;
   }
 
-  .nav-link::after {
-    content: '';
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: 1px;
-    background: currentColor;
-    transform: scaleX(0);
-    transform-origin: right;
-    transition: transform 0.45s var(--ease-soft);
-  }
-
-  .nav-link:hover::after,
-  .nav-link[aria-current='page']::after {
-    transform: scaleX(1);
-    transform-origin: left;
-  }
-
-  /* Scroll reveal (only when JS is available, so content is never hidden without it) */
-  .js .reveal {
-    opacity: 0;
-    transform: translateY(18px);
-    transition:
-      opacity 1s var(--ease-soft),
-      transform 1s var(--ease-soft);
-    transition-delay: var(--reveal-delay, 0ms);
-  }
-
-  .js .reveal.is-visible {
-    opacity: 1;
-    transform: none;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .js .reveal {
-      opacity: 1;
-      transform: none;
-    }
-  }
-
-  /* Image hover used on cards */
-  .zoom-media img {
-    transition: transform 1.2s var(--ease-soft);
-  }
-
-  .group:hover .zoom-media img {
-    transform: scale(1.03);
+  .nav-link:hover,
+  .nav-link[aria-current='page'] {
+    text-decoration-color: currentColor;
   }
 }

@@ -46,8 +46,8 @@ export const BrandLogo: React.FC<Props> = ({ settings, variant = 'full', classNa
   }
 
   return (
-    <span className={cn('font-serif text-2xl leading-none tracking-wide', className)}>
-      {settings?.shortName || name}
+    <span className={cn('smallcaps text-[1.35rem] leading-none text-primary', className)}>
+      {name}
     </span>
   )
 }

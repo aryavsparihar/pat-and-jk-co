@@ -23,7 +23,7 @@ export const FieldShell: React.FC<Props> = ({
 }) => (
   <Width width={width ?? undefined}>
     {label && (
-      <label className="eyebrow mb-2.5 block !text-foreground/80" htmlFor={name}>
+      <label className="label mb-1 block" htmlFor={name}>
         {label}
         {required && (
           <span aria-hidden className="ml-1 text-primary">

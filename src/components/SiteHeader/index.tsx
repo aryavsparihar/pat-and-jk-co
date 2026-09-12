@@ -31,7 +31,12 @@ export const SiteHeader: React.FC<{ settings: SiteSetting | null }> = ({ setting
       contactEmail={settings?.email ?? null}
       cta={cta}
       logo={
-        <BrandLogo className="h-7 w-auto md:h-8" priority settings={settings} variant="compact" />
+        // A compact mark if one is uploaded; otherwise the name in small capitals
+        settings?.wordmark ? (
+          <BrandLogo className="h-7 w-auto md:h-8" priority settings={settings} variant="compact" />
+        ) : (
+          <span className="smallcaps text-[1.3rem] leading-none">{settings?.siteName}</span>
+        )
       }
       nav={nav}
       siteName={settings?.siteName ?? ''}

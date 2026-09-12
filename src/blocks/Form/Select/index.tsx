@@ -24,7 +24,7 @@ export const Select: React.FC<
       <div className="relative">
         <select
           aria-invalid={Boolean(errors[name])}
-          className={cn(fieldClasses, 'h-12 cursor-pointer appearance-none pr-10')}
+          className={cn(fieldClasses, 'h-11 cursor-pointer appearance-none pr-8')}
           defaultValue={defaultValue ?? ''}
           id={name}
           {...register(name, { required: Boolean(required) })}
@@ -40,7 +40,7 @@ export const Select: React.FC<
         </select>
         <svg
           aria-hidden
-          className="pointer-events-none absolute right-4 top-1/2 size-3 -translate-y-1/2 text-primary"
+          className="pointer-events-none absolute right-1 top-1/2 size-3 -translate-y-1/2 text-primary"
           fill="none"
           stroke="currentColor"
           strokeWidth="1.5"

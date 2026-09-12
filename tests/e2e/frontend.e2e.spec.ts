@@ -5,7 +5,7 @@ test.describe('Frontend', () => {
   test('homepage shows the PJK brand and navigation', async ({ page }) => {
     await page.goto('http://localhost:3000')
     await expect(page).toHaveTitle(/PAT and J\.K\. Co\./)
-    await expect(page.locator('h1').first()).toContainText('Building enduring ventures')
+    await expect(page.locator('h1').first()).toContainText('builds and runs businesses')
     const nav = page.getByRole('navigation', { name: 'Main' })
     for (const label of ['About', 'Ventures', 'Leadership', 'Journal', 'Collaborate']) {
       await expect(nav.getByRole('link', { name: label })).toBeVisible()
@@ -19,8 +19,8 @@ test.describe('Frontend', () => {
 
   test('contact page renders the enquiry form', async ({ page }) => {
     await page.goto('http://localhost:3000/contact')
-    await expect(page.getByLabel(/Full name/)).toBeVisible()
-    await expect(page.getByRole('button', { name: /Send enquiry/ })).toBeVisible()
+    await expect(page.getByLabel(/^Name/)).toBeVisible()
+    await expect(page.getByRole('button', { name: /Send message/ })).toBeVisible()
   })
 
   test('unknown pages return the branded 404', async ({ page }) => {

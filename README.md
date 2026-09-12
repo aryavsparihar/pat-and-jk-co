@@ -36,7 +36,7 @@ Visitor → pjk.co.in/about
 - **Brands (tenants).** Each brand — PJK, and later Phulhaar Gallery, etc. — has its own domains, pages, journal, ventures, people, media, forms, redirects and site settings (logo, colours, navigation, footer). The [multi-tenant plugin](https://payloadcms.com/docs/plugins/multi-tenant) keeps their content separate; editors only see the brands assigned to them.
 - **Page builder.** Pages are an ordered list of blocks (Hero, Page intro, Statement, Text, Image & text, Venture spotlight, Ventures grid, Principles, Quote, People grid, Journal feed, Openings list, Form, Call to action). Editors add, remove and reorder them.
 - **Always fresh, always fast.** Pages are pre-rendered static HTML. Any change in the admin calls `revalidatePath('/', 'layout')` (see `src/hooks/revalidateFrontend.ts`), so the next visitor gets the updated page. Pages also refresh hourly as a safety net.
-- **Design system.** A brand picks four colours (brand, background, paper, text) in Site settings; hairlines, hovers and muted text are derived from them in `globals.css`. Typography is Cormorant Garamond (display) + Inter (text).
+- **Design system.** A brand picks four colours (brand, background, paper, text) in Site settings; hairlines, hovers and muted text are derived from them in `globals.css`. Entirely serif: Cormorant Garamond for display, EB Garamond for text and small capitals. Woodland green is the ink on ivory; solid green is kept for the footer and feature plates.
 
 ## Local development
 

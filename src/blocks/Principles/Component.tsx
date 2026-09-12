@@ -1,12 +1,11 @@
 import type { PrinciplesBlock as PrinciplesBlockProps } from '@/payload-types'
 
-import { Reveal } from '@/components/Reveal'
-import { SectionHeader } from '@/components/Typography'
-import { cn } from '@/utilities/ui'
+import { Section, SectionHeading } from '@/components/Typography'
 import React from 'react'
 
 const roman = ['I', 'II', 'III', 'IV', 'V', 'VI']
 
+/** A short list of principles or ways of working, set as ruled rows. */
 export const PrinciplesBlock: React.FC<PrinciplesBlockProps> = ({
   eyebrow,
   heading,
@@ -17,34 +16,26 @@ export const PrinciplesBlock: React.FC<PrinciplesBlockProps> = ({
   if (!items?.length) return null
 
   return (
-    <section className="section">
-      <div className="container">
-        <Reveal>
-          <SectionHeader className="mb-16" eyebrow={eyebrow} heading={heading} intro={intro} />
-        </Reveal>
-        <ol
-          className={cn(
-            'grid gap-x-12 gap-y-14 md:grid-cols-2',
-            items.length % 3 === 0 && 'lg:grid-cols-3',
-            items.length === 4 && 'lg:grid-cols-4',
-          )}
-        >
-          {items.map((item, i) => (
-            <Reveal
-              as="li"
-              className="border-t border-border-strong pt-8"
-              delay={i * 110}
-              key={item.id ?? i}
-            >
+    <Section label={eyebrow}>
+      <SectionHeading heading={heading} intro={intro} />
+      <ol className="border-t border-border-strong">
+        {items.map((item, i) => (
+          <li
+            className="grid gap-x-12 gap-y-2 border-b border-border py-7 lg:grid-cols-9"
+            key={item.id ?? i}
+          >
+            <h3 className="display-sm lg:col-span-3">
               {numbering !== 'none' && (
-                <span className="font-serif text-[1.35rem] italic text-primary">{roman[i]}.</span>
+                <span className="mr-3 font-display font-normal italic text-muted-foreground">
+                  {roman[i]}
+                </span>
               )}
-              <h3 className="display-sm mt-3">{item.title}</h3>
-              <p className="mt-4 leading-relaxed text-muted-foreground">{item.text}</p>
-            </Reveal>
-          ))}
-        </ol>
-      </div>
-    </section>
+              {item.title}
+            </h3>
+            <p className="measure lg:col-span-6">{item.text}</p>
+          </li>
+        ))}
+      </ol>
+    </Section>
   )
 }

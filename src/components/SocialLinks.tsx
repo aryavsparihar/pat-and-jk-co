@@ -26,11 +26,8 @@ export const SocialLinks: React.FC<{ socials?: Social[] | null; className?: stri
     <ul className={cn('flex flex-wrap gap-x-6 gap-y-2', className)}>
       {socials.map((social) => (
         <li key={social.id ?? social.url}>
-          <a className="btn-text" href={social.url} rel="noopener noreferrer" target="_blank">
-            {labels[social.platform]}{' '}
-            <span aria-hidden className="arrow">
-              ↗
-            </span>
+          <a className="link link-caps" href={social.url} rel="noopener noreferrer" target="_blank">
+            {labels[social.platform]}
           </a>
         </li>
       ))}

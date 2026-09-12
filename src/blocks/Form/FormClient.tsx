@@ -81,15 +81,11 @@ export const FormClient: React.FC<Props> = ({ form }) => {
 
   if (hasSubmitted && confirmationType === 'message') {
     return (
-      <div aria-live="polite" className="py-6 text-center" role="status">
-        <span aria-hidden className="ornament mb-6 text-primary" />
+      <div aria-live="polite" className="border-t border-border-strong pt-8" role="status">
         {confirmationMessage ? (
-          <RichText
-            className="rt-lg mx-auto max-w-md"
-            data={confirmationMessage as DefaultTypedEditorState}
-          />
+          <RichText data={confirmationMessage as DefaultTypedEditorState} />
         ) : (
-          <p className="display-sm">Thank you — we will be in touch soon.</p>
+          <p className="display-sm">Thank you. We will be in touch soon.</p>
         )}
       </div>
     )
@@ -98,7 +94,7 @@ export const FormClient: React.FC<Props> = ({ form }) => {
   return (
     <FormProvider {...formMethods}>
       <form id={String(formID)} noValidate onSubmit={handleSubmit(onSubmit)}>
-        <div className="flex flex-wrap gap-x-[4%] gap-y-6">
+        <div className="flex flex-wrap gap-x-[4%] gap-y-8">
           {form.fields?.map((field, index) => {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const Field: React.FC<any> = fields?.[field.blockType as keyof typeof fields]
@@ -136,19 +132,14 @@ export const FormClient: React.FC<Props> = ({ form }) => {
         </div>
 
         {error && (
-          <p className="mt-6 text-sm text-destructive" role="alert">
+          <p className="mt-6 text-base italic text-destructive" role="alert">
             {error}
           </p>
         )}
 
-        <div className="mt-8">
+        <div className="mt-10">
           <button className="btn btn-solid" disabled={isSubmitting} type="submit">
             {isSubmitting ? 'Sending…' : submitButtonLabel || 'Send'}
-            {!isSubmitting && (
-              <span aria-hidden className="arrow">
-                →
-              </span>
-            )}
           </button>
         </div>
       </form>

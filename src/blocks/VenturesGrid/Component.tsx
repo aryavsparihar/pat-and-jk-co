@@ -1,14 +1,13 @@
 import type { Venture, VenturesGridBlock as VenturesGridBlockProps } from '@/payload-types'
 
-import { VentureCard } from '@/components/cards/VentureCard'
-import { Reveal } from '@/components/Reveal'
-import { SectionHeader } from '@/components/Typography'
+import { VentureRow } from '@/components/cards/VentureCard'
+import { Section, SectionHeading } from '@/components/Typography'
 import { getVentures } from '@/utilities/queries'
-import { cn } from '@/utilities/ui'
 import React from 'react'
 
 import type { BlockContext } from '../types'
 
+/** The group's ventures as a numbered index, like the contents page of a catalogue. */
 export const VenturesGridBlock = async ({
   eyebrow,
   heading,
@@ -25,24 +24,13 @@ export const VenturesGridBlock = async ({
   if (ventures.length === 0) return null
 
   return (
-    <section className="section">
-      <div className="container">
-        <Reveal>
-          <SectionHeader className="mb-16" eyebrow={eyebrow} heading={heading} intro={intro} />
-        </Reveal>
-        <div
-          className={cn(
-            'grid gap-x-10 gap-y-16 md:grid-cols-2',
-            ventures.length > 2 && 'lg:grid-cols-3',
-          )}
-        >
-          {ventures.map((venture, i) => (
-            <Reveal delay={i * 100} key={venture.id}>
-              <VentureCard venture={venture} />
-            </Reveal>
-          ))}
-        </div>
-      </div>
-    </section>
+    <Section label={eyebrow}>
+      <SectionHeading heading={heading} intro={intro} />
+      <ol className="border-t border-border-strong">
+        {ventures.map((venture, i) => (
+          <VentureRow index={i} key={venture.id} venture={venture} />
+        ))}
+      </ol>
+    </Section>
   )
 }

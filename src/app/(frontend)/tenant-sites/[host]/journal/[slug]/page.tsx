@@ -9,7 +9,7 @@ import { LivePreviewListener } from '@/components/LivePreviewListener'
 import { Media } from '@/components/Media'
 import { PayloadRedirects } from '@/components/PayloadRedirects'
 import RichText from '@/components/RichText'
-import { Ornament } from '@/components/Typography'
+import { Section } from '@/components/Typography'
 import { docPath } from '@/utilities/docHref'
 import { formatDate } from '@/utilities/formatDateTime'
 import { generateMeta } from '@/utilities/meta'
@@ -42,52 +42,50 @@ export default async function JournalPost({ params }: Args) {
     <article>
       {draft && <LivePreviewListener />}
 
-      <header className="container-narrow pb-12 pt-[clamp(3.5rem,8vw,6.5rem)] text-center">
-        <nav aria-label="Breadcrumb" className="animate-rise">
-          <Link className="eyebrow transition-colors hover:text-primary" href="/journal">
-            ← Journal
-          </Link>
-        </nav>
-        <h1 className="display-lg animate-rise mt-8 [animation-delay:100ms]">{post.title}</h1>
-        <p className="eyebrow animate-rise mt-7 [animation-delay:180ms]">
-          {post.publishedAt && (
-            <time dateTime={post.publishedAt}>{formatDate(post.publishedAt)}</time>
-          )}
-          {categories.map((c) =>
-            typeof c === 'object' ? <span key={c.id}> · {c.title}</span> : null,
-          )}
-        </p>
-        {post.excerpt && (
-          <p className="lede animate-rise mx-auto mt-7 max-w-xl [animation-delay:240ms]">
-            {post.excerpt}
-          </p>
-        )}
-        <Ornament className="animate-rise mt-12 max-w-xs [animation-delay:300ms]" rule />
+      <header className="pb-[clamp(3rem,6vw,5rem)] pt-[clamp(4rem,9vw,7.5rem)]">
+        <div className="container grid gap-x-12 gap-y-5 md:grid-cols-12">
+          <div className="md:col-span-3 md:pt-3">
+            <Link className="label link" href="/journal">
+              Journal
+            </Link>
+            <p className="label mt-1">
+              {post.publishedAt && (
+                <time dateTime={post.publishedAt}>{formatDate(post.publishedAt)}</time>
+              )}
+              {categories.map((c) =>
+                typeof c === 'object' ? (
+                  <span className="block" key={c.id}>
+                    {c.title}
+                  </span>
+                ) : null,
+              )}
+            </p>
+          </div>
+          <div className="md:col-span-9">
+            <h1 className="display-lg max-w-[22ch]">{post.title}</h1>
+            {post.excerpt && <p className="lede measure mt-6">{post.excerpt}</p>}
+          </div>
+        </div>
       </header>
 
       {hero && (
-        <div className="container max-w-5xl">
+        <div className="container pb-[clamp(3rem,6vw,5rem)]">
           <Media
-            className="overflow-hidden bg-surface"
+            className="overflow-hidden bg-surface md:ml-[25%]"
             imgClassName="h-auto w-full"
             priority
             resource={hero}
-            size="(max-width: 1024px) 100vw, 1024px"
+            size="(max-width: 1024px) 100vw, 900px"
           />
         </div>
       )}
 
-      <div className="container-narrow section-tight">
-        <RichText className="rt-lg" data={post.content} />
-        <div className="mt-16 border-t border-border pt-8">
-          <Link className="btn-text" href="/journal">
-            <span aria-hidden className="arrow rotate-180">
-              →
-            </span>
-            Back to the journal
-          </Link>
-        </div>
-      </div>
+      <Section>
+        <RichText className="measure" data={post.content} />
+        <Link className="link link-caps mt-14 inline-block" href="/journal">
+          Back to the journal
+        </Link>
+      </Section>
     </article>
   )
 }

@@ -1,9 +1,8 @@
 import type { Form as FormType } from '@payloadcms/plugin-form-builder/types'
 import type { FormBlock as FormBlockProps } from '@/payload-types'
 
-import { Reveal } from '@/components/Reveal'
 import { SocialLinks } from '@/components/SocialLinks'
-import { SectionHeader } from '@/components/Typography'
+import { Heading, Section } from '@/components/Typography'
 import React from 'react'
 
 import type { BlockContext } from '../types'
@@ -24,18 +23,19 @@ export const FormBlock: React.FC<FormBlockProps & { ctx: BlockContext }> = ({
     (settings?.email || settings?.phone || settings?.address || settings?.socials?.length)
 
   return (
-    <section className="section" id="form">
-      <div className="container grid gap-x-20 gap-y-14 lg:grid-cols-12">
-        <Reveal className="lg:col-span-5">
-          <SectionHeader eyebrow={eyebrow} heading={heading} intro={intro} />
+    <Section id="form" label={eyebrow}>
+      <div className="grid gap-x-12 gap-y-12 lg:grid-cols-9">
+        <div className="lg:col-span-4">
+          <Heading className="display-md max-w-[14ch]" text={heading} />
+          {intro && <p className="mt-5">{intro}</p>}
 
           {hasDetails && (
-            <dl className="mt-12 space-y-8 border-t border-border pt-10">
+            <dl className="mt-10 space-y-6 border-t border-border pt-8">
               {settings?.email && (
                 <div>
-                  <dt className="eyebrow">Email</dt>
-                  <dd className="mt-2 font-serif text-2xl">
-                    <a className="hover:text-primary" href={`mailto:${settings.email}`}>
+                  <dt className="label">Email</dt>
+                  <dd className="mt-1">
+                    <a className="link" href={`mailto:${settings.email}`}>
                       {settings.email}
                     </a>
                   </dd>
@@ -43,12 +43,9 @@ export const FormBlock: React.FC<FormBlockProps & { ctx: BlockContext }> = ({
               )}
               {settings?.phone && (
                 <div>
-                  <dt className="eyebrow">Telephone</dt>
-                  <dd className="mt-2 font-serif text-2xl">
-                    <a
-                      className="hover:text-primary"
-                      href={`tel:${settings.phone.replace(/\s+/g, '')}`}
-                    >
+                  <dt className="label">Telephone</dt>
+                  <dd className="mt-1">
+                    <a className="link" href={`tel:${settings.phone.replace(/\s+/g, '')}`}>
                       {settings.phone}
                     </a>
                   </dd>
@@ -56,43 +53,36 @@ export const FormBlock: React.FC<FormBlockProps & { ctx: BlockContext }> = ({
               )}
               {settings?.address && (
                 <div>
-                  <dt className="eyebrow">Studio</dt>
-                  <dd className="mt-2 whitespace-pre-line leading-relaxed text-muted-foreground">
-                    {settings.address}
-                  </dd>
+                  <dt className="label">Address</dt>
+                  <dd className="mt-1 whitespace-pre-line">{settings.address}</dd>
                   {settings.mapUrl && (
                     <a
-                      className="btn-text mt-3"
+                      className="link link-caps mt-2 inline-block"
                       href={settings.mapUrl}
                       rel="noopener noreferrer"
                       target="_blank"
                     >
-                      View on map{' '}
-                      <span aria-hidden className="arrow">
-                        ↗
-                      </span>
+                      Map
                     </a>
                   )}
                 </div>
               )}
               {settings?.socials && settings.socials.length > 0 && (
                 <div>
-                  <dt className="eyebrow">Follow</dt>
-                  <dd className="mt-3">
+                  <dt className="label">Elsewhere</dt>
+                  <dd className="mt-2">
                     <SocialLinks socials={settings.socials} />
                   </dd>
                 </div>
               )}
             </dl>
           )}
-        </Reveal>
+        </div>
 
-        <Reveal className="lg:col-span-7" delay={120}>
-          <div className="frame p-[clamp(1.75rem,4vw,3.25rem)] [&::after]:hidden">
-            <FormClient form={form as unknown as FormType} />
-          </div>
-        </Reveal>
+        <div className="lg:col-span-5">
+          <FormClient form={form as unknown as FormType} />
+        </div>
       </div>
-    </section>
+    </Section>
   )
 }
