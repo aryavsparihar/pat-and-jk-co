@@ -31,7 +31,11 @@ export const Users: CollectionConfig = {
       name: 'roles',
       type: 'select',
       hasMany: true,
-      defaultValue: ['editor'],
+      // The first account is always the super admin (also enforced in the beforeChange hook below)
+      defaultValue: async ({ req }) => {
+        const { totalDocs } = await req.payload.count({ collection: 'users', req })
+        return totalDocs === 0 ? ['super-admin'] : ['editor']
+      },
       required: true,
       saveToJWT: true,
       options: [
@@ -48,5 +52,17 @@ export const Users: CollectionConfig = {
       },
     },
   ],
+  hooks: {
+    beforeChange: [
+      // The very first account (created on the admin's welcome screen) becomes the super admin,
+      // so no credentials ever need to be hard-coded or seeded.
+      async ({ data, operation, req }) => {
+        if (operation !== 'create') return data
+        const { totalDocs } = await req.payload.count({ collection: 'users', req })
+        if (totalDocs === 0) data.roles = ['super-admin']
+        return data
+      },
+    ],
+  },
   timestamps: true,
 }

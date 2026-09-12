@@ -21,10 +21,14 @@ export const CtaBand: Block = {
     {
       name: 'tone',
       type: 'select',
-      defaultValue: 'primary',
+      defaultValue: 'surface',
+      admin: {
+        description:
+          'Tip: avoid the brand colour band as the last block on a page — it merges with the footer.',
+      },
       options: [
-        { label: 'Brand colour band', value: 'primary' },
         { label: 'Paper tone', value: 'surface' },
+        { label: 'Brand colour band', value: 'primary' },
       ],
     },
   ],

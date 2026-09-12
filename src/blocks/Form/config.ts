@@ -15,7 +15,8 @@ export const FormBlock: Block = {
       relationTo: 'forms',
       required: true,
       admin: {
-        description: 'Build and edit forms under "Forms". Submissions appear under "Form Submissions".',
+        description:
+          'Build and edit forms under "Forms". Submissions appear under "Form Submissions".',
       },
     },
     {

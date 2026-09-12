@@ -520,7 +520,7 @@ export interface Venture {
   /**
    * "Coming soon" ventures appear as teaser cards without their own page.
    */
-  status: 'flagship' | 'live' | 'coming-soon';
+  stage: 'flagship' | 'live' | 'coming-soon';
   /**
    * e.g. "Fine art"
    */
@@ -1110,7 +1110,10 @@ export interface CtaBandBlock {
         id?: string | null;
       }[]
     | null;
-  tone?: ('primary' | 'surface') | null;
+  /**
+   * Tip: avoid the brand colour band as the last block on a page — it merges with the footer.
+   */
+  tone?: ('surface' | 'primary') | null;
   id?: string | null;
   blockName?: string | null;
   blockType: 'ctaBand';
@@ -2162,7 +2165,7 @@ export interface VenturesSelect<T extends boolean = true> {
         image?: T;
         description?: T;
       };
-  status?: T;
+  stage?: T;
   sector?: T;
   website?: T;
   order?: T;

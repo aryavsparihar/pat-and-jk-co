@@ -1,45 +1,25 @@
 import type React from 'react'
-import type { Page, Post } from '@/payload-types'
 
-import { getCachedDocument } from '@/utilities/getDocument'
-import { getCachedRedirects } from '@/utilities/getRedirects'
+import { referenceHref } from '@/utilities/docHref'
+import { getRedirectFor } from '@/utilities/queries'
 import { notFound, redirect } from 'next/navigation'
 
 interface Props {
   disableNotFound?: boolean
+  tenantId: number
   url: string
 }
 
-/* This component helps us with SSR based dynamic redirects */
-export const PayloadRedirects: React.FC<Props> = async ({ disableNotFound, url }) => {
-  const redirects = await getCachedRedirects()()
-
-  const redirectItem = redirects.find((redirect) => redirect.from === url)
+/** Applies redirects managed in Admin → Redirects for this brand, otherwise shows the 404 page. */
+export const PayloadRedirects: React.FC<Props> = async ({ disableNotFound, tenantId, url }) => {
+  const redirectItem = await getRedirectFor(tenantId, url)
 
   if (redirectItem) {
-    if (redirectItem.to?.url) {
-      redirect(redirectItem.to.url)
-    }
-
-    let redirectUrl: string
-
-    if (typeof redirectItem.to?.reference?.value === 'string') {
-      const collection = redirectItem.to?.reference?.relationTo
-      const id = redirectItem.to?.reference?.value
-
-      const document = (await getCachedDocument(collection, id)()) as Page | Post
-      redirectUrl = `${redirectItem.to?.reference?.relationTo !== 'pages' ? `/${redirectItem.to?.reference?.relationTo}` : ''}/${
-        document?.slug
-      }`
-    } else {
-      redirectUrl = `${redirectItem.to?.reference?.relationTo !== 'pages' ? `/${redirectItem.to?.reference?.relationTo}` : ''}/${
-        typeof redirectItem.to?.reference?.value === 'object'
-          ? redirectItem.to?.reference?.value?.slug
-          : ''
-      }`
-    }
-
-    if (redirectUrl) redirect(redirectUrl)
+    const target =
+      redirectItem.to?.type === 'custom'
+        ? redirectItem.to.url
+        : referenceHref(redirectItem.to?.reference as { relationTo: string; value: unknown } | null)
+    if (target && target !== url) redirect(target)
   }
 
   if (disableNotFound) return null

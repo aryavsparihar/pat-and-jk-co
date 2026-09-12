@@ -90,7 +90,8 @@ export const link: LinkType = ({ appearances, disableLabel = false, overrides = 
       type: 'text',
       admin: {
         condition: (_, siblingData) => siblingData?.type === 'custom',
-        description: 'A full URL (https://…), an email link (mailto:…) or a path on this site (/contact).',
+        description:
+          'A full URL (https://…), an email link (mailto:…) or a path on this site (/contact).',
       },
       label: 'Custom URL',
       required: true,
@@ -101,13 +102,13 @@ export const link: LinkType = ({ appearances, disableLabel = false, overrides = 
     linkResult.fields.push({
       type: 'row',
       fields: [
-        ...linkTypes.map((linkType) => ({
+        ...(linkTypes.map((linkType) => ({
           ...linkType,
           admin: {
             ...linkType.admin,
             width: '50%',
           },
-        })) as Field[],
+        })) as Field[]),
         {
           name: 'label',
           type: 'text',

@@ -6,8 +6,8 @@ import { DefaultTypedEditorState } from '@payloadcms/richtext-lexical'
 
 export const Message: React.FC<{ message: DefaultTypedEditorState }> = ({ message }) => {
   return (
-    <Width className="my-12" width="100">
-      {message && <RichText data={message} />}
+    <Width className="my-2" width="100">
+      {message && <RichText className="text-sm" data={message} />}
     </Width>
   )
 }

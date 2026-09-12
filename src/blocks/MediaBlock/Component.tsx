@@ -7,9 +7,9 @@ import RichText from '@/components/RichText'
 import type { MediaBlock as MediaBlockProps } from '@/payload-types'
 
 import { Media } from '../../components/Media'
+import { Reveal } from '../../components/Reveal'
 
 type Props = MediaBlockProps & {
-  breakout?: boolean
   captionClassName?: string
   className?: string
   enableGutter?: boolean
@@ -19,49 +19,34 @@ type Props = MediaBlockProps & {
 }
 
 export const MediaBlock: React.FC<Props> = (props) => {
-  const {
-    captionClassName,
-    className,
-    enableGutter = true,
-    imgClassName,
-    media,
-    staticImage,
-    disableInnerContainer,
-  } = props
+  const { className, enableGutter = true, imgClassName, media, size, staticImage } = props
 
-  let caption
-  if (media && typeof media === 'object') caption = media.caption
+  const caption = media && typeof media === 'object' ? media.caption : undefined
 
-  return (
-    <div
-      className={cn(
-        '',
-        {
-          container: enableGutter,
-        },
-        className,
-      )}
-    >
+  const figure = (
+    <figure className={cn(className)}>
       {(media || staticImage) && (
         <Media
-          imgClassName={cn('border border-border rounded-[0.8rem]', imgClassName)}
+          className="overflow-hidden bg-surface"
+          imgClassName={cn('h-auto w-full', imgClassName)}
           resource={media}
+          size={size === 'wide' ? '100vw' : '(max-width: 1024px) 100vw, 1024px'}
           src={staticImage}
         />
       )}
       {caption && (
-        <div
-          className={cn(
-            'mt-6',
-            {
-              container: !disableInnerContainer,
-            },
-            captionClassName,
-          )}
-        >
-          <RichText data={caption} enableGutter={false} />
-        </div>
+        <figcaption className="mt-4 text-sm text-muted-foreground">
+          <RichText data={caption} />
+        </figcaption>
       )}
-    </div>
+    </figure>
+  )
+
+  if (!enableGutter) return figure
+
+  return (
+    <section className="section-tight">
+      <Reveal className={cn('container', size !== 'wide' && 'max-w-5xl')}>{figure}</Reveal>
+    </section>
   )
 }

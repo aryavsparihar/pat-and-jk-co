@@ -12,34 +12,26 @@ import './index.scss'
 
 import { getClientSideURL } from '@/utilities/getURL'
 
-const baseClass = 'admin-bar'
-
 const collectionLabels = {
-  pages: {
-    plural: 'Pages',
-    singular: 'Page',
-  },
-  posts: {
-    plural: 'Posts',
-    singular: 'Post',
-  },
-  projects: {
-    plural: 'Projects',
-    singular: 'Project',
-  },
+  pages: { plural: 'Pages', singular: 'Page' },
+  posts: { plural: 'Journal', singular: 'Journal post' },
+  ventures: { plural: 'Ventures', singular: 'Venture' },
 }
 
-const Title: React.FC = () => <span>Dashboard</span>
+const Title: React.FC = () => <span>Admin</span>
 
+/** A slim bar shown only to signed-in editors, with quick links back into the admin panel. */
 export const AdminBar: React.FC<{
   adminBarProps?: PayloadAdminBarProps
 }> = (props) => {
   const { adminBarProps } = props || {}
   const segments = useSelectedLayoutSegments()
   const [show, setShow] = useState(false)
-  const collection = (
-    collectionLabels[segments?.[1] as keyof typeof collectionLabels] ? segments[1] : 'pages'
-  ) as keyof typeof collectionLabels
+  const collection: keyof typeof collectionLabels = segments.includes('journal')
+    ? 'posts'
+    : segments.includes('ventures')
+      ? 'ventures'
+      : 'pages'
   const router = useRouter()
 
   const onAuthChange = React.useCallback((user: PayloadMeUser) => {
@@ -48,7 +40,7 @@ export const AdminBar: React.FC<{
 
   return (
     <div
-      className={cn(baseClass, 'py-2 bg-black text-white', {
+      className={cn('admin-bar bg-foreground py-1.5 text-background', {
         block: show,
         hidden: !show,
       })}
@@ -56,18 +48,15 @@ export const AdminBar: React.FC<{
       <div className="container">
         <PayloadAdminBar
           {...adminBarProps}
-          className="py-2 text-white"
+          className="py-1.5 text-background"
           classNames={{
-            controls: 'font-medium text-white',
-            logo: 'text-white',
-            user: 'text-white',
+            controls: 'font-medium text-background',
+            logo: 'text-background',
+            user: 'text-background',
           }}
           cmsURL={getClientSideURL()}
           collectionSlug={collection}
-          collectionLabels={{
-            plural: collectionLabels[collection]?.plural || 'Pages',
-            singular: collectionLabels[collection]?.singular || 'Page',
-          }}
+          collectionLabels={collectionLabels[collection]}
           logo={<Title />}
           onAuthChange={onAuthChange}
           onPreviewExit={() => {

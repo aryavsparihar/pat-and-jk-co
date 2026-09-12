@@ -2,50 +2,60 @@ import React, { Fragment } from 'react'
 
 import type { Page } from '@/payload-types'
 
-import { ArchiveBlock } from '@/blocks/ArchiveBlock/Component'
-import { CallToActionBlock } from '@/blocks/CallToAction/Component'
-import { ContentBlock } from '@/blocks/Content/Component'
-import { FormBlock } from '@/blocks/Form/Component'
-import { MediaBlock } from '@/blocks/MediaBlock/Component'
+import { ContentBlock } from './Content/Component'
+import { CtaBandBlock } from './CtaBand/Component'
+import { FormBlock } from './Form/Component'
+import { HeroBlock } from './Hero/Component'
+import { JournalFeedBlock } from './JournalFeed/Component'
+import { LeadershipBlock } from './Leadership/Component'
+import { ManifestoBlock } from './Manifesto/Component'
+import { MediaBlock } from './MediaBlock/Component'
+import { OpeningsBlock } from './Openings/Component'
+import { PageIntroBlock } from './PageIntro/Component'
+import { PrinciplesBlock } from './Principles/Component'
+import { QuoteBlock } from './Quote/Component'
+import { SplitBlock } from './Split/Component'
+import type { BlockContext } from './types'
+import { VentureSpotlightBlock } from './VentureSpotlight/Component'
+import { VenturesGridBlock } from './VenturesGrid/Component'
 
-const blockComponents = {
-  archive: ArchiveBlock,
+type LayoutBlock = Page['layout'][number]
+
+// Maps each block's slug (from its config) to the component that renders it
+const blockComponents: {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  [K in LayoutBlock['blockType']]: React.ComponentType<any>
+} = {
+  hero: HeroBlock,
+  pageIntro: PageIntroBlock,
+  manifesto: ManifestoBlock,
   content: ContentBlock,
-  cta: CallToActionBlock,
-  formBlock: FormBlock,
+  split: SplitBlock,
   mediaBlock: MediaBlock,
+  ventureSpotlight: VentureSpotlightBlock,
+  venturesGrid: VenturesGridBlock,
+  principles: PrinciplesBlock,
+  quote: QuoteBlock,
+  leadership: LeadershipBlock,
+  journalFeed: JournalFeedBlock,
+  openings: OpeningsBlock,
+  formBlock: FormBlock,
+  ctaBand: CtaBandBlock,
 }
 
 export const RenderBlocks: React.FC<{
-  blocks: Page['layout'][0][]
-}> = (props) => {
-  const { blocks } = props
+  blocks?: LayoutBlock[] | null
+  ctx: Omit<BlockContext, 'isFirst'>
+}> = ({ blocks, ctx }) => {
+  if (!blocks?.length) return null
 
-  const hasBlocks = blocks && Array.isArray(blocks) && blocks.length > 0
-
-  if (hasBlocks) {
-    return (
-      <Fragment>
-        {blocks.map((block, index) => {
-          const { blockType } = block
-
-          if (blockType && blockType in blockComponents) {
-            const Block = blockComponents[blockType]
-
-            if (Block) {
-              return (
-                <div className="my-16" key={index}>
-                  {/* @ts-expect-error there may be some mismatch between the expected types here */}
-                  <Block {...block} disableInnerContainer />
-                </div>
-              )
-            }
-          }
-          return null
-        })}
-      </Fragment>
-    )
-  }
-
-  return null
+  return (
+    <Fragment>
+      {blocks.map((block, index) => {
+        const Block = blockComponents[block.blockType]
+        if (!Block) return null
+        return <Block key={block.id ?? index} {...block} ctx={{ ...ctx, isFirst: index === 0 }} />
+      })}
+    </Fragment>
+  )
 }

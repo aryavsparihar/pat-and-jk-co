@@ -36,7 +36,8 @@ export const People: CollectionConfig = {
       type: 'upload',
       relationTo: 'media',
       admin: {
-        description: 'Portrait orientation works best. Without one, the person’s initials are shown.',
+        description:
+          'Portrait orientation works best. Without one, the person’s initials are shown.',
       },
     },
     {

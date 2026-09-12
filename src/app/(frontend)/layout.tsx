@@ -1,43 +1,52 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 
-import { cn } from '@/utilities/ui'
-import { GeistMono } from 'geist/font/mono'
-import { GeistSans } from 'geist/font/sans'
+import { Cormorant_Garamond, Inter } from 'next/font/google'
+import { draftMode } from 'next/headers'
+import Script from 'next/script'
 import React from 'react'
 
 import { AdminBar } from '@/components/AdminBar'
-import { Footer } from '@/Footer/Component'
-import { Header } from '@/Header/Component'
-import { Providers } from '@/providers'
-import { InitTheme } from '@/providers/Theme/InitTheme'
-import { mergeOpenGraph } from '@/utilities/mergeOpenGraph'
-import { draftMode } from 'next/headers'
+import { getServerSideURL } from '@/utilities/getURL'
+import { cn } from '@/utilities/ui'
 
 import './globals.css'
-import { getServerSideURL } from '@/utilities/getURL'
+
+const serif = Cormorant_Garamond({
+  subsets: ['latin'],
+  weight: ['400', '500', '600'],
+  style: ['normal', 'italic'],
+  variable: '--font-cormorant',
+  display: 'swap',
+})
+
+const sans = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+  display: 'swap',
+})
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const { isEnabled } = await draftMode()
 
   return (
-    <html className={cn(GeistSans.variable, GeistMono.variable)} lang="en" suppressHydrationWarning>
+    <html
+      className={cn(serif.variable, sans.variable)}
+      data-scroll-behavior="smooth"
+      lang="en-IN"
+      suppressHydrationWarning
+    >
       <head>
-        <InitTheme />
-        <link href="/favicon.ico" rel="icon" sizes="32x32" />
+        {/* Marks JS as available before first paint so scroll-reveal never hides content without JS */}
+        <Script id="js-flag" strategy="beforeInteractive">
+          {"document.documentElement.classList.add('js')"}
+        </Script>
         <link href="/favicon.svg" rel="icon" type="image/svg+xml" />
+        <link href="/favicon-48.png" rel="icon" sizes="48x48" type="image/png" />
+        <link href="/apple-touch-icon.png" rel="apple-touch-icon" />
       </head>
       <body>
-        <Providers>
-          <AdminBar
-            adminBarProps={{
-              preview: isEnabled,
-            }}
-          />
-
-          <Header />
-          {children}
-          <Footer />
-        </Providers>
+        <AdminBar adminBarProps={{ preview: isEnabled }} />
+        {children}
       </body>
     </html>
   )
@@ -45,9 +54,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
 export const metadata: Metadata = {
   metadataBase: new URL(getServerSideURL()),
-  openGraph: mergeOpenGraph(),
-  twitter: {
-    card: 'summary_large_image',
-    creator: '@payloadcms',
-  },
+}
+
+export const viewport: Viewport = {
+  themeColor: '#f6f3ec',
+  width: 'device-width',
+  initialScale: 1,
 }

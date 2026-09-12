@@ -1,63 +1,54 @@
 import type { SelectField } from '@payloadcms/plugin-form-builder/types'
-import type { Control, FieldErrorsImpl } from 'react-hook-form'
+import type { FieldErrorsImpl, FieldValues, UseFormRegister } from 'react-hook-form'
 
-import { Label } from '@/components/ui/label'
-import {
-  Select as SelectComponent,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { fieldClasses } from '@/components/ui/input'
+import { cn } from '@/utilities/ui'
 import React from 'react'
-import { Controller } from 'react-hook-form'
 
-import { Error } from '../Error'
-import { Width } from '../Width'
+import { FieldShell } from '../FieldShell'
 
 export const Select: React.FC<
   SelectField & {
-    control: Control
     errors: Partial<FieldErrorsImpl>
+    register: UseFormRegister<FieldValues>
   }
-> = ({ name, control, errors, label, options, required, width, defaultValue }) => {
+> = ({ name, defaultValue, errors, label, options, register, required, width }) => {
   return (
-    <Width width={width}>
-      <Label htmlFor={name}>
-        {label}
-        {required && (
-          <span className="required">
-            * <span className="sr-only">(required)</span>
-          </span>
-        )}
-      </Label>
-      <Controller
-        control={control}
-        defaultValue={defaultValue}
-        name={name}
-        render={({ field: { onChange, value } }) => {
-          const controlledValue = options.find((t) => t.value === value)
-
-          return (
-            <SelectComponent onValueChange={(val) => onChange(val)} value={controlledValue?.value}>
-              <SelectTrigger className="w-full" id={name}>
-                <SelectValue placeholder={label} />
-              </SelectTrigger>
-              <SelectContent>
-                {options.map(({ label, value }) => {
-                  return (
-                    <SelectItem key={value} value={value}>
-                      {label}
-                    </SelectItem>
-                  )
-                })}
-              </SelectContent>
-            </SelectComponent>
-          )
-        }}
-        rules={{ required }}
-      />
-      {errors[name] && <Error name={name} />}
-    </Width>
+    <FieldShell
+      hasError={Boolean(errors[name])}
+      label={label}
+      name={name}
+      required={required}
+      width={width}
+    >
+      <div className="relative">
+        <select
+          aria-invalid={Boolean(errors[name])}
+          className={cn(fieldClasses, 'h-12 cursor-pointer appearance-none pr-10')}
+          defaultValue={defaultValue ?? ''}
+          id={name}
+          {...register(name, { required: Boolean(required) })}
+        >
+          <option disabled value="">
+            Please choose…
+          </option>
+          {options?.map(({ label: optionLabel, value }) => (
+            <option key={value} value={value}>
+              {optionLabel}
+            </option>
+          ))}
+        </select>
+        <svg
+          aria-hidden
+          className="pointer-events-none absolute right-4 top-1/2 size-3 -translate-y-1/2 text-primary"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          viewBox="0 0 12 12"
+        >
+          <path d="M2 4.5 6 8l4-3.5" />
+        </svg>
+      </div>
+    </FieldShell>
   )
 }

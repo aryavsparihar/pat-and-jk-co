@@ -19,7 +19,8 @@ export const tenantSlugField = (collection: CollectionSlug, useAsSlug = 'title')
             return 'Use lowercase letters, numbers and hyphens only, e.g. "our-story"'
           }
           const tenant = (data as { tenant?: unknown })?.tenant
-          const tenantId = tenant && typeof tenant === 'object' ? (tenant as { id: unknown }).id : tenant
+          const tenantId =
+            tenant && typeof tenant === 'object' ? (tenant as { id: unknown }).id : tenant
           if (!tenantId) return true
           const existing = await req.payload.count({
             collection,
@@ -32,7 +33,9 @@ export const tenantSlugField = (collection: CollectionSlug, useAsSlug = 'title')
               ],
             },
           })
-          return existing.totalDocs > 0 ? `Another item in this brand already uses "${value}"` : true
+          return existing.totalDocs > 0
+            ? `Another item in this brand already uses "${value}"`
+            : true
         }) as TextFieldSingleValidation
       }
       return row

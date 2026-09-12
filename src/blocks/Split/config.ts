@@ -21,7 +21,8 @@ export const Split: Block = {
       type: 'upload',
       relationTo: 'media',
       admin: {
-        description: 'Optional. Without an image, a quiet brand panel with the leaf ornament is shown.',
+        description:
+          'Optional. Without an image, a quiet brand panel with the leaf ornament is shown.',
       },
     },
     {

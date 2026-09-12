@@ -23,7 +23,7 @@ export const Ventures: CollectionConfig<'ventures'> = {
   defaultPopulate: {
     name: true,
     slug: true,
-    status: true,
+    stage: true,
     tagline: true,
     summary: true,
     sector: true,
@@ -32,11 +32,16 @@ export const Ventures: CollectionConfig<'ventures'> = {
     website: true,
   },
   admin: {
-    defaultColumns: ['name', 'status', 'order', '_status'],
+    defaultColumns: ['name', 'stage', 'order', '_status'],
     group: 'Group',
     livePreview: {
       url: ({ data, req }) =>
-        generatePreviewPath({ slug: data?.slug, collection: 'ventures', tenant: data?.tenant, req }),
+        generatePreviewPath({
+          slug: data?.slug,
+          collection: 'ventures',
+          tenant: data?.tenant,
+          req,
+        }),
     },
     preview: (data, { req }) =>
       generatePreviewPath({
@@ -123,7 +128,7 @@ export const Ventures: CollectionConfig<'ventures'> = {
       ],
     },
     {
-      name: 'status',
+      name: 'stage',
       type: 'select',
       defaultValue: 'live',
       required: true,

@@ -5,11 +5,18 @@ import { fileURLToPath } from 'url'
 
 const __filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(__filename)
-import { redirects } from './redirects'
 
-const NEXT_PUBLIC_SERVER_URL = process.env.VERCEL_PROJECT_PRODUCTION_URL
-  ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-  : process.env.__NEXT_PRIVATE_ORIGIN || 'http://localhost:3000'
+const securityHeaders = [
+  { key: 'X-Content-Type-Options', value: 'nosniff' },
+  { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+  // Same-origin framing is allowed so the admin panel's live preview keeps working
+  { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+  {
+    key: 'Permissions-Policy',
+    value: 'camera=(), microphone=(), geolocation=(), interest-cohort=()',
+  },
+  { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
+]
 
 const nextConfig: NextConfig = {
   // Temporarily required on Windows until Next.js fixes Turbopack Sass resolution.
@@ -18,23 +25,19 @@ const nextConfig: NextConfig = {
     loadPaths: ['./node_modules/@payloadcms/ui/dist/scss/'],
   },
   images: {
+    // Media is served by Payload at /api/media/file/… (locally and from Vercel Blob)
     localPatterns: [
       {
         pathname: '/api/media/file/**',
       },
     ],
-    qualities: [100],
-    remotePatterns: [
-      ...[NEXT_PUBLIC_SERVER_URL /* 'https://example.com' */].map((item) => {
-        const url = new URL(item)
-
-        return {
-          hostname: url.hostname,
-          protocol: url.protocol.replace(':', '') as 'http' | 'https',
-        }
-      }),
-    ],
+    qualities: [90],
+    formats: ['image/avif', 'image/webp'],
   },
+  async headers() {
+    return [{ source: '/:path*', headers: securityHeaders }]
+  },
+  poweredByHeader: false,
   webpack: (webpackConfig) => {
     webpackConfig.resolve.extensionAlias = {
       '.cjs': ['.cts', '.cjs'],
@@ -45,7 +48,6 @@ const nextConfig: NextConfig = {
     return webpackConfig
   },
   reactStrictMode: true,
-  redirects,
   turbopack: {
     root: path.resolve(dirname),
   },

@@ -1,20 +1,138 @@
-import { getPayload, Payload } from 'payload'
+import { getPayload, type Payload } from 'payload'
 import config from '@/payload.config'
+import { p, root } from '@/seed/lexical'
 
-import { describe, it, beforeAll, expect } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+/**
+ * Integration tests against the database in DATABASE_URL. They create two throwaway brands
+ * ("int-test-a", "int-test-b") and remove everything they created afterwards.
+ */
 let payload: Payload
+const context = { disableRevalidate: true }
+const tenantIds: number[] = []
 
-describe('API', () => {
-  beforeAll(async () => {
-    const payloadConfig = await config
-    payload = await getPayload({ config: payloadConfig })
+const layout = [{ blockType: 'pageIntro', heading: 'Test' }]
+
+beforeAll(async () => {
+  payload = await getPayload({ config: await config })
+  await cleanup()
+  for (const slug of ['int-test-a', 'int-test-b']) {
+    const t = await payload.create({ collection: 'tenants', context, data: { name: slug, slug } })
+    tenantIds.push(t.id)
+  }
+})
+
+afterAll(async () => {
+  await cleanup()
+})
+
+async function cleanup() {
+  const { docs } = await payload.find({
+    collection: 'tenants',
+    where: { slug: { in: ['int-test-a', 'int-test-b'] } },
+  })
+  for (const t of docs) {
+    for (const collection of ['form-submissions', 'pages', 'forms'] as const) {
+      await payload.delete({ collection, where: { tenant: { equals: t.id } }, context })
+    }
+    await payload.delete({ collection: 'tenants', id: t.id, context })
+  }
+}
+
+describe('brands (multi-tenant)', () => {
+  it('lets every brand have its own "home" page', async () => {
+    for (const tenant of tenantIds) {
+      const page = await payload.create({
+        collection: 'pages',
+        context,
+        data: { tenant, title: 'Home', slug: 'home', _status: 'published', layout } as never,
+      })
+      expect(page.slug).toBe('home')
+    }
   })
 
-  it('fetches users', async () => {
-    const users = await payload.find({
-      collection: 'users',
+  it('rejects a duplicate slug within the same brand', async () => {
+    await expect(
+      payload.create({
+        collection: 'pages',
+        context,
+        data: {
+          tenant: tenantIds[0],
+          title: 'Home again',
+          slug: 'home',
+          _status: 'published',
+          layout,
+        } as never,
+      }),
+    ).rejects.toThrow()
+  })
+})
+
+describe('form submissions', () => {
+  let formId: number
+
+  beforeAll(async () => {
+    const form = await payload.create({
+      collection: 'forms',
+      context,
+      data: {
+        tenant: tenantIds[1],
+        title: 'Int test form',
+        confirmationType: 'message',
+        confirmationMessage: root(p('Thanks')),
+        fields: [
+          { blockType: 'text', name: 'full-name', label: 'Full name', required: true },
+          { blockType: 'email', name: 'email', label: 'Email', required: true },
+        ],
+      } as never,
     })
-    expect(users).toBeDefined()
+    formId = form.id
+  })
+
+  it('files a valid submission under the form’s brand and drops unknown fields', async () => {
+    const submission = await payload.create({
+      collection: 'form-submissions',
+      context,
+      data: {
+        form: formId,
+        submissionData: [
+          { field: 'full-name', value: 'Ada' },
+          { field: 'email', value: 'ada@example.com' },
+          { field: 'not-on-form', value: 'x' },
+          { field: 'company_website', value: '' },
+        ],
+      },
+    })
+    const tenant = typeof submission.tenant === 'object' ? submission.tenant?.id : submission.tenant
+    expect(tenant).toBe(tenantIds[1])
+    expect(submission.submissionData?.map((d) => d.field)).toEqual(['full-name', 'email'])
+  })
+
+  it('rejects bots that fill the honeypot', async () => {
+    await expect(
+      payload.create({
+        collection: 'form-submissions',
+        context,
+        data: {
+          form: formId,
+          submissionData: [
+            { field: 'full-name', value: 'Bot' },
+            { field: 'email', value: 'bot@example.com' },
+            { field: 'company_website', value: 'http://spam.example' },
+          ],
+        },
+      }),
+    ).rejects.toThrow()
+  })
+
+  it('rejects submissions missing required fields', async () => {
+    await expect(
+      payload.create({
+        collection: 'form-submissions',
+        context,
+        data: { form: formId, submissionData: [{ field: 'full-name', value: 'Ada' }] },
+      }),
+    ).rejects.toThrow(/Email/)
   })
 })

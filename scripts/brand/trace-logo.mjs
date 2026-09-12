@@ -45,7 +45,21 @@ const pgm = path.join(dir, 'in.pgm')
 writeFileSync(pgm, Buffer.concat([Buffer.from(`P5\n${info.width} ${info.height}\n255\n`), data]))
 
 const svgPath = path.join(dir, 'out.svg')
-execFileSync('potrace', [pgm, '-s', '--tight', '-k', '0.5', '-t', '8', '-a', '1.0', '-O', '0.4', '-o', svgPath])
+execFileSync('potrace', [
+  pgm,
+  '-s',
+  '--tight',
+  '-k',
+  '0.5',
+  '-t',
+  '8',
+  '-a',
+  '1.0',
+  '-O',
+  '0.4',
+  '-o',
+  svgPath,
+])
 
 const svg = readFileSync(svgPath, 'utf8')
   .replace(/<\?xml[^>]*>\s*/, '')

@@ -137,7 +137,12 @@ export const SiteSettings: CollectionConfig = {
                 {
                   type: 'row',
                   fields: [
-                    colourField('surface', 'Paper tone', '#EFEAE0', 'Cards and alternate sections.'),
+                    colourField(
+                      'surface',
+                      'Paper tone',
+                      '#EFEAE0',
+                      'Cards and alternate sections.',
+                    ),
                     colourField('foreground', 'Text', '#16201A', 'Body text.'),
                   ],
                 },
@@ -160,7 +165,7 @@ export const SiteSettings: CollectionConfig = {
               name: 'enableHeaderCta',
               type: 'checkbox',
               label: 'Show a button at the end of the header',
-              defaultValue: true,
+              defaultValue: false,
             },
             link({
               appearances: false,

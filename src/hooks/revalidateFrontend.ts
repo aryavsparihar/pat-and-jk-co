@@ -1,8 +1,4 @@
-import type {
-  CollectionAfterChangeHook,
-  CollectionAfterDeleteHook,
-  PayloadRequest,
-} from 'payload'
+import type { CollectionAfterChangeHook, CollectionAfterDeleteHook, PayloadRequest } from 'payload'
 
 import { revalidatePath } from 'next/cache'
 

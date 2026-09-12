@@ -8,8 +8,8 @@ export const Error = ({ name }: { name: string }) => {
     formState: { errors },
   } = useFormContext()
   return (
-    <div className="mt-2 text-red-500 text-sm">
+    <p className="mt-2 text-sm text-destructive" role="alert">
       {(errors[name]?.message as string) || 'This field is required'}
-    </div>
+    </p>
   )
 }

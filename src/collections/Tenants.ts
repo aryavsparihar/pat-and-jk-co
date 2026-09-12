@@ -41,7 +41,8 @@ export const Tenants: CollectionConfig = {
       unique: true,
       index: true,
       admin: {
-        description: 'Short lowercase identifier, e.g. "pjk" or "phulhaar". Do not change once live.',
+        description:
+          'Short lowercase identifier, e.g. "pjk" or "phulhaar". Do not change once live.',
       },
     },
     {
