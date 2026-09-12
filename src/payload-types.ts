@@ -69,13 +69,17 @@ export interface Config {
   collections: {
     pages: Page;
     posts: Post;
-    media: Media;
     categories: Category;
+    media: Media;
+    'site-settings': SiteSetting;
+    ventures: Venture;
+    people: Person;
+    openings: Opening;
+    tenants: Tenant;
     users: User;
     redirects: Redirect;
     forms: Form;
     'form-submissions': FormSubmission;
-    search: Search;
     'payload-kv': PayloadKv;
     'payload-jobs': PayloadJob;
     'payload-folders': FolderInterface;
@@ -91,13 +95,17 @@ export interface Config {
   collectionsSelect: {
     pages: PagesSelect<false> | PagesSelect<true>;
     posts: PostsSelect<false> | PostsSelect<true>;
-    media: MediaSelect<false> | MediaSelect<true>;
     categories: CategoriesSelect<false> | CategoriesSelect<true>;
+    media: MediaSelect<false> | MediaSelect<true>;
+    'site-settings': SiteSettingsSelect<false> | SiteSettingsSelect<true>;
+    ventures: VenturesSelect<false> | VenturesSelect<true>;
+    people: PeopleSelect<false> | PeopleSelect<true>;
+    openings: OpeningsSelect<false> | OpeningsSelect<true>;
+    tenants: TenantsSelect<false> | TenantsSelect<true>;
     users: UsersSelect<false> | UsersSelect<true>;
     redirects: RedirectsSelect<false> | RedirectsSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
     'form-submissions': FormSubmissionsSelect<false> | FormSubmissionsSelect<true>;
-    search: SearchSelect<false> | SearchSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-jobs': PayloadJobsSelect<false> | PayloadJobsSelect<true>;
     'payload-folders': PayloadFoldersSelect<false> | PayloadFoldersSelect<true>;
@@ -106,17 +114,11 @@ export interface Config {
     'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
   };
   db: {
-    defaultIDType: string;
+    defaultIDType: number;
   };
   fallbackLocale: null;
-  globals: {
-    header: Header;
-    footer: Footer;
-  };
-  globalsSelect: {
-    header: HeaderSelect<false> | HeaderSelect<true>;
-    footer: FooterSelect<false> | FooterSelect<true>;
-  };
+  globals: {};
+  globalsSelect: {};
   locale: null;
   widgets: {
     collections: CollectionsWidget;
@@ -152,62 +154,38 @@ export interface UserAuthOperations {
   };
 }
 /**
+ * Every page is built from blocks. The page with slug "home" is the homepage. Publish to go live instantly.
+ *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "pages".
  */
 export interface Page {
-  id: string;
+  id: number;
+  tenant?: (number | null) | Tenant;
   title: string;
-  hero: {
-    type: 'none' | 'highImpact' | 'mediumImpact' | 'lowImpact';
-    richText?: {
-      root: {
-        type: string;
-        children: {
-          type: any;
-          version: number;
-          [k: string]: unknown;
-        }[];
-        direction: ('ltr' | 'rtl') | null;
-        format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
-        indent: number;
-        version: number;
-      };
-      [k: string]: unknown;
-    } | null;
-    links?:
-      | {
-          link: {
-            type?: ('reference' | 'custom') | null;
-            newTab?: boolean | null;
-            reference?:
-              | ({
-                  relationTo: 'pages';
-                  value: string | Page;
-                } | null)
-              | ({
-                  relationTo: 'posts';
-                  value: string | Post;
-                } | null);
-            url?: string | null;
-            label: string;
-            /**
-             * Choose how the link should be rendered.
-             */
-            appearance?: ('default' | 'outline') | null;
-          };
-          id?: string | null;
-        }[]
-      | null;
-    media?: (string | null) | Media;
-  };
-  layout: (CallToActionBlock | ContentBlock | MediaBlock | ArchiveBlock | FormBlock)[];
+  layout: (
+    | HeroBlock
+    | PageIntroBlock
+    | ManifestoBlock
+    | ContentBlock
+    | SplitBlock
+    | MediaBlock
+    | VentureSpotlightBlock
+    | VenturesGridBlock
+    | PrinciplesBlock
+    | QuoteBlock
+    | LeadershipBlock
+    | JournalFeedBlock
+    | OpeningsBlock
+    | FormBlock
+    | CtaBandBlock
+  )[];
   meta?: {
     title?: string | null;
     /**
      * Maximum upload file size: 12MB. Recommended file size for images is <500KB.
      */
-    image?: (string | null) | Media;
+    image?: (number | null) | Media;
     description?: string | null;
   };
   publishedAt?: string | null;
@@ -221,13 +199,94 @@ export interface Page {
   _status?: ('draft' | 'published') | null;
 }
 /**
+ * Each brand gets its own website on its own domain, sharing this admin panel and design system.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "tenants".
+ */
+export interface Tenant {
+  id: number;
+  name: string;
+  /**
+   * Short lowercase identifier, e.g. "pjk" or "phulhaar". Do not change once live.
+   */
+  slug: string;
+  /**
+   * Hostnames this brand is served on, without https:// — e.g. pjk.co.in. The first one is treated as the primary domain.
+   */
+  domains?:
+    | {
+        domain: string;
+        id?: string | null;
+      }[]
+    | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "HeroBlock".
+ */
+export interface HeroBlock {
+  variant: 'brand' | 'statement';
+  /**
+   * Short label shown above the heading in small capitals (optional).
+   */
+  eyebrow?: string | null;
+  /**
+   * Wrap words in *asterisks* to set them in italics, e.g. "A *quiet* revolution".
+   */
+  heading: string;
+  subheading?: string | null;
+  links?:
+    | {
+        link: {
+          type?: ('reference' | 'custom') | null;
+          newTab?: boolean | null;
+          reference?:
+            | ({
+                relationTo: 'pages';
+                value: number | Page;
+              } | null)
+            | ({
+                relationTo: 'posts';
+                value: number | Post;
+              } | null)
+            | ({
+                relationTo: 'ventures';
+                value: number | Venture;
+              } | null);
+          /**
+           * A full URL (https://…), an email link (mailto:…) or a path on this site (/contact).
+           */
+          url?: string | null;
+          label: string;
+          /**
+           * Choose how the link should be rendered.
+           */
+          appearance?: ('default' | 'outline' | 'text') | null;
+        };
+        id?: string | null;
+      }[]
+    | null;
+  showOrnament?: boolean | null;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'hero';
+}
+/**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "posts".
  */
 export interface Post {
-  id: string;
+  id: number;
+  tenant?: (number | null) | Tenant;
   title: string;
-  heroImage?: (string | null) | Media;
+  /**
+   * One or two sentences shown on journal cards and in search results.
+   */
+  excerpt?: string | null;
+  heroImage?: (number | null) | Media;
   content: {
     root: {
       type: string;
@@ -243,24 +302,16 @@ export interface Post {
     };
     [k: string]: unknown;
   };
-  relatedPosts?: (string | Post)[] | null;
-  categories?: (string | Category)[] | null;
   meta?: {
     title?: string | null;
     /**
      * Maximum upload file size: 12MB. Recommended file size for images is <500KB.
      */
-    image?: (string | null) | Media;
+    image?: (number | null) | Media;
     description?: string | null;
   };
   publishedAt?: string | null;
-  authors?: (string | User)[] | null;
-  populatedAuthors?:
-    | {
-        id?: string | null;
-        name?: string | null;
-      }[]
-    | null;
+  categories?: (number | Category)[] | null;
   /**
    * When enabled, the slug will auto-generate from the title field on save and autosave.
    */
@@ -275,8 +326,12 @@ export interface Post {
  * via the `definition` "media".
  */
 export interface Media {
-  id: string;
-  alt?: string | null;
+  id: number;
+  tenant?: (number | null) | Tenant;
+  /**
+   * Describe the image for visitors using screen readers and for search engines, e.g. "Framed oil painting in a walnut frame".
+   */
+  alt: string;
   caption?: {
     root: {
       type: string;
@@ -292,7 +347,7 @@ export interface Media {
     };
     [k: string]: unknown;
   } | null;
-  folder?: (string | null) | FolderInterface;
+  folder?: (number | null) | FolderInterface;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -368,18 +423,18 @@ export interface Media {
  * via the `definition` "payload-folders".
  */
 export interface FolderInterface {
-  id: string;
+  id: number;
   name: string;
-  folder?: (string | null) | FolderInterface;
+  folder?: (number | null) | FolderInterface;
   documentsAndFolders?: {
     docs?: (
       | {
           relationTo?: 'payload-folders';
-          value: string | FolderInterface;
+          value: number | FolderInterface;
         }
       | {
           relationTo?: 'media';
-          value: string | Media;
+          value: number | Media;
         }
     )[];
     hasNextPage?: boolean;
@@ -394,57 +449,37 @@ export interface FolderInterface {
  * via the `definition` "categories".
  */
 export interface Category {
-  id: string;
+  id: number;
+  tenant?: (number | null) | Tenant;
   title: string;
   /**
    * When enabled, the slug will auto-generate from the title field on save and autosave.
    */
   generateSlug?: boolean | null;
   slug: string;
-  parent?: (string | null) | Category;
-  breadcrumbs?:
-    | {
-        doc?: (string | null) | Category;
-        url?: string | null;
-        label?: string | null;
-        id?: string | null;
-      }[]
-    | null;
   updatedAt: string;
   createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "users".
+ * via the `definition` "ventures".
  */
-export interface User {
-  id: string;
-  name?: string | null;
-  updatedAt: string;
-  createdAt: string;
-  email: string;
-  resetPasswordToken?: string | null;
-  resetPasswordExpiration?: string | null;
-  salt?: string | null;
-  hash?: string | null;
-  loginAttempts?: number | null;
-  lockUntil?: string | null;
-  sessions?:
-    | {
-        id: string;
-        createdAt?: string | null;
-        expiresAt: string;
-      }[]
-    | null;
-  password?: string | null;
-  collection: 'users';
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "CallToActionBlock".
- */
-export interface CallToActionBlock {
-  richText?: {
+export interface Venture {
+  id: number;
+  tenant?: (number | null) | Tenant;
+  name: string;
+  /**
+   * One line, e.g. "Contemporary fine art curation & framing".
+   */
+  tagline?: string | null;
+  /**
+   * Two or three sentences for cards and the spotlight block.
+   */
+  summary?: string | null;
+  /**
+   * The full story, shown on the venture page.
+   */
+  description?: {
     root: {
       type: string;
       children: {
@@ -459,39 +494,112 @@ export interface CallToActionBlock {
     };
     [k: string]: unknown;
   } | null;
-  links?:
+  /**
+   * Short facts shown beside the description, e.g. "Focus — Fine art".
+   */
+  highlights?:
     | {
-        link: {
-          type?: ('reference' | 'custom') | null;
-          newTab?: boolean | null;
-          reference?:
-            | ({
-                relationTo: 'pages';
-                value: string | Page;
-              } | null)
-            | ({
-                relationTo: 'posts';
-                value: string | Post;
-              } | null);
-          url?: string | null;
-          label: string;
-          /**
-           * Choose how the link should be rendered.
-           */
-          appearance?: ('default' | 'outline') | null;
-        };
+        label: string;
+        value: string;
         id?: string | null;
       }[]
     | null;
+  /**
+   * Landscape image. Without one, a typographic brand panel is shown.
+   */
+  cover?: (number | null) | Media;
+  logo?: (number | null) | Media;
+  meta?: {
+    title?: string | null;
+    /**
+     * Maximum upload file size: 12MB. Recommended file size for images is <500KB.
+     */
+    image?: (number | null) | Media;
+    description?: string | null;
+  };
+  /**
+   * "Coming soon" ventures appear as teaser cards without their own page.
+   */
+  status: 'flagship' | 'live' | 'coming-soon';
+  /**
+   * e.g. "Fine art"
+   */
+  sector?: string | null;
+  /**
+   * External website, if the venture has one (https://…).
+   */
+  website?: string | null;
+  /**
+   * Lower numbers appear first.
+   */
+  order?: number | null;
+  /**
+   * When enabled, the slug will auto-generate from the title field on save and autosave.
+   */
+  generateSlug?: boolean | null;
+  slug: string;
+  updatedAt: string;
+  createdAt: string;
+  _status?: ('draft' | 'published') | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "PageIntroBlock".
+ */
+export interface PageIntroBlock {
+  /**
+   * Short label shown above the heading in small capitals (optional).
+   */
+  eyebrow?: string | null;
+  /**
+   * Wrap words in *asterisks* to set them in italics, e.g. "A *quiet* revolution".
+   */
+  heading: string;
+  intro?: string | null;
+  align?: ('center' | 'left') | null;
   id?: string | null;
   blockName?: string | null;
-  blockType: 'cta';
+  blockType: 'pageIntro';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "ManifestoBlock".
+ */
+export interface ManifestoBlock {
+  /**
+   * Short label shown above the heading in small capitals (optional).
+   */
+  eyebrow?: string | null;
+  /**
+   * Wrap words in *asterisks* to set them in italics, e.g. "A *quiet* revolution".
+   */
+  heading: string;
+  content: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  };
+  layout?: ('split' | 'centered') | null;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'manifesto';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "ContentBlock".
  */
 export interface ContentBlock {
+  width?: ('narrow' | 'wide') | null;
   columns?:
     | {
         size?: ('oneThird' | 'half' | 'twoThirds' | 'full') | null;
@@ -517,18 +625,25 @@ export interface ContentBlock {
           reference?:
             | ({
                 relationTo: 'pages';
-                value: string | Page;
+                value: number | Page;
               } | null)
             | ({
                 relationTo: 'posts';
-                value: string | Post;
+                value: number | Post;
+              } | null)
+            | ({
+                relationTo: 'ventures';
+                value: number | Venture;
               } | null);
+          /**
+           * A full URL (https://…), an email link (mailto:…) or a path on this site (/contact).
+           */
           url?: string | null;
           label: string;
           /**
            * Choose how the link should be rendered.
            */
-          appearance?: ('default' | 'outline') | null;
+          appearance?: ('default' | 'outline' | 'text') | null;
         };
         id?: string | null;
       }[]
@@ -539,70 +654,265 @@ export interface ContentBlock {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "SplitBlock".
+ */
+export interface SplitBlock {
+  /**
+   * Short label shown above the heading in small capitals (optional).
+   */
+  eyebrow?: string | null;
+  /**
+   * Wrap words in *asterisks* to set them in italics, e.g. "A *quiet* revolution".
+   */
+  heading: string;
+  content?: {
+    root: {
+      type: string;
+      children: {
+        type: any;
+        version: number;
+        [k: string]: unknown;
+      }[];
+      direction: ('ltr' | 'rtl') | null;
+      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+      indent: number;
+      version: number;
+    };
+    [k: string]: unknown;
+  } | null;
+  /**
+   * Optional. Without an image, a quiet brand panel with the leaf ornament is shown.
+   */
+  media?: (number | null) | Media;
+  mediaPosition?: ('right' | 'left') | null;
+  background?: ('none' | 'surface') | null;
+  enableLink?: boolean | null;
+  link?: {
+    type?: ('reference' | 'custom') | null;
+    newTab?: boolean | null;
+    reference?:
+      | ({
+          relationTo: 'pages';
+          value: number | Page;
+        } | null)
+      | ({
+          relationTo: 'posts';
+          value: number | Post;
+        } | null)
+      | ({
+          relationTo: 'ventures';
+          value: number | Venture;
+        } | null);
+    /**
+     * A full URL (https://…), an email link (mailto:…) or a path on this site (/contact).
+     */
+    url?: string | null;
+    label: string;
+    /**
+     * Choose how the link should be rendered.
+     */
+    appearance?: ('default' | 'outline' | 'text') | null;
+  };
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'split';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "MediaBlock".
  */
 export interface MediaBlock {
-  media: string | Media;
+  media: number | Media;
+  size?: ('contained' | 'wide') | null;
   id?: string | null;
   blockName?: string | null;
   blockType: 'mediaBlock';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "ArchiveBlock".
+ * via the `definition` "VentureSpotlightBlock".
  */
-export interface ArchiveBlock {
-  introContent?: {
-    root: {
-      type: string;
-      children: {
-        type: any;
-        version: number;
-        [k: string]: unknown;
-      }[];
-      direction: ('ltr' | 'rtl') | null;
-      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
-      indent: number;
-      version: number;
-    };
-    [k: string]: unknown;
-  } | null;
-  populateBy?: ('collection' | 'selection') | null;
-  relationTo?: 'posts' | null;
-  categories?: (string | Category)[] | null;
-  limit?: number | null;
-  selectedDocs?:
-    | {
-        relationTo: 'posts';
-        value: string | Post;
-      }[]
-    | null;
+export interface VentureSpotlightBlock {
+  /**
+   * Short label shown above the heading in small capitals (optional).
+   */
+  eyebrow?: string | null;
+  venture: number | Venture;
+  /**
+   * Defaults to "Discover <venture name>".
+   */
+  linkLabel?: string | null;
   id?: string | null;
   blockName?: string | null;
-  blockType: 'archive';
+  blockType: 'ventureSpotlight';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "VenturesGridBlock".
+ */
+export interface VenturesGridBlock {
+  /**
+   * Short label shown above the heading in small capitals (optional).
+   */
+  eyebrow?: string | null;
+  /**
+   * Wrap words in *asterisks* to set them in italics, e.g. "A *quiet* revolution".
+   */
+  heading?: string | null;
+  intro?: string | null;
+  populateBy?: ('all' | 'selection') | null;
+  ventures?: (number | Venture)[] | null;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'venturesGrid';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "PrinciplesBlock".
+ */
+export interface PrinciplesBlock {
+  /**
+   * Short label shown above the heading in small capitals (optional).
+   */
+  eyebrow?: string | null;
+  /**
+   * Wrap words in *asterisks* to set them in italics, e.g. "A *quiet* revolution".
+   */
+  heading?: string | null;
+  intro?: string | null;
+  items: {
+    title: string;
+    text: string;
+    id?: string | null;
+  }[];
+  numbering?: ('roman' | 'none') | null;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'principles';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "QuoteBlock".
+ */
+export interface QuoteBlock {
+  quote: string;
+  attribution?: string | null;
+  role?: string | null;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'quote';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "LeadershipBlock".
+ */
+export interface LeadershipBlock {
+  /**
+   * Short label shown above the heading in small capitals (optional).
+   */
+  eyebrow?: string | null;
+  /**
+   * Wrap words in *asterisks* to set them in italics, e.g. "A *quiet* revolution".
+   */
+  heading?: string | null;
+  intro?: string | null;
+  populateBy?: ('all' | 'selection') | null;
+  people?: (number | Person)[] | null;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'leadership';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "people".
+ */
+export interface Person {
+  id: number;
+  tenant?: (number | null) | Tenant;
+  name: string;
+  role: string;
+  /**
+   * Portrait orientation works best. Without one, the person’s initials are shown.
+   */
+  portrait?: (number | null) | Media;
+  bio?: string | null;
+  links?:
+    | {
+        label: string;
+        url: string;
+        id?: string | null;
+      }[]
+    | null;
+  /**
+   * Lower numbers appear first.
+   */
+  order?: number | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "JournalFeedBlock".
+ */
+export interface JournalFeedBlock {
+  /**
+   * Short label shown above the heading in small capitals (optional).
+   */
+  eyebrow?: string | null;
+  /**
+   * Wrap words in *asterisks* to set them in italics, e.g. "A *quiet* revolution".
+   */
+  heading?: string | null;
+  intro?: string | null;
+  limit?: number | null;
+  showViewAll?: boolean | null;
+  /**
+   * Only show posts in these categories (optional).
+   */
+  categories?: (number | Category)[] | null;
+  emptyMessage?: string | null;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'journalFeed';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "OpeningsBlock".
+ */
+export interface OpeningsBlock {
+  /**
+   * Short label shown above the heading in small capitals (optional).
+   */
+  eyebrow?: string | null;
+  /**
+   * Wrap words in *asterisks* to set them in italics, e.g. "A *quiet* revolution".
+   */
+  heading?: string | null;
+  intro?: string | null;
+  emptyMessage?: string | null;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'openings';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "FormBlock".
  */
 export interface FormBlock {
-  form: string | Form;
-  enableIntro?: boolean | null;
-  introContent?: {
-    root: {
-      type: string;
-      children: {
-        type: any;
-        version: number;
-        [k: string]: unknown;
-      }[];
-      direction: ('ltr' | 'rtl') | null;
-      format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
-      indent: number;
-      version: number;
-    };
-    [k: string]: unknown;
-  } | null;
+  /**
+   * Short label shown above the heading in small capitals (optional).
+   */
+  eyebrow?: string | null;
+  /**
+   * Wrap words in *asterisks* to set them in italics, e.g. "A *quiet* revolution".
+   */
+  heading?: string | null;
+  intro?: string | null;
+  /**
+   * Build and edit forms under "Forms". Submissions appear under "Form Submissions".
+   */
+  form: number | Form;
+  showContactDetails?: boolean | null;
   id?: string | null;
   blockName?: string | null;
   blockType: 'formBlock';
@@ -612,7 +922,8 @@ export interface FormBlock {
  * via the `definition` "forms".
  */
 export interface Form {
-  id: string;
+  id: number;
+  tenant?: (number | null) | Tenant;
   title: string;
   fields?:
     | (
@@ -625,15 +936,6 @@ export interface Form {
             id?: string | null;
             blockName?: string | null;
             blockType: 'checkbox';
-          }
-        | {
-            name: string;
-            label?: string | null;
-            width?: number | null;
-            required?: boolean | null;
-            id?: string | null;
-            blockName?: string | null;
-            blockType: 'country';
           }
         | {
             name: string;
@@ -696,15 +998,6 @@ export interface Form {
             name: string;
             label?: string | null;
             width?: number | null;
-            required?: boolean | null;
-            id?: string | null;
-            blockName?: string | null;
-            blockType: 'state';
-          }
-        | {
-            name: string;
-            label?: string | null;
-            width?: number | null;
             defaultValue?: string | null;
             required?: boolean | null;
             id?: string | null;
@@ -724,9 +1017,6 @@ export interface Form {
       )[]
     | null;
   submitButtonLabel?: string | null;
-  /**
-   * Choose whether to display an on-page message or redirect to a different page after they submit the form.
-   */
   confirmationType?: ('message' | 'redirect') | null;
   confirmationMessage?: {
     root: {
@@ -746,9 +1036,6 @@ export interface Form {
   redirect?: {
     url: string;
   };
-  /**
-   * Send custom emails when the form submits. Use comma separated lists to send the same email to multiple recipients. To reference a value from this form, wrap that field's name with double curly brackets, i.e. {{firstName}}. You can use a wildcard {{*}} to output all data and {{*:table}} to format it as an HTML table in the email.
-   */
   emails?:
     | {
         emailTo?: string | null;
@@ -757,9 +1044,6 @@ export interface Form {
         replyTo?: string | null;
         emailFrom?: string | null;
         subject: string;
-        /**
-         * Enter the message that should be sent in this email.
-         */
         message?: {
           root: {
             type: string;
@@ -783,12 +1067,309 @@ export interface Form {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "CtaBandBlock".
+ */
+export interface CtaBandBlock {
+  /**
+   * Short label shown above the heading in small capitals (optional).
+   */
+  eyebrow?: string | null;
+  /**
+   * Wrap words in *asterisks* to set them in italics, e.g. "A *quiet* revolution".
+   */
+  heading: string;
+  text?: string | null;
+  links?:
+    | {
+        link: {
+          type?: ('reference' | 'custom') | null;
+          newTab?: boolean | null;
+          reference?:
+            | ({
+                relationTo: 'pages';
+                value: number | Page;
+              } | null)
+            | ({
+                relationTo: 'posts';
+                value: number | Post;
+              } | null)
+            | ({
+                relationTo: 'ventures';
+                value: number | Venture;
+              } | null);
+          /**
+           * A full URL (https://…), an email link (mailto:…) or a path on this site (/contact).
+           */
+          url?: string | null;
+          label: string;
+          /**
+           * Choose how the link should be rendered.
+           */
+          appearance?: ('default' | 'outline' | 'text') | null;
+        };
+        id?: string | null;
+      }[]
+    | null;
+  tone?: ('primary' | 'surface') | null;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'ctaBand';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "site-settings".
+ */
+export interface SiteSetting {
+  id: number;
+  tenant?: (number | null) | Tenant;
+  /**
+   * e.g. PAT and J.K. Co.
+   */
+  siteName: string;
+  /**
+   * e.g. PJK
+   */
+  shortName?: string | null;
+  tagline?: string | null;
+  /**
+   * Default description for search engines and link previews.
+   */
+  description?: string | null;
+  /**
+   * 1200 × 630 px. Used when a page has no image of its own.
+   */
+  ogImage?: (number | null) | Media;
+  /**
+   * For light backgrounds. SVG preferred.
+   */
+  logo?: (number | null) | Media;
+  /**
+   * Used in the footer and on colour bands.
+   */
+  logoOnDark?: (number | null) | Media;
+  /**
+   * Optional smaller mark for the header, e.g. letters only. Falls back to the main logo.
+   */
+  wordmark?: (number | null) | Media;
+  /**
+   * The palette for this brand. Hairlines and hover states are derived from these automatically.
+   */
+  colours?: {
+    /**
+     * Buttons, links, footer.
+     */
+    primary?: string | null;
+    /**
+     * The page colour.
+     */
+    background?: string | null;
+    /**
+     * Cards and alternate sections.
+     */
+    surface?: string | null;
+    /**
+     * Body text.
+     */
+    foreground?: string | null;
+  };
+  headerNav?:
+    | {
+        link: {
+          type?: ('reference' | 'custom') | null;
+          newTab?: boolean | null;
+          reference?:
+            | ({
+                relationTo: 'pages';
+                value: number | Page;
+              } | null)
+            | ({
+                relationTo: 'posts';
+                value: number | Post;
+              } | null)
+            | ({
+                relationTo: 'ventures';
+                value: number | Venture;
+              } | null);
+          /**
+           * A full URL (https://…), an email link (mailto:…) or a path on this site (/contact).
+           */
+          url?: string | null;
+          label: string;
+        };
+        id?: string | null;
+      }[]
+    | null;
+  enableHeaderCta?: boolean | null;
+  headerCta?: {
+    type?: ('reference' | 'custom') | null;
+    newTab?: boolean | null;
+    reference?:
+      | ({
+          relationTo: 'pages';
+          value: number | Page;
+        } | null)
+      | ({
+          relationTo: 'posts';
+          value: number | Post;
+        } | null)
+      | ({
+          relationTo: 'ventures';
+          value: number | Venture;
+        } | null);
+    /**
+     * A full URL (https://…), an email link (mailto:…) or a path on this site (/contact).
+     */
+    url?: string | null;
+    label: string;
+  };
+  /**
+   * A sentence or two about the brand, shown beside the logo.
+   */
+  footerBlurb?: string | null;
+  footerNav?:
+    | {
+        link: {
+          type?: ('reference' | 'custom') | null;
+          newTab?: boolean | null;
+          reference?:
+            | ({
+                relationTo: 'pages';
+                value: number | Page;
+              } | null)
+            | ({
+                relationTo: 'posts';
+                value: number | Post;
+              } | null)
+            | ({
+                relationTo: 'ventures';
+                value: number | Venture;
+              } | null);
+          /**
+           * A full URL (https://…), an email link (mailto:…) or a path on this site (/contact).
+           */
+          url?: string | null;
+          label: string;
+        };
+        id?: string | null;
+      }[]
+    | null;
+  legalLinks?:
+    | {
+        link: {
+          type?: ('reference' | 'custom') | null;
+          newTab?: boolean | null;
+          reference?:
+            | ({
+                relationTo: 'pages';
+                value: number | Page;
+              } | null)
+            | ({
+                relationTo: 'posts';
+                value: number | Post;
+              } | null)
+            | ({
+                relationTo: 'ventures';
+                value: number | Venture;
+              } | null);
+          /**
+           * A full URL (https://…), an email link (mailto:…) or a path on this site (/contact).
+           */
+          url?: string | null;
+          label: string;
+        };
+        id?: string | null;
+      }[]
+    | null;
+  /**
+   * Defaults to the site name.
+   */
+  copyrightName?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  /**
+   * Link to a map (e.g. Google Maps share link).
+   */
+  mapUrl?: string | null;
+  socials?:
+    | {
+        platform: 'instagram' | 'linkedin' | 'facebook' | 'x' | 'youtube' | 'pinterest' | 'behance' | 'other';
+        url: string;
+        id?: string | null;
+      }[]
+    | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "openings".
+ */
+export interface Opening {
+  id: number;
+  tenant?: (number | null) | Tenant;
+  title: string;
+  type: 'artist' | 'collaborator' | 'partner' | 'role';
+  /**
+   * e.g. "Part-time · Remote"
+   */
+  commitment?: string | null;
+  summary: string;
+  applyLabel?: string | null;
+  /**
+   * Where the button leads — usually /contact or /collaborate#form.
+   */
+  applyUrl?: string | null;
+  status: 'open' | 'closed';
+  /**
+   * Lower numbers appear first.
+   */
+  order?: number | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "users".
+ */
+export interface User {
+  id: number;
+  name: string;
+  roles: ('super-admin' | 'editor')[];
+  tenants?:
+    | {
+        tenant: number | Tenant;
+        id?: string | null;
+      }[]
+    | null;
+  updatedAt: string;
+  createdAt: string;
+  email: string;
+  resetPasswordToken?: string | null;
+  resetPasswordExpiration?: string | null;
+  salt?: string | null;
+  hash?: string | null;
+  loginAttempts?: number | null;
+  lockUntil?: string | null;
+  sessions?:
+    | {
+        id: string;
+        createdAt?: string | null;
+        expiresAt: string;
+      }[]
+    | null;
+  password?: string | null;
+  collection: 'users';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "redirects".
  */
 export interface Redirect {
-  id: string;
+  id: number;
+  tenant?: (number | null) | Tenant;
   /**
-   * You will need to rebuild the website when changing this field.
+   * The old path to redirect from, e.g. /old-page
    */
   from: string;
   to?: {
@@ -796,11 +1377,15 @@ export interface Redirect {
     reference?:
       | ({
           relationTo: 'pages';
-          value: string | Page;
+          value: number | Page;
         } | null)
       | ({
           relationTo: 'posts';
-          value: string | Post;
+          value: number | Post;
+        } | null)
+      | ({
+          relationTo: 'ventures';
+          value: number | Venture;
         } | null);
     url?: string | null;
   };
@@ -808,12 +1393,14 @@ export interface Redirect {
   createdAt: string;
 }
 /**
+ * Messages sent through the website forms. Newest first.
+ *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "form-submissions".
  */
 export interface FormSubmission {
-  id: string;
-  form: string | Form;
+  id: number;
+  form: number | Form;
   submissionData?:
     | {
         field: string;
@@ -821,37 +1408,7 @@ export interface FormSubmission {
         id?: string | null;
       }[]
     | null;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This is a collection of automatically created search results. These results are used by the global site search and will be updated automatically as documents in the CMS are created or updated.
- *
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "search".
- */
-export interface Search {
-  id: string;
-  title?: string | null;
-  priority?: number | null;
-  doc: {
-    relationTo: 'posts';
-    value: string | Post;
-  };
-  slug?: string | null;
-  meta?: {
-    title?: string | null;
-    description?: string | null;
-    image?: (string | null) | Media;
-  };
-  categories?:
-    | {
-        relationTo?: string | null;
-        categoryID?: string | null;
-        title?: string | null;
-        id?: string | null;
-      }[]
-    | null;
+  tenant?: (number | null) | Tenant;
   updatedAt: string;
   createdAt: string;
 }
@@ -860,7 +1417,7 @@ export interface Search {
  * via the `definition` "payload-kv".
  */
 export interface PayloadKv {
-  id: string;
+  id: number;
   key: string;
   data:
     | {
@@ -877,7 +1434,7 @@ export interface PayloadKv {
  * via the `definition` "payload-jobs".
  */
 export interface PayloadJob {
-  id: string;
+  id: number;
   /**
    * Input data provided to the job
    */
@@ -969,52 +1526,68 @@ export interface PayloadJob {
  * via the `definition` "payload-locked-documents".
  */
 export interface PayloadLockedDocument {
-  id: string;
+  id: number;
   document?:
     | ({
         relationTo: 'pages';
-        value: string | Page;
+        value: number | Page;
       } | null)
     | ({
         relationTo: 'posts';
-        value: string | Post;
-      } | null)
-    | ({
-        relationTo: 'media';
-        value: string | Media;
+        value: number | Post;
       } | null)
     | ({
         relationTo: 'categories';
-        value: string | Category;
+        value: number | Category;
+      } | null)
+    | ({
+        relationTo: 'media';
+        value: number | Media;
+      } | null)
+    | ({
+        relationTo: 'site-settings';
+        value: number | SiteSetting;
+      } | null)
+    | ({
+        relationTo: 'ventures';
+        value: number | Venture;
+      } | null)
+    | ({
+        relationTo: 'people';
+        value: number | Person;
+      } | null)
+    | ({
+        relationTo: 'openings';
+        value: number | Opening;
+      } | null)
+    | ({
+        relationTo: 'tenants';
+        value: number | Tenant;
       } | null)
     | ({
         relationTo: 'users';
-        value: string | User;
+        value: number | User;
       } | null)
     | ({
         relationTo: 'redirects';
-        value: string | Redirect;
+        value: number | Redirect;
       } | null)
     | ({
         relationTo: 'forms';
-        value: string | Form;
+        value: number | Form;
       } | null)
     | ({
         relationTo: 'form-submissions';
-        value: string | FormSubmission;
-      } | null)
-    | ({
-        relationTo: 'search';
-        value: string | Search;
+        value: number | FormSubmission;
       } | null)
     | ({
         relationTo: 'payload-folders';
-        value: string | FolderInterface;
+        value: number | FolderInterface;
       } | null);
   globalSlug?: string | null;
   user: {
     relationTo: 'users';
-    value: string | User;
+    value: number | User;
   };
   updatedAt: string;
   createdAt: string;
@@ -1024,10 +1597,10 @@ export interface PayloadLockedDocument {
  * via the `definition` "payload-preferences".
  */
 export interface PayloadPreference {
-  id: string;
+  id: number;
   user: {
     relationTo: 'users';
-    value: string | User;
+    value: number | User;
   };
   key?: string | null;
   value?:
@@ -1047,7 +1620,7 @@ export interface PayloadPreference {
  * via the `definition` "payload-migrations".
  */
 export interface PayloadMigration {
-  id: string;
+  id: number;
   name?: string | null;
   batch?: number | null;
   updatedAt: string;
@@ -1058,37 +1631,26 @@ export interface PayloadMigration {
  * via the `definition` "pages_select".
  */
 export interface PagesSelect<T extends boolean = true> {
+  tenant?: T;
   title?: T;
-  hero?:
-    | T
-    | {
-        type?: T;
-        richText?: T;
-        links?:
-          | T
-          | {
-              link?:
-                | T
-                | {
-                    type?: T;
-                    newTab?: T;
-                    reference?: T;
-                    url?: T;
-                    label?: T;
-                    appearance?: T;
-                  };
-              id?: T;
-            };
-        media?: T;
-      };
   layout?:
     | T
     | {
-        cta?: T | CallToActionBlockSelect<T>;
+        hero?: T | HeroBlockSelect<T>;
+        pageIntro?: T | PageIntroBlockSelect<T>;
+        manifesto?: T | ManifestoBlockSelect<T>;
         content?: T | ContentBlockSelect<T>;
+        split?: T | SplitBlockSelect<T>;
         mediaBlock?: T | MediaBlockSelect<T>;
-        archive?: T | ArchiveBlockSelect<T>;
+        ventureSpotlight?: T | VentureSpotlightBlockSelect<T>;
+        venturesGrid?: T | VenturesGridBlockSelect<T>;
+        principles?: T | PrinciplesBlockSelect<T>;
+        quote?: T | QuoteBlockSelect<T>;
+        leadership?: T | LeadershipBlockSelect<T>;
+        journalFeed?: T | JournalFeedBlockSelect<T>;
+        openings?: T | OpeningsBlockSelect<T>;
         formBlock?: T | FormBlockSelect<T>;
+        ctaBand?: T | CtaBandBlockSelect<T>;
       };
   meta?:
     | T
@@ -1106,10 +1668,13 @@ export interface PagesSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "CallToActionBlock_select".
+ * via the `definition` "HeroBlock_select".
  */
-export interface CallToActionBlockSelect<T extends boolean = true> {
-  richText?: T;
+export interface HeroBlockSelect<T extends boolean = true> {
+  variant?: T;
+  eyebrow?: T;
+  heading?: T;
+  subheading?: T;
   links?:
     | T
     | {
@@ -1125,6 +1690,31 @@ export interface CallToActionBlockSelect<T extends boolean = true> {
             };
         id?: T;
       };
+  showOrnament?: T;
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "PageIntroBlock_select".
+ */
+export interface PageIntroBlockSelect<T extends boolean = true> {
+  eyebrow?: T;
+  heading?: T;
+  intro?: T;
+  align?: T;
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "ManifestoBlock_select".
+ */
+export interface ManifestoBlockSelect<T extends boolean = true> {
+  eyebrow?: T;
+  heading?: T;
+  content?: T;
+  layout?: T;
   id?: T;
   blockName?: T;
 }
@@ -1133,6 +1723,7 @@ export interface CallToActionBlockSelect<T extends boolean = true> {
  * via the `definition` "ContentBlock_select".
  */
 export interface ContentBlockSelect<T extends boolean = true> {
+  width?: T;
   columns?:
     | T
     | {
@@ -1156,24 +1747,130 @@ export interface ContentBlockSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "MediaBlock_select".
+ * via the `definition` "SplitBlock_select".
  */
-export interface MediaBlockSelect<T extends boolean = true> {
+export interface SplitBlockSelect<T extends boolean = true> {
+  eyebrow?: T;
+  heading?: T;
+  content?: T;
   media?: T;
+  mediaPosition?: T;
+  background?: T;
+  enableLink?: T;
+  link?:
+    | T
+    | {
+        type?: T;
+        newTab?: T;
+        reference?: T;
+        url?: T;
+        label?: T;
+        appearance?: T;
+      };
   id?: T;
   blockName?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "ArchiveBlock_select".
+ * via the `definition` "MediaBlock_select".
  */
-export interface ArchiveBlockSelect<T extends boolean = true> {
-  introContent?: T;
+export interface MediaBlockSelect<T extends boolean = true> {
+  media?: T;
+  size?: T;
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "VentureSpotlightBlock_select".
+ */
+export interface VentureSpotlightBlockSelect<T extends boolean = true> {
+  eyebrow?: T;
+  venture?: T;
+  linkLabel?: T;
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "VenturesGridBlock_select".
+ */
+export interface VenturesGridBlockSelect<T extends boolean = true> {
+  eyebrow?: T;
+  heading?: T;
+  intro?: T;
   populateBy?: T;
-  relationTo?: T;
-  categories?: T;
+  ventures?: T;
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "PrinciplesBlock_select".
+ */
+export interface PrinciplesBlockSelect<T extends boolean = true> {
+  eyebrow?: T;
+  heading?: T;
+  intro?: T;
+  items?:
+    | T
+    | {
+        title?: T;
+        text?: T;
+        id?: T;
+      };
+  numbering?: T;
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "QuoteBlock_select".
+ */
+export interface QuoteBlockSelect<T extends boolean = true> {
+  quote?: T;
+  attribution?: T;
+  role?: T;
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "LeadershipBlock_select".
+ */
+export interface LeadershipBlockSelect<T extends boolean = true> {
+  eyebrow?: T;
+  heading?: T;
+  intro?: T;
+  populateBy?: T;
+  people?: T;
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "JournalFeedBlock_select".
+ */
+export interface JournalFeedBlockSelect<T extends boolean = true> {
+  eyebrow?: T;
+  heading?: T;
+  intro?: T;
   limit?: T;
-  selectedDocs?: T;
+  showViewAll?: T;
+  categories?: T;
+  emptyMessage?: T;
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "OpeningsBlock_select".
+ */
+export interface OpeningsBlockSelect<T extends boolean = true> {
+  eyebrow?: T;
+  heading?: T;
+  intro?: T;
+  emptyMessage?: T;
   id?: T;
   blockName?: T;
 }
@@ -1182,9 +1879,38 @@ export interface ArchiveBlockSelect<T extends boolean = true> {
  * via the `definition` "FormBlock_select".
  */
 export interface FormBlockSelect<T extends boolean = true> {
+  eyebrow?: T;
+  heading?: T;
+  intro?: T;
   form?: T;
-  enableIntro?: T;
-  introContent?: T;
+  showContactDetails?: T;
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "CtaBandBlock_select".
+ */
+export interface CtaBandBlockSelect<T extends boolean = true> {
+  eyebrow?: T;
+  heading?: T;
+  text?: T;
+  links?:
+    | T
+    | {
+        link?:
+          | T
+          | {
+              type?: T;
+              newTab?: T;
+              reference?: T;
+              url?: T;
+              label?: T;
+              appearance?: T;
+            };
+        id?: T;
+      };
+  tone?: T;
   id?: T;
   blockName?: T;
 }
@@ -1193,11 +1919,11 @@ export interface FormBlockSelect<T extends boolean = true> {
  * via the `definition` "posts_select".
  */
 export interface PostsSelect<T extends boolean = true> {
+  tenant?: T;
   title?: T;
+  excerpt?: T;
   heroImage?: T;
   content?: T;
-  relatedPosts?: T;
-  categories?: T;
   meta?:
     | T
     | {
@@ -1206,13 +1932,7 @@ export interface PostsSelect<T extends boolean = true> {
         description?: T;
       };
   publishedAt?: T;
-  authors?: T;
-  populatedAuthors?:
-    | T
-    | {
-        id?: T;
-        name?: T;
-      };
+  categories?: T;
   generateSlug?: T;
   slug?: T;
   updatedAt?: T;
@@ -1221,9 +1941,22 @@ export interface PostsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "categories_select".
+ */
+export interface CategoriesSelect<T extends boolean = true> {
+  tenant?: T;
+  title?: T;
+  generateSlug?: T;
+  slug?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "media_select".
  */
 export interface MediaSelect<T extends boolean = true> {
+  tenant?: T;
   alt?: T;
   caption?: T;
   folder?: T;
@@ -1315,19 +2048,179 @@ export interface MediaSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "categories_select".
+ * via the `definition` "site-settings_select".
  */
-export interface CategoriesSelect<T extends boolean = true> {
-  title?: T;
-  generateSlug?: T;
-  slug?: T;
-  parent?: T;
-  breadcrumbs?:
+export interface SiteSettingsSelect<T extends boolean = true> {
+  tenant?: T;
+  siteName?: T;
+  shortName?: T;
+  tagline?: T;
+  description?: T;
+  ogImage?: T;
+  logo?: T;
+  logoOnDark?: T;
+  wordmark?: T;
+  colours?:
     | T
     | {
-        doc?: T;
+        primary?: T;
+        background?: T;
+        surface?: T;
+        foreground?: T;
+      };
+  headerNav?:
+    | T
+    | {
+        link?:
+          | T
+          | {
+              type?: T;
+              newTab?: T;
+              reference?: T;
+              url?: T;
+              label?: T;
+            };
+        id?: T;
+      };
+  enableHeaderCta?: T;
+  headerCta?:
+    | T
+    | {
+        type?: T;
+        newTab?: T;
+        reference?: T;
         url?: T;
         label?: T;
+      };
+  footerBlurb?: T;
+  footerNav?:
+    | T
+    | {
+        link?:
+          | T
+          | {
+              type?: T;
+              newTab?: T;
+              reference?: T;
+              url?: T;
+              label?: T;
+            };
+        id?: T;
+      };
+  legalLinks?:
+    | T
+    | {
+        link?:
+          | T
+          | {
+              type?: T;
+              newTab?: T;
+              reference?: T;
+              url?: T;
+              label?: T;
+            };
+        id?: T;
+      };
+  copyrightName?: T;
+  email?: T;
+  phone?: T;
+  address?: T;
+  mapUrl?: T;
+  socials?:
+    | T
+    | {
+        platform?: T;
+        url?: T;
+        id?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "ventures_select".
+ */
+export interface VenturesSelect<T extends boolean = true> {
+  tenant?: T;
+  name?: T;
+  tagline?: T;
+  summary?: T;
+  description?: T;
+  highlights?:
+    | T
+    | {
+        label?: T;
+        value?: T;
+        id?: T;
+      };
+  cover?: T;
+  logo?: T;
+  meta?:
+    | T
+    | {
+        title?: T;
+        image?: T;
+        description?: T;
+      };
+  status?: T;
+  sector?: T;
+  website?: T;
+  order?: T;
+  generateSlug?: T;
+  slug?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "people_select".
+ */
+export interface PeopleSelect<T extends boolean = true> {
+  tenant?: T;
+  name?: T;
+  role?: T;
+  portrait?: T;
+  bio?: T;
+  links?:
+    | T
+    | {
+        label?: T;
+        url?: T;
+        id?: T;
+      };
+  order?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "openings_select".
+ */
+export interface OpeningsSelect<T extends boolean = true> {
+  tenant?: T;
+  title?: T;
+  type?: T;
+  commitment?: T;
+  summary?: T;
+  applyLabel?: T;
+  applyUrl?: T;
+  status?: T;
+  order?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "tenants_select".
+ */
+export interface TenantsSelect<T extends boolean = true> {
+  name?: T;
+  slug?: T;
+  domains?:
+    | T
+    | {
+        domain?: T;
         id?: T;
       };
   updatedAt?: T;
@@ -1339,6 +2232,13 @@ export interface CategoriesSelect<T extends boolean = true> {
  */
 export interface UsersSelect<T extends boolean = true> {
   name?: T;
+  roles?: T;
+  tenants?:
+    | T
+    | {
+        tenant?: T;
+        id?: T;
+      };
   updatedAt?: T;
   createdAt?: T;
   email?: T;
@@ -1361,6 +2261,7 @@ export interface UsersSelect<T extends boolean = true> {
  * via the `definition` "redirects_select".
  */
 export interface RedirectsSelect<T extends boolean = true> {
+  tenant?: T;
   from?: T;
   to?:
     | T
@@ -1377,6 +2278,7 @@ export interface RedirectsSelect<T extends boolean = true> {
  * via the `definition` "forms_select".
  */
 export interface FormsSelect<T extends boolean = true> {
+  tenant?: T;
   title?: T;
   fields?:
     | T
@@ -1389,16 +2291,6 @@ export interface FormsSelect<T extends boolean = true> {
               width?: T;
               required?: T;
               defaultValue?: T;
-              id?: T;
-              blockName?: T;
-            };
-        country?:
-          | T
-          | {
-              name?: T;
-              label?: T;
-              width?: T;
-              required?: T;
               id?: T;
               blockName?: T;
             };
@@ -1445,16 +2337,6 @@ export interface FormsSelect<T extends boolean = true> {
                     value?: T;
                     id?: T;
                   };
-              required?: T;
-              id?: T;
-              blockName?: T;
-            };
-        state?:
-          | T
-          | {
-              name?: T;
-              label?: T;
-              width?: T;
               required?: T;
               id?: T;
               blockName?: T;
@@ -1518,33 +2400,7 @@ export interface FormSubmissionsSelect<T extends boolean = true> {
         value?: T;
         id?: T;
       };
-  updatedAt?: T;
-  createdAt?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "search_select".
- */
-export interface SearchSelect<T extends boolean = true> {
-  title?: T;
-  priority?: T;
-  doc?: T;
-  slug?: T;
-  meta?:
-    | T
-    | {
-        title?: T;
-        description?: T;
-        image?: T;
-      };
-  categories?:
-    | T
-    | {
-        relationTo?: T;
-        categoryID?: T;
-        title?: T;
-        id?: T;
-      };
+  tenant?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -1633,110 +2489,6 @@ export interface PayloadMigrationsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "header".
- */
-export interface Header {
-  id: string;
-  navItems?:
-    | {
-        link: {
-          type?: ('reference' | 'custom') | null;
-          newTab?: boolean | null;
-          reference?:
-            | ({
-                relationTo: 'pages';
-                value: string | Page;
-              } | null)
-            | ({
-                relationTo: 'posts';
-                value: string | Post;
-              } | null);
-          url?: string | null;
-          label: string;
-        };
-        id?: string | null;
-      }[]
-    | null;
-  updatedAt?: string | null;
-  createdAt?: string | null;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "footer".
- */
-export interface Footer {
-  id: string;
-  navItems?:
-    | {
-        link: {
-          type?: ('reference' | 'custom') | null;
-          newTab?: boolean | null;
-          reference?:
-            | ({
-                relationTo: 'pages';
-                value: string | Page;
-              } | null)
-            | ({
-                relationTo: 'posts';
-                value: string | Post;
-              } | null);
-          url?: string | null;
-          label: string;
-        };
-        id?: string | null;
-      }[]
-    | null;
-  updatedAt?: string | null;
-  createdAt?: string | null;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "header_select".
- */
-export interface HeaderSelect<T extends boolean = true> {
-  navItems?:
-    | T
-    | {
-        link?:
-          | T
-          | {
-              type?: T;
-              newTab?: T;
-              reference?: T;
-              url?: T;
-              label?: T;
-            };
-        id?: T;
-      };
-  updatedAt?: T;
-  createdAt?: T;
-  globalType?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "footer_select".
- */
-export interface FooterSelect<T extends boolean = true> {
-  navItems?:
-    | T
-    | {
-        link?:
-          | T
-          | {
-              type?: T;
-              newTab?: T;
-              reference?: T;
-              url?: T;
-              label?: T;
-            };
-        id?: T;
-      };
-  updatedAt?: T;
-  createdAt?: T;
-  globalType?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "collections_widget".
  */
 export interface CollectionsWidget {
@@ -1756,14 +2508,14 @@ export interface TaskSchedulePublish {
     doc?:
       | ({
           relationTo: 'pages';
-          value: string | Page;
+          value: number | Page;
         } | null)
       | ({
           relationTo: 'posts';
-          value: string | Post;
+          value: number | Post;
         } | null);
     global?: string | null;
-    user?: (string | null) | User;
+    user?: (number | null) | User;
   };
   output?: unknown;
 }
@@ -1791,17 +2543,6 @@ export interface BannerBlock {
   id?: string | null;
   blockName?: string | null;
   blockType: 'banner';
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "CodeBlock".
- */
-export interface CodeBlock {
-  language?: ('typescript' | 'javascript' | 'css') | null;
-  code: string;
-  id?: string | null;
-  blockName?: string | null;
-  blockType: 'code';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

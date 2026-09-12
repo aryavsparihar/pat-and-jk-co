@@ -1,0 +1,22 @@
+// Gentle PJK branding for the admin panel: woodland-green accents, leaving Payload's UI intact.
+:root {
+  --pjk-green: #0f2a18;
+}
+
+html[data-theme='light'] {
+  --theme-success-500: var(--pjk-green);
+
+  .btn--style-primary {
+    --bg-color: var(--pjk-green);
+    --hover-bg: #1c3d28;
+  }
+}
+
+.template-minimal .login__brand,
+.template-minimal__wrap .login__brand {
+  color: var(--pjk-green);
+}
+
+html[data-theme='dark'] .login__brand {
+  color: #f6f3ec;
+}

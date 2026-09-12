@@ -2,24 +2,12 @@ import type { CollectionConfig } from 'payload'
 
 import { authenticated } from '../../access/authenticated'
 import { authenticatedOrPublished } from '../../access/authenticatedOrPublished'
-import { Archive } from '../../blocks/ArchiveBlock/config'
-import { CallToAction } from '../../blocks/CallToAction/config'
-import { Content } from '../../blocks/Content/config'
-import { FormBlock } from '../../blocks/Form/config'
-import { MediaBlock } from '../../blocks/MediaBlock/config'
-import { hero } from '@/heros/config'
-import { slugField } from 'payload'
+import { pageBlocks } from '../../blocks'
+import { seoTab } from '../../fields/seo'
+import { tenantSlugField } from '../../fields/slug'
 import { populatePublishedAt } from '../../hooks/populatePublishedAt'
-import { generatePreviewPath } from '../../utilities/generatePreviewPath'
-import { revalidateDelete, revalidatePage } from './hooks/revalidatePage'
-
-import {
-  MetaDescriptionField,
-  MetaImageField,
-  MetaTitleField,
-  OverviewField,
-  PreviewField,
-} from '@payloadcms/plugin-seo/fields'
+import { revalidateFrontend, revalidateFrontendAfterDelete } from '../../hooks/revalidateFrontend'
+import { generatePreviewPath } from '../../utilities/previewPath'
 
 export const Pages: CollectionConfig<'pages'> = {
   slug: 'pages',
@@ -29,27 +17,25 @@ export const Pages: CollectionConfig<'pages'> = {
     read: authenticatedOrPublished,
     update: authenticated,
   },
-  // This config controls what's populated by default when a page is referenced
-  // https://payloadcms.com/docs/queries/select#defaultpopulate-collection-config-property
-  // Type safe if the collection slug generic is passed to `CollectionConfig` - `CollectionConfig<'pages'>
+  // What's populated when a page is referenced from a link
   defaultPopulate: {
     title: true,
     slug: true,
   },
   admin: {
-    defaultColumns: ['title', 'slug', 'updatedAt'],
+    defaultColumns: ['title', 'slug', '_status', 'updatedAt'],
+    description:
+      'Every page is built from blocks. The page with slug "home" is the homepage. Publish to go live instantly.',
+    group: 'Website',
     livePreview: {
       url: ({ data, req }) =>
-        generatePreviewPath({
-          slug: data?.slug,
-          collection: 'pages',
-          req,
-        }),
+        generatePreviewPath({ slug: data?.slug, collection: 'pages', tenant: data?.tenant, req }),
     },
     preview: (data, { req }) =>
       generatePreviewPath({
         slug: data?.slug as string,
         collection: 'pages',
+        tenant: data?.tenant as number,
         req,
       }),
     useAsTitle: 'title',
@@ -64,50 +50,20 @@ export const Pages: CollectionConfig<'pages'> = {
       type: 'tabs',
       tabs: [
         {
-          fields: [hero],
-          label: 'Hero',
-        },
-        {
+          label: 'Content',
           fields: [
             {
               name: 'layout',
               type: 'blocks',
-              blocks: [CallToAction, Content, MediaBlock, Archive, FormBlock],
+              blocks: pageBlocks,
               required: true,
               admin: {
                 initCollapsed: true,
               },
             },
           ],
-          label: 'Content',
         },
-        {
-          name: 'meta',
-          label: 'SEO',
-          fields: [
-            OverviewField({
-              titlePath: 'meta.title',
-              descriptionPath: 'meta.description',
-              imagePath: 'meta.image',
-            }),
-            MetaTitleField({
-              hasGenerateFn: true,
-            }),
-            MetaImageField({
-              relationTo: 'media',
-            }),
-
-            MetaDescriptionField({}),
-            PreviewField({
-              // if the `generateUrl` function is configured
-              hasGenerateFn: true,
-
-              // field paths to match the target field for data
-              titlePath: 'meta.title',
-              descriptionPath: 'meta.description',
-            }),
-          ],
-        },
+        seoTab,
       ],
     },
     {
@@ -117,17 +73,18 @@ export const Pages: CollectionConfig<'pages'> = {
         position: 'sidebar',
       },
     },
-    slugField(),
+    tenantSlugField('pages'),
   ],
+  indexes: [{ fields: ['tenant', 'slug'], unique: true }],
   hooks: {
-    afterChange: [revalidatePage],
+    afterChange: [revalidateFrontend],
     beforeChange: [populatePublishedAt],
-    afterDelete: [revalidateDelete],
+    afterDelete: [revalidateFrontendAfterDelete],
   },
   versions: {
     drafts: {
       autosave: {
-        interval: 100, // We set this interval for optimal live preview
+        interval: 200, // keeps live preview responsive
       },
       schedulePublish: true,
     },

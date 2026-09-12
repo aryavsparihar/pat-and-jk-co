@@ -10,6 +10,7 @@ import { fileURLToPath } from 'url'
 
 import { anyone } from '../access/anyone'
 import { authenticated } from '../access/authenticated'
+import { revalidateFrontend, revalidateFrontendAfterDelete } from '../hooks/revalidateFrontend'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -23,11 +24,18 @@ export const Media: CollectionConfig = {
     read: anyone,
     update: authenticated,
   },
+  admin: {
+    group: 'Website',
+  },
   fields: [
     {
       name: 'alt',
       type: 'text',
-      //required: true,
+      required: true,
+      admin: {
+        description:
+          'Describe the image for visitors using screen readers and for search engines, e.g. "Framed oil painting in a walnut frame".',
+      },
     },
     {
       name: 'caption',
@@ -39,11 +47,16 @@ export const Media: CollectionConfig = {
       }),
     },
   ],
+  hooks: {
+    afterChange: [revalidateFrontend],
+    afterDelete: [revalidateFrontendAfterDelete],
+  },
   upload: {
-    // Upload to the public/media directory in Next.js making them publicly accessible even outside of Payload
+    // Local development stores files in public/media; production uses Vercel Blob (see plugins)
     staticDir: path.resolve(dirname, '../../public/media'),
     adminThumbnail: 'thumbnail',
     focalPoint: true,
+    mimeTypes: ['image/*', 'video/mp4', 'video/webm', 'application/pdf'],
     imageSizes: [
       {
         name: 'thumbnail',
@@ -51,8 +64,8 @@ export const Media: CollectionConfig = {
       },
       {
         name: 'square',
-        width: 500,
-        height: 500,
+        width: 600,
+        height: 600,
       },
       {
         name: 'small',
@@ -60,15 +73,15 @@ export const Media: CollectionConfig = {
       },
       {
         name: 'medium',
-        width: 900,
+        width: 1000,
       },
       {
         name: 'large',
-        width: 1400,
+        width: 1600,
       },
       {
         name: 'xlarge',
-        width: 1920,
+        width: 2400,
       },
       {
         name: 'og',

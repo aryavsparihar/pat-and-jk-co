@@ -1,32 +1,37 @@
 import { formBuilderPlugin } from '@payloadcms/plugin-form-builder'
-import { nestedDocsPlugin } from '@payloadcms/plugin-nested-docs'
+import { multiTenantPlugin } from '@payloadcms/plugin-multi-tenant'
 import { redirectsPlugin } from '@payloadcms/plugin-redirects'
 import { seoPlugin } from '@payloadcms/plugin-seo'
-import { searchPlugin } from '@payloadcms/plugin-search'
-import { Plugin } from 'payload'
-import { revalidateRedirects } from '@/hooks/revalidateRedirects'
-import { GenerateTitle, GenerateURL } from '@payloadcms/plugin-seo/types'
+import { vercelBlobStorage } from '@payloadcms/storage-vercel-blob'
+import type { GenerateTitle, GenerateURL } from '@payloadcms/plugin-seo/types'
 import { FixedToolbarFeature, HeadingFeature, lexicalEditor } from '@payloadcms/richtext-lexical'
-import { searchFields } from '@/search/fieldOverrides'
-import { beforeSyncWithSearch } from '@/search/beforeSync'
+import type { Plugin } from 'payload'
 
-import { Page, Post } from '@/payload-types'
+import { authenticated } from '@/access/authenticated'
+import { isSuperAdmin, superAdminOnly, superAdminOnlyField } from '@/access/roles'
+import {
+  protectSubmission,
+  readSubmissions,
+  submissionTenantField,
+} from '@/collections/FormSubmissions/overrides'
+import { revalidateFrontend } from '@/hooks/revalidateFrontend'
+import type { Config, Page, Post, Venture } from '@/payload-types'
+import { docPath } from '@/utilities/docHref'
 import { getServerSideURL } from '@/utilities/getURL'
 
-const generateTitle: GenerateTitle<Post | Page> = ({ doc }) => {
-  return doc?.title ? `${doc.title} | Payload Website Template` : 'Payload Website Template'
-}
+type SeoDoc = Page | Post | Venture
 
-const generateURL: GenerateURL<Post | Page> = ({ doc }) => {
-  const url = getServerSideURL()
+const generateTitle: GenerateTitle<SeoDoc> = ({ doc }) =>
+  (doc && 'name' in doc ? doc.name : doc?.title) || ''
 
-  return doc?.slug ? `${url}/${doc.slug}` : url
-}
+const generateURL: GenerateURL<SeoDoc> = ({ doc, collectionSlug }) =>
+  `${getServerSideURL()}${docPath(collectionSlug ?? 'pages', doc?.slug)}`
 
 export const plugins: Plugin[] = [
   redirectsPlugin({
-    collections: ['pages', 'posts'],
+    collections: ['pages', 'posts', 'ventures'],
     overrides: {
+      admin: { group: 'Website' },
       // @ts-expect-error - This is a valid override, mapped fields don't resolve to the same type
       fields: ({ defaultFields }) => {
         return defaultFields.map((field) => {
@@ -34,7 +39,7 @@ export const plugins: Plugin[] = [
             return {
               ...field,
               admin: {
-                description: 'You will need to rebuild the website when changing this field.',
+                description: 'The old path to redirect from, e.g. /old-page',
               },
             }
           }
@@ -42,13 +47,9 @@ export const plugins: Plugin[] = [
         })
       },
       hooks: {
-        afterChange: [revalidateRedirects],
+        afterChange: [revalidateFrontend],
       },
     },
-  }),
-  nestedDocsPlugin({
-    collections: ['categories'],
-    generateURL: (docs) => docs.reduce((url, doc) => `${url}/${doc.slug}`, ''),
   }),
   seoPlugin({
     generateTitle,
@@ -57,8 +58,11 @@ export const plugins: Plugin[] = [
   formBuilderPlugin({
     fields: {
       payment: false,
+      country: false,
+      state: false,
     },
     formOverrides: {
+      admin: { group: 'Enquiries' },
       fields: ({ defaultFields }) => {
         return defaultFields.map((field) => {
           if ('name' in field && field.name === 'confirmationMessage') {
@@ -69,7 +73,7 @@ export const plugins: Plugin[] = [
                   return [
                     ...rootFeatures,
                     FixedToolbarFeature(),
-                    HeadingFeature({ enabledHeadingSizes: ['h1', 'h2', 'h3', 'h4'] }),
+                    HeadingFeature({ enabledHeadingSizes: ['h2', 'h3', 'h4'] }),
                   ]
                 },
               }),
@@ -78,15 +82,60 @@ export const plugins: Plugin[] = [
           return field
         })
       },
-    },
-  }),
-  searchPlugin({
-    collections: ['posts'],
-    beforeSync: beforeSyncWithSearch,
-    searchOverrides: {
-      fields: ({ defaultFields }) => {
-        return [...defaultFields, ...searchFields]
+      hooks: {
+        afterChange: [revalidateFrontend],
       },
     },
+    formSubmissionOverrides: {
+      admin: {
+        group: 'Enquiries',
+        defaultColumns: ['form', 'createdAt', 'tenant'],
+        description: 'Messages sent through the website forms. Newest first.',
+      },
+      defaultSort: '-createdAt',
+      access: {
+        read: readSubmissions,
+        update: superAdminOnly,
+        delete: authenticated,
+      },
+      fields: ({ defaultFields }) => [...defaultFields, submissionTenantField],
+      hooks: {
+        beforeChange: [protectSubmission],
+      },
+    },
+  }),
+  // Must come after the plugins above so their collections (forms, redirects) exist
+  multiTenantPlugin<Config>({
+    tenantSelectorLabel: 'Brand',
+    collections: {
+      pages: {},
+      posts: {},
+      categories: {},
+      media: {},
+      ventures: {},
+      people: {},
+      openings: {},
+      forms: {},
+      redirects: {},
+      'site-settings': { isGlobal: true },
+    },
+    tenantsArrayField: {
+      includeDefaultField: true,
+      // Only super admins can assign brands to users
+      arrayFieldAccess: {
+        create: superAdminOnlyField,
+        update: superAdminOnlyField,
+      },
+    },
+    userHasAccessToAllTenants: (user) => isSuperAdmin(user),
+  }),
+  vercelBlobStorage({
+    // Enabled automatically on Vercel once a Blob store is connected; local dev writes to public/media
+    enabled: Boolean(process.env.BLOB_READ_WRITE_TOKEN),
+    clientUploads: true,
+    collections: {
+      media: true,
+    },
+    token: process.env.BLOB_READ_WRITE_TOKEN || '',
   }),
 ]

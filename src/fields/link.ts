@@ -2,18 +2,25 @@ import type { Field, GroupField } from 'payload'
 
 import deepMerge from '@/utilities/deepMerge'
 
-export type LinkAppearances = 'default' | 'outline'
+export type LinkAppearances = 'default' | 'outline' | 'text'
 
 export const appearanceOptions: Record<LinkAppearances, { label: string; value: string }> = {
   default: {
-    label: 'Default',
+    label: 'Solid button',
     value: 'default',
   },
   outline: {
-    label: 'Outline',
+    label: 'Outline button',
     value: 'outline',
   },
+  text: {
+    label: 'Text link with arrow',
+    value: 'text',
+  },
 }
+
+/** Collections an internal link can point to. Kept in sync with `docHref()` in utilities/docHref.ts */
+export const linkableCollections = ['pages', 'posts', 'ventures'] as const
 
 type LinkType = (options?: {
   appearances?: LinkAppearances[] | false
@@ -75,7 +82,7 @@ export const link: LinkType = ({ appearances, disableLabel = false, overrides = 
         condition: (_, siblingData) => siblingData?.type === 'reference',
       },
       label: 'Document to link to',
-      relationTo: ['pages', 'posts'],
+      relationTo: [...linkableCollections],
       required: true,
     },
     {
@@ -83,6 +90,7 @@ export const link: LinkType = ({ appearances, disableLabel = false, overrides = 
       type: 'text',
       admin: {
         condition: (_, siblingData) => siblingData?.type === 'custom',
+        description: 'A full URL (https://…), an email link (mailto:…) or a path on this site (/contact).',
       },
       label: 'Custom URL',
       required: true,
@@ -90,18 +98,16 @@ export const link: LinkType = ({ appearances, disableLabel = false, overrides = 
   ]
 
   if (!disableLabel) {
-    linkTypes.map((linkType) => ({
-      ...linkType,
-      admin: {
-        ...linkType.admin,
-        width: '50%',
-      },
-    }))
-
     linkResult.fields.push({
       type: 'row',
       fields: [
-        ...linkTypes,
+        ...linkTypes.map((linkType) => ({
+          ...linkType,
+          admin: {
+            ...linkType.admin,
+            width: '50%',
+          },
+        })) as Field[],
         {
           name: 'label',
           type: 'text',
@@ -118,7 +124,11 @@ export const link: LinkType = ({ appearances, disableLabel = false, overrides = 
   }
 
   if (appearances !== false) {
-    let appearanceOptionsToUse = [appearanceOptions.default, appearanceOptions.outline]
+    let appearanceOptionsToUse = [
+      appearanceOptions.default,
+      appearanceOptions.outline,
+      appearanceOptions.text,
+    ]
 
     if (appearances) {
       appearanceOptionsToUse = appearances.map((appearance) => appearanceOptions[appearance])

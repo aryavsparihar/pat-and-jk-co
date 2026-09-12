@@ -2,10 +2,15 @@ import type { CollectionConfig } from 'payload'
 
 import { anyone } from '../access/anyone'
 import { authenticated } from '../access/authenticated'
-import { slugField } from 'payload'
+import { tenantSlugField } from '../fields/slug'
+import { revalidateFrontend, revalidateFrontendAfterDelete } from '../hooks/revalidateFrontend'
 
 export const Categories: CollectionConfig = {
   slug: 'categories',
+  labels: {
+    singular: 'Journal category',
+    plural: 'Journal categories',
+  },
   access: {
     create: authenticated,
     delete: authenticated,
@@ -13,6 +18,7 @@ export const Categories: CollectionConfig = {
     update: authenticated,
   },
   admin: {
+    group: 'Website',
     useAsTitle: 'title',
   },
   fields: [
@@ -21,8 +27,11 @@ export const Categories: CollectionConfig = {
       type: 'text',
       required: true,
     },
-    slugField({
-      position: undefined,
-    }),
+    tenantSlugField('categories'),
   ],
+  indexes: [{ fields: ['tenant', 'slug'], unique: true }],
+  hooks: {
+    afterChange: [revalidateFrontend],
+    afterDelete: [revalidateFrontendAfterDelete],
+  },
 }

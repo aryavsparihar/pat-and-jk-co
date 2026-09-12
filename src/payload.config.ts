@@ -1,4 +1,5 @@
 import { postgresAdapter } from '@payloadcms/db-postgres'
+import { resendAdapter } from '@payloadcms/email-resend'
 import sharp from 'sharp'
 import path from 'path'
 import { buildConfig, PayloadRequest } from 'payload'
@@ -6,11 +7,14 @@ import { fileURLToPath } from 'url'
 
 import { Categories } from './collections/Categories'
 import { Media } from './collections/Media'
+import { Openings } from './collections/Openings'
 import { Pages } from './collections/Pages'
+import { People } from './collections/People'
 import { Posts } from './collections/Posts'
+import { SiteSettings } from './collections/SiteSettings'
+import { Tenants } from './collections/Tenants'
 import { Users } from './collections/Users'
-import { Footer } from './Footer/config'
-import { Header } from './Header/config'
+import { Ventures } from './collections/Ventures'
 import { plugins } from './plugins'
 import { defaultLexical } from '@/fields/defaultLexical'
 import { getServerSideURL } from './utilities/getURL'
@@ -18,15 +22,25 @@ import { getServerSideURL } from './utilities/getURL'
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 
+// Extra origins allowed to call the API with cookies (e.g. additional brand domains)
+const allowedOrigins = [
+  getServerSideURL(),
+  ...(process.env.ALLOWED_ORIGINS?.split(',').map((o) => o.trim()) ?? []),
+].filter(Boolean)
+
 export default buildConfig({
   admin: {
     components: {
-      // The `BeforeLogin` component renders a message that you see while logging into your admin panel.
-      // Feel free to delete this at any time. Simply remove the line below.
-      beforeLogin: ['@/components/BeforeLogin'],
-      // The `BeforeDashboard` component renders the 'welcome' block that you see after logging into your admin panel.
-      // Feel free to delete this at any time. Simply remove the line below.
-      beforeDashboard: ['@/components/BeforeDashboard'],
+      beforeLogin: ['@/components/admin/BeforeLogin'],
+      beforeDashboard: ['@/components/admin/Welcome'],
+      graphics: {
+        Logo: '@/components/admin/Graphics#Logo',
+        Icon: '@/components/admin/Graphics#Icon',
+      },
+    },
+    meta: {
+      titleSuffix: ' — PJK Admin',
+      icons: [{ rel: 'icon', type: 'image/svg+xml', url: '/favicon.svg' }],
     },
     importMap: {
       baseDir: path.resolve(dirname),
@@ -55,16 +69,35 @@ export default buildConfig({
       ],
     },
   },
-  // This config helps us configure global or default features that the other editors can inherit
   editor: defaultLexical,
   db: postgresAdapter({
     pool: {
       connectionString: process.env.DATABASE_URL || '',
     },
+    migrationDir: path.resolve(dirname, 'migrations'),
   }),
-  collections: [Pages, Posts, Media, Categories, Users],
-  cors: [getServerSideURL()].filter(Boolean),
-  globals: [Header, Footer],
+  // Sidebar order follows this list
+  collections: [
+    Pages,
+    Posts,
+    Categories,
+    Media,
+    SiteSettings,
+    Ventures,
+    People,
+    Openings,
+    Tenants,
+    Users,
+  ],
+  cors: allowedOrigins,
+  csrf: allowedOrigins,
+  email: process.env.RESEND_API_KEY
+    ? resendAdapter({
+        apiKey: process.env.RESEND_API_KEY,
+        defaultFromAddress: process.env.EMAIL_FROM_ADDRESS || 'noreply@pjk.co.in',
+        defaultFromName: process.env.EMAIL_FROM_NAME || 'PAT and J.K. Co.',
+      })
+    : undefined,
   plugins,
   secret: process.env.PAYLOAD_SECRET,
   sharp,

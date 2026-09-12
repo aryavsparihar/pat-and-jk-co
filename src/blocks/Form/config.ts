@@ -1,51 +1,35 @@
 import type { Block } from 'payload'
 
-import {
-  FixedToolbarFeature,
-  HeadingFeature,
-  InlineToolbarFeature,
-  lexicalEditor,
-} from '@payloadcms/richtext-lexical'
+import { eyebrowField, headingField, introField } from '@/fields/common'
 
 export const FormBlock: Block = {
   slug: 'formBlock',
   interfaceName: 'FormBlock',
   fields: [
+    eyebrowField(),
+    headingField(),
+    introField(),
     {
       name: 'form',
       type: 'relationship',
       relationTo: 'forms',
       required: true,
-    },
-    {
-      name: 'enableIntro',
-      type: 'checkbox',
-      label: 'Enable Intro Content',
-    },
-    {
-      name: 'introContent',
-      type: 'richText',
       admin: {
-        condition: (_, { enableIntro }) => Boolean(enableIntro),
+        description: 'Build and edit forms under "Forms". Submissions appear under "Form Submissions".',
       },
-      editor: lexicalEditor({
-        features: ({ rootFeatures }) => {
-          return [
-            ...rootFeatures,
-            HeadingFeature({ enabledHeadingSizes: ['h1', 'h2', 'h3', 'h4'] }),
-            FixedToolbarFeature(),
-            InlineToolbarFeature(),
-          ]
-        },
-      }),
-      label: 'Intro Content',
+    },
+    {
+      name: 'showContactDetails',
+      type: 'checkbox',
+      defaultValue: false,
+      label: 'Show contact details (from Site Settings) beside the form',
     },
   ],
   graphQL: {
     singularName: 'FormBlock',
   },
   labels: {
-    plural: 'Form Blocks',
-    singular: 'Form Block',
+    plural: 'Forms',
+    singular: 'Form',
   },
 }
