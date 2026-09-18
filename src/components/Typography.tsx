@@ -41,9 +41,14 @@ export const Label: React.FC<{
   children?: React.ReactNode
   className?: string
   as?: 'p' | 'span'
-}> = ({ children, className, as: Tag = 'p' }) => {
+  style?: React.CSSProperties
+}> = ({ children, className, as: Tag = 'p', style }) => {
   if (!children) return null
-  return <Tag className={cn('label', className)}>{children}</Tag>
+  return (
+    <Tag className={cn('label', className)} style={style}>
+      {children}
+    </Tag>
+  )
 }
 
 /** The leaf ornament from the logo. */

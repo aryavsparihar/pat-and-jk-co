@@ -431,6 +431,67 @@
     color: var(--ink);
   }
 
+  /*
+   * Opening sequence for the homepage: the wordmark is wiped in like ink drawn across the
+   * page, the rule under it draws outward, then the statement settles. Just over a second
+   * in total, and skipped entirely for visitors who prefer reduced motion.
+   */
+  .intro-mark {
+    animation: mark-wipe 1.15s cubic-bezier(0.32, 0.72, 0.24, 1) both;
+    will-change: clip-path, opacity;
+  }
+
+  .intro-rule {
+    transform-origin: center;
+    animation: rule-draw 0.9s cubic-bezier(0.32, 0.72, 0.24, 1) 0.65s both;
+  }
+
+  .intro-line {
+    animation: line-rise 0.9s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+    animation-delay: var(--intro-delay, 0.9s);
+  }
+
+  @keyframes mark-wipe {
+    from {
+      clip-path: inset(0 100% 0 0);
+      opacity: 0.25;
+    }
+    to {
+      clip-path: inset(0 0 0 0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes rule-draw {
+    from {
+      transform: scaleX(0);
+      opacity: 0;
+    }
+    to {
+      transform: scaleX(1);
+      opacity: 1;
+    }
+  }
+
+  @keyframes line-rise {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .intro-mark,
+    .intro-rule,
+    .intro-line {
+      animation: none;
+    }
+  }
+
   /* Current page in navigation */
   .nav-link {
     text-decoration-line: underline;

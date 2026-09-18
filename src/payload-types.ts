@@ -835,6 +835,10 @@ export interface Person {
    * Portrait orientation works best. Without one, the person’s initials are shown.
    */
   portrait?: (number | null) | Media;
+  /**
+   * One short line shown beside the name, e.g. “Chooses the work, and the way it is shown.”
+   */
+  caption?: string | null;
   bio?: string | null;
   links?:
     | {
@@ -2184,6 +2188,7 @@ export interface PeopleSelect<T extends boolean = true> {
   name?: T;
   role?: T;
   portrait?: T;
+  caption?: T;
   bio?: T;
   links?:
     | T

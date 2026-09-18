@@ -51,6 +51,9 @@ export const PersonFeature: React.FC<{ person: Person }> = ({ person }) => {
       <div className={hasPortrait ? 'lg:col-span-5' : 'lg:col-span-7'}>
         <h3 className="display-md">{person.name}</h3>
         <p className="label mt-3">{person.role}</p>
+        {person.caption && (
+          <p className="mt-5 font-display text-[1.35rem] italic text-primary">{person.caption}</p>
+        )}
         {person.bio && <p className="measure mt-6 whitespace-pre-line">{person.bio}</p>}
         <PersonLinks links={person.links} />
       </div>
@@ -63,6 +66,9 @@ export const PersonCard: React.FC<{ person: Person }> = ({ person }) => (
     <Portrait person={person} />
     <h3 className={portraitOf(person) ? 'display-sm mt-5' : 'display-sm'}>{person.name}</h3>
     <p className="label mt-1">{person.role}</p>
+    {person.caption && (
+      <p className="mt-3 font-display text-[1.15rem] italic text-primary">{person.caption}</p>
+    )}
     {person.bio && <p className="muted mt-3 whitespace-pre-line text-[1.05rem]">{person.bio}</p>}
     <PersonLinks links={person.links} />
   </article>

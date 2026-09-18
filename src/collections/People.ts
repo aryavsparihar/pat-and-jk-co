@@ -41,6 +41,14 @@ export const People: CollectionConfig = {
       },
     },
     {
+      name: 'caption',
+      type: 'text',
+      admin: {
+        description:
+          'One short line shown beside the name, e.g. “Chooses the work, and the way it is shown.”',
+      },
+    },
+    {
       name: 'bio',
       type: 'textarea',
     },

@@ -48,6 +48,12 @@ const pngFile = (file: string, name: string) => {
   return { data, mimetype: 'image/png', name, size: data.length }
 }
 
+/** Portraits produced by scripts/brand/make-portraits.mjs */
+const jpgFile = (file: string, name: string) => {
+  const data = readFileSync(path.resolve(process.cwd(), 'public/brand', file))
+  return { data, mimetype: 'image/jpeg', name, size: data.length }
+}
+
 const pageRef = (id: number, label: string, appearance?: 'default' | 'outline' | 'text') => ({
   link: {
     type: 'reference' as const,
@@ -135,6 +141,15 @@ async function seed() {
   )
   const ogImage = await upload('PAT and J.K. Co.', pngFile('og-default.png', 'pjk-share.png'))
 
+  const yuvrajPortrait = await upload(
+    'Yuvraj Singh Pathania, founder and creative director',
+    jpgFile('people/yuvraj.jpg', 'yuvraj-singh-pathania.jpg'),
+  )
+  const aryaveerPortrait = await upload(
+    'Aryaveer Singh Parihar, technical director',
+    jpgFile('people/aryaveer.jpg', 'aryaveer-singh-parihar.jpg'),
+  )
+
   // ── Journal categories ──────────────────────────────────────────────
   const announcements = await create('categories', {
     title: 'Announcements',
@@ -189,7 +204,18 @@ async function seed() {
     name: 'Mr. Yuvraj Singh Pathania',
     role: 'Founder and Creative Director',
     order: 1,
+    portrait: yuvrajPortrait.id,
+    caption: 'Chooses the work, the materials, and the way both are shown.',
     bio: 'Yuvraj Singh Pathania founded PAT and J.K. Co. and leads its creative direction. He is responsible for how each of the group’s businesses looks, what it offers and how it treats the people it works with, starting with Phulhaar Gallery by PJK.',
+  })
+
+  await create('people', {
+    name: 'Mr. Aryaveer Singh Parihar',
+    role: 'Technical Director',
+    order: 2,
+    portrait: aryaveerPortrait.id,
+    caption: 'Builds the systems the group runs on, and keeps them simple to use.',
+    bio: 'Aryaveer Singh Parihar leads technology for the group. He designs and builds the websites and systems each business runs on, beginning with this one, and keeps them simple enough for anyone at PJK to look after.',
   })
 
   // ── Openings ─────────────────────────────────────────────────────────
@@ -475,6 +501,88 @@ async function seed() {
     'PAT and J.K. Co. is a privately held company that builds and runs businesses in art and craft, starting with Phulhaar Gallery by PJK.',
   )
 
+  const values = await page(
+    'Our values',
+    'values',
+    [
+      {
+        blockType: 'pageIntro',
+        align: 'left',
+        eyebrow: 'Our values',
+        heading: 'What we stand for',
+        intro:
+          'Written down so they can be held to: how we deal with people, what we do with what we learn about them, and how the work itself gets done.',
+      },
+      {
+        blockType: 'manifesto',
+        eyebrow: 'Ethics',
+        heading: 'Ethics and company policy',
+        content: root(
+          p(
+            'These are the rules we hold ourselves to. They apply to everyone who works for PAT and J.K. Co. or any business in the group.',
+          ),
+          h('h3', 'Honest dealing'),
+          p(
+            'We describe what we sell accurately: what a work is, what it is made of, what was restored or replaced, and what it costs. Prices are the same whoever is asking. If we get something wrong, we say so and put it right.',
+          ),
+          h('h3', 'Artists and makers'),
+          p(
+            'Artists are told in writing what is being shown, for how long and on what terms, and are paid on the dates we agreed. Work left with us is insured and looked after. We do not copy an artist’s work, and we credit the people who made a thing whenever we show it.',
+          ),
+          h('h3', 'Information about people'),
+          p(
+            'We collect only what we need to answer you or complete an order, we keep it no longer than we need it, and we never sell it. What we hold and how to have it removed is set out in our [privacy policy](/privacy).',
+          ),
+          h('h3', 'Conflicts of interest'),
+          p(
+            'If anyone at PJK stands to gain personally from a transaction, they say so before it happens and step back from the decision. We do not accept gifts intended to influence what we buy, show or recommend.',
+          ),
+          h('h3', 'People at work'),
+          p(
+            'Everyone who works with us is treated the same regardless of background, and harassment of any kind ends the relationship. We follow the law wherever we operate, and we pay suppliers on time.',
+          ),
+          h('h3', 'Raising a concern'),
+          p(
+            'If something here is not being followed, write to the founder directly. Concerns raised in good faith are taken seriously and never held against the person who raised them.',
+          ),
+        ),
+      },
+      {
+        blockType: 'principles',
+        eyebrow: 'How we work',
+        heading: 'How we work',
+        numbering: 'roman',
+        items: [
+          {
+            title: 'We choose slowly',
+            text: 'Nothing carries our name until we would be glad to live with it ourselves. That means turning down more than we take on.',
+          },
+          {
+            title: 'We make carefully',
+            text: 'Materials are chosen for how they will age, not for what they cost us. The parts nobody sees are finished as well as the parts they do.',
+          },
+          {
+            title: 'We explain the work',
+            text: 'You are told what was done, by whom and with what, before you are asked to pay for it. No pressure, and no invented scarcity.',
+          },
+          {
+            title: 'We stay responsible for it',
+            text: 'If something we made or sold fails, we repair it. A sale is the start of the relationship, not the end of it.',
+          },
+        ],
+      },
+      {
+        blockType: 'ctaBand',
+        tone: 'surface',
+        eyebrow: 'Questions',
+        heading: 'Anything here you would like to ask about?',
+        text: 'We are glad to explain how we work, in as much detail as you would like.',
+        links: [url('/contact', 'Get in touch', 'default')],
+      },
+    ],
+    'The ethics, company policy and working practices of PAT and J.K. Co.',
+  )
+
   const ventures = await page(
     'Ventures',
     'ventures',
@@ -508,10 +616,11 @@ async function seed() {
         blockType: 'pageIntro',
         align: 'left',
         eyebrow: 'Leadership',
-        heading: 'Leadership',
-        intro: 'The people responsible for PAT and J.K. Co. and its ventures.',
+        heading: 'A dialogue between heritage, texture and expression.',
+        intro:
+          'Every venture in the group is the result of that conversation, and of the two people who hold it.',
       },
-      { blockType: 'leadership', eyebrow: 'Founder', populateBy: 'all' },
+      { blockType: 'leadership', eyebrow: 'The people', populateBy: 'all' },
       {
         blockType: 'ctaBand',
         tone: 'surface',
@@ -689,6 +798,7 @@ async function seed() {
     },
     headerNav: [
       pageRef(about.id, 'About'),
+      pageRef(values.id, 'Our values'),
       pageRef(ventures.id, 'Ventures'),
       pageRef(leadership.id, 'Leadership'),
       pageRef(journal.id, 'Journal'),
@@ -700,6 +810,7 @@ async function seed() {
     footerNav: [
       pageRef(home.id, 'Home'),
       pageRef(about.id, 'About'),
+      pageRef(values.id, 'Our values'),
       pageRef(ventures.id, 'Ventures'),
       pageRef(leadership.id, 'Leadership'),
       pageRef(journal.id, 'Journal'),
@@ -709,6 +820,10 @@ async function seed() {
     legalLinks: [pageRef(privacy.id, 'Privacy policy')],
     copyrightName: 'PAT and J.K. Co.',
     email: CONTACT_INBOX,
+    socials: [
+      { platform: 'instagram', url: 'https://www.instagram.com/pjk.co/' },
+      { platform: 'linkedin', url: 'https://www.linkedin.com/company/145005053/' },
+    ],
   })
 
   payload.logger.info(
