@@ -6,7 +6,7 @@
  *
  * Run it after adding the Resend DNS records, and again after setting RESEND_API_KEY.
  */
-import { resolveMx, resolveTxt } from 'node:dns/promises'
+import { Resolver, resolveMx, resolveNs, resolveTxt } from 'node:dns/promises'
 import configPromise from '@payload-config'
 import { getPayload } from 'payload'
 
@@ -16,9 +16,29 @@ const tick = (ok: boolean) => (ok ? '✓' : '✕')
 const domain = COMPANY_EMAIL_DOMAIN
 const recipient = normaliseEmail(process.argv[2])
 
-const lookupTxt = async (name: string) => {
+/**
+ * Looks up TXT records, falling back to the domain's own nameservers. Public resolvers cache
+ * "this does not exist" answers for a while, which otherwise makes a freshly added record
+ * look missing long after it is live.
+ */
+const lookupTxt = async (name: string): Promise<string[]> => {
   try {
-    return (await resolveTxt(name)).map((parts) => parts.join(''))
+    const records = await resolveTxt(name)
+    if (records.length) return records.map((parts) => parts.join(''))
+  } catch {
+    // fall through to the authoritative lookup
+  }
+
+  try {
+    const nameservers = await resolveNs(domain)
+    const authoritative = new Resolver()
+    const addresses = await Promise.all(
+      nameservers.slice(0, 2).map((ns) => new Resolver().resolve4(ns).catch(() => [])),
+    )
+    const ips = addresses.flat()
+    if (!ips.length) return []
+    authoritative.setServers(ips)
+    return (await authoritative.resolveTxt(name)).map((parts) => parts.join(''))
   } catch {
     return []
   }
@@ -47,6 +67,8 @@ const dkim = await lookupTxt(`resend._domainkey.${domain}`)
 console.log(
   `${tick(dkim.length > 0)} DKIM record at resend._domainkey.${domain} ${dkim.length ? 'found' : 'not found yet'}`,
 )
+if (!dkim.length)
+  console.log('  (a public resolver may still be caching “not found” — wait a few minutes)')
 
 const sendSpf = await lookupTxt(`send.${domain}`)
 const rootSpf = (await lookupTxt(domain)).filter((value) => value.startsWith('v=spf1'))

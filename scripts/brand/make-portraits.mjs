@@ -19,14 +19,32 @@ import sharp from 'sharp'
 // Framing, as fractions of the output frame
 const OUT_WIDTH = 900
 const OUT_HEIGHT = 1125 // 4:5
-const MIN_FACE_HEIGHT = 0.34 // smallest share of the frame the face may occupy
-const FACE_CENTRE_Y = 0.42 // where the middle of the face sits
+// The whole head — hair included — decides the framing, so nobody's hair gets clipped
+const HEAD_HEIGHT = 0.6 // how much of the frame the head fills, crown to chin
+const HEADROOM = 0.1 // clear space above the crown
 const BACKGROUND = '#eeeadf' // the site's paper tone
 
 const args = process.argv.slice(2)
 if (args.length < 2) {
   console.error('usage: make-portraits.mjs <out-dir> <name>=<photo> […]')
   process.exit(1)
+}
+
+/**
+ * Finds the top of the head in a cut-out: the first row with a meaningful run of opaque
+ * pixels, ignoring the odd stray speck left by the mask.
+ */
+const findCrown = async (file) => {
+  const { data, info } = await sharp(file).ensureAlpha().raw().toBuffer({ resolveWithObject: true })
+  const channels = info.channels
+  for (let y = 0; y < info.height; y++) {
+    let opaque = 0
+    for (let x = 0; x < info.width; x++) {
+      if (data[(y * info.width + x) * channels + (channels - 1)] > 128) opaque++
+    }
+    if (opaque >= Math.max(6, info.width * 0.01)) return y
+  }
+  return 0
 }
 
 const [outDir, ...inputs] = args
@@ -47,40 +65,67 @@ for (const input of inputs) {
   )
   const info = JSON.parse(stdout.trim().split('\n').pop())
   const meta = await sharp(cutout).metadata()
+  const crown = await findCrown(cutout)
   const face = info.face ?? {
     x: meta.width * 0.3,
     y: meta.height * 0.15,
     width: meta.width * 0.4,
     height: meta.height * 0.4,
   }
-  subjects.push({ name, cutout, meta, face })
+  subjects.push({ name, cutout, meta, face, crown })
 }
 
 /**
- * 2. Pick one framing for the whole set. A photograph that stops at the chest can only be
- * cropped so far before it runs out of image, so the tightest photograph decides the face
- * size for everyone — that way the portraits match and none needs padding.
+ * 2. Pick one framing for the whole set, measured from the head rather than the face, so hair
+ * is never clipped and heads look the same size even when hairstyles differ.
+ *
+ * Empty space above or beside a subject is filled with the paper tone and is invisible, but
+ * running past the *bottom* of a photograph would slice through the body — so the shortest
+ * photograph decides how tight the crop can be for everyone.
  */
-const faceHeight = subjects.reduce((largest, { meta, face }) => {
-  const neededForHeight = face.height / meta.height
-  const neededForWidth = (OUT_WIDTH / OUT_HEIGHT) * (face.height / meta.width)
-  return Math.max(largest, neededForHeight * 1.02, neededForWidth * 1.02)
-}, MIN_FACE_HEIGHT)
+const headHeightOf = ({ face, crown }) => face.y + face.height - crown
+
+const headFraction = subjects.reduce((tightest, subject) => {
+  const { meta } = subject
+  const available = meta.height - subject.crown + HEADROOM * 0 // room below the crown
+  const maxCropHeight = available / (1 - HEADROOM)
+  return Math.max(tightest, (headHeightOf(subject) / maxCropHeight) * 1.02)
+}, HEAD_HEIGHT)
 
 // 3. Crop, place on paper and grade identically
-for (const { name, cutout, meta, face } of subjects) {
-  const cropHeight = Math.round(face.height / faceHeight)
+for (const subject of subjects) {
+  const { name, cutout, meta, face, crown } = subject
+  const cropHeight = Math.round(headHeightOf(subject) / headFraction)
   const cropWidth = Math.round((OUT_WIDTH / OUT_HEIGHT) * cropHeight)
-  const faceCentreX = face.x + face.width / 2
-  const faceCentreY = face.y + face.height / 2
+  const top = Math.round(crown - HEADROOM * cropHeight)
+  const left = Math.round(face.x + face.width / 2 - cropWidth / 2)
 
-  const clamp = (value, max) => Math.max(0, Math.min(Math.round(value), Math.max(0, max)))
-  const left = clamp(faceCentreX - cropWidth / 2, meta.width - cropWidth)
-  const top = clamp(faceCentreY - FACE_CENTRE_Y * cropHeight, meta.height - cropHeight)
+  // Pad wherever the crop reaches past the photograph; the padding becomes paper tone
+  const padTop = Math.max(0, -top)
+  const padLeft = Math.max(0, -left)
+  const padRight = Math.max(0, left + cropWidth - meta.width)
+  const padBottom = Math.max(0, top + cropHeight - meta.height)
+
+  const padded = await sharp(cutout)
+    .ensureAlpha()
+    .extend({
+      top: padTop,
+      left: padLeft,
+      right: padRight,
+      bottom: padBottom,
+      background: { r: 0, g: 0, b: 0, alpha: 0 },
+    })
+    .png()
+    .toBuffer()
 
   const output = path.join(outDir, `${name}.jpg`)
-  await sharp(cutout)
-    .extract({ left, top, width: cropWidth, height: cropHeight })
+  await sharp(padded)
+    .extract({
+      left: left + padLeft,
+      top: top + padTop,
+      width: cropWidth,
+      height: cropHeight,
+    })
     .resize(OUT_WIDTH, OUT_HEIGHT, { fit: 'fill' })
     .flatten({ background: BACKGROUND })
     // A light, consistent grade so portraits from different cameras sit together
@@ -90,7 +135,10 @@ for (const { name, cutout, meta, face } of subjects) {
     .jpeg({ quality: 88, chromaSubsampling: '4:4:4' })
     .toFile(output)
 
-  console.log(`${output}  (crop ${cropWidth}×${cropHeight} of ${meta.width}×${meta.height})`)
+  console.log(
+    `${output}  crop ${cropWidth}×${cropHeight} of ${meta.width}×${meta.height}` +
+      `  crown at ${crown}px, padding t${padTop} l${padLeft} r${padRight} b${padBottom}`,
+  )
 }
 
 rmSync(work, { recursive: true, force: true })
