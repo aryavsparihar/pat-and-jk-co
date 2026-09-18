@@ -1,0 +1,68 @@
+# Architecture notes
+
+Conventions and gotchas for anyone working on this codebase. Setup lives in
+[SETUP.md](SETUP.md); the overview is in the [README](../README.md).
+
+## Brands
+
+Each brand is a Payload tenant (`@payloadcms/plugin-multi-tenant`). `src/proxy.ts` rewrites every
+request to `/tenant-sites/<host>/…`, and `src/utilities/tenant.ts` resolves the hostname to a brand.
+
+**Every frontend query must be scoped to a tenant** — always go through `src/utilities/queries.ts`
+rather than calling Payload directly, so a brand can never leak another brand's content.
+
+## Pages and blocks
+
+Pages are built from blocks. To add one:
+
+1. Create `src/blocks/<Name>/config.ts` (the admin fields) and `Component.tsx` (the rendering).
+2. Register the config in `src/blocks/index.ts` and the component in `src/blocks/RenderBlocks.tsx`.
+3. Run `pnpm generate:types`, then `pnpm payload migrate:create add-<name>-block`.
+
+## Caching
+
+Public pages are statically rendered. Content changes purge them through
+`src/hooks/revalidateFrontend.ts` — **add that hook to any new collection that appears on the site**,
+or edits to it will not show up until the hourly refresh.
+
+## URLs
+
+`src/utilities/docHref.ts` is the single source of truth: pages are `/slug`, journal posts are
+`/journal/slug`, ventures are `/ventures/slug`. Slugs are unique **per brand**, not globally
+(`src/fields/slug.ts` plus a `['tenant', 'slug']` unique index), so every brand can have its own
+`home` and `about`.
+
+## Admin access
+
+Reaching `/admin` requires a one-time code emailed to a company address; the check happens in
+`src/proxy.ts` before any admin route runs. See [SECURITY.md](SECURITY.md) before changing anything
+under `src/security/`.
+
+## Design system
+
+"Letterhead and catalogue": all-serif (Cormorant Garamond for display, EB Garamond for text and
+small capitals), woodland green as the ink on ivory, sections with a label in the left margin
+(`Section` in `src/components/Typography.tsx`), ruled lists instead of card grids, and no scroll
+animations.
+
+Where a photograph has not been uploaded, show a text-only layout rather than an empty placeholder.
+
+A brand sets four colours; every other token is derived from them in
+`src/app/(frontend)/globals.css` under `:root, .brand-theme`.
+
+## Database
+
+Development pushes schema changes automatically. Production only changes through migrations:
+`pnpm payload migrate:create <name>`, then commit the generated file. Vercel runs `payload migrate`
+before each build.
+
+**Do not name a field `status` on a collection that has drafts** — it collides with Payload's own
+`_status` enum in Postgres. (Ventures uses `stage` for this reason.)
+
+## Before pushing
+
+```bash
+pnpm lint && pnpm typecheck && pnpm test:int && pnpm build
+```
+
+`test:int` uses the database in `DATABASE_URL` and cleans up after itself.

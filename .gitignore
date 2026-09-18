@@ -20,3 +20,9 @@ node_modules/
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# Local editor/assistant tooling, not part of the project
+.claude/
+CLAUDE.md
+AGENTS.md
+tsconfig.tsbuildinfo
