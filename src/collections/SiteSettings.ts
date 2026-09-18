@@ -216,9 +216,23 @@ export const SiteSettings: CollectionConfig = {
             {
               type: 'row',
               fields: [
-                { name: 'email', type: 'email', admin: { width: '50%' } },
+                {
+                  name: 'email',
+                  label: 'General enquiries',
+                  type: 'email',
+                  admin: { width: '50%' },
+                },
                 { name: 'phone', type: 'text', admin: { width: '50%' } },
               ],
+            },
+            {
+              name: 'technicalEmail',
+              label: 'Technical enquiries',
+              type: 'email',
+              admin: {
+                description:
+                  'Shown in the footer under the general address, for anything to do with the website.',
+              },
             },
             {
               name: 'address',

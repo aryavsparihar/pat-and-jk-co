@@ -67,6 +67,7 @@ export const SiteFooter: React.FC<Props> = ({ settings, ventures }) => {
           )}
 
           {(settings?.email ||
+            settings?.technicalEmail ||
             settings?.phone ||
             settings?.address ||
             settings?.socials?.length) && (
@@ -77,6 +78,17 @@ export const SiteFooter: React.FC<Props> = ({ settings, ventures }) => {
                   <li>
                     <a className={`${listLink} break-all`} href={`mailto:${settings.email}`}>
                       {settings.email}
+                    </a>
+                  </li>
+                )}
+                {settings?.technicalEmail && (
+                  <li className="pt-1">
+                    <span className="block text-base opacity-70">Technical enquiries</span>
+                    <a
+                      className={`${listLink} break-all`}
+                      href={`mailto:${settings.technicalEmail}`}
+                    >
+                      {settings.technicalEmail}
                     </a>
                   </li>
                 )}

@@ -17,6 +17,7 @@ import { h, p, root } from './lexical'
 
 const TENANT_SLUG = 'pjk'
 const CONTACT_INBOX = process.env.CONTACT_INBOX || 'hello@pjk.co.in'
+const TECHNICAL_INBOX = process.env.TECHNICAL_INBOX || 'tech@pjk.co.in'
 const context = { disableRevalidate: true }
 
 // Content that belongs to a brand, deleted on reset (order matters for relationships)
@@ -820,6 +821,7 @@ async function seed() {
     legalLinks: [pageRef(privacy.id, 'Privacy policy')],
     copyrightName: 'PAT and J.K. Co.',
     email: CONTACT_INBOX,
+    technicalEmail: TECHNICAL_INBOX,
     socials: [
       { platform: 'instagram', url: 'https://www.instagram.com/pjk.co/' },
       { platform: 'linkedin', url: 'https://www.linkedin.com/company/145005053/' },

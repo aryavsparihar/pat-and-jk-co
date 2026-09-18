@@ -331,6 +331,34 @@
     border-color: var(--border);
   }
 
+  /*
+   * Circular portrait. The photographs are cut out onto the paper tone, so the disc reads as
+   * a paper medallion on the ivory page: a hairline edge, a shadow soft enough to be a fold
+   * rather than a card, and the faintest shading at its foot so it sits down on the page.
+   */
+  .portrait-disc {
+    position: relative;
+    aspect-ratio: 1;
+    overflow: hidden;
+    border-radius: 9999px;
+    background: var(--surface);
+    box-shadow: 0 16px 30px -22px color-mix(in oklab, var(--primary) 55%, transparent);
+  }
+
+  .portrait-disc::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    border: 1px solid var(--border);
+    background: radial-gradient(
+      125% 105% at 50% 4%,
+      transparent 60%,
+      color-mix(in oklab, var(--primary) 8%, transparent) 100%
+    );
+    pointer-events: none;
+  }
+
   /* Rich text */
   .rt > * + * {
     margin-top: 1em;

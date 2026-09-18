@@ -81,7 +81,7 @@ The page with the slug **`home`** is the homepage. The **SEO** tab sets the titl
 - **Brand** — logos (for light backgrounds, dark backgrounds, and a compact header version) and the four brand colours.
 - **Navigation** — header links and the header button.
 - **Footer** — the short description, footer links, legal links.
-- **Contact & social** — email, phone, address, map link, social profiles.
+- **Contact & social** — the general and technical enquiry addresses, phone, address, map link, social profiles.
 
 ## Redirects
 

@@ -20,17 +20,13 @@ const PersonLinks: React.FC<{ links: Person['links'] }> = ({ links }) =>
 const portraitOf = (person: Person) =>
   person.portrait && typeof person.portrait === 'object' ? person.portrait : null
 
-const Portrait: React.FC<{ person: Person }> = ({ person }) => {
+/** Portraits are shown as paper medallions; `width` is the diameter of the disc. */
+const Portrait: React.FC<{ person: Person; width: string }> = ({ person, width }) => {
   const portrait = portraitOf(person)
   if (!portrait) return null
   return (
-    <div className="relative aspect-[4/5] overflow-hidden bg-surface">
-      <Media
-        fill
-        imgClassName="object-cover"
-        resource={portrait}
-        size="(max-width: 768px) 100vw, 30vw"
-      />
+    <div className="portrait-disc" style={{ width }}>
+      <Media fill imgClassName="object-cover" resource={portrait} size="15rem" />
     </div>
   )
 }
@@ -44,11 +40,11 @@ export const PersonFeature: React.FC<{ person: Person }> = ({ person }) => {
   return (
     <article className="grid items-start gap-x-12 gap-y-8 lg:grid-cols-9">
       {hasPortrait && (
-        <div className="max-w-sm lg:col-span-4">
-          <Portrait person={person} />
+        <div className="lg:col-span-3">
+          <Portrait person={person} width="clamp(9rem, 22vw, 14rem)" />
         </div>
       )}
-      <div className={hasPortrait ? 'lg:col-span-5' : 'lg:col-span-7'}>
+      <div className={hasPortrait ? 'lg:col-span-6' : 'lg:col-span-7'}>
         <h3 className="display-md">{person.name}</h3>
         <p className="label mt-3">{person.role}</p>
         {person.caption && (
@@ -63,8 +59,8 @@ export const PersonFeature: React.FC<{ person: Person }> = ({ person }) => {
 
 export const PersonCard: React.FC<{ person: Person }> = ({ person }) => (
   <article>
-    <Portrait person={person} />
-    <h3 className={portraitOf(person) ? 'display-sm mt-5' : 'display-sm'}>{person.name}</h3>
+    <Portrait person={person} width="clamp(8.5rem, 18vw, 12rem)" />
+    <h3 className={portraitOf(person) ? 'display-sm mt-7' : 'display-sm'}>{person.name}</h3>
     <p className="label mt-1">{person.role}</p>
     {person.caption && (
       <p className="mt-3 font-display text-[1.15rem] italic text-primary">{person.caption}</p>

@@ -1311,6 +1311,10 @@ export interface SiteSetting {
   copyrightName?: string | null;
   email?: string | null;
   phone?: string | null;
+  /**
+   * Shown in the footer under the general address, for anything to do with the website.
+   */
+  technicalEmail?: string | null;
   address?: string | null;
   /**
    * Link to a map (e.g. Google Maps share link).
@@ -2234,6 +2238,7 @@ export interface SiteSettingsSelect<T extends boolean = true> {
   copyrightName?: T;
   email?: T;
   phone?: T;
+  technicalEmail?: T;
   address?: T;
   mapUrl?: T;
   socials?:

@@ -17,11 +17,13 @@ import path from 'node:path'
 import sharp from 'sharp'
 
 // Framing, as fractions of the output frame
+// Square, because the site shows these portraits inside a circle: the corners are never seen,
+// so the head sits high and centred and the collar falls away at the bottom of the disc.
 const OUT_WIDTH = 900
-const OUT_HEIGHT = 1125 // 4:5
+const OUT_HEIGHT = 900 // 1:1
 // The whole head — hair included — decides the framing, so nobody's hair gets clipped
-const HEAD_HEIGHT = 0.6 // how much of the frame the head fills, crown to chin
-const HEADROOM = 0.1 // clear space above the crown
+const HEAD_HEIGHT = 0.56 // how much of the frame the head fills, crown to chin
+const HEADROOM = 0.15 // clear space above the crown
 const BACKGROUND = '#eeeadf' // the site's paper tone
 
 const args = process.argv.slice(2)
