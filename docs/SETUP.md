@@ -83,11 +83,7 @@ The seeded brand already lists `pjk.co.in` and `www.pjk.co.in` under **Administr
 
 **Inbox (to receive enquiries).** Set up `hello@pjk.co.in` with Zoho Mail or Google Workspace. They will ask you to add **MX** and **TXT (SPF)** records at the registrar.
 
-**Sending (form notifications).**
-1. Resend → **Domains → Add domain** → `pjk.co.in`.
-2. Add the DNS records Resend shows (DKIM `TXT`/`CNAME` records, and an SPF include). If Zoho/Google already has an SPF record, **merge** the includes into a single SPF record — a domain may only have one.
-3. Once verified, create an API key and set `RESEND_API_KEY` in Vercel. Redeploy.
-4. Send a test enquiry from `/contact`. It appears under **Enquiries → Form Submissions** and arrives in the inbox.
+**Sending (sign-in codes and form notifications).** Step-by-step instructions for this domain, including where each record goes in GoDaddy, are in [EMAIL.md](EMAIL.md). In short: add the domain in Resend, add its three DNS records, create an API key, and set `RESEND_API_KEY`. Check it with `pnpm check-email aryaveer@pjk.co.in`.
 
 Which inbox receives each form is set per form under **Enquiries → Forms → Emails**.
 
