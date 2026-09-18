@@ -26,6 +26,8 @@ export const Media: CollectionConfig = {
   },
   admin: {
     group: 'Website',
+    description:
+      'Every photograph, logo and document. Alt text is required: one short sentence describing the image.',
   },
   fields: [
     {

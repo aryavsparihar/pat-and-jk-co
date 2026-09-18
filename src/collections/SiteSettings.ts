@@ -35,6 +35,7 @@ export const SiteSettings: CollectionConfig = {
   },
   admin: {
     group: 'Website',
+    description: 'The name, logo, colours, navigation, footer and contact details of this brand.',
     useAsTitle: 'siteName',
   },
   fields: [

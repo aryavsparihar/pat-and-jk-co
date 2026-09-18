@@ -19,6 +19,7 @@ export const Categories: CollectionConfig = {
   },
   admin: {
     group: 'Website',
+    description: 'Optional labels for journal posts, e.g. Announcements.',
     useAsTitle: 'title',
   },
   fields: [

@@ -2,7 +2,9 @@
 
 For anyone editing the website. No technical knowledge needed.
 
-**Sign in at `pjk.co.in/admin`.** Changes you **Publish** appear on the live site within a few seconds.
+**Sign in at `pjk.co.in/admin-access`.** Enter your `@pjk.co.in` address, type the six-digit code emailed to you, then enter your password. The code lasts ten minutes; the sign-in lasts the working day.
+
+Changes you **Publish** appear on the live site within a few seconds. Inside the panel, **How to use this panel** in the sidebar repeats these instructions.
 
 ---
 
@@ -87,4 +89,8 @@ If a page's address changes, add a redirect under **Website → Redirects** from
 
 ## Users (super admins)
 
-**Administration → Users.** Create accounts for colleagues. **Editors** can edit content for the brands listed on their account; **super admins** can do everything, including users and domains. Anyone can reset a forgotten password from the sign-in screen.
+**Administration → Users.** **Editors** can edit content for the brands listed on their account; **super admins** can do everything, including users and domains.
+
+- **Someone new:** ask them to open `/admin-access` and press **Request access**. Their request appears under **Administration → Access requests**; set it to *Approved* and the account is created and emailed a link to choose a password.
+- **Someone leaving:** open their account and set **Status → Suspended**. They can no longer sign in, and nothing they made is lost.
+- **Security log:** every sign-in attempt and access request is listed under **Administration → Security log**.

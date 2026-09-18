@@ -25,7 +25,10 @@
     "brand:icons": "node scripts/brand/make-icons.mjs",
     "typecheck": "tsc --noEmit",
     "brand:embed": "node scripts/brand/embed-svgs.mjs",
-    "seed:reset": "cross-env SEED_RESET=1 NODE_OPTIONS=--no-deprecation payload run src/seed/index.ts"
+    "seed:reset": "cross-env SEED_RESET=1 NODE_OPTIONS=--no-deprecation payload run src/seed/index.ts",
+    "create-admin": "cross-env NODE_OPTIONS=--no-deprecation payload run src/scripts/create-admin.ts",
+    "brand:portraits": "node scripts/brand/make-portraits.mjs",
+    "gate-token": "cross-env NODE_OPTIONS=--no-deprecation payload run src/scripts/gate-token.ts"
   },
   "dependencies": {
     "@payloadcms/admin-bar": "3.89.0",

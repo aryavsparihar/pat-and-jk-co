@@ -20,6 +20,8 @@ export const People: CollectionConfig = {
   admin: {
     defaultColumns: ['name', 'role', 'order'],
     group: 'Group',
+    description:
+      'Names, roles, portraits and captions for the leadership page. Lower “order” numbers appear first.',
     useAsTitle: 'name',
   },
   defaultSort: 'order',

@@ -62,7 +62,13 @@ From your laptop, point the seed script at the production database once:
 DATABASE_URL="<neon pooled connection string>" pnpm seed
 ```
 
-Then open `https://<your-project>.vercel.app/admin` and **create your account — the first account becomes the super admin**. Invite the founder afterwards from **Administration → Users** (role: Editor, brand: PAT and J.K. Co.) or make them a super admin too.
+Then create your own admin account (the password is read from the environment and never stored in the repository):
+
+```bash
+DATABASE_URL="<neon pooled connection string>" ADMIN_EMAIL=aryaveer@pjk.co.in ADMIN_PASSWORD='choose-a-strong-one' pnpm create-admin
+```
+
+> **Admin sign-in needs working email.** Signing in requires a one-time code sent to your `@pjk.co.in` mailbox, so finish step 6 before relying on the admin panel in production. Colleagues ask for access at `/admin-access`; you approve them under **Administration → Access requests**. See [SECURITY.md](SECURITY.md).
 
 ## 5. Connect pjk.co.in
 

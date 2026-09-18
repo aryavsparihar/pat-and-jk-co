@@ -34,6 +34,8 @@ export const Ventures: CollectionConfig<'ventures'> = {
   admin: {
     defaultColumns: ['name', 'stage', 'order', '_status'],
     group: 'Group',
+    description:
+      'The businesses in the group. “Stage” decides whether a venture gets its own page or appears as a teaser.',
     livePreview: {
       url: ({ data, req }) =>
         generatePreviewPath({

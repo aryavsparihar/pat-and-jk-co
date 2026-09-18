@@ -77,6 +77,9 @@ export interface Config {
     openings: Opening;
     tenants: Tenant;
     users: User;
+    'access-requests': AccessRequest;
+    'security-events': SecurityEvent;
+    'login-challenges': LoginChallenge;
     redirects: Redirect;
     forms: Form;
     'form-submissions': FormSubmission;
@@ -103,6 +106,9 @@ export interface Config {
     openings: OpeningsSelect<false> | OpeningsSelect<true>;
     tenants: TenantsSelect<false> | TenantsSelect<true>;
     users: UsersSelect<false> | UsersSelect<true>;
+    'access-requests': AccessRequestsSelect<false> | AccessRequestsSelect<true>;
+    'security-events': SecurityEventsSelect<false> | SecurityEventsSelect<true>;
+    'login-challenges': LoginChallengesSelect<false> | LoginChallengesSelect<true>;
     redirects: RedirectsSelect<false> | RedirectsSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
     'form-submissions': FormSubmissionsSelect<false> | FormSubmissionsSelect<true>;
@@ -275,6 +281,8 @@ export interface HeroBlock {
   blockType: 'hero';
 }
 /**
+ * News and stories. Each post appears automatically in any “Journal feed” block on the site.
+ *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "posts".
  */
@@ -322,6 +330,8 @@ export interface Post {
   _status?: ('draft' | 'published') | null;
 }
 /**
+ * Every photograph, logo and document. Alt text is required: one short sentence describing the image.
+ *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "media".
  */
@@ -445,6 +455,8 @@ export interface FolderInterface {
   createdAt: string;
 }
 /**
+ * Optional labels for journal posts, e.g. Announcements.
+ *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "categories".
  */
@@ -461,6 +473,8 @@ export interface Category {
   createdAt: string;
 }
 /**
+ * The businesses in the group. “Stage” decides whether a venture gets its own page or appears as a teaser.
+ *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "ventures".
  */
@@ -823,6 +837,8 @@ export interface LeadershipBlock {
   blockType: 'leadership';
 }
 /**
+ * Names, roles, portraits and captions for the leadership page. Lower “order” numbers appear first.
+ *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "people".
  */
@@ -1123,6 +1139,8 @@ export interface CtaBandBlock {
   blockType: 'ctaBand';
 }
 /**
+ * The name, logo, colours, navigation, footer and contact details of this brand.
+ *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "site-settings".
  */
@@ -1309,6 +1327,8 @@ export interface SiteSetting {
   createdAt: string;
 }
 /**
+ * Open calls shown on the Collaborate page. Set one to “Closed” to hide it without deleting it.
+ *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "openings".
  */
@@ -1336,6 +1356,8 @@ export interface Opening {
   createdAt: string;
 }
 /**
+ * Everyone who can sign in. Accounts must use an @pjk.co.in address, and only super admins can create them or change what they can do.
+ *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "users".
  */
@@ -1343,6 +1365,10 @@ export interface User {
   id: number;
   name: string;
   roles: ('super-admin' | 'editor')[];
+  /**
+   * Suspending someone blocks sign-in immediately, without deleting their account or their work.
+   */
+  status: 'active' | 'suspended';
   tenants?:
     | {
         tenant: number | Tenant;
@@ -1367,6 +1393,71 @@ export interface User {
     | null;
   password?: string | null;
   collection: 'users';
+}
+/**
+ * People asking for an admin account. Approving one creates their account and emails them a link to set a password. Only @pjk.co.in addresses can ask.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "access-requests".
+ */
+export interface AccessRequest {
+  id: number;
+  email: string;
+  name?: string | null;
+  message?: string | null;
+  /**
+   * Set to “Approved” to create this person’s account as an editor. They receive an email to set their own password.
+   */
+  status: 'pending' | 'approved' | 'declined';
+  /**
+   * What the account can do once approved.
+   */
+  role?: ('editor' | 'super-admin') | null;
+  decidedBy?: (number | null) | User;
+  decidedAt?: string | null;
+  ip?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Every sign-in attempt and access request. Read-only.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "security-events".
+ */
+export interface SecurityEvent {
+  id: number;
+  event:
+    | 'code-requested'
+    | 'code-sent'
+    | 'code-failed'
+    | 'code-verified'
+    | 'code-rate-limited'
+    | 'access-requested'
+    | 'access-approved'
+    | 'access-declined'
+    | 'login-blocked';
+  email?: string | null;
+  ip?: string | null;
+  detail?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "login-challenges".
+ */
+export interface LoginChallenge {
+  id: number;
+  email: string;
+  codeHash: string;
+  expiresAt: string;
+  attempts?: number | null;
+  consumedAt?: string | null;
+  ip?: string | null;
+  deliverable?: boolean | null;
+  updatedAt: string;
+  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1574,6 +1665,18 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'users';
         value: number | User;
+      } | null)
+    | ({
+        relationTo: 'access-requests';
+        value: number | AccessRequest;
+      } | null)
+    | ({
+        relationTo: 'security-events';
+        value: number | SecurityEvent;
+      } | null)
+    | ({
+        relationTo: 'login-challenges';
+        value: number | LoginChallenge;
       } | null)
     | ({
         relationTo: 'redirects';
@@ -2241,6 +2344,7 @@ export interface TenantsSelect<T extends boolean = true> {
 export interface UsersSelect<T extends boolean = true> {
   name?: T;
   roles?: T;
+  status?: T;
   tenants?:
     | T
     | {
@@ -2263,6 +2367,49 @@ export interface UsersSelect<T extends boolean = true> {
         createdAt?: T;
         expiresAt?: T;
       };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "access-requests_select".
+ */
+export interface AccessRequestsSelect<T extends boolean = true> {
+  email?: T;
+  name?: T;
+  message?: T;
+  status?: T;
+  role?: T;
+  decidedBy?: T;
+  decidedAt?: T;
+  ip?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "security-events_select".
+ */
+export interface SecurityEventsSelect<T extends boolean = true> {
+  event?: T;
+  email?: T;
+  ip?: T;
+  detail?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "login-challenges_select".
+ */
+export interface LoginChallengesSelect<T extends boolean = true> {
+  email?: T;
+  codeHash?: T;
+  expiresAt?: T;
+  attempts?: T;
+  consumedAt?: T;
+  ip?: T;
+  deliverable?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

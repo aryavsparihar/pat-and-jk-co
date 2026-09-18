@@ -5,12 +5,15 @@ import path from 'path'
 import { buildConfig, PayloadRequest } from 'payload'
 import { fileURLToPath } from 'url'
 
+import { AccessRequests } from './collections/AccessRequests'
 import { Categories } from './collections/Categories'
+import { LoginChallenges } from './collections/LoginChallenges'
 import { Media } from './collections/Media'
 import { Openings } from './collections/Openings'
 import { Pages } from './collections/Pages'
 import { People } from './collections/People'
 import { Posts } from './collections/Posts'
+import { SecurityEvents } from './collections/SecurityEvents'
 import { SiteSettings } from './collections/SiteSettings'
 import { Tenants } from './collections/Tenants'
 import { Users } from './collections/Users'
@@ -33,6 +36,14 @@ export default buildConfig({
     components: {
       beforeLogin: ['@/components/admin/BeforeLogin'],
       beforeDashboard: ['@/components/admin/Welcome'],
+      afterNavLinks: ['@/components/admin/GuideNavLink'],
+      views: {
+        guide: {
+          Component: '@/components/admin/GuideView#GuideView',
+          path: '/guide',
+          meta: { title: 'How to use this panel' },
+        },
+      },
       graphics: {
         Logo: '@/components/admin/Graphics#Logo',
         Icon: '@/components/admin/Graphics#Icon',
@@ -88,6 +99,9 @@ export default buildConfig({
     Openings,
     Tenants,
     Users,
+    AccessRequests,
+    SecurityEvents,
+    LoginChallenges,
   ],
   cors: allowedOrigins,
   csrf: allowedOrigins,

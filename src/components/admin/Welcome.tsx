@@ -1,4 +1,5 @@
 import type { ServerProps } from 'payload'
+import Link from 'next/link'
 import React from 'react'
 
 const links = [
@@ -32,6 +33,16 @@ const links = [
     title: 'Media library',
     text: 'Upload photographs, logos and documents.',
   },
+  {
+    href: '/admin/collections/people',
+    title: 'People',
+    text: 'Names, roles, portraits and captions on the leadership page.',
+  },
+  {
+    href: '/admin/guide',
+    title: 'How to use this panel',
+    text: 'A short guide: editing pages, publishing, photographs, enquiries.',
+  },
 ]
 
 /** Dashboard welcome panel with shortcuts to the things editors do most. */
@@ -44,8 +55,11 @@ const Welcome: React.FC<ServerProps> = ({ user }) => {
         {name ? `Welcome back, ${name}.` : 'Welcome.'}
       </h2>
       <p style={{ marginBottom: 'calc(var(--base) * 1.5)', opacity: 0.75, maxWidth: 640 }}>
-        Everything on the website is managed here. Changes you publish go live within seconds. Use
-        the <strong>Brand</strong> selector in the sidebar to switch between brands.
+        Everything on the website is edited here, and anything you publish is live within seconds —
+        no code changes, no waiting. Work is saved as a draft until you press{' '}
+        <strong>Publish</strong>, every published version is kept, and the <strong>Brand</strong>{' '}
+        selector in the sidebar switches between brands. New here? Start with{' '}
+        <Link href="/admin/guide">how to use this panel</Link>.
       </p>
       <div
         style={{

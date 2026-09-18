@@ -102,6 +102,10 @@ docs/                              setup, admin and new-brand guides
 
 ## Security notes
 
-- Roles: **super admin** (everything) and **editor** (content for assigned brands). Only super admins can create users, assign roles or brands, and manage domains.
+Full detail in [docs/SECURITY.md](docs/SECURITY.md).
+
+- **Admin access needs three things:** a one-time code emailed to an `@pjk.co.in` mailbox, an account a super admin has approved, and the password. `src/proxy.ts` blocks `/admin` and every auth API until the code has been entered, so the sign-in screen is not even reachable from outside the company.
+- Roles: **super admin** (everything) and **editor** (content for assigned brands). Only super admins create users, assign roles or brands, and manage domains; suspending an account blocks sign-in immediately.
+- Every sign-in attempt, approval and refusal is recorded in the security log.
 - Form submissions: honeypot + per-IP rate limit + server-side validation against the form's fields; enquiries are readable only by signed-in users of the owning brand.
 - Drafts are only visible in the admin's authenticated preview. Security headers are set in `next.config.ts`.

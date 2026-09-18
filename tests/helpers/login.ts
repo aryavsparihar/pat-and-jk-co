@@ -1,6 +1,9 @@
 import type { Page } from '@playwright/test'
 import { expect } from '@playwright/test'
 
+import { GATE_COOKIE } from '../../src/security/constants.js'
+import { createGateToken } from '../../src/security/gateToken.js'
+
 export interface LoginOptions {
   page: Page
   serverURL?: string
@@ -11,13 +14,27 @@ export interface LoginOptions {
 }
 
 /**
- * Logs the user into the admin panel via the login page.
+ * Signs in to the admin panel.
+ *
+ * Reaching /admin at all requires the one-time-code gate, so the test mints a gate token
+ * for the same address instead of going through the email step.
  */
 export async function login({
   page,
   serverURL = 'http://localhost:3000',
   user,
 }: LoginOptions): Promise<void> {
+  const { token } = createGateToken(user.email)
+  await page.context().addCookies([
+    {
+      name: GATE_COOKIE,
+      value: token,
+      url: serverURL,
+      httpOnly: true,
+      sameSite: 'Strict',
+    },
+  ])
+
   await page.goto(`${serverURL}/admin/login`)
 
   await page.fill('#field-email', user.email)

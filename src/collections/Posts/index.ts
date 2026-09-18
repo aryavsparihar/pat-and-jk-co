@@ -49,6 +49,8 @@ export const Posts: CollectionConfig<'posts'> = {
   admin: {
     defaultColumns: ['title', 'publishedAt', '_status', 'updatedAt'],
     group: 'Website',
+    description:
+      'News and stories. Each post appears automatically in any “Journal feed” block on the site.',
     livePreview: {
       url: ({ data, req }) =>
         generatePreviewPath({ slug: data?.slug, collection: 'posts', tenant: data?.tenant, req }),
