@@ -13,6 +13,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ host: s
     })
   }
 
-  const body = `User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /api/\nDisallow: /next/\n\nSitemap: ${ctx.siteUrl}/sitemap.xml\n`
+  // Media files (images) are allowed so they can appear in Google Images and link previews
+  const body = `User-agent: *\nAllow: /\nAllow: /api/media/file/\nDisallow: /admin\nDisallow: /api/\nDisallow: /next/\n\nSitemap: ${ctx.siteUrl}/sitemap.xml\n`
   return new Response(body, { headers: { 'Content-Type': 'text/plain' } })
 }
