@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { getPayload } from 'payload'
 import React from 'react'
 
+import { HashLinks } from '@/components/HashLinks'
 import { OrganizationJsonLd } from '@/components/JsonLd'
 import { SiteFooter } from '@/components/SiteFooter'
 import { SiteHeader } from '@/components/SiteHeader'
@@ -103,6 +104,7 @@ export default async function BrandLayout({ children, params }: Args) {
       </main>
       <SiteFooter settings={ctx.settings} ventures={ventures} />
       <OrganizationJsonLd ctx={ctx} />
+      <HashLinks />
     </div>
   )
 }
