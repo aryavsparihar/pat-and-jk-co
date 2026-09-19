@@ -226,13 +226,27 @@ export const SiteSettings: CollectionConfig = {
               ],
             },
             {
-              name: 'technicalEmail',
-              label: 'Technical enquiries',
-              type: 'email',
-              admin: {
-                description:
-                  'Shown in the footer under the general address, for anything to do with the website.',
-              },
+              type: 'row',
+              fields: [
+                {
+                  name: 'businessEmail',
+                  label: 'Business enquiries',
+                  type: 'email',
+                  admin: {
+                    width: '50%',
+                    description: 'Partnerships, trade and retail clients.',
+                  },
+                },
+                {
+                  name: 'technicalEmail',
+                  label: 'Technical enquiries',
+                  type: 'email',
+                  admin: {
+                    width: '50%',
+                    description: 'Anything to do with the website.',
+                  },
+                },
+              ],
             },
             {
               name: 'address',

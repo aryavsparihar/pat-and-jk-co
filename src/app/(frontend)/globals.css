@@ -92,6 +92,8 @@
 
   body {
     min-height: 100vh;
+    /* Mobile browsers: measure against the visible viewport, not the one behind the chrome */
+    min-height: 100svh;
     background: var(--background);
     color: var(--text);
     font-family: var(--font-body);
@@ -149,6 +151,8 @@
   /* Sections are separated by a hairline, like the rules on a printed page */
   .section {
     padding-bottom: clamp(4rem, 8vw, 7rem);
+    /* Anchored sections land below the sticky header rather than behind it */
+    scroll-margin-top: clamp(6rem, 9vw, 8rem);
   }
 
   .section-rule {

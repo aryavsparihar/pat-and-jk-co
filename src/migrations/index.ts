@@ -1,6 +1,7 @@
 import * as migration_20260912_200332_initial from './20260912_200332_initial';
 import * as migration_20260918_171527_admin_gate from './20260918_171527_admin_gate';
 import * as migration_20260918_223130_add_technical_email from './20260918_223130_add_technical_email';
+import * as migration_20260919_131846_add_business_email from './20260919_131846_add_business_email';
 
 export const migrations = [
   {
@@ -16,6 +17,11 @@ export const migrations = [
   {
     up: migration_20260918_223130_add_technical_email.up,
     down: migration_20260918_223130_add_technical_email.down,
-    name: '20260918_223130_add_technical_email'
+    name: '20260918_223130_add_technical_email',
+  },
+  {
+    up: migration_20260919_131846_add_business_email.up,
+    down: migration_20260919_131846_add_business_email.down,
+    name: '20260919_131846_add_business_email'
   },
 ];

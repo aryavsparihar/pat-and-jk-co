@@ -19,7 +19,7 @@ export const Openings: CollectionConfig = {
   },
   admin: {
     defaultColumns: ['title', 'type', 'status', 'order'],
-    group: 'Group',
+    group: 'Ventures & people',
     description:
       'Open calls shown on the Collaborate page. Set one to “Closed” to hide it without deleting it.',
     useAsTitle: 'title',

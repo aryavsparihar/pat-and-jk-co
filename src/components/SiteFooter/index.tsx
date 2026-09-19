@@ -24,8 +24,8 @@ export const SiteFooter: React.FC<Props> = ({ settings, ventures }) => {
   return (
     <footer className="on-dark bg-primary">
       <div className="container pb-10 pt-[clamp(4rem,7vw,6rem)]">
-        <div className="grid gap-x-12 gap-y-12 md:grid-cols-12">
-          <div className="md:col-span-5">
+        <div className="grid gap-x-12 gap-y-12 sm:grid-cols-2 lg:grid-cols-12">
+          <div className="sm:col-span-2 lg:col-span-5">
             <Link
               aria-label={`${settings?.siteName ?? ''}, home`}
               className="inline-block"
@@ -39,9 +39,9 @@ export const SiteFooter: React.FC<Props> = ({ settings, ventures }) => {
           </div>
 
           {settings?.footerNav && settings.footerNav.length > 0 && (
-            <nav aria-label="Footer" className="md:col-span-2 md:col-start-7">
+            <nav aria-label="Footer" className="lg:col-span-2 lg:col-start-7">
               <p className="label mb-4">Pages</p>
-              <ul className="space-y-1.5">
+              <ul className="space-y-2">
                 {settings.footerNav.map(({ link, id }) => (
                   <li key={id}>
                     <CMSLink className={listLink} {...link} />
@@ -52,9 +52,9 @@ export const SiteFooter: React.FC<Props> = ({ settings, ventures }) => {
           )}
 
           {listedVentures.length > 0 && (
-            <div className="md:col-span-2">
+            <div className="lg:col-span-2">
               <p className="label mb-4">Ventures</p>
-              <ul className="space-y-1.5">
+              <ul className="space-y-2">
                 {listedVentures.map((venture) => (
                   <li key={venture.id}>
                     <Link className={listLink} href={docPath('ventures', venture.slug)}>
@@ -67,17 +67,29 @@ export const SiteFooter: React.FC<Props> = ({ settings, ventures }) => {
           )}
 
           {(settings?.email ||
+            settings?.businessEmail ||
             settings?.technicalEmail ||
             settings?.phone ||
             settings?.address ||
             settings?.socials?.length) && (
-            <div className="md:col-span-2">
+            <div className="lg:col-span-2">
               <p className="label mb-4">Contact</p>
-              <ul className="space-y-1.5">
+              <ul className="space-y-2">
                 {settings?.email && (
                   <li>
                     <a className={`${listLink} break-all`} href={`mailto:${settings.email}`}>
                       {settings.email}
+                    </a>
+                  </li>
+                )}
+                {settings?.businessEmail && (
+                  <li className="pt-1">
+                    <span className="block text-base opacity-70">Business enquiries</span>
+                    <a
+                      className={`${listLink} break-all`}
+                      href={`mailto:${settings.businessEmail}`}
+                    >
+                      {settings.businessEmail}
                     </a>
                   </li>
                 )}
@@ -101,7 +113,7 @@ export const SiteFooter: React.FC<Props> = ({ settings, ventures }) => {
                 )}
                 {settings?.address && <li className="whitespace-pre-line">{settings.address}</li>}
               </ul>
-              <SocialLinks className="mt-4 flex-col gap-y-1.5" socials={settings?.socials} />
+              <SocialLinks className="mt-5 flex-col gap-y-2.5" socials={settings?.socials} />
             </div>
           )}
         </div>

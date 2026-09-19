@@ -44,16 +44,16 @@ export const HeroBlock: React.FC<HeroBlockProps & { ctx: BlockContext }> = ({
 
         <div
           className={cn(
-            'grid gap-x-12 gap-y-5 md:grid-cols-12',
+            'grid gap-x-12 gap-y-5 lg:grid-cols-12',
             isBrand
               ? 'pt-[clamp(2.25rem,4vw,3.25rem)]'
               : 'section-rule-none pt-[clamp(4rem,9vw,7.5rem)]',
           )}
         >
-          <div className="md:col-span-3">
+          <div className="lg:col-span-3">
             <Label {...intro('0.85s')}>{eyebrow}</Label>
           </div>
-          <div className="md:col-span-9">
+          <div className="lg:col-span-9">
             <HeadingTag
               {...intro('0.95s')}
               className={cn(

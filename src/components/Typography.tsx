@@ -79,11 +79,15 @@ export const Section: React.FC<SectionProps> = ({
 }) => (
   <section className={cn('section', className)} id={id}>
     <div className="container">
-      <div className={cn('grid gap-x-12 gap-y-5 md:grid-cols-12', rule && 'section-rule')}>
-        <div className="md:col-span-3">
-          <Label className="md:sticky md:top-28">{label}</Label>
+      {/*
+        The label only moves into the left margin at lg. Between 768 and 1023 it would otherwise
+        take a quarter of the width and squeeze every two-column block in behind it.
+      */}
+      <div className={cn('grid gap-x-12 gap-y-5 lg:grid-cols-12', rule && 'section-rule')}>
+        <div className="lg:col-span-3">
+          <Label className="lg:sticky lg:top-28">{label}</Label>
         </div>
-        <div className="min-w-0 md:col-span-9">{children}</div>
+        <div className="min-w-0 lg:col-span-9">{children}</div>
       </div>
     </div>
   </section>

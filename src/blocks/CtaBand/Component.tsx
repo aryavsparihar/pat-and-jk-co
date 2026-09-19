@@ -36,11 +36,11 @@ export const CtaBandBlock: React.FC<CtaBandBlockProps> = ({
   if (tone === 'primary') {
     return (
       <section className="on-dark bg-primary py-[clamp(4rem,8vw,6.5rem)]">
-        <div className="container grid gap-x-12 gap-y-5 md:grid-cols-12">
-          <div className="md:col-span-3">
+        <div className="container grid gap-x-12 gap-y-5 lg:grid-cols-12">
+          <div className="lg:col-span-3">
             <Label>{eyebrow}</Label>
           </div>
-          <div className="md:col-span-9">
+          <div className="lg:col-span-9">
             <Body heading={heading} links={links} text={text} />
           </div>
         </div>

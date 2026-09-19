@@ -7,7 +7,7 @@ import React from 'react'
 
 import type { BlockContext } from '../types'
 
-/** The group's ventures as a numbered index, like the contents page of a catalogue. */
+/** The ventures as a numbered index, like the contents page of a catalogue. */
 export const VenturesGridBlock = async ({
   eyebrow,
   heading,

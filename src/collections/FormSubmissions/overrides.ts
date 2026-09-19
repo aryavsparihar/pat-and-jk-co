@@ -68,7 +68,13 @@ export const protectSubmission: CollectionBeforeChangeHook = async ({ data, oper
   })) as {
     tenant?: number | { id: number } | null
     fields?:
-      | { blockType: string; name?: string; label?: string | null; required?: boolean | null }[]
+      | {
+          blockType: string
+          name?: string
+          label?: string | null
+          required?: boolean | null
+          options?: { value?: string | null }[] | null
+        }[]
       | null
   }
 
@@ -92,6 +98,18 @@ export const protectSubmission: CollectionBeforeChangeHook = async ({ data, oper
     }
     if (field.blockType === 'email' && value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
       throw new APIError('Please enter a valid email address.', 400, undefined, true)
+    }
+    // A dropdown may only ever come back with one of its own options, whatever the browser sent
+    if (field.blockType === 'select' && value) {
+      const options = (field.options ?? []).map((o) => o.value)
+      if (!options.includes(value)) {
+        throw new APIError(
+          `Choose one of the listed options for “${field.label || field.name}”.`,
+          400,
+          undefined,
+          true,
+        )
+      }
     }
   }
 

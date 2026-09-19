@@ -56,6 +56,15 @@ export function proxy(request: NextRequest) {
   const host = normalizeHost(request.headers.get('host'))
   const url = request.nextUrl.clone()
   url.pathname = `${TENANT_SITES_PREFIX}/${host}${pathname === '/' ? '' : pathname}`
+
+  // `normalizeHost` already refuses anything but a hostname. Checking the result as well means
+  // a rewrite can never leave the brand routes even if that guarantee is one day weakened —
+  // the URL setter resolves "/.." segments, so a single bad character would otherwise be enough
+  // to reach the admin panel past the gate above.
+  if (!url.pathname.startsWith(`${TENANT_SITES_PREFIX}/`)) {
+    return new NextResponse('Bad Request', { status: 400 })
+  }
+
   return NextResponse.rewrite(url)
 }
 

@@ -36,6 +36,26 @@ Roles stay as before: **super admin** (everything, including users and domains) 
 (content for their brands only). Only a super admin can change a role, a status, or a brand
 assignment.
 
+## The rest of the site
+
+| | |
+| --- | --- |
+| Hostnames | The `Host` header is validated as a bare hostname before it reaches the brand rewrite (`src/utilities/host.ts`). Anything else is served the default brand. **Do not loosen this** — the header is interpolated into an internal path, and a slash or a `..` in it used to walk the rewrite into `/admin`, past the sign-in gate |
+| Response headers | CSP, HSTS, `nosniff`, `SAMEORIGIN`, a restrictive `Permissions-Policy` — all in `next.config.ts` |
+| Uploaded files | Served with `sandbox` and `default-src 'none'`, so an uploaded SVG cannot run script against the site |
+| Public forms | Honeypot, 5 submissions per IP per 10 minutes, fields checked against the form definition (unknown fields dropped, required fields enforced, dropdowns limited to their own options), values capped at 5 000 characters, brand assigned from the form rather than from the request |
+| Enquiries | Readable only by signed-in users of the owning brand; never by the public |
+| Drafts | Filtered out for anyone not signed in, including through `?draft=true` on the API |
+| Dependencies | `pnpm audit --prod` is clean; `pnpm-workspace.yaml` pins patched versions of transitive packages |
+
+The `script-src` directive still allows `'unsafe-inline'` and `'unsafe-eval'` because Next.js and
+the Payload admin both need them; tightening that means moving every inline script onto a nonce.
+`https://cdn.jsdelivr.net` is allowed for the admin's code editor only — if the admin never shows
+a code field, remove it.
+
+If something in the admin panel ever fails to load, the CSP in `next.config.ts` is the first thing
+to check: the browser console names the directive that blocked it.
+
 ## Setting up the first account
 
 Never hard-code a password. Run this against the right database:

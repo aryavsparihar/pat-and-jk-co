@@ -3,3 +3,9 @@ allowBuilds:
   sharp: true
   unrs-resolver: true
   workerd: true
+
+# Pull transitive dependencies of the admin UI up to patched releases
+# (dompurify via monaco-editor, esbuild via the build tooling)
+overrides:
+  dompurify: ">=3.4.13"
+  esbuild: ">=0.25.0"

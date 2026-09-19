@@ -5,7 +5,7 @@ import { superAdminOnly } from '../access/roles'
 import { revalidateFrontend, revalidateFrontendAfterDelete } from '../hooks/revalidateFrontend'
 
 /**
- * A tenant is one brand in the group (PJK itself, Phulhaar Gallery, …).
+ * A tenant is one brand under PJK (PJK itself, Phulhaar Gallery, …).
  * Each brand owns its own pages, posts, media, forms and site settings,
  * and is served on the domains listed here — all from this one codebase.
  */

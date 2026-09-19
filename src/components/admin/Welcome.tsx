@@ -16,7 +16,7 @@ const links = [
   {
     href: '/admin/collections/ventures',
     title: 'Ventures',
-    text: 'The businesses in the group and their status.',
+    text: 'The ventures under PJK and their status.',
   },
   {
     href: '/admin/collections/form-submissions',

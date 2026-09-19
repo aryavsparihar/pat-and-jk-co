@@ -9,7 +9,7 @@ import { revalidateFrontend, revalidateFrontendAfterDelete } from '../hooks/reva
 import { generatePreviewPath } from '../utilities/previewPath'
 
 /**
- * The businesses in the group, shown on the parent site (ventures grid, spotlight, detail page).
+ * The ventures under PJK, shown on the parent site (ventures grid, spotlight, detail page).
  * A venture can later be given its own full website by adding it as a Brand (tenant).
  */
 export const Ventures: CollectionConfig<'ventures'> = {
@@ -33,9 +33,9 @@ export const Ventures: CollectionConfig<'ventures'> = {
   },
   admin: {
     defaultColumns: ['name', 'stage', 'order', '_status'],
-    group: 'Group',
+    group: 'Ventures & people',
     description:
-      'The businesses in the group. “Stage” decides whether a venture gets its own page or appears as a teaser.',
+      'The ventures under PJK. “Stage” decides whether a venture gets its own page or appears as a teaser.',
     livePreview: {
       url: ({ data, req }) =>
         generatePreviewPath({

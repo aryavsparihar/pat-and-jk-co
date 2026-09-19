@@ -21,6 +21,7 @@ export const FormBlock: React.FC<FormBlockProps & { ctx: BlockContext }> = ({
   const hasDetails =
     showContactDetails &&
     (settings?.email ||
+      settings?.businessEmail ||
       settings?.technicalEmail ||
       settings?.phone ||
       settings?.address ||
@@ -37,10 +38,20 @@ export const FormBlock: React.FC<FormBlockProps & { ctx: BlockContext }> = ({
             <dl className="mt-10 space-y-6 border-t border-border pt-8">
               {settings?.email && (
                 <div>
-                  <dt className="label">Email</dt>
+                  <dt className="label">General enquiries</dt>
                   <dd className="mt-1">
                     <a className="link" href={`mailto:${settings.email}`}>
                       {settings.email}
+                    </a>
+                  </dd>
+                </div>
+              )}
+              {settings?.businessEmail && (
+                <div>
+                  <dt className="label">Business enquiries</dt>
+                  <dd className="mt-1">
+                    <a className="link" href={`mailto:${settings.businessEmail}`}>
+                      {settings.businessEmail}
                     </a>
                   </dd>
                 </div>

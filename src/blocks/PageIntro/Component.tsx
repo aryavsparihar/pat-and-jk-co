@@ -22,13 +22,13 @@ export const PageIntroBlock: React.FC<PageIntroBlockProps & { ctx: BlockContext 
       <div
         className={cn(
           'container',
-          centered ? 'text-center' : 'grid gap-x-12 gap-y-5 md:grid-cols-12',
+          centered ? 'text-center' : 'grid gap-x-12 gap-y-5 lg:grid-cols-12',
         )}
       >
-        <div className={cn(!centered && 'md:col-span-3 md:pt-4')}>
+        <div className={cn(!centered && 'lg:col-span-3 lg:pt-4')}>
           <Label className={cn(centered && 'mb-6')}>{eyebrow}</Label>
         </div>
-        <div className={cn(!centered && 'md:col-span-9')}>
+        <div className={cn(!centered && 'lg:col-span-9')}>
           <HeadingTag className={cn('display-xl max-w-[16ch]', centered && 'mx-auto')}>
             <Emphasis text={heading} />
           </HeadingTag>

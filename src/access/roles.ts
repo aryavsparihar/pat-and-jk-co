@@ -4,7 +4,7 @@ import type { User } from '@/payload-types'
 
 /**
  * Two roles:
- * - super-admin: the group's technical owner. Sees every brand (tenant), manages users and domains.
+ * - super-admin: the technical owner. Sees every brand (tenant), manages users and domains.
  * - editor: brand staff. Edits content only for the brands assigned to them (enforced by the multi-tenant plugin).
  */
 export const isSuperAdmin = (user?: Partial<User> | null): boolean =>

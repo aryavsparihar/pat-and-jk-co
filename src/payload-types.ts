@@ -473,7 +473,7 @@ export interface Category {
   createdAt: string;
 }
 /**
- * The businesses in the group. “Stage” decides whether a venture gets its own page or appears as a teaser.
+ * The ventures under PJK. “Stage” decides whether a venture gets its own page or appears as a teaser.
  *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "ventures".
@@ -1312,7 +1312,11 @@ export interface SiteSetting {
   email?: string | null;
   phone?: string | null;
   /**
-   * Shown in the footer under the general address, for anything to do with the website.
+   * Partnerships, trade and retail clients.
+   */
+  businessEmail?: string | null;
+  /**
+   * Anything to do with the website.
    */
   technicalEmail?: string | null;
   address?: string | null;
@@ -2238,6 +2242,7 @@ export interface SiteSettingsSelect<T extends boolean = true> {
   copyrightName?: T;
   email?: T;
   phone?: T;
+  businessEmail?: T;
   technicalEmail?: T;
   address?: T;
   mapUrl?: T;

@@ -92,7 +92,8 @@ export const HeaderClient: React.FC<Props> = ({ contactEmail, cta, logo, nav, si
           <button
             aria-controls="mobile-menu"
             aria-expanded={open}
-            className="smallcaps text-[1.12rem] text-primary lg:hidden"
+            // Negative margins keep the label optically aligned while the tap target stays thumb-sized
+            className="smallcaps -my-2 -mr-3 px-3 py-2 text-[1.12rem] text-primary lg:hidden"
             onClick={() => setOpen((v) => !v)}
             type="button"
           >

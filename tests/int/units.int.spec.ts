@@ -31,6 +31,32 @@ describe('normalizeHost', () => {
     expect(normalizeHost('pjk.localhost:3000')).toBe('pjk.localhost')
     expect(normalizeHost(null)).toBe('localhost')
   })
+
+  /**
+   * The host is interpolated into the internal rewrite path, so anything that is not a plain
+   * hostname has to be thrown away. A slash or a dot segment here would otherwise walk the
+   * rewrite out of /tenant-sites and straight into the admin panel, past the sign-in gate.
+   */
+  it('refuses anything that is not a hostname', () => {
+    expect(normalizeHost('x/../../admin')).toBe('localhost')
+    expect(normalizeHost('x/../../api/users')).toBe('localhost')
+    expect(normalizeHost('..')).toBe('localhost')
+    expect(normalizeHost('a/b')).toBe('localhost')
+    expect(normalizeHost('pjk.co.in/evil')).toBe('localhost')
+    expect(normalizeHost('pjk.co.in\\evil')).toBe('localhost')
+    expect(normalizeHost('pjk.co.in?x=1')).toBe('localhost')
+    expect(normalizeHost('pjk.co.in#x')).toBe('localhost')
+    expect(normalizeHost('pjk .co.in')).toBe('localhost')
+    expect(normalizeHost('-pjk.co.in')).toBe('localhost')
+    expect(normalizeHost('pjk..co.in')).toBe('localhost')
+    expect(normalizeHost('')).toBe('localhost')
+  })
+
+  it('still accepts the hostnames we actually serve', () => {
+    for (const host of ['pjk.co.in', 'www.pjk.co.in', 'pjk.localhost', 'localhost', 'a-b.co.in']) {
+      expect(normalizeHost(host)).toBe(host)
+    }
+  })
 })
 
 describe('access control', () => {
