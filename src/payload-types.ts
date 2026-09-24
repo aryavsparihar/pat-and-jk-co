@@ -493,6 +493,10 @@ export interface Venture {
    */
   summary?: string | null;
   /**
+   * A few lines in the venture’s own voice, set beneath its mark. Leave a blank line between paragraphs.
+   */
+  caption?: string | null;
+  /**
    * The full story, shown on the venture page.
    */
   description?: {
@@ -537,6 +541,16 @@ export interface Venture {
    * "Coming soon" ventures appear as teaser cards without their own page.
    */
   stage: 'flagship' | 'live' | 'coming-soon';
+  /**
+   * For a venture that has been announced but has not opened yet. The notice disappears by itself once the date has passed.
+   */
+  opening?: {
+    date?: string | null;
+    /**
+     * e.g. “in celebration of Diwali”
+     */
+    note?: string | null;
+  };
   /**
    * e.g. "Fine art"
    */
@@ -2289,6 +2303,7 @@ export interface VenturesSelect<T extends boolean = true> {
   name?: T;
   tagline?: T;
   summary?: T;
+  caption?: T;
   description?: T;
   highlights?:
     | T
@@ -2307,6 +2322,12 @@ export interface VenturesSelect<T extends boolean = true> {
         description?: T;
       };
   stage?: T;
+  opening?:
+    | T
+    | {
+        date?: T;
+        note?: T;
+      };
   sector?: T;
   website?: T;
   order?: T;

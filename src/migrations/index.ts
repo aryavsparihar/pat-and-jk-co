@@ -3,6 +3,7 @@ import * as migration_20260918_171527_admin_gate from './20260918_171527_admin_g
 import * as migration_20260918_223130_add_technical_email from './20260918_223130_add_technical_email';
 import * as migration_20260919_131846_add_business_email from './20260919_131846_add_business_email';
 import * as migration_20260924_185422_add_visitor_count from './20260924_185422_add_visitor_count';
+import * as migration_20260924_194443_add_venture_opening from './20260924_194443_add_venture_opening';
 
 export const migrations = [
   {
@@ -28,6 +29,11 @@ export const migrations = [
   {
     up: migration_20260924_185422_add_visitor_count.up,
     down: migration_20260924_185422_add_visitor_count.down,
-    name: '20260924_185422_add_visitor_count'
+    name: '20260924_185422_add_visitor_count',
+  },
+  {
+    up: migration_20260924_194443_add_venture_opening.up,
+    down: migration_20260924_194443_add_venture_opening.down,
+    name: '20260924_194443_add_venture_opening'
   },
 ];

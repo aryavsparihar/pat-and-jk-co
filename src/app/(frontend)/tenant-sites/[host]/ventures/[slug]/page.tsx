@@ -8,6 +8,7 @@ import React from 'react'
 import { ventureStageLabel } from '@/components/cards/VentureCard'
 import { LivePreviewListener } from '@/components/LivePreviewListener'
 import { Media } from '@/components/Media'
+import { OpeningNotice } from '@/components/OpeningNotice'
 import { PayloadRedirects } from '@/components/PayloadRedirects'
 import { Plate } from '@/components/Plate'
 import RichText from '@/components/RichText'
@@ -78,8 +79,20 @@ export default async function VenturePage({ params }: Args) {
         // No photograph yet: the venture's own mark stands as the frontispiece
         logo && (
           <div className="container pb-[clamp(3rem,6vw,5rem)]">
-            <div className="relative mx-auto aspect-[5/4] w-full max-w-[30rem]">
-              <Plate mark={logo} markSize="(max-width: 640px) 92vw, 30rem" priority />
+            <div className="mx-auto max-w-[34rem]">
+              <div className="relative mx-auto aspect-[5/4] w-full max-w-[30rem]">
+                <Plate animate mark={logo} markSize="(max-width: 640px) 92vw, 30rem" priority />
+              </div>
+              {venture.caption && (
+                <p className="intro-line mt-10 whitespace-pre-line text-center font-display text-[clamp(1.3rem,2vw,1.6rem)] italic leading-[1.45] text-primary [--intro-delay:1s]">
+                  {venture.caption}
+                </p>
+              )}
+              <OpeningNotice
+                as="notice"
+                className="intro-line mt-11 [--intro-delay:1.2s]"
+                opening={venture.opening}
+              />
             </div>
           </div>
         )

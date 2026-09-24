@@ -1,0 +1,54 @@
+import type { Venture } from '@/payload-types'
+
+import { formatDate } from '@/utilities/formatDateTime'
+import { cn } from '@/utilities/ui'
+import React from 'react'
+
+import { Ornament } from './Typography'
+
+type Props = {
+  opening: Venture['opening']
+  className?: string
+  /** `notice` is the announcement set under a venture's mark; `line` is one quiet line in a list */
+  as?: 'notice' | 'line'
+}
+
+/**
+ * "Opening 8 November 2026 — in celebration of Diwali", for a venture that has been announced
+ * but has not opened yet. It takes itself down the day after, so nobody has to remember to.
+ */
+export const OpeningNotice: React.FC<Props> = ({ opening, className, as = 'line' }) => {
+  const date = opening?.date
+  if (!date) return null
+
+  // Compared by day, so the notice stands until the opening day is over
+  const opensOn = new Date(date)
+  if (Number.isNaN(opensOn.getTime())) return null
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  if (opensOn < today) return null
+
+  const when = formatDate(date)
+
+  // A span, because a line often sits inside a link or a paragraph
+  if (as === 'line') {
+    return (
+      <span className={cn('label block', className)}>
+        Opening {when}
+        {opening?.note ? ` — ${opening.note}` : ''}
+      </span>
+    )
+  }
+
+  return (
+    <div className={cn('text-center', className)}>
+      <Ornament className="mx-auto w-16 opacity-60" />
+      <p className="smallcaps mt-5 text-[1.1rem] text-primary">Opening {when}</p>
+      {opening?.note && (
+        <p className="mt-2 font-display text-[1.25rem] italic text-muted-foreground">
+          {opening.note}
+        </p>
+      )}
+    </div>
+  )
+}

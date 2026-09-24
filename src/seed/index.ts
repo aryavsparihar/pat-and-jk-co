@@ -176,6 +176,9 @@ async function seed() {
     sector: 'Fine art',
     order: 1,
     logo: phulhaarLogo.id,
+    caption:
+      'A phulhaar is a garland. Every artist it gathers is a bloom of their own, and the gallery is the thread that draws them into a single piece of work.\n\nA space of vibrant artistry, anchored in quiet light.',
+    opening: { date: '2026-11-08T00:00:00.000Z', note: 'in celebration of Diwali' },
     summary:
       'A gallery for fine and contemporary art. Phulhaar curates work worth living with, and works alongside curators, interior designers, decorators and mood setters to place it well.',
     description: root(

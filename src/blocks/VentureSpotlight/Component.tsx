@@ -2,6 +2,7 @@ import type { VentureSpotlightBlock as VentureSpotlightBlockProps } from '@/payl
 
 import { ventureMotif, ventureStageLabel } from '@/components/cards/VentureCard'
 import { Media } from '@/components/Media'
+import { OpeningNotice } from '@/components/OpeningNotice'
 import { Plate } from '@/components/Plate'
 import { Section } from '@/components/Typography'
 import { docPath } from '@/utilities/docHref'
@@ -54,6 +55,10 @@ export const VentureSpotlightBlock: React.FC<VentureSpotlightBlockProps> = ({
             </p>
           )}
           {venture.summary && <p className="measure mt-7">{venture.summary}</p>}
+          <OpeningNotice
+            className="mt-6 border-t border-border pt-5 !text-primary"
+            opening={venture.opening}
+          />
           {href && (
             <Link className="btn btn-solid mt-9" href={href}>
               {linkLabel || `About ${motif.title}`}

@@ -63,6 +63,10 @@ The page with the slug **`home`** is the homepage. The **SEO** tab sets the titl
 - **Logo** — the venture's own mark, shown on a paper panel wherever there is no cover. Upload it with a transparent background so it sits on the page properly.
 - Neither — a typographic panel with the venture's name.
 
+**Caption** (under *Content*) is a line or two in the venture's own voice, set under its mark on its own page. Leave a blank line between paragraphs.
+
+**Opening** (sidebar) is for a venture that has been announced but has not opened yet. Fill in the date and, if you like, the occasion — "in celebration of Diwali" — and the notice appears under the mark, in the ventures index and beside the venture on the homepage. It takes itself down the day after the date, so nobody has to remember to.
+
 ## People, openings
 
 - **Group → People** — name, role, portrait, bio. Shown by the People grid block.

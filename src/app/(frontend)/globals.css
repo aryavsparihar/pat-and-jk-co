@@ -516,10 +516,46 @@
     }
   }
 
+  /*
+   * A venture's mark arriving on its plate: the frame is drawn, then the mark settles into it,
+   * then whatever is written underneath rises. The same three beats, and the same easing, as
+   * the PJK intro above — one house, one manner.
+   */
+  .plate-enter::after {
+    animation: plate-frame 0.85s cubic-bezier(0.32, 0.72, 0.24, 1) both;
+  }
+
+  .mark-enter {
+    animation: mark-settle 1.1s cubic-bezier(0.32, 0.72, 0.24, 1) 0.2s both;
+    will-change: transform, opacity;
+  }
+
+  @keyframes plate-frame {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes mark-settle {
+    from {
+      opacity: 0;
+      transform: translateY(14px) scale(0.965);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .intro-mark,
     .intro-rule,
-    .intro-line {
+    .intro-line,
+    .plate-enter::after,
+    .mark-enter {
       animation: none;
     }
   }

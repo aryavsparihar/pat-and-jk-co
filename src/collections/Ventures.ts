@@ -30,6 +30,7 @@ export const Ventures: CollectionConfig<'ventures'> = {
     cover: true,
     logo: true,
     website: true,
+    opening: true,
   },
   admin: {
     defaultColumns: ['name', 'stage', 'order', '_status'],
@@ -79,6 +80,14 @@ export const Ventures: CollectionConfig<'ventures'> = {
               type: 'textarea',
               admin: {
                 description: 'Two or three sentences for cards and the spotlight block.',
+              },
+            },
+            {
+              name: 'caption',
+              type: 'textarea',
+              admin: {
+                description:
+                  'A few lines in the venture’s own voice, set beneath its mark. Leave a blank line between paragraphs.',
               },
             },
             {
@@ -143,6 +152,30 @@ export const Ventures: CollectionConfig<'ventures'> = {
         position: 'sidebar',
         description: '"Coming soon" ventures appear as teaser cards without their own page.',
       },
+    },
+    {
+      name: 'opening',
+      label: 'Opening',
+      type: 'group',
+      admin: {
+        position: 'sidebar',
+        description:
+          'For a venture that has been announced but has not opened yet. The notice disappears by itself once the date has passed.',
+      },
+      fields: [
+        {
+          name: 'date',
+          label: 'Opening date',
+          type: 'date',
+          admin: { date: { pickerAppearance: 'dayOnly', displayFormat: 'd MMMM yyyy' } },
+        },
+        {
+          name: 'note',
+          label: 'Occasion',
+          type: 'text',
+          admin: { description: 'e.g. “in celebration of Diwali”' },
+        },
+      ],
     },
     {
       name: 'sector',

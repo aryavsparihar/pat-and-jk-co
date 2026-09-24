@@ -1,5 +1,6 @@
 import type { Venture } from '@/payload-types'
 
+import { OpeningNotice } from '@/components/OpeningNotice'
 import { docPath } from '@/utilities/docHref'
 import { cn } from '@/utilities/ui'
 import Link from 'next/link'
@@ -37,6 +38,7 @@ export const VentureRow: React.FC<{ venture: Venture; index: number }> = ({ vent
         {(venture.tagline || venture.summary) && (
           <span className="muted mt-1.5 block">{venture.tagline || venture.summary}</span>
         )}
+        <OpeningNotice className="mt-2 !text-primary" opening={venture.opening} />
       </span>
       <span className="label col-start-2 sm:col-start-auto sm:pt-1 sm:text-right">
         {ventureStageLabel[venture.stage]}

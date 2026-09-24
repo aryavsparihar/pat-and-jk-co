@@ -21,6 +21,8 @@ type Props = {
   markSize?: string
   /** Set on a plate above the fold, so the mark is not lazy-loaded */
   priority?: boolean
+  /** Play the arrival animation. Only worth it where the plate opens a page. */
+  animate?: boolean
 }
 
 /**
@@ -41,12 +43,13 @@ export const Plate: React.FC<Props> = ({
   ornament = true,
   markSize = '(max-width: 1024px) 90vw, 32vw',
   priority,
+  animate,
 }) =>
   mark ? (
-    <div className={cn('plate plate-paper h-full w-full', className)}>
+    <div className={cn('plate plate-paper h-full w-full', animate && 'plate-enter', className)}>
       <Media
         fill
-        imgClassName="object-contain p-[11%]"
+        imgClassName={cn('object-contain p-[11%]', animate && 'mark-enter')}
         priority={priority}
         resource={mark}
         size={markSize}
