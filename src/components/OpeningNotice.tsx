@@ -17,17 +17,23 @@ type Props = {
  * "Opening 8 November 2026 — in celebration of Diwali", for a venture that has been announced
  * but has not opened yet. It takes itself down the day after, so nobody has to remember to.
  */
-export const OpeningNotice: React.FC<Props> = ({ opening, className, as = 'line' }) => {
-  const date = opening?.date
-  if (!date) return null
-
-  // Compared by day, so the notice stands until the opening day is over
-  const opensOn = new Date(date)
-  if (Number.isNaN(opensOn.getTime())) return null
+/**
+ * Whether a venture is announced but not open yet. Compared by day, so an opening stands
+ * until its own day is over.
+ */
+export const isOpeningAhead = (opening: Venture['opening']): boolean => {
+  if (!opening?.date) return false
+  const opensOn = new Date(opening.date)
+  if (Number.isNaN(opensOn.getTime())) return false
   const today = new Date()
   today.setHours(0, 0, 0, 0)
-  if (opensOn < today) return null
+  return opensOn >= today
+}
 
+export const OpeningNotice: React.FC<Props> = ({ opening, className, as = 'line' }) => {
+  if (!isOpeningAhead(opening)) return null
+
+  const date = opening!.date as string
   const when = formatDate(date)
 
   // A span, because a line often sits inside a link or a paragraph

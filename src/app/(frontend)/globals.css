@@ -560,6 +560,49 @@
     }
   }
 
+  /*
+   * A whole row that is a link. The catalogue index used to reveal itself only on hover, which
+   * told a visitor nothing at rest and nothing at all on a touch screen. Now the title carries
+   * the same hairline underline as every other link on the site, and the arrow leans forward
+   * when the row is pointed at.
+   */
+  .row-link .row-title {
+    text-decoration-line: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.2em;
+    text-decoration-color: var(--border-strong);
+    transition: text-decoration-color 0.25s ease;
+  }
+
+  .row-link:hover .row-title,
+  .row-link:focus-visible .row-title {
+    text-decoration-color: currentColor;
+  }
+
+  .row-arrow {
+    opacity: 0.5;
+    transition:
+      transform 0.25s ease,
+      opacity 0.25s ease;
+  }
+
+  .row-link:hover .row-arrow,
+  .row-link:focus-visible .row-arrow {
+    opacity: 1;
+    transform: translateX(0.3rem);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .row-arrow {
+      transition: opacity 0.25s ease;
+    }
+
+    .row-link:hover .row-arrow,
+    .row-link:focus-visible .row-arrow {
+      transform: none;
+    }
+  }
+
   /* Current page in navigation */
   .nav-link {
     text-decoration-line: underline;
