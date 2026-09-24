@@ -4,6 +4,7 @@ import * as migration_20260918_223130_add_technical_email from './20260918_22313
 import * as migration_20260919_131846_add_business_email from './20260919_131846_add_business_email';
 import * as migration_20260924_185422_add_visitor_count from './20260924_185422_add_visitor_count';
 import * as migration_20260924_194443_add_venture_opening from './20260924_194443_add_venture_opening';
+import * as migration_20260924_201500_phulhaar_mark_and_opening from './20260924_201500_phulhaar_mark_and_opening';
 
 export const migrations = [
   {
@@ -35,5 +36,10 @@ export const migrations = [
     up: migration_20260924_194443_add_venture_opening.up,
     down: migration_20260924_194443_add_venture_opening.down,
     name: '20260924_194443_add_venture_opening'
+  },
+  {
+    up: migration_20260924_201500_phulhaar_mark_and_opening.up,
+    down: migration_20260924_201500_phulhaar_mark_and_opening.down,
+    name: '20260924_201500_phulhaar_mark_and_opening',
   },
 ];
