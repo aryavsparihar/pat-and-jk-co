@@ -118,6 +118,7 @@ export const plugins: Plugin[] = [
       forms: {},
       redirects: {},
       'site-settings': { isGlobal: true },
+      'visitor-counts': { isGlobal: true },
     },
     tenantsArrayField: {
       includeDefaultField: true,

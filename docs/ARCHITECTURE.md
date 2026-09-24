@@ -25,6 +25,13 @@ Public pages are statically rendered. Content changes purge them through
 `src/hooks/revalidateFrontend.ts` — **add that hook to any new collection that appears on the site**,
 or edits to it will not show up until the hourly refresh.
 
+Anything that changes per request therefore cannot be rendered with the page. The visitor count is
+the one such thing: `src/components/VisitorCount.tsx` asks `/next/visits` once the page is open, and
+that route increments the brand's row with a single `UPDATE … SET total = total + 1`, so two visits
+at the same moment cannot overwrite each other. It stores nothing about the visitor by design, which
+leaves session storage in the browser and a short per-address memory as the only guards against one
+visit being counted twice.
+
 ## URLs
 
 `src/utilities/docHref.ts` is the single source of truth: pages are `/slug`, journal posts are

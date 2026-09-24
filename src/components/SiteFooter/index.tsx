@@ -7,6 +7,7 @@ import React from 'react'
 
 import { BrandLogo } from '../BrandLogo'
 import { SocialLinks } from '../SocialLinks'
+import { VisitorCount } from '../VisitorCount'
 
 type Props = {
   settings: SiteSetting | null
@@ -119,9 +120,12 @@ export const SiteFooter: React.FC<Props> = ({ settings, ventures }) => {
         </div>
 
         <div className="mt-16 flex flex-col gap-3 border-t border-border pt-6 text-base opacity-75 md:flex-row md:items-center md:justify-between">
-          <p>
-            © {year} {name}
-          </p>
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
+            <p>
+              © {year} {name}
+            </p>
+            {settings?.showVisitorCount && <VisitorCount />}
+          </div>
           {settings?.legalLinks && settings.legalLinks.length > 0 && (
             <ul className="flex flex-wrap gap-x-6 gap-y-2">
               {settings.legalLinks.map(({ link, id }) => (

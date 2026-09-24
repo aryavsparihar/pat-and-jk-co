@@ -18,6 +18,7 @@ import { SiteSettings } from './collections/SiteSettings'
 import { Tenants } from './collections/Tenants'
 import { Users } from './collections/Users'
 import { Ventures } from './collections/Ventures'
+import { VisitorCounts } from './collections/VisitorCounts'
 import { plugins } from './plugins'
 import { defaultLexical } from '@/fields/defaultLexical'
 import { getServerSideURL } from './utilities/getURL'
@@ -97,6 +98,7 @@ export default buildConfig({
     Ventures,
     People,
     Openings,
+    VisitorCounts,
     Tenants,
     Users,
     AccessRequests,

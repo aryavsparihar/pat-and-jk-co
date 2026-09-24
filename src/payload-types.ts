@@ -75,6 +75,7 @@ export interface Config {
     ventures: Venture;
     people: Person;
     openings: Opening;
+    'visitor-counts': VisitorCount;
     tenants: Tenant;
     users: User;
     'access-requests': AccessRequest;
@@ -104,6 +105,7 @@ export interface Config {
     ventures: VenturesSelect<false> | VenturesSelect<true>;
     people: PeopleSelect<false> | PeopleSelect<true>;
     openings: OpeningsSelect<false> | OpeningsSelect<true>;
+    'visitor-counts': VisitorCountsSelect<false> | VisitorCountsSelect<true>;
     tenants: TenantsSelect<false> | TenantsSelect<true>;
     users: UsersSelect<false> | UsersSelect<true>;
     'access-requests': AccessRequestsSelect<false> | AccessRequestsSelect<true>;
@@ -1309,6 +1311,10 @@ export interface SiteSetting {
    * Defaults to the site name.
    */
   copyrightName?: string | null;
+  /**
+   * Displays the running number of visits beside the copyright line. The total itself is under Website → Visitor count.
+   */
+  showVisitorCount?: boolean | null;
   email?: string | null;
   phone?: string | null;
   /**
@@ -1360,6 +1366,19 @@ export interface Opening {
    * Lower numbers appear first.
    */
   order?: number | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * How many visits this website has had since counting began. Kept by the site itself; turn the number on or off under Site settings → Footer.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "visitor-counts".
+ */
+export interface VisitorCount {
+  id: number;
+  tenant?: (number | null) | Tenant;
+  total: number;
   updatedAt: string;
   createdAt: string;
 }
@@ -1665,6 +1684,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'openings';
         value: number | Opening;
+      } | null)
+    | ({
+        relationTo: 'visitor-counts';
+        value: number | VisitorCount;
       } | null)
     | ({
         relationTo: 'tenants';
@@ -2240,6 +2263,7 @@ export interface SiteSettingsSelect<T extends boolean = true> {
         id?: T;
       };
   copyrightName?: T;
+  showVisitorCount?: T;
   email?: T;
   phone?: T;
   businessEmail?: T;
@@ -2328,6 +2352,16 @@ export interface OpeningsSelect<T extends boolean = true> {
   applyUrl?: T;
   status?: T;
   order?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "visitor-counts_select".
+ */
+export interface VisitorCountsSelect<T extends boolean = true> {
+  tenant?: T;
+  total?: T;
   updatedAt?: T;
   createdAt?: T;
 }

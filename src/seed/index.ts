@@ -898,6 +898,7 @@ async function seed() {
     ],
     legalLinks: [pageRef(privacy.id, 'Privacy policy')],
     copyrightName: `PAT and J.K. Co. · Prop. ${PROPRIETOR}`,
+    showVisitorCount: true,
     email: CONTACT_INBOX,
     businessEmail: BUSINESS_INBOX,
     technicalEmail: TECHNICAL_INBOX,

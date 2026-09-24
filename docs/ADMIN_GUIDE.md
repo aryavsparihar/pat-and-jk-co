@@ -80,8 +80,14 @@ The page with the slug **`home`** is the homepage. The **SEO** tab sets the titl
 - **General** — site name, tagline, default search description, social sharing image.
 - **Brand** — logos (for light backgrounds, dark backgrounds, and a compact header version) and the four brand colours.
 - **Navigation** — header links and the header button.
-- **Footer** — the short description, footer links, legal links.
+- **Footer** — the short description, footer links, legal links, and whether to show the visitor count.
 - **Contact & social** — the general and technical enquiry addresses, phone, address, map link, social profiles.
+
+## Visitor count
+
+**Website → Visitor count** is the running number of visits shown at the very bottom of the site. It is kept by the site itself and cannot be edited; to hide the number, untick *Show the visitor count* under **Site settings → Footer**.
+
+A browser is counted once per visit, however many pages it then reads, and obvious robots are left out. Nothing is stored about anyone — no cookie, no address, no identifier — so treat it as a fair indication of traffic rather than an exact figure.
 
 ## Redirects
 

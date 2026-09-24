@@ -208,6 +208,16 @@ export const SiteSettings: CollectionConfig = {
               type: 'text',
               admin: { description: 'Defaults to the site name.' },
             },
+            {
+              name: 'showVisitorCount',
+              label: 'Show the visitor count',
+              type: 'checkbox',
+              defaultValue: true,
+              admin: {
+                description:
+                  'Displays the running number of visits beside the copyright line. The total itself is under Website → Visitor count.',
+              },
+            },
           ],
         },
         {
