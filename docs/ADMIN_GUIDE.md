@@ -57,7 +57,11 @@ The page with the slug **`home`** is the homepage. The **SEO** tab sets the titl
 - **Flagship / Active** — a card linking to its own page at `/ventures/<slug>`.
 - **Coming soon** — a teaser card with no page of its own.
 
-**Order** controls position (lower first). Add a **Cover** image under *Media*; until then, a typographic panel is shown.
+**Order** controls position (lower first). Under *Media* there are two pictures, and the site falls back through them in order:
+
+- **Cover** — a photograph, shown across the top of the venture's page and beside it on the homepage.
+- **Logo** — the venture's own mark, shown on a paper panel wherever there is no cover. Upload it with a transparent background so it sits on the page properly.
+- Neither — a typographic panel with the venture's name.
 
 ## People, openings
 

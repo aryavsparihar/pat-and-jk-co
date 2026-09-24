@@ -9,6 +9,7 @@ import { ventureStageLabel } from '@/components/cards/VentureCard'
 import { LivePreviewListener } from '@/components/LivePreviewListener'
 import { Media } from '@/components/Media'
 import { PayloadRedirects } from '@/components/PayloadRedirects'
+import { Plate } from '@/components/Plate'
 import RichText from '@/components/RichText'
 import { Section } from '@/components/Typography'
 import { docPath } from '@/utilities/docHref'
@@ -38,6 +39,7 @@ export default async function VenturePage({ params }: Args) {
   }
 
   const cover = venture.cover && typeof venture.cover === 'object' ? venture.cover : null
+  const logo = venture.logo && typeof venture.logo === 'object' ? venture.logo : null
   const facts = [
     { label: 'Stage', value: ventureStageLabel[venture.stage] },
     ...(venture.sector ? [{ label: 'Field', value: venture.sector }] : []),
@@ -66,12 +68,21 @@ export default async function VenturePage({ params }: Args) {
         </div>
       </header>
 
-      {cover && (
+      {cover ? (
         <div className="container pb-[clamp(3rem,6vw,5rem)]">
           <div className="relative aspect-[16/9] w-full overflow-hidden bg-surface md:aspect-[21/9]">
             <Media fill imgClassName="object-cover" priority resource={cover} size="100vw" />
           </div>
         </div>
+      ) : (
+        // No photograph yet: the venture's own mark stands as the frontispiece
+        logo && (
+          <div className="container pb-[clamp(3rem,6vw,5rem)]">
+            <div className="relative mx-auto aspect-[5/4] w-full max-w-[30rem]">
+              <Plate mark={logo} markSize="(max-width: 640px) 92vw, 30rem" priority />
+            </div>
+          </div>
+        )
       )}
 
       <Section label="About">

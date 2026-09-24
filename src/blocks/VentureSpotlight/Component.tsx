@@ -9,8 +9,8 @@ import Link from 'next/link'
 import React from 'react'
 
 /**
- * One venture presented in detail. Without a cover photograph it shows a green title plate —
- * the one place, besides the footer, where the brand colour is used as a solid ground.
+ * One venture presented in detail. Without a cover photograph it shows the venture's own mark
+ * on paper, and without either of those a green title plate.
  */
 export const VentureSpotlightBlock: React.FC<VentureSpotlightBlockProps> = ({
   eyebrow,
@@ -20,6 +20,7 @@ export const VentureSpotlightBlock: React.FC<VentureSpotlightBlockProps> = ({
   if (!venture || typeof venture !== 'object') return null
 
   const cover = venture.cover && typeof venture.cover === 'object' ? venture.cover : null
+  const logo = venture.logo && typeof venture.logo === 'object' ? venture.logo : null
   const motif = ventureMotif(venture.name)
   const href = venture.stage === 'coming-soon' ? null : docPath('ventures', venture.slug)
 
@@ -35,7 +36,13 @@ export const VentureSpotlightBlock: React.FC<VentureSpotlightBlockProps> = ({
               size="(max-width: 1024px) 100vw, 35vw"
             />
           ) : (
-            <Plate size="lg" subtitle={motif.subtitle} title={motif.title} />
+            <Plate
+              mark={logo}
+              markSize="(max-width: 1024px) 100vw, 35vw"
+              size="lg"
+              subtitle={motif.subtitle}
+              title={motif.title}
+            />
           )}
         </div>
 

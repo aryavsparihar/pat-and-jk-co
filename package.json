@@ -30,7 +30,8 @@
     "brand:portraits": "node scripts/brand/make-portraits.mjs",
     "gate-token": "cross-env NODE_OPTIONS=--no-deprecation payload run src/scripts/gate-token.ts",
     "check-email": "cross-env NODE_OPTIONS=--no-deprecation payload run src/scripts/check-email.ts",
-    "refresh-portraits": "cross-env NODE_OPTIONS=--no-deprecation payload run src/scripts/refresh-portraits.ts"
+    "refresh-portraits": "cross-env NODE_OPTIONS=--no-deprecation payload run src/scripts/refresh-portraits.ts",
+    "attach-venture-logo": "cross-env NODE_OPTIONS=--no-deprecation payload run src/scripts/attach-venture-logo.ts"
   },
   "dependencies": {
     "@payloadcms/admin-bar": "3.89.0",

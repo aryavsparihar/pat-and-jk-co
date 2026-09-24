@@ -144,6 +144,11 @@ async function seed() {
   )
   const ogImage = await upload('PAT and J.K. Co.', pngFile('og-default.png', 'pjk-share.png'))
 
+  const phulhaarLogo = await upload(
+    'Phulhaar Gallery by PJK',
+    pngFile('ventures/phulhaar-logo.png', 'phulhaar-logo.png'),
+  )
+
   const yuvrajPortrait = await upload(
     'Yuvraj Singh Pathania, founder and creative director',
     jpgFile('people/yuvraj.jpg', 'yuvraj-singh-pathania.jpg'),
@@ -170,6 +175,7 @@ async function seed() {
     stage: 'flagship',
     sector: 'Fine art',
     order: 1,
+    logo: phulhaarLogo.id,
     summary:
       'A gallery for fine and contemporary art. Phulhaar curates work worth living with, and works alongside curators, interior designers, decorators and mood setters to place it well.',
     description: root(
