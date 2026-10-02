@@ -120,11 +120,10 @@ preview has been given its own database and opts in with `MIGRATE_ON_PREVIEW=1`.
 
 **Needs work, medium, by hand.**
 
-- **Function region.** Vercel's default function region is Washington (`iad1`). If Neon is in
-  Mumbai or Singapore, every database query from a function crosses the world. Pages are static,
-  so visitors barely notice, but sign-in, forms and (soon) onboarding will. Set the function region
-  to match Neon (**Vercel → Settings → Functions → Region**). Tell me which region Neon is in and I
-  can pin it in `vercel.json` instead.
+- **Function region.** Functions ran in Washington (`iad1`, confirmed on the deploy of
+  `dcf6291`) while Neon is in Singapore (`ap-southeast-1`), so every database query crossed the
+  world: `/api/health` took 2.9 s on a cold start. Now pinned to Singapore (`sin1`) in
+  `vercel.json`, so the setting is versioned with the code.
 - **Plan.** Vercel's Hobby plan is for non-commercial use. Once artist and partner data are held,
   move to Pro (also lifts the one-daily-cron limit and the 1-hour log retention).
 
@@ -397,7 +396,7 @@ In the order they are fixed. Each is its own commit.
    called `preview` from `main`, copy its pooled connection string, and set it as `DATABASE_URL` for
    the *Preview* environment only. Then also set `MIGRATE_ON_PREVIEW=1` for Preview only. Until you
    do, previews skip migrations and may show errors for brand-new fields, which is the safe failure.
-3. **Settings → Functions → Function Region**: match Neon's region.
+3. ~~Function region~~: done in `vercel.json` (`sin1`, beside Neon's `ap-southeast-1`).
 4. **Firewall → Configure → New Rule**: *If* Request Path starts with `/next/` *and* Method is
    `POST` → *Rate Limit*, fixed window, 60 s, 60 requests, key *IP*, action *Deny*. Hobby allows one
    such rule.
@@ -419,7 +418,6 @@ In the order they are fixed. Each is its own commit.
 
 1. Check the plan and its restore window (**Settings → Storage / History retention**). Move to
    Launch and set 7 days before Phase 3 goes live.
-2. Note the region, for Vercel item 3.
 
 **Accounts you control**
 
