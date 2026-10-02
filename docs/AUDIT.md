@@ -371,7 +371,7 @@ In the order they are fixed. Each is its own commit.
 | --- | --- | --- | --- | --- |
 | A11 | critical | Dependencies | Next.js 16.3.8, overrides for undici, fast-uri, dompurify; exact pins; Dependabot | done `ec76c01` |
 | A7 | high | Hosting | Migrate only on production deploys, unless a preview opts in | done `99195cd` |
-| A1 | high | Auth | `isStaff()` everywhere access is decided, before members exist | done `c33fd04`; guard in Phase 3 |
+| A1 | high | Auth | `isStaff()` everywhere access is decided, before members exist | done `c33fd04`, guard `5e6a893` |
 | A12 | high | Rate limiting | Postgres-backed limiter with hashed keys; forms use it | done `b056cd5`, `972189c` |
 | A8 | high | CI | GitHub Actions: lint, typecheck, tests, migration drift, build | done `7f20841` |
 | A6 | medium | Auth | `Secure` on the staff session cookie | done `4fa06e6` |
