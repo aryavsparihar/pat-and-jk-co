@@ -153,7 +153,10 @@ export const loadEnv = (): Env => {
   if (checked) return checked
   const { env, problems, warnings } = parseEnv(process.env)
   if (problems.length > 0) throw new EnvError(problems)
-  for (const warning of warnings) console.warn(`[env] ${warning}`)
+  // Once per process at runtime; not from each of the build's many workers
+  if (process.env.NEXT_PHASE !== 'phase-production-build') {
+    for (const warning of warnings) console.warn(`[env] ${warning}`)
+  }
   checked = env
   return env
 }
