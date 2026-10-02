@@ -1,6 +1,7 @@
 import type { Venture } from '@/payload-types'
 
 import { isOpeningAhead, OpeningNotice } from '@/components/OpeningNotice'
+import { RowArrow } from '@/components/RowArrow'
 import { docPath } from '@/utilities/docHref'
 import { cn } from '@/utilities/ui'
 import Link from 'next/link'
@@ -17,23 +18,6 @@ export const ventureMotif = (name: string) => {
   const match = name.match(/^(.*?)\s+(by\s+.+)$/i)
   return match ? { title: match[1]!, subtitle: match[2]! } : { title: name, subtitle: null }
 }
-
-/**
- * A hairline arrow, the same weight as the rules it sits between. The right padding is the
- * room it travels on hover, so it lands flush with the rule instead of crossing it.
- */
-const Arrow: React.FC = () => (
-  <svg
-    aria-hidden
-    className="row-arrow w-[1.9rem] shrink-0 pr-[0.3rem]"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1"
-    viewBox="0 0 26 8"
-  >
-    <path d="M0 4h23.5M20 1l3.5 3-3.5 3" />
-  </svg>
-)
 
 /** One row of the ventures index: number, name and description, stage. */
 export const VentureRow: React.FC<{ venture: Venture; index: number }> = ({ venture, index }) => {
@@ -57,7 +41,7 @@ export const VentureRow: React.FC<{ venture: Venture; index: number }> = ({ vent
       </span>
       <span className="label col-start-2 flex items-center gap-4 sm:col-start-auto sm:justify-end sm:pt-1">
         {ventureStageLabel[venture.stage]}
-        {!inPreparation && <Arrow />}
+        {!inPreparation && <RowArrow />}
       </span>
     </>
   )

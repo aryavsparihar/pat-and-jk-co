@@ -6,8 +6,13 @@ import Link from 'next/link'
 import React from 'react'
 
 import { Media } from '../Media'
+import { RowArrow } from '../RowArrow'
 
-/** One entry in a journal list: date in the margin, title and excerpt, image only if there is one. */
+/**
+ * One entry in a journal list: date in the margin, title and excerpt, image only if there is one.
+ * Like a row of the ventures index, the title carries the site's hairline underline at rest and
+ * the arrow leans forward when the row is pointed at, so it reads as a link on a touch screen too.
+ */
 export const PostRow: React.FC<{ post: Post }> = ({ post }) => {
   const image =
     (post.heroImage && typeof post.heroImage === 'object' && post.heroImage) ||
@@ -19,7 +24,7 @@ export const PostRow: React.FC<{ post: Post }> = ({ post }) => {
   return (
     <li className="border-b border-border">
       <Link
-        className="group grid gap-x-8 gap-y-3 py-8 sm:grid-cols-[10rem_1fr]"
+        className="row-link grid gap-x-8 gap-y-3 py-8 transition-colors hover:bg-surface sm:grid-cols-[10rem_1fr]"
         href={docPath('posts', post.slug)}
       >
         <span className="label pt-1">
@@ -32,8 +37,9 @@ export const PostRow: React.FC<{ post: Post }> = ({ post }) => {
         </span>
         <span className="grid gap-x-8 gap-y-4 md:grid-cols-[1fr_auto]">
           <span>
-            <span className="display-sm block decoration-1 underline-offset-[0.2em] group-hover:underline">
-              {post.title}
+            <span className="flex items-baseline justify-between gap-6">
+              <span className="display-sm row-title">{post.title}</span>
+              <RowArrow />
             </span>
             {excerpt && <span className="muted measure mt-2 block">{excerpt}</span>}
           </span>
