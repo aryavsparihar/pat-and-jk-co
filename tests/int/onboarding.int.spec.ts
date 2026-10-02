@@ -21,12 +21,15 @@ import { MEMBER_COOKIE } from '@/security/constants'
 import type { User } from '@/payload-types'
 import { execute } from '@/utilities/sql'
 
+import { openApplicationsForTests } from '../helpers/applicationsOpen'
+
 /*
  * The onboarding, through the real route handlers: saving steps, pictures, sending, and the
  * partner form. Everyone here is made up (@example.test) and everything created is removed.
  */
 
 let payload: Payload
+let closeApplications: () => Promise<void>
 let staff: User
 const DOMAIN = '@example.test'
 const ORIGIN = process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000'
@@ -136,6 +139,7 @@ const cleanup = async () => {
 beforeAll(async () => {
   payload = await getPayload({ config: await config })
   await cleanup()
+  closeApplications = await openApplicationsForTests(payload)
   const found = await payload.find({
     collection: 'users',
     where: { email: { equals: 'onboarding-test@pjk.co.in' } },
@@ -158,6 +162,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await cleanup()
+  await closeApplications()
   await payload.delete({
     collection: 'users',
     where: { email: { equals: 'onboarding-test@pjk.co.in' } },
@@ -435,5 +440,46 @@ describe('a partner application', () => {
       company_website: 'spam',
     })
     expect(response.status).toBe(400)
+  })
+})
+
+describe('while applications are closed', () => {
+  const setOpen = async (open: boolean) => {
+    const slug = process.env.DEFAULT_TENANT_SLUG || 'pjk'
+    await payload.update({
+      collection: 'site-settings',
+      where: { 'tenant.slug': { equals: slug } },
+      data: { applicationsOpen: open },
+      overrideAccess: true,
+      context: { disableRevalidate: true },
+    })
+  }
+
+  it('refuses to start or send anything, but still lets members sign in', async () => {
+    const { cookie } = await applicant('partner')
+    await setOpen(false)
+    try {
+      const token = createFormToken(Date.now() - 10_000)
+      const apply = await call(requestCode, '', {
+        email: unique('closed'),
+        purpose: 'apply-artist',
+        formToken: token,
+      })
+      expect(apply.status).toBe(403)
+      expect(((await apply.json()) as { message: string }).message).toMatch(/open soon/)
+
+      const signin = await call(requestCode, '', {
+        email: unique('closed'),
+        purpose: 'signin',
+        formToken: token,
+      })
+      expect(signin.status).toBe(200)
+
+      const sent = await call(savePartner, cookie, { data: {}, formToken: token })
+      expect(sent.status).toBe(403)
+      expect((await call(submitArtist, cookie, {})).status).toBe(403)
+    } finally {
+      await setOpen(true)
+    }
   })
 })
