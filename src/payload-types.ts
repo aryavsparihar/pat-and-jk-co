@@ -64,6 +64,7 @@ export type SupportedTimezones =
 export interface Config {
   auth: {
     users: UserAuthOperations;
+    members: MemberAuthOperations;
   };
   blocks: {};
   collections: {
@@ -78,10 +79,13 @@ export interface Config {
     'visitor-counts': VisitorCount;
     tenants: Tenant;
     users: User;
+    members: Member;
+    applications: Application;
     'access-requests': AccessRequest;
     'security-events': SecurityEvent;
     'login-challenges': LoginChallenge;
     'rate-limits': RateLimit;
+    'member-sessions': MemberSession;
     redirects: Redirect;
     forms: Form;
     'form-submissions': FormSubmission;
@@ -109,10 +113,13 @@ export interface Config {
     'visitor-counts': VisitorCountsSelect<false> | VisitorCountsSelect<true>;
     tenants: TenantsSelect<false> | TenantsSelect<true>;
     users: UsersSelect<false> | UsersSelect<true>;
+    members: MembersSelect<false> | MembersSelect<true>;
+    applications: ApplicationsSelect<false> | ApplicationsSelect<true>;
     'access-requests': AccessRequestsSelect<false> | AccessRequestsSelect<true>;
     'security-events': SecurityEventsSelect<false> | SecurityEventsSelect<true>;
     'login-challenges': LoginChallengesSelect<false> | LoginChallengesSelect<true>;
     'rate-limits': RateLimitsSelect<false> | RateLimitsSelect<true>;
+    'member-sessions': MemberSessionsSelect<false> | MemberSessionsSelect<true>;
     redirects: RedirectsSelect<false> | RedirectsSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
     'form-submissions': FormSubmissionsSelect<false> | FormSubmissionsSelect<true>;
@@ -133,7 +140,7 @@ export interface Config {
   widgets: {
     collections: CollectionsWidget;
   };
-  user: User;
+  user: User | Member;
   jobs: {
     tasks: {
       schedulePublish: TaskSchedulePublish;
@@ -146,6 +153,24 @@ export interface Config {
   };
 }
 export interface UserAuthOperations {
+  forgotPassword: {
+    email: string;
+    password: string;
+  };
+  login: {
+    email: string;
+    password: string;
+  };
+  registerFirstUser: {
+    email: string;
+    password: string;
+  };
+  unlock: {
+    email: string;
+    password: string;
+  };
+}
+export interface MemberAuthOperations {
   forgotPassword: {
     email: string;
     password: string;
@@ -1476,6 +1501,62 @@ export interface User {
   collection: 'users';
 }
 /**
+ * Artists and partners. They sign in at /collaborate/signin with a code sent to their email; they never see this panel. A member ID is issued when their application is approved.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "members".
+ */
+export interface Member {
+  id: number;
+  email: string;
+  /**
+   * Issued on approval. Never changes.
+   */
+  memberId?: string | null;
+  type: 'artist' | 'partner';
+  /**
+   * Suspending a member ends their sessions at once and stops them signing in.
+   */
+  standing: 'applicant' | 'approved' | 'suspended';
+  partnerCategory?: ('placement' | 'design-technology' | 'partnership') | null;
+  approvedAt?: string | null;
+  displayName?: string | null;
+  phone?: string | null;
+  updatedAt: string;
+  createdAt: string;
+  collection: 'members';
+}
+/**
+ * Applications from artists and partners. Approving one issues the member ID and emails the applicant.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "applications".
+ */
+export interface Application {
+  id: number;
+  /**
+   * What the applicant quotes. Never changes.
+   */
+  reference: string;
+  member: number | Member;
+  type: 'artist' | 'partner';
+  stage: 'draft' | 'submitted' | 'under-review' | 'changes-requested' | 'approved' | 'rejected';
+  partnerCategory?: ('placement' | 'design-technology' | 'partnership') | null;
+  /**
+   * Sent with a rejection or a request for changes; the applicant sees it.
+   */
+  decisionNote?: string | null;
+  /**
+   * Never shown to the applicant.
+   */
+  staffNotes?: string | null;
+  submittedAt?: string | null;
+  decidedAt?: string | null;
+  decidedBy?: (number | null) | User;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
  * People asking for an admin account. Approving one creates their account and emails them a link to set a password. Only @pjk.co.in addresses can ask.
  *
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1501,7 +1582,7 @@ export interface AccessRequest {
   createdAt: string;
 }
 /**
- * Every sign-in attempt and access request. Read-only.
+ * Every sign-in attempt, access request and decision on a member, staff and members alike. Read-only.
  *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "security-events".
@@ -1517,10 +1598,26 @@ export interface SecurityEvent {
     | 'access-requested'
     | 'access-approved'
     | 'access-declined'
-    | 'login-blocked';
+    | 'login-blocked'
+    | 'member-code-requested'
+    | 'member-code-sent'
+    | 'member-code-failed'
+    | 'member-code-rate-limited'
+    | 'member-locked'
+    | 'member-blocked'
+    | 'member-created'
+    | 'member-signed-in'
+    | 'member-signed-out'
+    | 'member-signed-out-everywhere'
+    | 'member-id-issued'
+    | 'application-approved'
+    | 'application-rejected'
+    | 'application-changes-requested';
   email?: string | null;
   ip?: string | null;
   detail?: string | null;
+  subject?: string | null;
+  actor?: (number | null) | User;
   updatedAt: string;
   createdAt: string;
 }
@@ -1537,6 +1634,8 @@ export interface LoginChallenge {
   consumedAt?: string | null;
   ip?: string | null;
   deliverable?: boolean | null;
+  audience: 'staff' | 'member';
+  purpose?: ('signin' | 'apply-artist' | 'apply-partner') | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -1549,6 +1648,24 @@ export interface RateLimit {
   key: string;
   windowStart: string;
   hits: number;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "member-sessions".
+ */
+export interface MemberSession {
+  id: number;
+  member: number | Member;
+  sid: string;
+  secretHash: string;
+  device?: string | null;
+  lastSeenAt: string;
+  expiresAt: string;
+  absoluteExpiresAt: string;
+  revokedAt?: string | null;
+  revokedReason?: string | null;
+  updatedAt: string;
+  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1762,6 +1879,14 @@ export interface PayloadLockedDocument {
         value: number | User;
       } | null)
     | ({
+        relationTo: 'members';
+        value: number | Member;
+      } | null)
+    | ({
+        relationTo: 'applications';
+        value: number | Application;
+      } | null)
+    | ({
         relationTo: 'access-requests';
         value: number | AccessRequest;
       } | null)
@@ -1776,6 +1901,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'rate-limits';
         value: number | RateLimit;
+      } | null)
+    | ({
+        relationTo: 'member-sessions';
+        value: number | MemberSession;
       } | null)
     | ({
         relationTo: 'redirects';
@@ -1794,10 +1923,15 @@ export interface PayloadLockedDocument {
         value: number | FolderInterface;
       } | null);
   globalSlug?: string | null;
-  user: {
-    relationTo: 'users';
-    value: number | User;
-  };
+  user:
+    | {
+        relationTo: 'users';
+        value: number | User;
+      }
+    | {
+        relationTo: 'members';
+        value: number | Member;
+      };
   updatedAt: string;
   createdAt: string;
 }
@@ -1807,10 +1941,15 @@ export interface PayloadLockedDocument {
  */
 export interface PayloadPreference {
   id: number;
-  user: {
-    relationTo: 'users';
-    value: number | User;
-  };
+  user:
+    | {
+        relationTo: 'users';
+        value: number | User;
+      }
+    | {
+        relationTo: 'members';
+        value: number | Member;
+      };
   key?: string | null;
   value?:
     | {
@@ -2507,6 +2646,40 @@ export interface UsersSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "members_select".
+ */
+export interface MembersSelect<T extends boolean = true> {
+  email?: T;
+  memberId?: T;
+  type?: T;
+  standing?: T;
+  partnerCategory?: T;
+  approvedAt?: T;
+  displayName?: T;
+  phone?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "applications_select".
+ */
+export interface ApplicationsSelect<T extends boolean = true> {
+  reference?: T;
+  member?: T;
+  type?: T;
+  stage?: T;
+  partnerCategory?: T;
+  decisionNote?: T;
+  staffNotes?: T;
+  submittedAt?: T;
+  decidedAt?: T;
+  decidedBy?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "access-requests_select".
  */
 export interface AccessRequestsSelect<T extends boolean = true> {
@@ -2530,6 +2703,8 @@ export interface SecurityEventsSelect<T extends boolean = true> {
   email?: T;
   ip?: T;
   detail?: T;
+  subject?: T;
+  actor?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -2545,6 +2720,8 @@ export interface LoginChallengesSelect<T extends boolean = true> {
   consumedAt?: T;
   ip?: T;
   deliverable?: T;
+  audience?: T;
+  purpose?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -2556,6 +2733,23 @@ export interface RateLimitsSelect<T extends boolean = true> {
   key?: T;
   windowStart?: T;
   hits?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "member-sessions_select".
+ */
+export interface MemberSessionsSelect<T extends boolean = true> {
+  member?: T;
+  sid?: T;
+  secretHash?: T;
+  device?: T;
+  lastSeenAt?: T;
+  expiresAt?: T;
+  absoluteExpiresAt?: T;
+  revokedAt?: T;
+  revokedReason?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

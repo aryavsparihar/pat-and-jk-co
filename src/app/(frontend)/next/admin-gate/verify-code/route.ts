@@ -2,23 +2,20 @@ import configPromise from '@payload-config'
 import { cookies } from 'next/headers'
 import { getPayload } from 'payload'
 
-import {
-  clientIp,
-  GATE_COOKIE,
-  GATE_TTL_SECONDS,
-  normaliseEmail,
-  OTP_MAX_ATTEMPTS,
-} from '@/security/constants'
+import { checkChallenge } from '@/security/challenges'
+import { clientIp, GATE_COOKIE, GATE_TTL_SECONDS, normaliseEmail } from '@/security/constants'
 import { logSecurityEvent } from '@/security/events'
 import { createGateToken } from '@/security/gateToken'
-import { otpMatches } from '@/security/otp'
 
 export const dynamic = 'force-dynamic'
 
-const rejected = Response.json(
-  { message: 'That code is not right, or it has expired. Ask for a new one.' },
-  { status: 401 },
-)
+// A function, not a shared Response: a response body can only be read once, so one object
+// returned to every failed attempt breaks from the second failure on
+const rejected = () =>
+  Response.json(
+    { message: 'That code is not right, or it has expired. Ask for a new one.' },
+    { status: 401 },
+  )
 
 /**
  * Step two: check the code and, if it is good, set the short-lived gate cookie that
@@ -28,51 +25,37 @@ export async function POST(request: Request) {
   const payload = await getPayload({ config: configPromise })
   const ip = clientIp(request.headers)
 
-  let challengeId = ''
-  let code = ''
+  let challengeId: unknown
+  let code: unknown
   try {
     const body = (await request.json()) as { challengeId?: string | number; code?: string }
-    challengeId = String(body.challengeId ?? '')
-    code = String(body.code ?? '').replace(/\D/g, '')
+    challengeId = body.challengeId
+    code = body.code
   } catch {
-    return rejected
-  }
-  if (!challengeId || !code) return rejected
-
-  const challenge = await payload
-    .findByID({ collection: 'login-challenges', id: challengeId, overrideAccess: true })
-    .catch(() => null)
-
-  if (!challenge) return rejected
-
-  const email = normaliseEmail(challenge.email)
-  const expired = new Date(challenge.expiresAt).getTime() < Date.now()
-  const spent = Boolean(challenge.consumedAt) || (challenge.attempts ?? 0) >= OTP_MAX_ATTEMPTS
-
-  if (expired || spent) {
-    await logSecurityEvent(payload, {
-      event: 'code-failed',
-      email,
-      ip,
-      detail: expired ? 'expired' : 'too many attempts',
-    })
-    return rejected
+    return rejected()
   }
 
-  const good =
-    challenge.deliverable && otpMatches(code, String(challenge.id), challenge.codeHash ?? '')
+  // Attempts are reserved and codes spent atomically (src/security/challenges.ts)
+  const result = await checkChallenge(payload, { challengeId, code, audience: 'staff' })
 
-  if (!good) {
-    await payload.update({
-      collection: 'login-challenges',
-      id: challenge.id,
-      data: { attempts: (challenge.attempts ?? 0) + 1 },
-      overrideAccess: true,
-      context: { disableRevalidate: true },
-    })
-    await logSecurityEvent(payload, { event: 'code-failed', email, ip, detail: 'wrong code' })
-    return rejected
+  if (!result.ok) {
+    if (result.reason !== 'missing') {
+      await logSecurityEvent(payload, {
+        event: 'code-failed',
+        email: normaliseEmail(result.email),
+        ip,
+        detail: {
+          expired: 'expired',
+          spent: 'already used',
+          'too-many-attempts': 'too many attempts',
+          'wrong-code': 'wrong code',
+        }[result.reason],
+      })
+    }
+    return rejected()
   }
+
+  const email = normaliseEmail(result.email)
 
   // The account must still be active at this moment, not just when the code was sent
   const users = await payload.find({
@@ -88,16 +71,8 @@ export async function POST(request: Request) {
       ip,
       detail: 'account not active',
     })
-    return rejected
+    return rejected()
   }
-
-  await payload.update({
-    collection: 'login-challenges',
-    id: challenge.id,
-    data: { consumedAt: new Date().toISOString() },
-    overrideAccess: true,
-    context: { disableRevalidate: true },
-  })
 
   const { token, jti } = createGateToken(email)
   const jar = await cookies()

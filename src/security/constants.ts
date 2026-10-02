@@ -44,3 +44,35 @@ export const clientIp = (headers: Headers): string =>
   headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
   headers.get('x-real-ip')?.trim() ||
   'unknown'
+
+/* ─── Members (artists and partners) ───────────────────────────────────────────────────────── */
+
+/**
+ * Members sign in with a one-time code alone: there are no member passwords. The code rules
+ * (length, life, attempts) are the same as the staff gate's, from the same implementation.
+ */
+
+/** The member session cookie. httpOnly, SameSite=Lax, Secure in production. */
+export const MEMBER_COOKIE = 'pjk_member'
+
+/** A session lasts a week from the last time it was used… */
+export const MEMBER_SESSION_IDLE_SECONDS = 60 * 60 * 24 * 7
+/** …and never more than thirty days from sign-in, however often it is used */
+export const MEMBER_SESSION_ABSOLUTE_SECONDS = 60 * 60 * 24 * 30
+/** How stale "last used" may get before it is written again (saves a write per request) */
+export const MEMBER_SESSION_TOUCH_SECONDS = 60 * 60 * 24
+
+/** Flood protection for member codes, counted in Postgres (src/security/rateLimit.ts) */
+export const MEMBER_CODES_PER_EMAIL_PER_HOUR = 5
+export const MEMBER_CODES_PER_IP_PER_HOUR = 20
+export const MEMBER_VERIFY_PER_IP_PER_HOUR = 30
+/** Wrong codes for one address in an hour before that address is locked for the hour */
+export const MEMBER_FAILURES_BEFORE_LOCK = 10
+
+const ANY_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+/** A plausible email address of any domain, at most 254 characters */
+export const isEmail = (email: unknown): boolean => {
+  const value = normaliseEmail(email)
+  return value.length <= 254 && ANY_EMAIL.test(value)
+}

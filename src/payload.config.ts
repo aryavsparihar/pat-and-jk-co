@@ -1,4 +1,5 @@
 import { postgresAdapter } from '@payloadcms/db-postgres'
+import { pgSequence } from '@payloadcms/db-postgres/drizzle/pg-core'
 import { resendAdapter } from '@payloadcms/email-resend'
 import sharp from 'sharp'
 import path from 'path'
@@ -6,8 +7,11 @@ import { buildConfig, PayloadRequest } from 'payload'
 import { fileURLToPath } from 'url'
 
 import { AccessRequests } from './collections/AccessRequests'
+import { Applications } from './collections/Applications'
 import { Categories } from './collections/Categories'
 import { LoginChallenges } from './collections/LoginChallenges'
+import { Members } from './collections/Members'
+import { MemberSessions } from './collections/MemberSessions'
 import { Media } from './collections/Media'
 import { Openings } from './collections/Openings'
 import { Pages } from './collections/Pages'
@@ -21,6 +25,7 @@ import { Users } from './collections/Users'
 import { Ventures } from './collections/Ventures'
 import { VisitorCounts } from './collections/VisitorCounts'
 import { loadEnv } from './env'
+import { MEMBER_ID_SEQUENCE } from './members/ids'
 import { createLogger } from './observability/logger'
 import { plugins } from './plugins'
 import { guardMemberAccess } from './access/memberGuard'
@@ -94,6 +99,19 @@ export default buildConfig({
     pool: {
       connectionString: env.DATABASE_URL,
     },
+    // Member IDs come from these two sequences (src/members/ids.ts). Payload does not model
+    // sequences, so they ride along in the enums slot of the Drizzle schema: that is enough for
+    // migrations to create them and for development push to keep them rather than drop them.
+    afterSchemaInit: [
+      ({ schema }) => ({
+        ...schema,
+        enums: {
+          ...schema.enums,
+          member_id_artist_seq: pgSequence(MEMBER_ID_SEQUENCE.artist, { startWith: 1 }),
+          member_id_partner_seq: pgSequence(MEMBER_ID_SEQUENCE.partner, { startWith: 1 }),
+        } as unknown as typeof schema.enums,
+      }),
+    ],
     migrationDir: path.resolve(dirname, 'migrations'),
   }),
   // Sidebar order follows this list
@@ -108,11 +126,16 @@ export default buildConfig({
     Openings,
     VisitorCounts,
     Tenants,
+    // Staff before members: Payload tries each auth collection's strategies in this order, so a
+    // staff session always wins over a member cookie on the same request
     Users,
+    Members,
+    Applications,
     AccessRequests,
     SecurityEvents,
     LoginChallenges,
     RateLimits,
+    MemberSessions,
   ],
   cors: allowedOrigins,
   csrf: allowedOrigins,

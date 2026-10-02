@@ -13,8 +13,7 @@ export type EmailFooter = { text: string; html: string }
 
 const EMPTY: EmailFooter = { text: '', html: '' }
 
-const escape = (value: string) =>
-  value.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)
+const escape = (value: string) => value.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)
 
 const findTenant = async (payload: Payload, tenantId?: number | null): Promise<Tenant | null> => {
   const where: Where = tenantId
@@ -31,7 +30,10 @@ const findTenant = async (payload: Payload, tenantId?: number | null): Promise<T
 }
 
 export const footerFromSettings = (
-  settings: Pick<SiteSetting, 'siteName' | 'copyrightName' | 'office' | 'address' | 'mapUrl'> | null,
+  settings: Pick<
+    SiteSetting,
+    'siteName' | 'copyrightName' | 'office' | 'address' | 'mapUrl'
+  > | null,
   siteUrl?: string | null,
 ): EmailFooter => {
   const name = settings?.copyrightName || settings?.siteName
@@ -44,7 +46,10 @@ export const footerFromSettings = (
   const html = `
 <hr style="border:none;border-top:1px solid #d9d4c7;margin:36px 0 16px" />
 <p style="font-family:Georgia,'Times New Roman',serif;font-size:13px;line-height:1.55;color:#5f6660;margin:0">
-${[name, ...lines].filter(Boolean).map((l) => escape(String(l))).join('<br />')}${
+${[name, ...lines]
+  .filter(Boolean)
+  .map((l) => escape(String(l)))
+  .join('<br />')}${
     siteUrl && site
       ? `<br /><a href="${escape(siteUrl)}" style="color:#0f2a18">${escape(site)}</a>`
       : ''

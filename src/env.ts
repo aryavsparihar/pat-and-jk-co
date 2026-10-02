@@ -68,6 +68,10 @@ const schema = z.object({
   ),
   ADMIN_EMAIL_DOMAIN: optional(z.string().regex(/^[a-z0-9.-]+\.[a-z]{2,}$/i, 'must be a domain')),
 
+  // Members: signs the member session cookie. Separate from PAYLOAD_SECRET so member sessions
+  // can be revoked all at once, by rotating it, without signing staff out
+  MEMBER_SESSION_SECRET: optional(optionalSecret(32)),
+
   // Email
   RESEND_API_KEY: optional(z.string().startsWith('re_', 'must be a Resend key (starts with re_)')),
   EMAIL_FROM_ADDRESS: optional(email),
@@ -94,6 +98,10 @@ const productionRequirements: { key: keyof Env; why: string }[] = [
     why: 'canonical URLs, CORS and CSRF need it (https://pjk.co.in)',
   },
   { key: 'RESEND_API_KEY', why: 'without email, nobody can receive a sign-in code' },
+  {
+    key: 'MEMBER_SESSION_SECRET',
+    why: 'member sessions are signed with it',
+  },
   {
     key: 'BLOB_READ_WRITE_TOKEN',
     why: 'without it, uploads are written to a serverless disk that is thrown away',

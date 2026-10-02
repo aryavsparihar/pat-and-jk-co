@@ -56,6 +56,7 @@ describe('environment validation', () => {
     const text = problems.join('\n')
     expect(text).toMatch(/RESEND_API_KEY is required in production/)
     expect(text).toMatch(/BLOB_READ_WRITE_TOKEN is required in production/)
+    expect(text).toMatch(/MEMBER_SESSION_SECRET is required in production/)
     expect(text).toMatch(/must use https/)
 
     expect(
@@ -65,6 +66,7 @@ describe('environment validation', () => {
         NEXT_PUBLIC_SERVER_URL: 'https://pjk.co.in',
         RESEND_API_KEY: 're_example_not_real',
         BLOB_READ_WRITE_TOKEN: 'vercel_blob_rw_example_not_real',
+        MEMBER_SESSION_SECRET: 'z'.repeat(44),
       }).problems,
     ).toEqual([])
   })
