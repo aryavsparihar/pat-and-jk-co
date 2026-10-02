@@ -12,17 +12,21 @@ import type { User } from '@/payload-types'
  */
 export const STAFF_COLLECTION = 'users'
 
-type MaybeUser = (Partial<User> & { collection?: string }) | null | undefined
-
 export const isStaff = (user: unknown): user is User & { collection: typeof STAFF_COLLECTION } =>
   Boolean(user) && (user as { collection?: string }).collection === STAFF_COLLECTION
+
+/** A signed-in artist or partner. Never staff, whatever else the record says. */
+export const MEMBER_COLLECTION = 'members'
+
+export const isMember = (user: unknown): user is { id: number; collection: 'members' } =>
+  Boolean(user) && (user as { collection?: string }).collection === MEMBER_COLLECTION
 
 /**
  * Two staff roles:
  * - super-admin: the technical owner. Sees every brand (tenant), manages users and domains.
  * - editor: brand staff. Edits content only for the brands assigned to them (enforced by the multi-tenant plugin).
  */
-export const isSuperAdmin = (user?: MaybeUser): boolean =>
+export const isSuperAdmin = (user?: unknown): boolean =>
   isStaff(user) && Boolean(user.roles?.includes('super-admin'))
 
 export const superAdminOnly: Access = ({ req: { user } }) => isSuperAdmin(user)

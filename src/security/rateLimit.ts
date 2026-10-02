@@ -94,3 +94,19 @@ export const hitLimits = async (payload: Payload, limits: Limit[]): Promise<Limi
     retryAfter: Math.max(...refused.map((r) => r.retryAfter)),
   }
 }
+
+/** How many hits a counter holds in its current window, without adding one. */
+export const peekLimit = async (
+  payload: Payload,
+  { scope, subject, windowSeconds }: Omit<Limit, 'max'>,
+): Promise<number> => {
+  const key = rateLimitKey(scope, subject)
+  const [row] = await execute<{ hits: number | string }>(
+    payload,
+    sql`
+      SELECT hits FROM rate_limits
+      WHERE key = ${key} AND window_start > now() - make_interval(secs => ${Math.floor(windowSeconds)})
+    `,
+  )
+  return Number(row?.hits ?? 0)
+}

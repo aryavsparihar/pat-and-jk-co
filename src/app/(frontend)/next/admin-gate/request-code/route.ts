@@ -7,11 +7,10 @@ import {
   normaliseEmail,
   OTP_MAX_PER_EMAIL_PER_HOUR,
   OTP_MAX_PER_IP_PER_HOUR,
-  OTP_TTL_MINUTES,
 } from '@/security/constants'
+import { issueChallenge } from '@/security/challenges'
 import { sendSignInCode } from '@/security/email'
 import { logSecurityEvent } from '@/security/events'
-import { createOtp, hashOtp } from '@/security/otp'
 
 export const dynamic = 'force-dynamic'
 
@@ -51,12 +50,24 @@ export async function POST(request: Request) {
   const [byEmail, byIp] = await Promise.all([
     payload.count({
       collection: 'login-challenges',
-      where: { and: [{ email: { equals: email } }, { createdAt: { greater_than: since } }] },
+      where: {
+        and: [
+          { email: { equals: email } },
+          { audience: { equals: 'staff' } },
+          { createdAt: { greater_than: since } },
+        ],
+      },
       overrideAccess: true,
     }),
     payload.count({
       collection: 'login-challenges',
-      where: { and: [{ ip: { equals: ip } }, { createdAt: { greater_than: since } }] },
+      where: {
+        and: [
+          { ip: { equals: ip } },
+          { audience: { equals: 'staff' } },
+          { createdAt: { greater_than: since } },
+        ],
+      },
       overrideAccess: true,
     }),
   ])
@@ -82,29 +93,8 @@ export async function POST(request: Request) {
   const user = users.docs[0]
   const deliverable = Boolean(user && user.status === 'active')
 
-  const code = createOtp()
-  const challenge = await payload.create({
-    collection: 'login-challenges',
-    data: {
-      email,
-      codeHash: 'pending',
-      expiresAt: new Date(Date.now() + OTP_TTL_MINUTES * 60 * 1000).toISOString(),
-      attempts: 0,
-      ip,
-      deliverable,
-    },
-    overrideAccess: true,
-    context: { disableRevalidate: true },
-  })
-
-  // The challenge id salts the hash, so two codes are never stored the same way
-  await payload.update({
-    collection: 'login-challenges',
-    id: challenge.id,
-    data: { codeHash: hashOtp(code, String(challenge.id)) },
-    overrideAccess: true,
-    context: { disableRevalidate: true },
-  })
+  const challenge = await issueChallenge(payload, { email, ip, audience: 'staff', deliverable })
+  const { code } = challenge
 
   await logSecurityEvent(payload, {
     event: 'code-requested',

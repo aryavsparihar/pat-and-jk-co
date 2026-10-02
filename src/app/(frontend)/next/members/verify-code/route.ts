@@ -1,0 +1,147 @@
+import configPromise from '@payload-config'
+import { getPayload } from 'payload'
+
+import { findMember, startApplication } from '@/members/accounts'
+import { fromOurOrigin, readJson, refuseCrossSite, reply } from '@/members/http'
+import { challengeEmail, checkChallenge } from '@/security/challenges'
+import {
+  clientIp,
+  MEMBER_FAILURES_BEFORE_LOCK,
+  MEMBER_VERIFY_PER_IP_PER_HOUR,
+} from '@/security/constants'
+import { logSecurityEvent } from '@/security/events'
+import {
+  createSession,
+  parseSessionCookie,
+  readMemberCookie,
+  revokeSession,
+  sessionCookieHeader,
+} from '@/security/memberSession'
+import { hitLimit, peekLimit } from '@/security/rateLimit'
+
+export const dynamic = 'force-dynamic'
+
+const rejected = () =>
+  reply(
+    { message: 'That code is not right, or it has expired. Ask for a new one.' },
+    { status: 401 },
+  )
+
+const LOCK_WINDOW_SECONDS = 3600
+
+/**
+ * Step two for a member: check the code, and sign them in.
+ *
+ *   - limited per IP, so nobody can work through codes from one place
+ *   - an address that has had ten wrong codes in an hour is locked for the rest of that hour:
+ *     even the right code is refused, and the lockout goes to the security log
+ *   - an applicant's first verified code creates their member record and draft application
+ *   - signing in always starts a new session; one the browser already held is ended (rotation)
+ */
+export async function POST(request: Request) {
+  if (!fromOurOrigin(request)) return refuseCrossSite()
+
+  const payload = await getPayload({ config: configPromise })
+  const ip = clientIp(request.headers)
+  const body = await readJson<{ challengeId: number; code: string }>(request)
+  if (!body) return rejected()
+
+  const perIp = await hitLimit(payload, {
+    scope: 'member-verify-ip',
+    subject: ip,
+    max: MEMBER_VERIFY_PER_IP_PER_HOUR,
+    windowSeconds: 3600,
+  })
+  if (!perIp.allowed) {
+    await logSecurityEvent(payload, { event: 'member-code-rate-limited', ip, detail: 'verify' })
+    return reply(
+      { message: 'Too many attempts. Try again in an hour.' },
+      { status: 429, headers: { 'Retry-After': String(perIp.retryAfter) } },
+    )
+  }
+
+  const owner = await challengeEmail(payload, { challengeId: body.challengeId, audience: 'member' })
+  if (!owner) return rejected()
+
+  const failures = { scope: 'member-code-fail', subject: owner, windowSeconds: LOCK_WINDOW_SECONDS }
+  if ((await peekLimit(payload, failures)) >= MEMBER_FAILURES_BEFORE_LOCK) {
+    await logSecurityEvent(payload, {
+      event: 'member-code-failed',
+      email: owner,
+      ip,
+      detail: 'locked',
+    })
+    return rejected()
+  }
+
+  const result = await checkChallenge(payload, {
+    challengeId: body.challengeId,
+    code: body.code,
+    audience: 'member',
+  })
+
+  if (!result.ok) {
+    const counted = await hitLimit(payload, { ...failures, max: MEMBER_FAILURES_BEFORE_LOCK })
+    await logSecurityEvent(payload, {
+      event: 'member-code-failed',
+      email: owner,
+      ip,
+      detail: result.reason,
+    })
+    if (counted.count === MEMBER_FAILURES_BEFORE_LOCK) {
+      await logSecurityEvent(payload, {
+        event: 'member-locked',
+        email: owner,
+        ip,
+        detail: `${MEMBER_FAILURES_BEFORE_LOCK} wrong codes in an hour`,
+      })
+    }
+    return rejected()
+  }
+
+  const email = result.email
+  let member = await findMember(payload, email)
+
+  if (!member) {
+    if (result.purpose !== 'apply-artist' && result.purpose !== 'apply-partner') return rejected()
+    const started = await startApplication(payload, {
+      email,
+      type: result.purpose === 'apply-artist' ? 'artist' : 'partner',
+    })
+    member = started.member
+    await logSecurityEvent(payload, {
+      event: 'member-created',
+      email,
+      ip,
+      subject: started.application.reference,
+      detail: result.purpose,
+    })
+  }
+
+  if (member.standing === 'suspended') {
+    await logSecurityEvent(payload, { event: 'member-blocked', email, ip, detail: 'suspended' })
+    return rejected()
+  }
+
+  // Rotation: whatever session this browser held before ends now
+  const previous = parseSessionCookie(readMemberCookie(request.headers))
+  if (previous) await revokeSession(payload, previous.sid, 'replaced at sign-in')
+
+  const session = await createSession(payload, {
+    memberId: member.id,
+    userAgent: request.headers.get('user-agent'),
+  })
+
+  await logSecurityEvent(payload, {
+    event: 'member-signed-in',
+    email,
+    ip,
+    subject: member.memberId ?? undefined,
+    detail: result.purpose ?? 'signin',
+  })
+
+  return reply(
+    { ok: true, type: member.type, standing: member.standing },
+    { headers: { 'Set-Cookie': sessionCookieHeader(session.value, session.expiresAt) } },
+  )
+}

@@ -12,6 +12,21 @@ export const securityEventTypes = [
   'access-approved',
   'access-declined',
   'login-blocked',
+  // Members (artists and partners)
+  'member-code-requested',
+  'member-code-sent',
+  'member-code-failed',
+  'member-code-rate-limited',
+  'member-locked',
+  'member-blocked',
+  'member-created',
+  'member-signed-in',
+  'member-signed-out',
+  'member-signed-out-everywhere',
+  'member-id-issued',
+  'application-approved',
+  'application-rejected',
+  'application-changes-requested',
 ] as const
 
 /**
@@ -29,8 +44,9 @@ export const SecurityEvents: CollectionConfig = {
   },
   admin: {
     group: 'Administration',
-    defaultColumns: ['event', 'email', 'ip', 'createdAt'],
-    description: 'Every sign-in attempt and access request. Read-only.',
+    defaultColumns: ['event', 'email', 'subject', 'actor', 'createdAt'],
+    description:
+      'Every sign-in attempt, access request and decision on a member, staff and members alike. Read-only.',
     hidden: ({ user }) => !isSuperAdmin(user as never),
   },
   defaultSort: '-createdAt',
@@ -45,6 +61,18 @@ export const SecurityEvents: CollectionConfig = {
     { name: 'email', type: 'text', index: true },
     { name: 'ip', type: 'text' },
     { name: 'detail', type: 'text' },
+    {
+      // The member ID or application reference the event is about
+      name: 'subject',
+      type: 'text',
+      index: true,
+    },
+    {
+      // The member of staff who did it, for decisions taken in the admin
+      name: 'actor',
+      type: 'relationship',
+      relationTo: 'users',
+    },
   ],
   timestamps: true,
 }
