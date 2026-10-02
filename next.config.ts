@@ -58,6 +58,9 @@ const securityHeaders = [
     value: 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()',
   },
   { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
+]
+
+const siteHeaders = [
   { key: 'Content-Security-Policy', value: contentSecurityPolicy({ admin: false }) },
 ]
 
@@ -101,6 +104,12 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       { source: '/:path*', headers: securityHeaders },
+      // The site-wide policy, everywhere except the member pages, which get a stricter per-request
+      // policy with a nonce from src/proxy.ts (src/security/memberPagePolicy.ts)
+      {
+        source: '/:path((?!account(?:/|$)|collaborate/(?:artists|partners|signin)(?:/|$)).*)',
+        headers: siteHeaders,
+      },
       // Where several rules set the same header, the later one wins: the admin panel gets its
       // looser policy, and uploads get the sandbox instead of either
       { source: '/admin', headers: adminHeaders },
