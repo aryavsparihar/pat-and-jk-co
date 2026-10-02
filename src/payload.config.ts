@@ -12,6 +12,7 @@ import { Media } from './collections/Media'
 import { Openings } from './collections/Openings'
 import { Pages } from './collections/Pages'
 import { People } from './collections/People'
+import { RateLimits } from './collections/RateLimits'
 import { Posts } from './collections/Posts'
 import { SecurityEvents } from './collections/SecurityEvents'
 import { SiteSettings } from './collections/SiteSettings'
@@ -105,6 +106,7 @@ export default buildConfig({
     AccessRequests,
     SecurityEvents,
     LoginChallenges,
+    RateLimits,
   ],
   cors: allowedOrigins,
   csrf: allowedOrigins,

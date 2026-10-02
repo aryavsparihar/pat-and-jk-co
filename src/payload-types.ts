@@ -81,6 +81,7 @@ export interface Config {
     'access-requests': AccessRequest;
     'security-events': SecurityEvent;
     'login-challenges': LoginChallenge;
+    'rate-limits': RateLimit;
     redirects: Redirect;
     forms: Form;
     'form-submissions': FormSubmission;
@@ -111,6 +112,7 @@ export interface Config {
     'access-requests': AccessRequestsSelect<false> | AccessRequestsSelect<true>;
     'security-events': SecurityEventsSelect<false> | SecurityEventsSelect<true>;
     'login-challenges': LoginChallengesSelect<false> | LoginChallengesSelect<true>;
+    'rate-limits': RateLimitsSelect<false> | RateLimitsSelect<true>;
     redirects: RedirectsSelect<false> | RedirectsSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
     'form-submissions': FormSubmissionsSelect<false> | FormSubmissionsSelect<true>;
@@ -1502,6 +1504,16 @@ export interface LoginChallenge {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "rate-limits".
+ */
+export interface RateLimit {
+  id: number;
+  key: string;
+  windowStart: string;
+  hits: number;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "redirects".
  */
 export interface Redirect {
@@ -1722,6 +1734,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'login-challenges';
         value: number | LoginChallenge;
+      } | null)
+    | ({
+        relationTo: 'rate-limits';
+        value: number | RateLimit;
       } | null)
     | ({
         relationTo: 'redirects';
@@ -2475,6 +2491,15 @@ export interface LoginChallengesSelect<T extends boolean = true> {
   deliverable?: T;
   updatedAt?: T;
   createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "rate-limits_select".
+ */
+export interface RateLimitsSelect<T extends boolean = true> {
+  key?: T;
+  windowStart?: T;
+  hits?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

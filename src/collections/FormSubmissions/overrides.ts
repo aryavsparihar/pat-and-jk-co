@@ -4,24 +4,14 @@ import { APIError } from 'payload'
 import { getTenantAccess } from '@payloadcms/plugin-multi-tenant/utilities'
 
 import { isStaff, isSuperAdmin } from '@/access/roles'
+import { clientIp } from '@/security/constants'
+import { hitLimit } from '@/security/rateLimit'
 import { HONEYPOT_FIELD } from '@/utilities/honeypot'
 
 const MAX_FIELDS = 30
 const MAX_VALUE_LENGTH = 5000
-const RATE_LIMIT = { max: 5, windowMs: 10 * 60 * 1000 }
-
-// Per-instance, in-memory limiter. A baseline against floods from a single IP;
-// swap for Cloudflare Turnstile or an Upstash limiter if spam ever becomes a problem.
-const hits = new Map<string, number[]>()
-
-const rateLimited = (ip: string) => {
-  const now = Date.now()
-  const recent = (hits.get(ip) ?? []).filter((t) => now - t < RATE_LIMIT.windowMs)
-  recent.push(now)
-  hits.set(ip, recent)
-  if (hits.size > 5000) hits.clear()
-  return recent.length > RATE_LIMIT.max
-}
+/** Five messages per address per ten minutes, counted in Postgres across every instance */
+const RATE_LIMIT = { max: 5, windowSeconds: 10 * 60 }
 
 type SubmissionEntry = { field: string; value: unknown }
 
@@ -40,9 +30,14 @@ export const protectSubmission: CollectionBeforeChangeHook = async ({ data, oper
     throw new APIError('Your message could not be sent.', 400, undefined, true)
   }
 
-  if (!isStaff(req.user)) {
-    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
-    if (rateLimited(ip)) {
+  // Visitors are limited; staff and server code calling the Local API (seeds, tests) are not
+  if (!isStaff(req.user) && req.payloadAPI !== 'local') {
+    const { allowed } = await hitLimit(req.payload, {
+      scope: 'form-submit',
+      subject: clientIp(req.headers),
+      ...RATE_LIMIT,
+    })
+    if (!allowed) {
       throw new APIError(
         'Too many messages in a short time — please try again in a few minutes.',
         429,

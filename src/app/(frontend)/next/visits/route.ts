@@ -3,6 +3,7 @@ import { sql } from '@payloadcms/db-postgres'
 import { getPayload, type Payload } from 'payload'
 
 import { clientIp } from '@/security/constants'
+import { execute } from '@/utilities/sql'
 import { getTenantByHost } from '@/utilities/tenant'
 
 export const dynamic = 'force-dynamic'
@@ -37,11 +38,6 @@ const countedRecently = (ip: string): boolean => {
   return previous !== undefined && now - previous < REPEAT_WINDOW_MS
 }
 
-/** The Postgres handle underneath Payload, for an increment that cannot lose a concurrent visit. */
-const drizzleOf = (payload: Payload) =>
-  (payload.db as unknown as { drizzle: { execute: (q: unknown) => Promise<{ rows: unknown[] }> } })
-    .drizzle
-
 const totalFor = async (payload: Payload, tenantId: number): Promise<number> => {
   const found = await payload.find({
     collection: 'visitor-counts',
@@ -71,12 +67,13 @@ export async function POST(request: Request) {
   const skip = !agent || BOT.test(agent) || countedRecently(clientIp(request.headers))
   if (skip) return Response.json({ total: await totalFor(payload, tenant.id) })
 
-  const updated = (await drizzleOf(payload).execute(
+  // One statement, so a visit at the same moment as another cannot overwrite it
+  const [row] = await execute<{ total: number | string }>(
+    payload,
     sql`UPDATE visitor_counts SET total = total + 1, updated_at = now()
         WHERE tenant_id = ${tenant.id} RETURNING total`,
-  )) as { rows: { total: number | string }[] }
+  )
 
-  const row = updated.rows[0]
   if (row) return Response.json({ total: Number(row.total) })
 
   // First visit this brand has ever had. Only one row per brand is allowed, so if another
