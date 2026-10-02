@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 import { GATE_COOKIE, GATE_PATH } from './security/constants'
 import { readGateToken } from './security/gateToken'
+import { createNonce, MEMBER_PAGE, memberPagePolicy } from './security/memberPagePolicy'
 import { normalizeHost, TENANT_SITES_PREFIX } from './utilities/host'
 
 /**
@@ -63,6 +64,19 @@ export function proxy(request: NextRequest) {
   // to reach the admin panel past the gate above.
   if (!url.pathname.startsWith(`${TENANT_SITES_PREFIX}/`)) {
     return new NextResponse('Bad Request', { status: 400 })
+  }
+
+  // Pages where people type personal details get a per-request nonce and a strict policy
+  if (MEMBER_PAGE.test(pathname)) {
+    const nonce = createNonce()
+    const policy = memberPagePolicy(nonce, { dev: process.env.NODE_ENV === 'development' })
+    // Next.js reads the nonce from this request header and puts it on its own scripts
+    const requestHeaders = new Headers(request.headers)
+    requestHeaders.set('content-security-policy', policy)
+    requestHeaders.set('x-nonce', nonce)
+    const response = NextResponse.rewrite(url, { request: { headers: requestHeaders } })
+    response.headers.set('Content-Security-Policy', policy)
+    return response
   }
 
   return NextResponse.rewrite(url)
