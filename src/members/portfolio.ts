@@ -4,13 +4,16 @@ import sharp, { type Metadata } from 'sharp'
 
 import type { Member, PortfolioImage } from '@/payload-types'
 
+import { blobEnvironmentPrefix } from './storage'
+
 /**
  * Every picture an artist sends passes through here before it is kept:
  *
  *   1. what it is, from its bytes: JPEG, PNG or WebP only, whatever the name or the browser says
  *   2. big enough to judge the work from, and not a decompression bomb
- *   3. re-encoded as a JPEG, upright, at most 4000 px on its longest side. Re-encoding drops every
- *      piece of metadata, EXIF and the GPS position a phone writes into a photo included
+ *   3. re-encoded as a JPEG, upright, at most 4000 px on its longest side, converted to sRGB with
+ *      the sRGB profile attached so colours do not shift. Re-encoding drops every other piece of
+ *      metadata, EXIF and the GPS position a phone writes into a photo included
  *   4. stored as this artist's own; Payload makes the web-sized copies
  */
 
@@ -66,9 +69,14 @@ export const cleanImage = async (
       withoutEnlargement: true,
     })
     .flatten({ background: '#ffffff' }) // a transparent PNG becomes a picture on white
-    .jpeg({ quality: 88, mozjpeg: true })
+    // Colour: convert from whatever profile the photograph carries (Display P3 from most phones,
+    // Adobe RGB from many cameras) into sRGB, and attach the sRGB profile, so the work looks the
+    // same in every browser. This is the only metadata written: EXIF and GPS are not.
+    .withIccProfile('srgb')
+    // High quality, and full-resolution colour (no chroma subsampling), so fine colour detail in
+    // a painting is not averaged away
+    .jpeg({ quality: 92, chromaSubsampling: '4:4:4', mozjpeg: true })
     .toBuffer({ resolveWithObject: true })
-  // sharp writes no metadata unless asked to (withMetadata), so EXIF and GPS are gone
   return { data, width: info.width, height: info.height }
 }
 
@@ -107,7 +115,8 @@ export const ingestPortfolioImage = async (
 }
 
 /** Where browsers may put pictures on their way in, per member */
-export const incomingPrefix = (member: Pick<Member, 'id'>) => `incoming/${member.id}/`
+export const incomingPrefix = (member: Pick<Member, 'id'>) =>
+  `${blobEnvironmentPrefix()}incoming/${member.id}/`
 
 /**
  * Only a picture this member uploaded to our own Blob store may be fetched for import: any other
