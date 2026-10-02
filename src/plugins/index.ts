@@ -65,6 +65,11 @@ export const plugins: Plugin[] = [
       admin: { group: 'Enquiries' },
       fields: ({ defaultFields }) => {
         return defaultFields.map((field) => {
+          // Who is notified of a submission is internal: the public API may read a form to render
+          // it, but not the inboxes it reports to
+          if ('name' in field && field.name === 'emails') {
+            return { ...field, access: { read: authenticated } } as typeof field
+          }
           if ('name' in field && field.name === 'confirmationMessage') {
             return {
               ...field,

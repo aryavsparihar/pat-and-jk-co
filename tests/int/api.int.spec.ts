@@ -136,3 +136,46 @@ describe('form submissions', () => {
     ).rejects.toThrow(/Email/)
   })
 })
+
+describe('what the public API gives away', () => {
+  it('shows a form but not the inboxes it notifies', async () => {
+    const form = await payload.create({
+      collection: 'forms',
+      context,
+      data: {
+        tenant: tenantIds[0],
+        title: 'Int test notified form',
+        confirmationType: 'message',
+        confirmationMessage: root(p('Thanks')),
+        fields: [{ blockType: 'text', name: 'full-name', label: 'Full name', required: true }],
+        emails: [{ emailTo: 'inbox@example.test', subject: 'New enquiry' }],
+      } as never,
+    })
+
+    // A visitor, and someone signed in who is not staff (the shape a member will have)
+    const outsider = { id: 999_999, email: 'outsider@example.test', collection: 'members' }
+    for (const user of [undefined, outsider]) {
+      const seen = await payload.findByID({
+        collection: 'forms',
+        id: form.id,
+        overrideAccess: false,
+        depth: 0,
+        user: user as never,
+      })
+      expect(seen.title).toBe('Int test notified form')
+      // Payload may hand back an empty list in its place; what matters is the address is not there
+      expect(JSON.stringify(seen)).not.toContain('inbox@example.test')
+    }
+
+    const asServer = await payload.findByID({ collection: 'forms', id: form.id, depth: 0 })
+    expect(asServer.emails?.[0]?.emailTo).toBe('inbox@example.test')
+  })
+
+  it('has no GraphQL endpoint', () => {
+    expect(payload.config.graphQL.disable).toBe(true)
+  })
+
+  it('caps how deep a read may populate', () => {
+    expect(payload.config.maxDepth).toBeLessThanOrEqual(4)
+  })
+})
