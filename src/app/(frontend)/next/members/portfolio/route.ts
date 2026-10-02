@@ -5,6 +5,7 @@ import { fromOurOrigin, refuseCrossSite, reply, requireMember, withRefresh } fro
 import {
   blobUploadsAvailable,
   fetchCapped,
+  incomingPrefix,
   ingestPortfolioImage,
   isOwnIncomingBlob,
   PortfolioError,
@@ -37,7 +38,12 @@ export async function GET(request: Request) {
     overrideAccess: true,
   })
   return withRefresh(
-    reply({ mode: blobUploadsAvailable() ? 'blob' : 'direct', images: images.docs.map(imageView) }),
+    reply({
+      mode: blobUploadsAvailable() ? 'blob' : 'direct',
+      // Where this member's browser may put files in the Blob store (checked again on import)
+      uploadPrefix: incomingPrefix(member),
+      images: images.docs.map(imageView),
+    }),
     auth.refresh,
   )
 }

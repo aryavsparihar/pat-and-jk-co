@@ -72,6 +72,26 @@ The page with the slug **`home`** is the homepage. The **SEO** tab sets the titl
 - **Group → People** — name, role, portrait, bio. Shown by the People grid block.
 - **Group → Openings** — open calls for artists, collaborators and partners. Set **Status** to *Closed* to hide one without deleting it.
 
+## Artists and partners
+
+People who want to work with PJK apply on the website, at **/collaborate/artists** or **/collaborate/partners**. They confirm their email with a code (there are no passwords), fill the application in at their own pace, and send it. You are emailed when one arrives.
+
+**Members → Applications** lists them all, newest first. Use **Filters** to narrow the list by type (artist or partner), stage, or date, and the search box to find an application by its reference (e.g. APP-7K3Q9X).
+
+Open an application to read it. In the sidebar, under **Decision**:
+
+- **Approve.** The person is given a member ID (AT000001 for artists, PT000001 for partners) and an email welcoming them. The ID never changes. Someone can be both an artist and a partner, with one ID of each.
+- **Ask for changes.** Write a note saying what you need; they are emailed it and can edit their application and send it again.
+- **Decline.** Write a short, kind note; they are emailed it.
+
+Every decision is recorded under **Administration → Security log**, with your name against it. Applications themselves cannot be edited here: they are the applicant's words. Use **Notes for staff** for anything the team should know; the applicant never sees it.
+
+**Members → Members** lists everyone who has applied, with their member IDs. To stop someone signing in, set **Standing** to *Suspended*; every device they were signed in on is signed out at once.
+
+### The collaborate page
+
+The page at /collaborate is an ordinary page, built from blocks. **Ways to work with us** is the block with the two large links to the applications; its words are yours to change, but where the links lead is fixed. **How it works** is a *Principles* block with roman numerals.
+
 ## Forms & enquiries
 
 - **Enquiries → Form Submissions** — every message sent through the website, newest first.

@@ -107,6 +107,15 @@ export const Applications: CollectionConfig = {
       },
     },
     {
+      // Approve / ask for changes / decline, with a note to the applicant
+      name: 'decision',
+      type: 'ui',
+      admin: {
+        position: 'sidebar',
+        components: { Field: '@/components/admin/DecisionPanel#DecisionPanel' },
+      },
+    },
+    {
       name: 'stage',
       type: 'select',
       required: true,
