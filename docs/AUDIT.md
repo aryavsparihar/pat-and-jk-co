@@ -1,7 +1,8 @@
 # Production-readiness audit
 
 Audited 2 October 2026 at `85f334f`, against the code and the live site (pjk.co.in, read-only
-requests only). The site is about to start holding sensitive personal data for artists and
+requests only). Fixes followed in `ec76c01`…`1e70daf`; the [fix list](#fix-list) has each one's
+commit. The site is about to start holding sensitive personal data for artists and
 partners, and the bar here reflects that: the aim is sound defaults for a small business, not
 enterprise ceremony.
 
@@ -32,6 +33,13 @@ media and read enquiries. The preview route has the same assumption
 (`src/app/(frontend)/next/preview/route.ts:51`). **Fix:** an `isStaff(user)` check that requires
 `user.collection === 'users'`, used everywhere access is decided, before members exist.
 
+**Follow-up for Phase 3.** Payload's own default for a collection with no access rule is "anyone
+signed in" (`node_modules/payload/dist/auth/defaultAccess.js`), and its internal collections use it:
+media folders, locked documents, the job queue. The form builder's `forms` collection also leaves
+create, update and delete at that default. `isStaff` cannot reach those, so Phase 3 adds one central
+guard that gives a signed-in member exactly a visitor's access on every collection not built for
+members.
+
 ## 2. Frontend
 
 **Done.** Pages are prerendered and served from the CDN (`x-nextjs-prerender: 1`,
@@ -51,14 +59,15 @@ identically whether or not an account exists
 the form definition on the server (`src/collections/FormSubmissions/overrides.ts`). Preview only
 accepts relative paths.
 
-**Needs work, low (`A3`).** The public forms API (`GET /api/forms`) returns each form's `emails`
-array: the notification recipients, CC and BCC. It is empty today, so nothing leaks yet, but the
-moment someone configures notifications the internal inbox addresses become public. **Fix:**
-field-level read access on `emails` for staff only.
+**Needs work, low (`A3`).** Corrected after testing: the form builder already hides a form's
+`emails` (notification recipients, CC, BCC) from anonymous readers, so the empty `emails: []` on the
+live API is the plugin's doing, not an empty configuration. But its rule is "anyone signed in", so
+from Phase 3 any member could read the internal inbox addresses. **Fix:** field-level read access on
+`emails` for staff only.
 
-**Needs work, content (`A4`).** Both live forms have **no notification emails configured**, so
-nobody is told when an enquiry arrives; submissions only sit in the admin. This is a content fix
-for the admin panel: **Enquiries → Forms → Contact / Collaborate → Emails**.
+**Check by hand (`A4`).** Because the public API hides `emails` (above), I cannot tell from outside
+whether the live forms send notifications. If enquiries are not reaching an inbox, the fix is in the
+admin panel: **Enquiries → Forms → Contact / Collaborate → Emails**.
 
 ## 4. Database and storage
 
@@ -211,6 +220,12 @@ It also exempts any signed-in user (`:43`), which will include members after Pha
   e.g. 60 requests a minute per IP. It cannot do per-email limits, and it is invisible to tests, so
   it complements the app limiter rather than replacing it.
 
+**Low, noted only.** The admin bar, rendered on every public page, asks `/api/users/me` whether the
+visitor is signed in; the admin gate answers 401 for everyone outside the company, so every visitor's
+console shows one failed request. It is answered at the edge without touching a function or the
+database, so it costs nothing, but it is noise. Worth rendering the bar only when the gate cookie is
+present, when that code is next touched.
+
 **Not needed at this scale.** The visitor count's in-memory repeat check
 (`src/app/(frontend)/next/visits/route.ts:30`) is per instance, and that is fine: the worst case
 is a slightly generous count, and holding visitor addresses in the database would contradict the
@@ -354,21 +369,21 @@ In the order they are fixed. Each is its own commit.
 
 | ID | Severity | Area | Fix | Status |
 | --- | --- | --- | --- | --- |
-| A11 | critical | Dependencies | Next.js 16.3.8, overrides for undici, fast-uri, dompurify; exact pins; Dependabot | open |
-| A7 | high | Hosting | Migrate only on production deploys, unless a preview opts in | open |
-| A1 | high | Auth | `isStaff()` everywhere access is decided, before members exist | open |
-| A12 | high | Rate limiting | Postgres-backed limiter with hashed keys; forms use it | open |
-| A8 | high | CI | GitHub Actions: lint, typecheck, tests, migration drift, build | open |
-| A6 | medium | Auth | `Secure` on the staff session cookie | open |
-| A9 | medium | Headers | Split CSP: no `unsafe-eval` or jsDelivr on public pages; COOP | open |
-| A10 | medium | Payload | GraphQL off, `maxDepth: 4`, explicit MIME list, 20 MB limit | open |
-| A3 | low | API | Form notification recipients readable by staff only | open |
-| A13 | medium | Env | zod validation at boot | open |
-| A14 | medium | Logs | Redaction layer on the logger; structured request errors | open |
-| A15 | medium | Monitoring | `/api/health` | open |
-| A17 | low | SEO | No doubled or untrimmed titles | open |
-| A2 | low | Frontend | Journal rows get the ventures index's affordance | open |
-| A4 | content | Forms | Configure notification emails on both forms | by hand |
+| A11 | critical | Dependencies | Next.js 16.3.8, overrides for undici, fast-uri, dompurify; exact pins; Dependabot | done `ec76c01` |
+| A7 | high | Hosting | Migrate only on production deploys, unless a preview opts in | done `99195cd` |
+| A1 | high | Auth | `isStaff()` everywhere access is decided, before members exist | done `c33fd04`; guard in Phase 3 |
+| A12 | high | Rate limiting | Postgres-backed limiter with hashed keys; forms use it | done `b056cd5`, `972189c` |
+| A8 | high | CI | GitHub Actions: lint, typecheck, tests, migration drift, build | done `7f20841` |
+| A6 | medium | Auth | `Secure` on the staff session cookie | done `4fa06e6` |
+| A9 | medium | Headers | Split CSP: no `unsafe-eval` or jsDelivr on public pages; COOP | done `139efc9` |
+| A10 | medium | Payload | GraphQL off, `maxDepth: 4`, explicit MIME list, 20 MB limit | done `ccd9155` |
+| A3 | low | API | Form notification recipients readable by staff only | done `4158ee9` |
+| A13 | medium | Env | zod validation at boot | done `8119e14`, `c7f5c0b` |
+| A14 | medium | Logs | Redaction layer on the logger; structured request errors | done `c30fae9` |
+| A15 | medium | Monitoring | `/api/health` | done `4f68e32` |
+| A17 | low | SEO | No doubled or untrimmed titles | done `7fcaf6f` |
+| A2 | low | Frontend | Journal rows get the ventures index's affordance | done `1e70daf` |
+| A4 | check | Forms | Confirm both forms notify an inbox | by hand |
 | A5 | medium | Storage | Private Blob store for KYC documents | Phase 5 |
 | A16 | medium | Backups | Neon plan with ≥ 7-day restore; monthly offline dump | by hand |
 
@@ -411,8 +426,11 @@ In the order they are fixed. Each is its own commit.
 1. Rotate the super admin password.
 2. Turn on two-factor authentication for Vercel, Neon, GitHub, Resend and GoDaddy if any are
    still without it.
-3. **Enquiries → Forms → Contact** and **Collaborate → Emails**: add a notification to
-   `hello@pjk.co.in` (or whichever inbox should hear about enquiries).
+3. **Enquiries → Forms → Contact** and **Collaborate → Emails**: check each form notifies an inbox
+   (`hello@pjk.co.in`, or whichever should hear about enquiries).
+4. **`PAYLOAD_SECRET` length** (Vercel → Environment Variables): if it is under 32 characters, the
+   logs will say so once per cold start. Replace it with `openssl rand -hex 32` when convenient;
+   the only effect is that everyone signed in has to sign in again.
 
 **Optional, needs an account (ask first)**
 
