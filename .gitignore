@@ -21,9 +21,7 @@ node_modules/
 /blob-report/
 /playwright/.cache/
 
-# Local editor/assistant tooling, not part of the project
-.claude/
-CLAUDE.md
+# Local editor tooling, not part of the project
 AGENTS.md
 tsconfig.tsbuildinfo
 

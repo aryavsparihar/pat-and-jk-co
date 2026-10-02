@@ -130,8 +130,8 @@ preview has been given its own database and opts in with `MIGRATE_ON_PREVIEW=1`.
 
 ## 7. CI/CD and version control
 
-**Done.** `main` is the deploy branch, history is clean and prose-only, `.claude/` and `CLAUDE.md`
-are ignored, and `agentRules: false` is set.
+**Done.** `main` is the deploy branch, history is clean and prose-only, local tooling
+files are kept out of the repository, and `agentRules: false` is set.
 
 **Needs work, high (`A8`).** There is **no CI**. Lint, typecheck, tests and build run only when
 someone remembers. **Fix:** `.github/workflows/ci.yml` running lint, typecheck, integration tests
