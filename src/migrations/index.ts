@@ -9,6 +9,7 @@ import * as migration_20261002_155740_add_rate_limits from './20261002_155740_ad
 import * as migration_20261002_162508_add_office_address from './20261002_162508_add_office_address'
 import * as migration_20261002_162600_fill_office_address from './20261002_162600_fill_office_address'
 import * as migration_20261002_174436_members_and_applications from './20261002_174436_members_and_applications'
+import * as migration_20261002_181529_application_forms from './20261002_181529_application_forms'
 
 export const migrations = [
   {
@@ -65,5 +66,10 @@ export const migrations = [
     up: migration_20261002_174436_members_and_applications.up,
     down: migration_20261002_174436_members_and_applications.down,
     name: '20261002_174436_members_and_applications',
+  },
+  {
+    up: migration_20261002_181529_application_forms.up,
+    down: migration_20261002_181529_application_forms.down,
+    name: '20261002_181529_application_forms',
   },
 ]

@@ -6,6 +6,8 @@ import { PARTNER_CATEGORIES } from '../members/categories'
 import { decideApplication, type Decision } from '../members/decide'
 import { APPLICATION_REFERENCE_PATTERN } from '../members/ids'
 
+import { artistApplicationFields, partnerApplicationFields, progressFields } from './applicationFields'
+
 /** Stages an applicant may still edit their own application in */
 export const EDITABLE_STAGES = ['draft', 'changes-requested'] as const
 
@@ -128,6 +130,9 @@ export const Applications: CollectionConfig = {
       options: PARTNER_CATEGORIES.map(({ value, label }) => ({ value, label })),
       admin: { position: 'sidebar', condition: (data) => data?.type === 'partner' },
     },
+    ...artistApplicationFields,
+    ...partnerApplicationFields,
+    ...progressFields,
     {
       name: 'decisionNote',
       label: 'Note to the applicant',

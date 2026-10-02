@@ -9,6 +9,8 @@ next-env.d.ts
 
 # Payload default media upload directory
 public/media/
+# Uploads that must never be public (portfolio images, later KYC documents)
+.uploads/
 
 public/robots.txt
 public/sitemap*.xml

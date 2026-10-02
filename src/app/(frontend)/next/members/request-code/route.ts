@@ -3,6 +3,7 @@ import { getPayload } from 'payload'
 
 import { memberIdsOf } from '@/collections/Members'
 import { findMember } from '@/members/accounts'
+import { checkFormToken } from '@/members/formToken'
 import { sendMemberCode } from '@/members/emails'
 import { filledHoneypot, fromOurOrigin, readJson, refuseCrossSite, reply } from '@/members/http'
 import { issueChallenge, type Purpose } from '@/security/challenges'
@@ -48,8 +49,14 @@ export async function POST(request: Request) {
   }
   const generic = purpose === 'signin' ? SIGN_IN_REPLY : APPLY_REPLY
 
-  // A bot that filled the hidden field is told it worked, and nothing is sent
-  if (filledHoneypot(body as Record<string, unknown>)) return reply({ message: generic })
+  // A bot that filled the hidden field, or posted the instant the form appeared, is told it
+  // worked, and nothing is sent
+  const timing = checkFormToken((body as Record<string, unknown> | null)?.formToken)
+  if (filledHoneypot(body as Record<string, unknown>) || timing === 'too-fast') {
+    return reply({ message: generic })
+  }
+  if (timing !== 'ok')
+    return reply({ message: 'Please reload the page and try again.' }, { status: 400 })
 
   const limit = await hitLimits(payload, [
     {
