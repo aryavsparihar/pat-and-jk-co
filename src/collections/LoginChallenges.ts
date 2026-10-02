@@ -48,6 +48,8 @@ export const LoginChallenges: CollectionConfig = {
         { label: 'Sign in', value: 'signin' },
         { label: 'Apply as an artist', value: 'apply-artist' },
         { label: 'Apply as a partner', value: 'apply-partner' },
+        // A fresh code inside a session, before something sensitive (changing bank details)
+        { label: 'Confirm a sensitive change', value: 'step-up' },
       ],
     },
   ],

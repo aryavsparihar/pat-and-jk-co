@@ -10,6 +10,7 @@ import { POST as savePartner } from '@/app/(frontend)/next/members/application/p
 import { GET as getApplication } from '@/app/(frontend)/next/members/application/route'
 import { POST as saveStep } from '@/app/(frontend)/next/members/application/step/route'
 import { POST as submitArtist } from '@/app/(frontend)/next/members/application/submit/route'
+import { POST as saveKycStep } from '@/app/(frontend)/next/members/kyc/route'
 import { POST as uploadPicture } from '@/app/(frontend)/next/members/portfolio/route'
 import { POST as requestCode } from '@/app/(frontend)/next/members/request-code/route'
 import { ensureApplication } from '@/members/accounts'
@@ -22,6 +23,7 @@ import type { User } from '@/payload-types'
 import { execute } from '@/utilities/sql'
 
 import { openApplicationsForTests } from '../helpers/applicationsOpen'
+import { goodKyc, removeKycFor } from '../helpers/kyc'
 
 /*
  * The onboarding, through the real route handlers: saving steps, pictures, sending, and the
@@ -119,6 +121,7 @@ const cleanup = async () => {
   })
   for (const image of images.docs)
     await payload.delete({ collection: 'portfolio-images', id: image.id, overrideAccess: true })
+  await removeKycFor(payload, like)
   await execute(
     payload,
     sql`DELETE FROM member_sessions WHERE member_id IN (SELECT id FROM members WHERE email LIKE ${like})`,
@@ -322,6 +325,11 @@ describe('an artist application', () => {
       heightCm: 90,
     }))
     expect((await call(saveStep, cookie, { step: 'portfolio', data: { works } })).status).toBe(200)
+    // Identity and bank details go through their own endpoint, encrypted (tests/int/kyc.int.spec.ts)
+    expect((await call(saveStep, cookie, { step: 'kyc', data: {} })).status).toBeGreaterThanOrEqual(
+      400,
+    )
+    expect((await call(saveKycStep, cookie, goodKyc())).status).toBe(200)
     expect((await call(saveStep, cookie, { step: 'review', data: goodSteps.review })).status).toBe(
       200,
     )

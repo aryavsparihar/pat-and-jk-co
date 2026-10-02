@@ -28,6 +28,16 @@ export const securityEventTypes = [
   'application-approved',
   'application-rejected',
   'application-changes-requested',
+  // Identity and bank details
+  'kyc-saved',
+  'kyc-revealed',
+  'kyc-document-opened',
+  'kyc-bank-change-requested',
+  'kyc-bank-change-cancelled',
+  'kyc-bank-change-approved',
+  'kyc-consent-withdrawn',
+  'kyc-purged',
+  'data-request',
 ] as const
 
 /**

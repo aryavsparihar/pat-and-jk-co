@@ -52,8 +52,11 @@ git push -u origin main
 | `EMAIL_FROM_ADDRESS` | `noreply@pjk.co.in` |
 | `EMAIL_FROM_NAME` | `PAT and J.K. Co.` |
 | `CONTACT_INBOX` | `hello@pjk.co.in` |
+| `KYC_ENCRYPTION_KEY` | `openssl rand -base64 32`. Encrypts identity and bank details. Use a different key for Preview. Keep an offline copy: losing it loses every KYC record. See [KYC.md](KYC.md) |
+| `KYC_BLIND_INDEX_KEY` | another `openssl rand -base64 32`, never the same as the encryption key. Finds duplicate PANs and accounts without decrypting |
+| `KYC_BLOB_READ_WRITE_TOKEN` | from a second, **private** Blob store (Storage → Create → Blob, access Private, connected with the environment variable prefix `KYC`) |
 
-The app checks these when it starts (`src/env.ts`). If one is missing or malformed, the build stops with a list naming each problem, and the live site carries on running the previous deployment. In production `NEXT_PUBLIC_SERVER_URL`, `RESEND_API_KEY` and `BLOB_READ_WRITE_TOKEN` are required as well.
+The app checks these when it starts (`src/env.ts`). If one is missing or malformed, the build stops with a list naming each problem, and the live site carries on running the previous deployment. In production `NEXT_PUBLIC_SERVER_URL`, `RESEND_API_KEY`, `BLOB_READ_WRITE_TOKEN`, `KYC_ENCRYPTION_KEY`, `KYC_BLIND_INDEX_KEY` and `KYC_BLOB_READ_WRITE_TOKEN` are required as well.
 
 5. Deploy. The first deploy creates all database tables.
 

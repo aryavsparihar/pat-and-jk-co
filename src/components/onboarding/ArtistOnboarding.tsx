@@ -9,6 +9,7 @@ import { HONEYPOT_FIELD } from '@/utilities/honeypot'
 
 import { api } from './api'
 import { AboutStep, AddressStep, PracticeStep, type Values } from './artist/steps'
+import { KycStep } from './artist/KycStep'
 import { PortfolioStep } from './artist/Portfolio'
 import { ReviewStep } from './artist/Review'
 import { CodeSignIn } from './CodeSignIn'
@@ -24,6 +25,10 @@ const STEP_TITLES: Record<ArtistStep, { title: string; intro: string }> = {
   portfolio: {
     title: 'Your work',
     intro: 'A small selection of the work you would like us to see.',
+  },
+  kyc: {
+    title: 'Identity and bank',
+    intro: 'So that we can be sure of who you are, and pay you.',
   },
   review: { title: 'Review and send', intro: 'Check everything once more, then send it to us.' },
 }
@@ -216,6 +221,24 @@ export const ArtistOnboarding: React.FC<{ formToken: string }> = ({ formToken })
   const index = ARTIST_STEPS.indexOf(step)
   const current = values[step] ?? {}
   const meta = STEP_TITLES[step]
+  const header = (
+    <>
+      {application.stage === 'changes-requested' && application.decisionNote && (
+        <div className="mb-10 border-l-2 border-primary bg-surface py-5 pl-6 pr-4">
+          <p className="font-medium">A note from us</p>
+          <p className="measure mt-2 whitespace-pre-line">{application.decisionNote}</p>
+        </div>
+      )}
+
+      <p className="label">
+        Step {index + 1} of {ARTIST_STEPS.length}
+      </p>
+      <h2 className="display-md mt-2 outline-none" ref={heading} tabIndex={-1}>
+        {meta.title}
+      </h2>
+      <p className="lede measure mt-4">{meta.intro}</p>
+    </>
+  )
 
   return (
     <div className="grid gap-x-12 gap-y-10 lg:grid-cols-[14rem_1fr]">
@@ -250,79 +273,88 @@ export const ArtistOnboarding: React.FC<{ formToken: string }> = ({ formToken })
         </ol>
       </nav>
 
-      <form noValidate onSubmit={step === 'review' ? send : next}>
-        {application.stage === 'changes-requested' && application.decisionNote && (
-          <div className="mb-10 border-l-2 border-primary bg-surface py-5 pl-6 pr-4">
-            <p className="font-medium">A note from us</p>
-            <p className="measure mt-2 whitespace-pre-line">{application.decisionNote}</p>
+      {step === 'kyc' ? (
+        <div>
+          {header}
+          <div className="mt-10">
+            <KycStep
+              legalName={values.about?.legalName}
+              onSaved={(done) => {
+                setCompleted(done)
+                go('review')
+              }}
+            />
           </div>
-        )}
+          <button
+            className="link link-caps mt-6 min-h-11"
+            onClick={() => go(ARTIST_STEPS[index - 1]!)}
+            type="button"
+          >
+            Back
+          </button>
+        </div>
+      ) : (
+        <form noValidate onSubmit={step === 'review' ? send : next}>
+          {header}
 
-        <p className="label">
-          Step {index + 1} of {ARTIST_STEPS.length}
-        </p>
-        <h2 className="display-md mt-2 outline-none" ref={heading} tabIndex={-1}>
-          {meta.title}
-        </h2>
-        <p className="lede measure mt-4">{meta.intro}</p>
-
-        {saved && (
-          <p className="mt-6 text-base text-primary" role="status">
-            Saved. You can close this page and come back to it by signing in.
-          </p>
-        )}
-
-        <div className="mt-10">
-          <ErrorSummary errors={errors} />
-          {message && (
-            <p className="mb-8 text-base italic text-destructive" role="alert">
-              {message}
+          {saved && (
+            <p className="mt-6 text-base text-primary" role="status">
+              Saved. You can close this page and come back to it by signing in.
             </p>
           )}
 
-          {step === 'about' && <AboutStep errors={errors} set={set} values={current} />}
-          {step === 'address' && <AddressStep errors={errors} set={set} values={current} />}
-          {step === 'practice' && <PracticeStep errors={errors} set={set} values={current} />}
-          {step === 'portfolio' && <PortfolioStep errors={errors} set={set} values={current} />}
-          {step === 'review' && (
-            <ReviewStep
-              all={values}
-              errors={errors}
-              onEdit={(s) => go(s as ArtistStep)}
-              set={set}
-              values={current}
-            />
-          )}
-        </div>
+          <div className="mt-10">
+            <ErrorSummary errors={errors} />
+            {message && (
+              <p className="mb-8 text-base italic text-destructive" role="alert">
+                {message}
+              </p>
+            )}
 
-        {step === 'review' && (
-          <div aria-hidden className="absolute -left-[9999px] h-0 w-0 overflow-hidden">
-            <label htmlFor={`${HONEYPOT_FIELD}-send`}>Company website</label>
-            <input
-              autoComplete="off"
-              id={`${HONEYPOT_FIELD}-send`}
-              onChange={(e) => setHoneypot(e.target.value)}
-              tabIndex={-1}
-              value={honeypot}
-            />
+            {step === 'about' && <AboutStep errors={errors} set={set} values={current} />}
+            {step === 'address' && <AddressStep errors={errors} set={set} values={current} />}
+            {step === 'practice' && <PracticeStep errors={errors} set={set} values={current} />}
+            {step === 'portfolio' && <PortfolioStep errors={errors} set={set} values={current} />}
+            {step === 'review' && (
+              <ReviewStep
+                all={values}
+                errors={errors}
+                onEdit={(s) => go(s as ArtistStep)}
+                set={set}
+                values={current}
+              />
+            )}
           </div>
-        )}
 
-        <div className="mt-14 flex flex-wrap items-center gap-x-8 gap-y-4 border-t border-border pt-8">
-          <button className="btn btn-solid min-h-11" disabled={busy} type="submit">
-            {busy ? 'Saving…' : step === 'review' ? 'Send my application' : 'Save and continue'}
-          </button>
-          {index > 0 && (
-            <button
-              className="link link-caps min-h-11"
-              onClick={() => go(ARTIST_STEPS[index - 1]!)}
-              type="button"
-            >
-              Back
-            </button>
+          {step === 'review' && (
+            <div aria-hidden className="absolute -left-[9999px] h-0 w-0 overflow-hidden">
+              <label htmlFor={`${HONEYPOT_FIELD}-send`}>Company website</label>
+              <input
+                autoComplete="off"
+                id={`${HONEYPOT_FIELD}-send`}
+                onChange={(e) => setHoneypot(e.target.value)}
+                tabIndex={-1}
+                value={honeypot}
+              />
+            </div>
           )}
-        </div>
-      </form>
+
+          <div className="mt-14 flex flex-wrap items-center gap-x-8 gap-y-4 border-t border-border pt-8">
+            <button className="btn btn-solid min-h-11" disabled={busy} type="submit">
+              {busy ? 'Saving…' : step === 'review' ? 'Send my application' : 'Save and continue'}
+            </button>
+            {index > 0 && (
+              <button
+                className="link link-caps min-h-11"
+                onClick={() => go(ARTIST_STEPS[index - 1]!)}
+                type="button"
+              >
+                Back
+              </button>
+            )}
+          </div>
+        </form>
+      )}
     </div>
   )
 }

@@ -8,6 +8,9 @@ const base = {
   PAYLOAD_SECRET: 'x'.repeat(64),
 }
 
+/** A made-up 32-byte key: the same byte repeated */
+const fakeKey = (byte: number) => Buffer.alloc(32, byte).toString('base64')
+
 describe('environment validation', () => {
   it('accepts the minimum a local setup needs', () => {
     const { problems, warnings } = parseEnv(base)
@@ -57,6 +60,8 @@ describe('environment validation', () => {
     expect(text).toMatch(/RESEND_API_KEY is required in production/)
     expect(text).toMatch(/BLOB_READ_WRITE_TOKEN is required in production/)
     expect(text).toMatch(/MEMBER_SESSION_SECRET is required in production/)
+    expect(text).toMatch(/KYC_ENCRYPTION_KEY is required in production/)
+    expect(text).toMatch(/KYC_BLOB_READ_WRITE_TOKEN is required in production/)
     expect(text).toMatch(/must use https/)
 
     expect(
@@ -67,12 +72,39 @@ describe('environment validation', () => {
         RESEND_API_KEY: 're_example_not_real',
         BLOB_READ_WRITE_TOKEN: 'vercel_blob_rw_example_not_real',
         MEMBER_SESSION_SECRET: 'z'.repeat(44),
+        KYC_ENCRYPTION_KEY: fakeKey(1),
+        KYC_BLIND_INDEX_KEY: fakeKey(2),
+        KYC_BLOB_READ_WRITE_TOKEN: 'vercel_blob_rw_private_example_not_real',
       }).problems,
     ).toEqual([])
   })
 
   it('lets a preview run without production-only settings', () => {
     expect(parseEnv({ ...base, VERCEL_ENV: 'preview' }).problems).toEqual([])
+  })
+
+  it('checks the KYC keys: the right size, and never the same key twice', () => {
+    expect(parseEnv({ ...base, KYC_ENCRYPTION_KEY: 'too-short' }).problems.join()).toMatch(
+      /KYC_ENCRYPTION_KEY must be 32 bytes/,
+    )
+    const same = parseEnv({
+      ...base,
+      KYC_ENCRYPTION_KEY: fakeKey(3),
+      KYC_BLIND_INDEX_KEY: fakeKey(3),
+    })
+    expect(same.problems.join()).toMatch(/different key/)
+    expect(same.problems.join()).not.toContain(fakeKey(3))
+    expect(
+      parseEnv({ ...base, KYC_ENCRYPTION_KEY: fakeKey(4), KYC_ENCRYPTION_KEY_PREVIOUS: fakeKey(4) })
+        .problems,
+    ).toHaveLength(1)
+    expect(
+      parseEnv({
+        ...base,
+        BLOB_READ_WRITE_TOKEN: 'vercel_blob_rw_example_not_real',
+        KYC_BLOB_READ_WRITE_TOKEN: 'vercel_blob_rw_example_not_real',
+      }).problems.join(),
+    ).toMatch(/separate, private Blob store/)
   })
 
   it('reports problems as one readable error', () => {

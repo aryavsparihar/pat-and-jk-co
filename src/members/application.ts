@@ -13,6 +13,7 @@ import {
 } from './forms/schemas'
 import type { MemberKind } from './ids'
 import { stepValues } from './forms/values'
+import { kycProblems } from '@/kyc/service'
 
 /**
  * Reading, saving and submitting an applicant's own application.
@@ -71,6 +72,8 @@ const toFields = (step: ArtistStep, data: Record<string, unknown>): Partial<Appl
       return { practice: data as never }
     case 'portfolio':
       return { portfolio: data.works as unknown[] as never }
+    case 'kyc':
+      return {}
     case 'review':
       return {
         declarations: {
@@ -93,6 +96,9 @@ export const saveArtistStep = async (
     return { ok: false, status: 400, message: 'That is not a step of the application.' }
   }
   const name = step as ArtistStep
+  if (name === 'kyc') {
+    return { ok: false, status: 400, message: 'Identity and bank details are saved separately.' }
+  }
   const application = await findOwnApplication(payload, member, 'artist', 0)
   if (!application)
     return { ok: false, status: 404, message: 'There is no artist application to save.' }
@@ -197,6 +203,8 @@ export const submitArtistApplication = async (
     return { ok: false, status: 409, message: 'This application has already been sent.' }
   }
   const problems = artistProblems(application)
+  const kyc = await kycProblems(payload, member.id)
+  if (kyc.length > 0) problems.kyc = { _form: kyc[0]! }
   if (Object.keys(problems).length > 0) {
     const errors = Object.fromEntries(
       Object.entries(problems).flatMap(([step, fields]) =>

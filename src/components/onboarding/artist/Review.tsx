@@ -1,9 +1,10 @@
 'use client'
 
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 
 import { LANGUAGES, MEDIUMS, PRICE_RANGES } from '@/members/forms/schemas'
 
+import { api } from '../api'
 import { Check } from '../fields'
 import type { StepProps, Values } from './steps'
 
@@ -39,6 +40,22 @@ export const ReviewStep: React.FC<
   const address = all.address ?? {}
   const practice = all.practice ?? {}
   const works: Values[] = all.portfolio?.works ?? []
+  const [kyc, setKyc] = useState<{
+    idType: string
+    idMasked: string
+    bank: { accountMasked: string; bankName: string }
+  } | null>(null)
+
+  // Only the masked view ever reaches the browser
+  useEffect(() => {
+    let current = true
+    void api<{ kyc: typeof kyc }>('/next/members/kyc').then((r) => {
+      if (current) setKyc(r.data.kyc ?? null)
+    })
+    return () => {
+      current = false
+    }
+  }, [])
 
   const sections: Section[] = [
     {
@@ -87,6 +104,14 @@ export const ReviewStep: React.FC<
       step: 'portfolio',
       title: 'Your work',
       rows: [['Works', works.length ? works.map((w) => w.title || 'Untitled').join(', ') : '—']],
+    },
+    {
+      step: 'kyc',
+      title: 'Identity and bank',
+      rows: [
+        [kyc?.idType === 'aadhaar' ? 'Aadhaar' : 'PAN', kyc?.idMasked],
+        ['Account', kyc ? `${kyc.bank.accountMasked}, ${kyc.bank.bankName}` : undefined],
+      ],
     },
   ]
 

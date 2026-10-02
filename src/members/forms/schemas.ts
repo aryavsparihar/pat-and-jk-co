@@ -261,8 +261,11 @@ export const declarationsSchema = z.object({
   }),
 })
 
-/** The artist's steps, in order. KYC sits between the portfolio and the review (Phase 5). */
-export const ARTIST_STEPS = ['about', 'address', 'practice', 'portfolio', 'review'] as const
+/**
+ * The artist's steps, in order. Identity and bank details (kyc) have their own endpoint and their
+ * own checks (src/kyc), so the generic step saver refuses that step and its schema here is empty.
+ */
+export const ARTIST_STEPS = ['about', 'address', 'practice', 'portfolio', 'kyc', 'review'] as const
 export type ArtistStep = (typeof ARTIST_STEPS)[number]
 
 export const ARTIST_STEP_SCHEMAS = {
@@ -270,6 +273,7 @@ export const ARTIST_STEP_SCHEMAS = {
   address: addressStepSchema,
   practice: practiceSchema,
   portfolio: portfolioSchema,
+  kyc: z.object({}),
   review: declarationsSchema,
 } as const
 

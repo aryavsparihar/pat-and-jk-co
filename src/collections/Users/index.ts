@@ -86,6 +86,10 @@ export const Users: CollectionConfig = {
       options: [
         { label: 'Super admin (all brands, users & domains)', value: 'super-admin' },
         { label: 'Editor (content for assigned brands)', value: 'editor' },
+        {
+          label: 'KYC reviewer (may reveal identity and bank details, every time logged)',
+          value: 'kyc-reviewer',
+        },
       ],
       access: {
         // Only super admins may grant or change roles — prevents privilege escalation
