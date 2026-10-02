@@ -6,45 +6,63 @@ import { fileURLToPath } from 'url'
 const __filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(__filename)
 
+const isDev = process.env.NODE_ENV === 'development'
+
 /**
- * Content Security Policy.
+ * Content Security Policy, in two strengths.
  *
- * Next.js and the Payload admin both inline scripts, so `script-src` still needs 'unsafe-inline'
- * (and 'unsafe-eval' for the admin) until every inline script carries a nonce. The rest of the
- * policy is what earns its keep: no plugins, no framing by other sites, no injected <base> tag,
- * and forms that can only post back to us.
+ * The public site runs no third-party script and never evaluates strings as code, so it gets
+ * neither 'unsafe-eval' nor any outside script host, and may only talk to its own origin. The
+ * admin panel needs more: 'unsafe-eval' for parts of its UI, jsDelivr for the code editor
+ * (Monaco) to fetch itself, and outbound HTTPS for client uploads straight to Vercel Blob.
+ *
+ * 'unsafe-inline' stays on script-src for both. Next.js inlines its bootstrap scripts, and the
+ * alternative, a nonce, has to differ on every response, which would mean rendering every page
+ * per request instead of serving it from the CDN. See docs/AUDIT.md, section 8.
  */
-const contentSecurityPolicy = [
-  "default-src 'self'",
-  "base-uri 'self'",
-  "object-src 'none'",
-  "frame-ancestors 'self'",
-  "form-action 'self'",
-  // Media may be served from Vercel Blob, and the admin previews uploads as blob: URLs
-  "img-src 'self' data: blob: https:",
-  "media-src 'self' data: blob: https:",
-  "font-src 'self' data:",
-  "style-src 'self' 'unsafe-inline'",
-  // jsDelivr is where the admin panel's code editor (Monaco) fetches itself from; the public
-  // site loads no third-party script at all. Drop it if the admin never shows a code field.
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net",
-  "worker-src 'self' blob:",
-  "connect-src 'self' https:",
-  "frame-src 'self'",
-  'upgrade-insecure-requests',
-].join('; ')
+const contentSecurityPolicy = ({ admin }: { admin: boolean }) =>
+  [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "object-src 'none'",
+    "frame-ancestors 'self'",
+    "form-action 'self'",
+    // Media may be served from Vercel Blob, and the admin previews uploads as blob: URLs
+    "img-src 'self' data: blob: https:",
+    "media-src 'self' data: blob: https:",
+    "font-src 'self' data:",
+    "style-src 'self' 'unsafe-inline'",
+    [
+      "script-src 'self' 'unsafe-inline'",
+      // Development needs eval for fast refresh
+      (admin || isDev) && "'unsafe-eval'",
+      admin && 'https://cdn.jsdelivr.net',
+    ]
+      .filter(Boolean)
+      .join(' '),
+    "worker-src 'self' blob:",
+    admin ? "connect-src 'self' https:" : `connect-src 'self'${isDev ? ' ws: wss:' : ''}`,
+    "frame-src 'self'",
+    'upgrade-insecure-requests',
+  ].join('; ')
 
 const securityHeaders = [
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
   // Same-origin framing is allowed so the admin panel's live preview keeps working
   { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+  // No other site's window can keep a handle on ours (and vice versa)
+  { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
   {
     key: 'Permissions-Policy',
-    value: 'camera=(), microphone=(), geolocation=(), interest-cohort=()',
+    value: 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()',
   },
   { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains; preload' },
-  { key: 'Content-Security-Policy', value: contentSecurityPolicy },
+  { key: 'Content-Security-Policy', value: contentSecurityPolicy({ admin: false }) },
+]
+
+const adminHeaders = [
+  { key: 'Content-Security-Policy', value: contentSecurityPolicy({ admin: true }) },
 ]
 
 /**
@@ -83,7 +101,10 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       { source: '/:path*', headers: securityHeaders },
-      // More specific rules win, so uploads get the sandbox instead of the site policy
+      // Where several rules set the same header, the later one wins: the admin panel gets its
+      // looser policy, and uploads get the sandbox instead of either
+      { source: '/admin', headers: adminHeaders },
+      { source: '/admin/:path*', headers: adminHeaders },
       { source: '/api/media/file/:path*', headers: uploadHeaders },
       { source: '/media/:path*', headers: uploadHeaders },
     ]
