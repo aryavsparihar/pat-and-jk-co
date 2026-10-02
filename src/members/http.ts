@@ -1,3 +1,8 @@
+import configPromise from '@payload-config'
+import { getPayload, type Payload } from 'payload'
+
+import type { Member } from '@/payload-types'
+import { readMemberCookie, readSession } from '@/security/memberSession'
 import { getServerSideURL } from '@/utilities/getURL'
 import { HONEYPOT_FIELD } from '@/utilities/honeypot'
 
@@ -48,3 +53,27 @@ export const readJson = async <T extends object>(request: Request): Promise<Part
 /** True if the hidden honeypot field came back filled in: a bot, not a person */
 export const filledHoneypot = (body: Record<string, unknown> | null): boolean =>
   Boolean(body && String(body[HONEYPOT_FIELD] ?? '').trim())
+
+/**
+ * The signed-in member for a request, or a 401 to return. Passes on a refreshed cookie when the
+ * session slid forward, so callers can attach it to their reply.
+ */
+export const requireMember = async (
+  request: Request,
+): Promise<
+  | { ok: true; payload: Payload; member: Member; refresh?: string }
+  | { ok: false; response: Response }
+> => {
+  const payload = await getPayload({ config: configPromise })
+  const active = await readSession(payload, readMemberCookie(request.headers))
+  if (!active) {
+    return { ok: false, response: reply({ message: 'Please sign in again.' }, { status: 401 }) }
+  }
+  return { ok: true, payload, member: active.member, refresh: active.refreshCookie }
+}
+
+/** Adds a refreshed session cookie to a reply, when there is one */
+export const withRefresh = (response: Response, refresh?: string): Response => {
+  if (refresh) response.headers.append('Set-Cookie', refresh)
+  return response
+}

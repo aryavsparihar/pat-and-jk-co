@@ -153,6 +153,8 @@ export const plugins: Plugin[] = [
     clientUploads: true,
     collections: {
       media: true,
+      // Served through Payload's file route, which applies the collection's read rule
+      'portfolio-images': { prefix: 'portfolio' },
     },
     token: process.env.BLOB_READ_WRITE_TOKEN || '',
   }),

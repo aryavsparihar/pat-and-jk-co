@@ -1,0 +1,155 @@
+import { randomBytes } from 'node:crypto'
+import type { Payload } from 'payload'
+import sharp, { type Metadata } from 'sharp'
+
+import type { Member, PortfolioImage } from '@/payload-types'
+
+/**
+ * Every picture an artist sends passes through here before it is kept:
+ *
+ *   1. what it is, from its bytes: JPEG, PNG or WebP only, whatever the name or the browser says
+ *   2. big enough to judge the work from, and not a decompression bomb
+ *   3. re-encoded as a JPEG, upright, at most 4000 px on its longest side. Re-encoding drops every
+ *      piece of metadata, EXIF and the GPS position a phone writes into a photo included
+ *   4. stored as this artist's own; Payload makes the web-sized copies
+ */
+
+export const PORTFOLIO_MAX_BYTES = 25 * 1024 * 1024
+const MAX_PIXELS = 50_000_000
+const MIN_LONG_SIDE = 800
+const MAX_LONG_SIDE = 4000
+/** Ten works, with room to replace a few pictures along the way */
+export const MAX_IMAGES_PER_MEMBER = 16
+
+const ACCEPTED = new Set(['jpeg', 'png', 'webp'])
+
+export class PortfolioError extends Error {
+  constructor(
+    message: string,
+    public status = 422,
+  ) {
+    super(message)
+  }
+}
+
+/** Checks and cleans an image. Returns a fresh JPEG with no metadata. */
+export const cleanImage = async (
+  input: Buffer,
+): Promise<{ data: Buffer; width: number; height: number }> => {
+  if (input.length > PORTFOLIO_MAX_BYTES) {
+    throw new PortfolioError('That picture is larger than 25 MB. Please send a smaller version.')
+  }
+  let meta: Metadata
+  try {
+    meta = await sharp(input, { limitInputPixels: MAX_PIXELS }).metadata()
+  } catch {
+    throw new PortfolioError(
+      'That file is not a picture we can open. Please send a JPEG, PNG or WebP.',
+    )
+  }
+  if (!meta.format || !ACCEPTED.has(meta.format)) {
+    throw new PortfolioError('Please send a JPEG, PNG or WebP picture.')
+  }
+  const longSide = Math.max(meta.width ?? 0, meta.height ?? 0)
+  if (longSide < MIN_LONG_SIDE) {
+    throw new PortfolioError(
+      `That picture is small. Please send one at least ${MIN_LONG_SIDE} pixels on its longest side.`,
+    )
+  }
+
+  const { data, info } = await sharp(input, { limitInputPixels: MAX_PIXELS })
+    .rotate() // apply the camera's orientation before the metadata that records it is dropped
+    .resize({
+      width: MAX_LONG_SIDE,
+      height: MAX_LONG_SIDE,
+      fit: 'inside',
+      withoutEnlargement: true,
+    })
+    .flatten({ background: '#ffffff' }) // a transparent PNG becomes a picture on white
+    .jpeg({ quality: 88, mozjpeg: true })
+    .toBuffer({ resolveWithObject: true })
+  // sharp writes no metadata unless asked to (withMetadata), so EXIF and GPS are gone
+  return { data, width: info.width, height: info.height }
+}
+
+/** Keeps a cleaned picture as one of the artist's portfolio images. */
+export const ingestPortfolioImage = async (
+  payload: Payload,
+  member: Member,
+  input: Buffer,
+): Promise<PortfolioImage> => {
+  const existing = await payload.count({
+    collection: 'portfolio-images',
+    where: { owner: { equals: member.id } },
+    overrideAccess: true,
+  })
+  if (existing.totalDocs >= MAX_IMAGES_PER_MEMBER) {
+    throw new PortfolioError(
+      'You have uploaded a lot of pictures. Please remove some you are not using first.',
+      409,
+    )
+  }
+
+  const { data } = await cleanImage(input)
+  return payload.create({
+    collection: 'portfolio-images',
+    data: { owner: member.id },
+    file: {
+      data,
+      mimetype: 'image/jpeg',
+      // A name that says nothing about the artist or the original file
+      name: `work-${randomBytes(8).toString('hex')}.jpg`,
+      size: data.length,
+    },
+    overrideAccess: true,
+    context: { disableRevalidate: true },
+  })
+}
+
+/** Where browsers may put pictures on their way in, per member */
+export const incomingPrefix = (member: Pick<Member, 'id'>) => `incoming/${member.id}/`
+
+/**
+ * Only a picture this member uploaded to our own Blob store may be fetched for import: any other
+ * address is refused before a request is made, so this cannot be used to make the server fetch
+ * something elsewhere.
+ */
+export const isOwnIncomingBlob = (url: string, member: Pick<Member, 'id'>): boolean => {
+  try {
+    const parsed = new URL(url)
+    return (
+      parsed.protocol === 'https:' &&
+      parsed.hostname.endsWith('.public.blob.vercel-storage.com') &&
+      parsed.pathname.startsWith(`/${incomingPrefix(member)}`) &&
+      !parsed.pathname.includes('..')
+    )
+  } catch {
+    return false
+  }
+}
+
+/** Downloads at most PORTFOLIO_MAX_BYTES; anything longer is refused rather than buffered */
+export const fetchCapped = async (url: string): Promise<Buffer> => {
+  const response = await fetch(url, { redirect: 'error' })
+  if (!response.ok || !response.body)
+    throw new PortfolioError('That upload could not be found. Please try again.', 404)
+  const declared = Number(response.headers.get('content-length') ?? 0)
+  if (declared > PORTFOLIO_MAX_BYTES) throw new PortfolioError('That picture is larger than 25 MB.')
+  const chunks: Uint8Array[] = []
+  let total = 0
+  const reader = response.body.getReader()
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    total += value.length
+    if (total > PORTFOLIO_MAX_BYTES) {
+      await reader.cancel()
+      throw new PortfolioError('That picture is larger than 25 MB.')
+    }
+    chunks.push(value)
+  }
+  return Buffer.concat(chunks)
+}
+
+/** Whether pictures go straight from the browser to Blob (production) or through us (local) */
+export const blobUploadsAvailable = () => Boolean(process.env.BLOB_READ_WRITE_TOKEN)

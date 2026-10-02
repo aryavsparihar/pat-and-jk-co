@@ -21,7 +21,7 @@ import { isStaff } from './roles'
  * MEMBER_COLLECTIONS and keep their own rules, which must decide for themselves what a member
  * may touch.
  */
-export const MEMBER_COLLECTIONS = new Set<string>(['members', 'applications'])
+export const MEMBER_COLLECTIONS = new Set<string>(['members', 'applications', 'portfolio-images'])
 
 type AccessFn = (args: { req: PayloadRequest } & Record<string, unknown>) => unknown
 

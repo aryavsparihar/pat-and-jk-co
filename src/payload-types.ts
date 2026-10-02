@@ -81,6 +81,7 @@ export interface Config {
     users: User;
     members: Member;
     applications: Application;
+    'portfolio-images': PortfolioImage;
     'access-requests': AccessRequest;
     'security-events': SecurityEvent;
     'login-challenges': LoginChallenge;
@@ -115,6 +116,7 @@ export interface Config {
     users: UsersSelect<false> | UsersSelect<true>;
     members: MembersSelect<false> | MembersSelect<true>;
     applications: ApplicationsSelect<false> | ApplicationsSelect<true>;
+    'portfolio-images': PortfolioImagesSelect<false> | PortfolioImagesSelect<true>;
     'access-requests': AccessRequestsSelect<false> | AccessRequestsSelect<true>;
     'security-events': SecurityEventsSelect<false> | SecurityEventsSelect<true>;
     'login-challenges': LoginChallengesSelect<false> | LoginChallengesSelect<true>;
@@ -1550,6 +1552,105 @@ export interface Application {
   issuedId?: string | null;
   stage: 'draft' | 'submitted' | 'under-review' | 'changes-requested' | 'approved' | 'rejected';
   partnerCategory?: ('placement' | 'design-technology' | 'partnership') | null;
+  about?: {
+    legalName?: string | null;
+    displayName?: string | null;
+    dateOfBirth?: string | null;
+    phone?: string | null;
+    language?: ('English' | 'Hindi' | 'Dogri' | 'Urdu' | 'Punjabi' | 'Kashmiri' | 'Other') | null;
+  };
+  address?: {
+    residence?: {
+      line1?: string | null;
+      line2?: string | null;
+      landmark?: string | null;
+      city?: string | null;
+      district?: string | null;
+      state?: string | null;
+      postalCode?: string | null;
+      country?: string | null;
+    };
+    correspondenceSame?: boolean | null;
+    correspondence?: {
+      line1?: string | null;
+      line2?: string | null;
+      landmark?: string | null;
+      city?: string | null;
+      district?: string | null;
+      state?: string | null;
+      postalCode?: string | null;
+      country?: string | null;
+    };
+  };
+  practice?: {
+    mediums?:
+      | (
+          | 'painting'
+          | 'drawing'
+          | 'printmaking'
+          | 'sculpture'
+          | 'photography'
+          | 'textile'
+          | 'mixed-media'
+          | 'digital'
+          | 'other'
+        )[]
+      | null;
+    mediumOther?: string | null;
+    stylesThemes?: string | null;
+    yearsPractising?: number | null;
+    training?: string | null;
+    bio?: string | null;
+    statement?: string | null;
+    website?: string | null;
+    instagram?: string | null;
+    priceRange?: ('under-25k' | '25k-1l' | '1l-5l' | 'over-5l' | 'not-sure') | null;
+    recognition?:
+      | {
+          kind?: ('exhibition' | 'award' | 'residency' | 'publication') | null;
+          title?: string | null;
+          venue?: string | null;
+          year?: number | null;
+          id?: string | null;
+        }[]
+      | null;
+  };
+  portfolio?:
+    | {
+        image?: (number | null) | PortfolioImage;
+        title?: string | null;
+        year?: number | null;
+        medium?: string | null;
+        widthCm?: number | null;
+        heightCm?: number | null;
+        depthCm?: number | null;
+        id?: string | null;
+      }[]
+    | null;
+  declarations?: {
+    originalWork?: boolean | null;
+    accurate?: boolean | null;
+    consentProcessing?: boolean | null;
+    consentedAt?: string | null;
+    /**
+     * The privacy notice they agreed to.
+     */
+    privacyNoticeVersion?: string | null;
+  };
+  partner?: {
+    subType?: string | null;
+    fullName?: string | null;
+    role?: string | null;
+    organisation?: string | null;
+    phone?: string | null;
+    city?: string | null;
+    state?: string | null;
+    website?: string | null;
+    gstin?: string | null;
+    interest?: string | null;
+    message?: string | null;
+  };
+  completedSteps?: ('about' | 'address' | 'practice' | 'portfolio' | 'review')[] | null;
   /**
    * Sent with a rejection or a request for changes; the applicant sees it.
    */
@@ -1563,6 +1664,46 @@ export interface Application {
   decidedBy?: (number | null) | User;
   updatedAt: string;
   createdAt: string;
+}
+/**
+ * Pictures sent with artist applications. Not public.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "portfolio-images".
+ */
+export interface PortfolioImage {
+  id: number;
+  owner: number | Member;
+  alt?: string | null;
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
+  sizes?: {
+    thumbnail?: {
+      url?: string | null;
+      width?: number | null;
+      height?: number | null;
+      mimeType?: string | null;
+      filesize?: number | null;
+      filename?: string | null;
+    };
+    display?: {
+      url?: string | null;
+      width?: number | null;
+      height?: number | null;
+      mimeType?: string | null;
+      filesize?: number | null;
+      filename?: string | null;
+    };
+  };
 }
 /**
  * People asking for an admin account. Approving one creates their account and emails them a link to set a password. Only @pjk.co.in addresses can ask.
@@ -1618,6 +1759,7 @@ export interface SecurityEvent {
     | 'member-signed-out'
     | 'member-signed-out-everywhere'
     | 'member-id-issued'
+    | 'application-submitted'
     | 'application-approved'
     | 'application-rejected'
     | 'application-changes-requested';
@@ -1893,6 +2035,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'applications';
         value: number | Application;
+      } | null)
+    | ({
+        relationTo: 'portfolio-images';
+        value: number | PortfolioImage;
       } | null)
     | ({
         relationTo: 'access-requests';
@@ -2680,6 +2826,104 @@ export interface ApplicationsSelect<T extends boolean = true> {
   issuedId?: T;
   stage?: T;
   partnerCategory?: T;
+  about?:
+    | T
+    | {
+        legalName?: T;
+        displayName?: T;
+        dateOfBirth?: T;
+        phone?: T;
+        language?: T;
+      };
+  address?:
+    | T
+    | {
+        residence?:
+          | T
+          | {
+              line1?: T;
+              line2?: T;
+              landmark?: T;
+              city?: T;
+              district?: T;
+              state?: T;
+              postalCode?: T;
+              country?: T;
+            };
+        correspondenceSame?: T;
+        correspondence?:
+          | T
+          | {
+              line1?: T;
+              line2?: T;
+              landmark?: T;
+              city?: T;
+              district?: T;
+              state?: T;
+              postalCode?: T;
+              country?: T;
+            };
+      };
+  practice?:
+    | T
+    | {
+        mediums?: T;
+        mediumOther?: T;
+        stylesThemes?: T;
+        yearsPractising?: T;
+        training?: T;
+        bio?: T;
+        statement?: T;
+        website?: T;
+        instagram?: T;
+        priceRange?: T;
+        recognition?:
+          | T
+          | {
+              kind?: T;
+              title?: T;
+              venue?: T;
+              year?: T;
+              id?: T;
+            };
+      };
+  portfolio?:
+    | T
+    | {
+        image?: T;
+        title?: T;
+        year?: T;
+        medium?: T;
+        widthCm?: T;
+        heightCm?: T;
+        depthCm?: T;
+        id?: T;
+      };
+  declarations?:
+    | T
+    | {
+        originalWork?: T;
+        accurate?: T;
+        consentProcessing?: T;
+        consentedAt?: T;
+        privacyNoticeVersion?: T;
+      };
+  partner?:
+    | T
+    | {
+        subType?: T;
+        fullName?: T;
+        role?: T;
+        organisation?: T;
+        phone?: T;
+        city?: T;
+        state?: T;
+        website?: T;
+        gstin?: T;
+        interest?: T;
+        message?: T;
+      };
+  completedSteps?: T;
   decisionNote?: T;
   staffNotes?: T;
   submittedAt?: T;
@@ -2687,6 +2931,49 @@ export interface ApplicationsSelect<T extends boolean = true> {
   decidedBy?: T;
   updatedAt?: T;
   createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "portfolio-images_select".
+ */
+export interface PortfolioImagesSelect<T extends boolean = true> {
+  owner?: T;
+  alt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
+  sizes?:
+    | T
+    | {
+        thumbnail?:
+          | T
+          | {
+              url?: T;
+              width?: T;
+              height?: T;
+              mimeType?: T;
+              filesize?: T;
+              filename?: T;
+            };
+        display?:
+          | T
+          | {
+              url?: T;
+              width?: T;
+              height?: T;
+              mimeType?: T;
+              filesize?: T;
+              filename?: T;
+            };
+      };
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

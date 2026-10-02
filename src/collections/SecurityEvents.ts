@@ -24,6 +24,7 @@ export const securityEventTypes = [
   'member-signed-out',
   'member-signed-out-everywhere',
   'member-id-issued',
+  'application-submitted',
   'application-approved',
   'application-rejected',
   'application-changes-requested',

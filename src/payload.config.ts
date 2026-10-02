@@ -16,6 +16,7 @@ import { Media } from './collections/Media'
 import { Openings } from './collections/Openings'
 import { Pages } from './collections/Pages'
 import { People } from './collections/People'
+import { PortfolioImages } from './collections/PortfolioImages'
 import { RateLimits } from './collections/RateLimits'
 import { Posts } from './collections/Posts'
 import { SecurityEvents } from './collections/SecurityEvents'
@@ -131,6 +132,7 @@ export default buildConfig({
     Users,
     Members,
     Applications,
+    PortfolioImages,
     AccessRequests,
     SecurityEvents,
     LoginChallenges,

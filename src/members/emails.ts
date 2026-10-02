@@ -74,11 +74,7 @@ export const sendMemberCode = async (
 
 export const decisionEmail = async (
   payload: Payload,
-  {
-    decision,
-    application,
-    member,
-  }: { decision: Decision; application: Application; member: Member },
+  { decision, application }: { decision: Decision; application: Application; member?: Member },
 ): Promise<BuiltEmail> => {
   const signIn = `${getServerSideURL()}/collaborate/signin`
   const kind = application.type === 'artist' ? 'artist' : 'partner'
@@ -145,3 +141,72 @@ export const sendDecisionEmail = async (
   payload: Payload,
   args: { decision: Decision; application: Application; member: Member },
 ): Promise<boolean> => send(payload, args.member.email, await decisionEmail(payload, args))
+
+export const applicationReceivedEmail = async (
+  payload: Payload,
+  { application }: { application: Application },
+): Promise<BuiltEmail> => {
+  const artist = application.type === 'artist'
+  return buildEmail({
+    subject: 'We have your application',
+    preheader: `Your application reference is ${application.reference}.`,
+    parts: [
+      {
+        kind: 'paragraph',
+        text: artist
+          ? 'Thank you for applying to show your work with us. We look at every application ourselves, and we will write to you once we have.'
+          : 'Thank you for writing to us about working together. We read every application ourselves, and we will be in touch.',
+      },
+      { kind: 'reference', label: 'Your application reference', value: application.reference },
+      {
+        kind: 'note',
+        text: 'Quote it if you write to us. You can see where your application has got to by signing in with a code sent to this address.',
+      },
+      { kind: 'link', label: 'Sign in', url: `${getServerSideURL()}/collaborate/signin` },
+    ],
+    footer: await emailFooter(payload),
+  })
+}
+
+export const sendApplicationReceived = async (
+  payload: Payload,
+  { member, application }: { member: Member; application: Application },
+): Promise<boolean> =>
+  send(payload, member.email, await applicationReceivedEmail(payload, { application }))
+
+/**
+ * Tells staff a new application is waiting. To the business inbox in Site settings, falling back
+ * to the general one. The applicant's name and the reference only: everything else is in the admin.
+ */
+export const notifyStaffOfApplication = async (
+  payload: Payload,
+  { application, name }: { application: Application; name?: string | null },
+): Promise<boolean> => {
+  const settings = (
+    await payload.find({
+      collection: 'site-settings',
+      where: { 'tenant.slug': { equals: process.env.DEFAULT_TENANT_SLUG || 'pjk' } },
+      limit: 1,
+      depth: 0,
+      overrideAccess: true,
+    })
+  ).docs[0]
+  const to = settings?.businessEmail || settings?.email || process.env.CONTACT_INBOX
+  if (!to) return false
+  const kind = application.type === 'artist' ? 'artist' : 'partner'
+  const email = buildEmail({
+    subject: `New ${kind} application ${application.reference}`,
+    preheader: `${name || 'Someone'} has sent a ${kind} application.`,
+    parts: [
+      { kind: 'paragraph', text: `${name || 'Someone'} has sent a ${kind} application.` },
+      { kind: 'reference', label: 'Reference', value: application.reference },
+      {
+        kind: 'link',
+        label: 'Open it in the admin',
+        url: `${getServerSideURL()}/admin/collections/applications/${application.id}`,
+      },
+    ],
+    footer: await emailFooter(payload),
+  })
+  return send(payload, to, email)
+}
