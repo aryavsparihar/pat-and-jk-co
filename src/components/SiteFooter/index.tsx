@@ -1,11 +1,13 @@
 import type { SiteSetting, Venture } from '@/payload-types'
 
 import { CMSLink } from '@/components/Link'
+import { officeLines } from '@/utilities/address'
 import { docPath } from '@/utilities/docHref'
 import Link from 'next/link'
 import React from 'react'
 
 import { BrandLogo } from '../BrandLogo'
+import { OfficeAddress } from '../OfficeAddress'
 import { SocialLinks } from '../SocialLinks'
 import { VisitorCount } from '../VisitorCount'
 
@@ -36,6 +38,13 @@ export const SiteFooter: React.FC<Props> = ({ settings, ventures }) => {
             </Link>
             {settings?.footerBlurb && (
               <p className="measure mt-8 opacity-85">{settings.footerBlurb}</p>
+            )}
+            {/* Under the name, as on a letterhead: the one column with room for the full lines */}
+            {officeLines(settings).length > 0 && (
+              <div className="mt-8">
+                <p className="label mb-3">Registered office</p>
+                <OfficeAddress className="opacity-85" settings={settings} />
+              </div>
             )}
           </div>
 
@@ -71,7 +80,6 @@ export const SiteFooter: React.FC<Props> = ({ settings, ventures }) => {
             settings?.businessEmail ||
             settings?.technicalEmail ||
             settings?.phone ||
-            settings?.address ||
             settings?.socials?.length) && (
             <div className="lg:col-span-2">
               <p className="label mb-4">Contact</p>
@@ -112,7 +120,6 @@ export const SiteFooter: React.FC<Props> = ({ settings, ventures }) => {
                     </a>
                   </li>
                 )}
-                {settings?.address && <li className="whitespace-pre-line">{settings.address}</li>}
               </ul>
               <SocialLinks className="mt-5 flex-col gap-y-2.5" socials={settings?.socials} />
             </div>

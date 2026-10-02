@@ -1,8 +1,10 @@
 import type { Form as FormType } from '@payloadcms/plugin-form-builder/types'
 import type { FormBlock as FormBlockProps } from '@/payload-types'
 
+import { OfficeAddress } from '@/components/OfficeAddress'
 import { SocialLinks } from '@/components/SocialLinks'
 import { Heading, Section } from '@/components/Typography'
+import { officeLines } from '@/utilities/address'
 import React from 'react'
 
 import type { BlockContext } from '../types'
@@ -24,7 +26,7 @@ export const FormBlock: React.FC<FormBlockProps & { ctx: BlockContext }> = ({
       settings?.businessEmail ||
       settings?.technicalEmail ||
       settings?.phone ||
-      settings?.address ||
+      officeLines(settings).length > 0 ||
       settings?.socials?.length)
 
   return (
@@ -76,20 +78,12 @@ export const FormBlock: React.FC<FormBlockProps & { ctx: BlockContext }> = ({
                   </dd>
                 </div>
               )}
-              {settings?.address && (
+              {officeLines(settings).length > 0 && (
                 <div>
-                  <dt className="label">Address</dt>
-                  <dd className="mt-1 whitespace-pre-line">{settings.address}</dd>
-                  {settings.mapUrl && (
-                    <a
-                      className="link link-caps mt-2 inline-block"
-                      href={settings.mapUrl}
-                      rel="noopener noreferrer"
-                      target="_blank"
-                    >
-                      Map
-                    </a>
-                  )}
+                  <dt className="label">Office</dt>
+                  <dd className="mt-1">
+                    <OfficeAddress settings={settings} />
+                  </dd>
                 </div>
               )}
               {settings?.socials && settings.socials.length > 0 && (

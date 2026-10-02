@@ -6,6 +6,7 @@ import React from 'react'
 
 import { RenderBlocks } from '@/blocks/RenderBlocks'
 import { LivePreviewListener } from '@/components/LivePreviewListener'
+import { OfficeSection } from '@/components/OfficeAddress'
 import { PayloadRedirects } from '@/components/PayloadRedirects'
 import { docPath } from '@/utilities/docHref'
 import { generateMeta } from '@/utilities/meta'
@@ -32,6 +33,13 @@ export async function PageView({ host, slug }: { host: string; slug: string }) {
         blocks={page.layout}
         ctx={{ tenantId: ctx.tenant.id, settings: ctx.settings, draft }}
       />
+      {page.officeAddress?.show && (
+        <OfficeSection
+          label={page.officeAddress.label}
+          note={page.officeAddress.note}
+          settings={ctx.settings}
+        />
+      )}
     </article>
   )
 }

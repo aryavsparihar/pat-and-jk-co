@@ -16,6 +16,7 @@ import {
 } from '@/collections/FormSubmissions/overrides'
 import { revalidateFrontend } from '@/hooks/revalidateFrontend'
 import type { Config, Page, Post, Venture } from '@/payload-types'
+import { emailFooter } from '@/email/footer'
 import { docPath } from '@/utilities/docHref'
 import { getServerSideURL } from '@/utilities/getURL'
 
@@ -60,6 +61,17 @@ export const plugins: Plugin[] = [
       payment: false,
       country: false,
       state: false,
+    },
+    // Every notification ends with the brand's registered office, like the site's other emails
+    beforeEmail: async (emails, params) => {
+      // Typed as the before-change arguments, but called from afterChange with the saved doc;
+      // protectSubmission has set the brand on both by then
+      const { req, data } = params
+      const saved = (params as { doc?: { tenant?: unknown } }).doc
+      const raw = saved?.tenant ?? data?.tenant
+      const tenant = raw && typeof raw === 'object' ? (raw as { id: number }).id : (raw as number)
+      const footer = await emailFooter(req.payload, tenant)
+      return emails.map((email) => ({ ...email, html: `${email.html}${footer.html}` }))
     },
     formOverrides: {
       admin: { group: 'Enquiries' },

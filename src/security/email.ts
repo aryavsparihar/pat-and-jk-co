@@ -1,5 +1,7 @@
 import type { Payload } from 'payload'
 
+import { emailFooter } from '@/email/footer'
+
 import { OTP_TTL_MINUTES } from './constants'
 
 const isProduction = process.env.NODE_ENV === 'production'
@@ -36,14 +38,15 @@ export const sendSignInCode = async (
   }
 
   try {
+    const footer = await emailFooter(payload)
     await payload.sendEmail({
       to: email,
       subject,
-      text,
+      text: text + footer.text,
       html: `<p style="font-family:Georgia,serif;font-size:16px">Your sign-in code is</p>
              <p style="font-family:Georgia,serif;font-size:32px;letter-spacing:.2em;margin:8px 0">${code}</p>
              <p style="font-family:Georgia,serif;color:#555">It expires in ${OTP_TTL_MINUTES} minutes and can be used once.<br/>
-             If you did not try to sign in to the PAT and J.K. Co. admin panel, ignore this email and tell the team.</p>`,
+             If you did not try to sign in to the PAT and J.K. Co. admin panel, ignore this email and tell the team.</p>${footer.html}`,
     })
     return true
   } catch (error) {
@@ -69,14 +72,16 @@ export const notifyAccessRequest = async (
       payload.logger.info(`[access request] ${name || ''} <${email}>: ${message || ''}`)
       return
     }
+    const footer = await emailFooter(payload)
     await payload.sendEmail({
       to,
       subject: `Admin access requested by ${email}`,
-      text: [
-        `${name || 'Someone'} (${email}) has asked for access to the PJK admin panel.`,
-        message ? `\nTheir message:\n${message}` : '',
-        '\nApprove or decline it under Administration → Access requests.',
-      ].join('\n'),
+      text:
+        [
+          `${name || 'Someone'} (${email}) has asked for access to the PJK admin panel.`,
+          message ? `\nTheir message:\n${message}` : '',
+          '\nApprove or decline it under Administration → Access requests.',
+        ].join('\n') + footer.text,
     })
   } catch (error) {
     payload.logger.error({ err: error, msg: 'Could not notify admins of an access request' })

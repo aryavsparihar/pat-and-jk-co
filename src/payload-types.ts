@@ -198,6 +198,20 @@ export interface Page {
     image?: (number | null) | Media;
     description?: string | null;
   };
+  /**
+   * End this page with the registered office from Site settings, for the privacy policy, terms or a contact page.
+   */
+  officeAddress?: {
+    show?: boolean | null;
+    /**
+     * The label in the margin, e.g. “Data controller”. Defaults to “Registered office”.
+     */
+    label?: string | null;
+    /**
+     * Optional. A sentence or two above the address.
+     */
+    note?: string | null;
+  };
   publishedAt?: string | null;
   /**
    * When enabled, the slug will auto-generate from the title field on save and autosave.
@@ -1341,11 +1355,35 @@ export interface SiteSetting {
    * Anything to do with the website.
    */
   technicalEmail?: string | null;
-  address?: string | null;
   /**
-   * Link to a map (e.g. Google Maps share link).
+   * Shown in the footer, on the contact page, at the end of the privacy policy, in emails and to search engines, always with a “Get directions” link.
+   */
+  office?: {
+    /**
+     * e.g. Ward No. 7
+     */
+    line1?: string | null;
+    /**
+     * e.g. ITI Road
+     */
+    line2?: string | null;
+    /**
+     * e.g. Opposite Brahman Sabha
+     */
+    landmark?: string | null;
+    city?: string | null;
+    state?: string | null;
+    postalCode?: string | null;
+    country?: string | null;
+  };
+  /**
+   * Optional. Where “Get directions” leads (https://…). Leave empty to use Google Maps directions to the address above.
    */
   mapUrl?: string | null;
+  /**
+   * Only used while the registered office above is empty. Safe to clear once that is filled in.
+   */
+  address?: string | null;
   socials?:
     | {
         platform: 'instagram' | 'linkedin' | 'facebook' | 'x' | 'youtube' | 'pinterest' | 'behance' | 'other';
@@ -1830,6 +1868,13 @@ export interface PagesSelect<T extends boolean = true> {
         image?: T;
         description?: T;
       };
+  officeAddress?:
+    | T
+    | {
+        show?: T;
+        label?: T;
+        note?: T;
+      };
   publishedAt?: T;
   generateSlug?: T;
   slug?: T;
@@ -2298,8 +2343,19 @@ export interface SiteSettingsSelect<T extends boolean = true> {
   phone?: T;
   businessEmail?: T;
   technicalEmail?: T;
-  address?: T;
+  office?:
+    | T
+    | {
+        line1?: T;
+        line2?: T;
+        landmark?: T;
+        city?: T;
+        state?: T;
+        postalCode?: T;
+        country?: T;
+      };
   mapUrl?: T;
+  address?: T;
   socials?:
     | T
     | {

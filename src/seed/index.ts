@@ -407,7 +407,13 @@ async function seed() {
   })
 
   // ── Pages ────────────────────────────────────────────────────────────
-  const page = (title: string, slug: string, layout: unknown[], description?: string) =>
+  const page = (
+    title: string,
+    slug: string,
+    layout: unknown[],
+    description?: string,
+    extra: Record<string, unknown> = {},
+  ) =>
     create('pages', {
       _status: 'published',
       title,
@@ -415,6 +421,7 @@ async function seed() {
       layout,
       publishedAt: new Date().toISOString(),
       ...(description ? { meta: { description } } : {}),
+      ...extra,
     })
 
   const principleItems = [
@@ -865,6 +872,13 @@ async function seed() {
       },
     ],
     'How PAT and J.K. Co. handles personal data sent through this website.',
+    {
+      officeAddress: {
+        show: true,
+        label: 'Data controller',
+        note: 'PAT and J.K. Co. is responsible for the personal data collected through this website. Questions about it can be sent to the address below, or by email.',
+      },
+    },
   )
 
   // ── Site settings ────────────────────────────────────────────────────
@@ -909,6 +923,15 @@ async function seed() {
     copyrightName: `PAT and J.K. Co. · Prop. ${PROPRIETOR}`,
     showVisitorCount: true,
     email: CONTACT_INBOX,
+    office: {
+      line1: 'Ward No. 7',
+      line2: 'ITI Road',
+      landmark: 'Opposite Brahman Sabha',
+      city: 'Kathua',
+      state: 'Jammu and Kashmir',
+      postalCode: '184101',
+      country: 'India',
+    },
     businessEmail: BUSINESS_INBOX,
     technicalEmail: TECHNICAL_INBOX,
     socials: [

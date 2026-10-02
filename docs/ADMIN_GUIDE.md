@@ -89,7 +89,21 @@ The page with the slug **`home`** is the homepage. The **SEO** tab sets the titl
 - **Brand** — logos (for light backgrounds, dark backgrounds, and a compact header version) and the four brand colours.
 - **Navigation** — header links and the header button.
 - **Footer** — the short description, footer links, legal links, and whether to show the visitor count.
-- **Contact & social** — the general and technical enquiry addresses, phone, address, map link, social profiles.
+- **Contact & social** — the general, business and technical enquiry addresses, phone, social profiles, and the **Registered office**.
+
+### The registered office
+
+**Site settings → Contact & social → Registered office** holds the office address in separate lines: address lines 1 and 2, landmark, city, state, PIN code and country. Fill it in once and it appears, always with a *Get directions* link:
+
+- in the footer, under the logo;
+- on the contact page, beside the form (when the form block's *Show contact details* is ticked);
+- at the end of any page that asks for it (below);
+- at the foot of every email the site sends;
+- in the information search engines read about the company.
+
+*Get directions* opens Google Maps directions to the address. To send people somewhere more precise, paste a Google Maps share link into **Map link**. The older free-text **Address** box is only used while the registered office is empty, and can be cleared.
+
+**Ending a page with the address.** Every page has a **Registered office** box in its sidebar. Tick *Show at the end of this page* and the page closes with the address. The privacy policy uses it with the label *Data controller* and a sentence about who is responsible for personal data; a terms page should do the same.
 
 ## Visitor count
 

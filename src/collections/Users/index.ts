@@ -9,7 +9,9 @@ import {
   isCompanyEmail,
   normaliseEmail,
 } from '../../security/constants'
+import { emailFooter } from '../../email/footer'
 import { readGateToken } from '../../security/gateToken'
+import { getServerSideURL } from '../../utilities/getURL'
 import { passwordProblem } from '../../security/otp'
 
 /** Reads the admin-gate cookie off an incoming request. */
@@ -47,6 +49,22 @@ export const Users: CollectionConfig = {
     cookies: {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'Lax',
+    },
+    // The "choose your password" email sent on approval and by "Forgot password": Payload's
+    // wording, in the site's voice, signed off with the registered office
+    forgotPassword: {
+      generateEmailSubject: () => 'Choose your PJK admin password',
+      generateEmailHTML: async (args) => {
+        const { req, token } = args ?? {}
+        if (!req || !token) return ''
+        const { routes, admin } = req.payload.config
+        const url = `${getServerSideURL()}${routes.admin}${admin.routes.reset}/${token}`
+        const footer = await emailFooter(req.payload)
+        const p = 'font-family:Georgia,serif;font-size:16px;line-height:1.55;color:#16201a'
+        return `<p style="${p}">Use this link to choose a password for your PAT and J.K. Co. admin account. It works once, for one hour.</p>
+<p style="${p}"><a href="${url}" style="color:#0f2a18">${url}</a></p>
+<p style="${p};color:#5f6660">If you did not expect this, ignore it: nothing changes until the link is used.</p>${footer.html}`
+      },
     },
     // Payload locks an account after repeated wrong passwords
     maxLoginAttempts: 5,

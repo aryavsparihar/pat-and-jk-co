@@ -3,10 +3,18 @@ import type { CollectionConfig, TextFieldSingleValidation } from 'payload'
 import { anyone } from '../access/anyone'
 import { authenticated } from '../access/authenticated'
 import { link } from '../fields/link'
+import { isIndianPin } from '../utilities/address'
 import { revalidateFrontend, revalidateFrontendAfterDelete } from '../hooks/revalidateFrontend'
 
 const hexColour: TextFieldSingleValidation = (value) =>
   !value || /^#(?:[0-9a-fA-F]{3}){1,2}$/.test(value) ? true : 'Use a hex colour such as #0F2A18'
+
+/** Six digits, not starting with 0, for an Indian address; anything for elsewhere */
+const pinCode: TextFieldSingleValidation = (value, { siblingData }) => {
+  const country = String((siblingData as { country?: string })?.country ?? 'India')
+  if (!value || !/^(india|in|bharat)$/i.test(country.trim())) return true
+  return isIndianPin(value) ? true : 'A PIN code is six digits, e.g. 184101'
+}
 
 const colourField = (name: string, label: string, defaultValue: string, description: string) => ({
   name,
@@ -259,13 +267,74 @@ export const SiteSettings: CollectionConfig = {
               ],
             },
             {
-              name: 'address',
-              type: 'textarea',
+              name: 'office',
+              label: 'Registered office',
+              type: 'group',
+              admin: {
+                description:
+                  'Shown in the footer, on the contact page, at the end of the privacy policy, in emails and to search engines, always with a “Get directions” link.',
+              },
+              fields: [
+                {
+                  type: 'row',
+                  fields: [
+                    {
+                      name: 'line1',
+                      label: 'Address line 1',
+                      type: 'text',
+                      admin: { width: '50%', description: 'e.g. Ward No. 7' },
+                    },
+                    {
+                      name: 'line2',
+                      label: 'Address line 2',
+                      type: 'text',
+                      admin: { width: '50%', description: 'e.g. ITI Road' },
+                    },
+                  ],
+                },
+                {
+                  name: 'landmark',
+                  type: 'text',
+                  admin: { description: 'e.g. Opposite Brahman Sabha' },
+                },
+                {
+                  type: 'row',
+                  fields: [
+                    { name: 'city', label: 'City or town', type: 'text', admin: { width: '33%' } },
+                    { name: 'state', type: 'text', admin: { width: '33%' } },
+                    {
+                      name: 'postalCode',
+                      label: 'PIN code',
+                      type: 'text',
+                      validate: pinCode,
+                      admin: { width: '33%' },
+                    },
+                  ],
+                },
+                {
+                  name: 'country',
+                  type: 'text',
+                  defaultValue: 'India',
+                },
+              ],
             },
             {
               name: 'mapUrl',
+              label: 'Map link',
               type: 'text',
-              admin: { description: 'Link to a map (e.g. Google Maps share link).' },
+              admin: {
+                description:
+                  'Optional. Where “Get directions” leads (https://…). Leave empty to use Google Maps directions to the address above.',
+              },
+            },
+            {
+              name: 'address',
+              label: 'Address (free text, earlier version)',
+              type: 'textarea',
+              admin: {
+                description:
+                  'Only used while the registered office above is empty. Safe to clear once that is filled in.',
+              },
             },
             {
               name: 'socials',

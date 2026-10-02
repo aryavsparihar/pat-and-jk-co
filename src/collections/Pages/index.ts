@@ -67,6 +67,35 @@ export const Pages: CollectionConfig<'pages'> = {
       ],
     },
     {
+      name: 'officeAddress',
+      label: 'Registered office',
+      type: 'group',
+      admin: {
+        position: 'sidebar',
+        description:
+          'End this page with the registered office from Site settings, for the privacy policy, terms or a contact page.',
+      },
+      fields: [
+        { name: 'show', label: 'Show at the end of this page', type: 'checkbox' },
+        {
+          name: 'label',
+          type: 'text',
+          admin: {
+            condition: (_, siblingData) => Boolean(siblingData?.show),
+            description: 'The label in the margin, e.g. “Data controller”. Defaults to “Registered office”.',
+          },
+        },
+        {
+          name: 'note',
+          type: 'textarea',
+          admin: {
+            condition: (_, siblingData) => Boolean(siblingData?.show),
+            description: 'Optional. A sentence or two above the address.',
+          },
+        },
+      ],
+    },
+    {
       name: 'publishedAt',
       type: 'date',
       admin: {

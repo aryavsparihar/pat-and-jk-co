@@ -1,6 +1,7 @@
 import type { Media } from '@/payload-types'
 import type { TenantContext } from '@/utilities/tenant'
 
+import { directionsUrl, postalAddressJsonLd } from '@/utilities/address'
 import React from 'react'
 
 /** Organization structured data, so search engines understand who the brand is. */
@@ -19,6 +20,8 @@ export const OrganizationJsonLd: React.FC<{ ctx: TenantContext }> = ({ ctx }) =>
     email: settings?.email || undefined,
     telephone: settings?.phone || undefined,
     sameAs: settings?.socials?.map((s) => s.url) ?? undefined,
+    address: postalAddressJsonLd(settings),
+    hasMap: postalAddressJsonLd(settings) ? (directionsUrl(settings) ?? undefined) : undefined,
   }
 
   return (
