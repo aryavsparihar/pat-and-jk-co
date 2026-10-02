@@ -9,6 +9,7 @@ Everything visitors see is editable from the admin panel at `/admin` — pages, 
 | [docs/SETUP.md](docs/SETUP.md)                   | Accounts, environment variables, DNS and deploying to production |
 | [docs/ADMIN_GUIDE.md](docs/ADMIN_GUIDE.md)       | Editors — how to manage content (plain language, no code)        |
 | [docs/ADDING_A_BRAND.md](docs/ADDING_A_BRAND.md) | Launching another brand's website on this platform               |
+| [docs/BRANDS.md](docs/BRANDS.md)                 | Each venture's palette, type and logo rules                      |
 
 ## Stack
 

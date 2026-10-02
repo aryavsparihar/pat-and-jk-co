@@ -26,3 +26,11 @@ node_modules/
 CLAUDE.md
 AGENTS.md
 tsconfig.tsbuildinfo
+
+# Brand packs and design sources live outside the repo (../brand-sources/). A folder
+# downloaded from Google Drive must never be committed by a stray `git add -A`.
+drive-download-*/
+*.ai
+*.eps
+*.indd
+*.psd
