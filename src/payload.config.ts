@@ -110,6 +110,14 @@ export default buildConfig({
   ],
   cors: allowedOrigins,
   csrf: allowedOrigins,
+  // Nothing uses GraphQL: the site reads through the Local API and the admin panel through REST.
+  // Off, it is one less way in to every collection. (Its route files are deleted for the same reason.)
+  graphQL: { disable: true },
+  // The deepest the site ever asks for is 2. A public REST read with ?depth=10 would otherwise
+  // fan out across every relationship, which is an easy way to make the database work hard.
+  maxDepth: 4,
+  // Server-side uploads (anything not sent straight to Blob from the browser)
+  upload: { limits: { fileSize: 20_000_000 } },
   email: process.env.RESEND_API_KEY
     ? resendAdapter({
         apiKey: process.env.RESEND_API_KEY,

@@ -58,7 +58,19 @@ export const Media: CollectionConfig = {
     staticDir: path.resolve(dirname, '../../public/media'),
     adminThumbnail: 'thumbnail',
     focalPoint: true,
-    mimeTypes: ['image/*', 'video/mp4', 'video/webm', 'application/pdf'],
+    // Named types, not image/*: anything can call itself an image. SVG is allowed because brand
+    // marks are SVG; uploads are served sandboxed (next.config.ts), so script inside one cannot run.
+    mimeTypes: [
+      'image/jpeg',
+      'image/png',
+      'image/webp',
+      'image/avif',
+      'image/gif',
+      'image/svg+xml',
+      'video/mp4',
+      'video/webm',
+      'application/pdf',
+    ],
     imageSizes: [
       {
         name: 'thumbnail',
