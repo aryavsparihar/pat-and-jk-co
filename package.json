@@ -1,7 +1,7 @@
 {
   "name": "pjk-website",
   "version": "1.0.0",
-  "description": "PAT and J.K. Co. — group website and multi-brand CMS",
+  "description": "PAT and J.K. Co. \u2014 group website and multi-brand CMS",
   "license": "UNLICENSED",
   "type": "module",
   "scripts": {
@@ -46,42 +46,43 @@
     "@payloadcms/richtext-lexical": "3.89.0",
     "@payloadcms/storage-vercel-blob": "3.89.0",
     "@payloadcms/ui": "3.89.0",
-    "clsx": "^2.1.1",
-    "cross-env": "^7.0.3",
+    "clsx": "2.1.1",
+    "cross-env": "7.0.3",
     "dotenv": "16.4.7",
-    "graphql": "^16.8.2",
+    "graphql": "16.14.2",
     "lucide-react": "0.563.0",
-    "next": "16.3.3",
+    "next": "16.3.8",
     "payload": "3.89.0",
     "react": "19.2.6",
     "react-dom": "19.2.6",
     "react-hook-form": "7.71.1",
     "sharp": "0.35.4",
-    "tailwind-merge": "^3.4.0"
+    "tailwind-merge": "3.6.0"
   },
   "devDependencies": {
     "@playwright/test": "1.58.2",
-    "@tailwindcss/postcss": "^4.1.18",
+    "@tailwindcss/postcss": "4.3.3",
     "@testing-library/react": "16.3.0",
-    "@types/escape-html": "^1.0.2",
+    "@types/escape-html": "1.0.4",
     "@types/node": "22.19.9",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "4.5.2",
-    "eslint": "^9.16.0",
-    "eslint-config-next": "16.3.3",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.3.8",
     "jsdom": "28.0.0",
-    "postcss": "^8.4.38",
-    "prettier": "^3.4.2",
-    "tailwindcss": "^4.1.18",
+    "postcss": "8.5.28",
+    "prettier": "3.9.6",
+    "tailwindcss": "4.3.3",
     "tsx": "4.22.4",
     "typescript": "5.7.3",
     "vite-tsconfig-paths": "6.0.5",
-    "vitest": "4.0.18"
+    "vitest": "4.1.11"
   },
   "engines": {
     "node": ">=20.9.0",
     "pnpm": ">=10"
   },
-  "private": true
+  "private": true,
+  "packageManager": "pnpm@12.4.1"
 }

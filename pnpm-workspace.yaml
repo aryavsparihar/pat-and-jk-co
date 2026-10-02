@@ -4,8 +4,17 @@ allowBuilds:
   unrs-resolver: true
   workerd: true
 
-# Pull transitive dependencies of the admin UI up to patched releases
-# (dompurify via monaco-editor, esbuild via the build tooling)
+# Pull transitive dependencies up to patched releases. Each line names the advisory it answers;
+# remove one once the package that brings it in ships the fix itself (check with `pnpm why`).
 overrides:
-  dompurify: ">=3.4.13"
+  # Admin code editor (monaco-editor): GHSA-p98j-92pf-mc4p
+  dompurify: ">=3.4.16"
+  # Build tooling
   esbuild: ">=0.25.0"
+  # payload: DoS, TLS validation bypass and cookie disclosure advisories fixed in 7.29.1
+  "undici@>=7.0.0 <7.29.1": "^7.29.1"
+  # payload → ajv: host case normalisation, fixed in 3.1.8
+  "fast-uri@>=3.0.0 <3.1.8": "^3.1.8"
+  # eslint → minimatch (development only): DoS via nested braces
+  "brace-expansion@<1.1.21": "^1.1.21"
+  "brace-expansion@>=4.0.0 <5.0.12": "^5.0.12"

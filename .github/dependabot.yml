@@ -1,0 +1,33 @@
+# Weekly version updates, grouped so a quiet week is one pull request rather than twenty.
+# Security updates are separate and immediate once enabled in the repository settings.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      timezone: Asia/Kolkata
+    open-pull-requests-limit: 5
+    versioning-strategy: increase
+    groups:
+      # Payload's packages must move together: mixed versions do not work
+      payload:
+        patterns: ['payload', '@payloadcms/*']
+      next-react:
+        patterns: ['next', 'eslint-config-next', 'react', 'react-dom', '@types/react', '@types/react-dom']
+      development:
+        dependency-type: development
+        update-types: [minor, patch]
+      production-patches:
+        dependency-type: production
+        update-types: [patch]
+    ignore:
+      # Major versions are deliberate upgrades, not chores
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
