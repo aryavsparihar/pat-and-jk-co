@@ -73,11 +73,13 @@ export const hitLimit = async (payload: Payload, limit: Limit): Promise<LimitRes
   }
 
   const count = Number(row?.hits ?? 1)
-  const elapsed = Number(row?.elapsed ?? 0)
+  // now() is when each statement's transaction began, so one that queued behind a concurrent
+  // insert can see a window that "started" a moment after it did. Never report a negative age.
+  const elapsed = Math.max(0, Number(row?.elapsed ?? 0))
   return {
     allowed: count <= limit.max,
     count,
-    retryAfter: Math.max(1, Math.ceil(windowSeconds - elapsed)),
+    retryAfter: Math.min(windowSeconds, Math.max(1, Math.ceil(windowSeconds - elapsed))),
   }
 }
 
