@@ -34,3 +34,7 @@ drive-download-*/
 *.eps
 *.indd
 *.psd
+
+# Every local environment file (.env, .env.local from `vercel link`, …) except the template
+.env*
+!.env.example
