@@ -35,7 +35,7 @@ git push -u origin main
 ## 3. Create the Vercel project
 
 1. Vercel → **Add New… → Project** → import the GitHub repo.
-2. Framework: Next.js (auto-detected). Leave the build command as default — Vercel runs the `vercel-build` script automatically, which applies database migrations and then builds.
+2. Framework: Next.js (auto-detected). Leave the build command as default — Vercel runs the `vercel-build` script automatically, which applies database migrations and then builds. Migrations run on production deploys only; see the Preview row in [Environments at a glance](#environments-at-a-glance).
 3. **Storage → Create → Blob** and connect it to the project. This adds `BLOB_READ_WRITE_TOKEN` automatically; uploaded images then live in Vercel Blob.
 4. **Settings → Environment Variables** (Production and Preview):
 
@@ -104,10 +104,10 @@ Editors can schedule pages and posts to publish later. `vercel.json` runs Payloa
 | | Local | Preview (every git branch) | Production |
 | --- | --- | --- | --- |
 | URL | localhost:3000 | `*.vercel.app` (not indexed by search engines) | pjk.co.in |
-| Database | local Postgres | same as production, or a Neon branch | Neon `main` |
+| Database | local Postgres | a Neon branch of its own (set `DATABASE_URL` and `MIGRATE_ON_PREVIEW=1` for Preview only). If Preview shares production's database, migrations are skipped there | Neon `main` |
 | Media | `public/media/` | Vercel Blob | Vercel Blob |
 | Email | printed to terminal | Resend | Resend |
-| Schema changes | pushed automatically | migrations | migrations |
+| Schema changes | pushed automatically | migrations, only with `MIGRATE_ON_PREVIEW=1` | migrations |
 
 ## What to collect from the client
 

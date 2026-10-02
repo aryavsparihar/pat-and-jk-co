@@ -77,7 +77,9 @@ Development pushes schema changes straight to your local database. Production on
 
 1. Edit collections/blocks, run `pnpm generate:types`.
 2. `pnpm payload migrate:create describe-the-change` — commit the new file in `src/migrations/`.
-3. On deploy, Vercel runs `pnpm vercel-build` = `payload migrate && next build`.
+3. On deploy, Vercel runs `pnpm vercel-build` (`scripts/vercel-build.mjs`): migrations, then `next build`.
+   Migrations run on **production** deploys only. A preview deploy skips them unless
+   `MIGRATE_ON_PREVIEW=1` is set, which should only be done once Preview has its own database.
 
 ## Project map
 
