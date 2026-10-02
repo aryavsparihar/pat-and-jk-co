@@ -34,7 +34,7 @@
     "attach-venture-logo": "cross-env NODE_OPTIONS=--no-deprecation payload run src/scripts/attach-venture-logo.ts"
   },
   "dependencies": {
-    "@payloadcms/admin-bar": "3.89.0",
+    "@payloadcms/admin-bar": "3.90.2",
     "@payloadcms/db-postgres": "3.89.0",
     "@payloadcms/email-resend": "3.89.0",
     "@payloadcms/live-preview-react": "3.89.0",

@@ -175,8 +175,8 @@ importers:
   .:
     dependencies:
       '@payloadcms/admin-bar':
-        specifier: 3.89.0
-        version: 3.89.0(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+        specifier: 3.90.2
+        version: 3.90.2(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       '@payloadcms/db-postgres':
         specifier: 3.89.0
         version: 3.89.0(payload@3.89.0(graphql@16.14.2)(supports-color@7.2.0)(typescript@5.7.3))(supports-color@7.2.0)
@@ -1334,8 +1334,8 @@ packages:
     resolution: {integrity: sha512-nn5ozdjYQpUCZlWGuxcJY/KpxkWQs4DcbMCmKojjyrYDEAGy4Ce19NN4v5MduafTwJlbKc99UA8YhSVqq9yPZA==}
     engines: {node: '>=12.4.0'}
 
-  '@payloadcms/admin-bar@3.89.0':
-    resolution: {integrity: sha512-W2TA/u/MzWYp9ptijCCDLzZg4xKE1Vz02GmO2BX814EQ5CvcxEztOltmuwSZ7fPbKZacqCrPBp7Vv1+p4B4dYA==}
+  '@payloadcms/admin-bar@3.90.2':
+    resolution: {integrity: sha512-MrT4WAgedJfPawaKXoRCRzuidsL5Hv42QOOLFO0cIKgFDrjkskQjycplfa+Tof68KiuKrifQQ18Mb3cvd5sXDw==}
     peerDependencies:
       react: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.1 || ^19.1.2 || ^19.2.1
       react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0 || ^19.0.1 || ^19.1.2 || ^19.2.1
@@ -5508,7 +5508,7 @@ snapshots:
 
   '@nolyfill/is-core-module@1.0.39': {}
 
-  '@payloadcms/admin-bar@3.89.0(react-dom@19.2.6(react@19.2.6))(react@19.2.6)':
+  '@payloadcms/admin-bar@3.90.2(react-dom@19.2.6(react@19.2.6))(react@19.2.6)':
     dependencies:
       react: 19.2.6
       react-dom: 19.2.6(react@19.2.6)
