@@ -73,3 +73,72 @@ describe('a signed-in outsider through the Local API', () => {
     expect(openings.docs.every((o) => o.status === 'open')).toBe(true)
   })
 })
+
+describe('the member guard over collections that are not ours', () => {
+  let payload: Payload
+  const as = { user: outsider as never, overrideAccess: false } as const
+
+  beforeAll(async () => {
+    payload = await getPayload({ config: await config })
+  })
+
+  it('stops a signed-in outsider creating forms, redirects or folders', async () => {
+    await expect(
+      payload.create({
+        collection: 'forms',
+        data: { title: 'Nope', fields: [], confirmationType: 'message' } as never,
+        ...as,
+      }),
+    ).rejects.toThrow()
+    await expect(
+      payload.create({
+        collection: 'redirects',
+        data: { from: '/nope', to: { type: 'custom', url: '/' } } as never,
+        ...as,
+      }),
+    ).rejects.toThrow()
+    await expect(
+      payload.create({ collection: 'payload-folders', data: { name: 'Nope' } as never, ...as }),
+    ).rejects.toThrow()
+  })
+
+  it("keeps Payload's own records out of reach", async () => {
+    for (const collection of [
+      'payload-jobs',
+      'payload-locked-documents',
+      'payload-preferences',
+      'payload-migrations',
+      'payload-kv',
+      'rate-limits',
+      'login-challenges',
+    ] as const) {
+      await expect(payload.find({ collection, ...as })).rejects.toThrow()
+    }
+  })
+
+  it('cannot queue a job or open the admin panel', async () => {
+    const req = { user: outsider, headers: new Headers() } as never
+    expect(await payload.config.jobs.access.queue!({ req })).toBe(false)
+    expect(await payload.config.jobs.access.run!({ req })).toBe(false)
+    const users = payload.collections.users.config.access
+    expect(await users.admin!({ req })).toBe(false)
+  })
+
+  it('still reads what any visitor can', async () => {
+    const forms = await payload.find({ collection: 'forms', depth: 0, limit: 1, ...as })
+    expect(Array.isArray(forms.docs)).toBe(true)
+    const media = await payload.find({ collection: 'media', depth: 0, limit: 1, ...as })
+    expect(Array.isArray(media.docs)).toBe(true)
+  })
+
+  it('leaves staff exactly as they were', async () => {
+    const tenants = await payload.find({
+      collection: 'tenants',
+      depth: 0,
+      limit: 1,
+      user: { ...staff, roles: ['super-admin'] } as never,
+      overrideAccess: false,
+    })
+    expect(Array.isArray(tenants.docs)).toBe(true)
+  })
+})

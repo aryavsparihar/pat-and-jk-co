@@ -23,6 +23,7 @@ import { VisitorCounts } from './collections/VisitorCounts'
 import { loadEnv } from './env'
 import { createLogger } from './observability/logger'
 import { plugins } from './plugins'
+import { guardMemberAccess } from './access/memberGuard'
 import { isStaff } from './access/roles'
 import { defaultLexical } from '@/fields/defaultLexical'
 import { getServerSideURL } from './utilities/getURL'
@@ -156,4 +157,8 @@ export default buildConfig({
     },
     tasks: [],
   },
-})
+}).then(
+  // After Payload has added its own collections, so the guard covers those too: a signed-in
+  // member never gets more than a visitor anywhere (src/access/memberGuard.ts)
+  guardMemberAccess,
+)

@@ -59,6 +59,21 @@ same-origin` is set everywhere.
 If something in the admin panel ever fails to load, the CSP in `next.config.ts` is the first thing
 to check: the browser console names the directive that blocked it.
 
+## Staff and members
+
+Payload sets `req.user` for anyone signed in through any auth collection, so "signed in" never
+decides access here. Two layers make sure of it:
+
+1. Every rule of ours asks `isStaff(user)` (`src/access/roles.ts`), which checks the collection
+   Payload stamped on the user, not just that a user exists.
+2. `src/access/memberGuard.ts` wraps **every** collection's access after Payload has assembled the
+   configuration, including Payload's internal collections and the form builder's, which default
+   to "anyone signed in". For a signed-in user who is not staff, each rule is evaluated as though
+   nobody were signed in, and admin-panel access is refused. Collections built for members are
+   listed in `MEMBER_COLLECTIONS` and must enforce ownership in their own rules.
+
+`tests/int/access.int.spec.ts` signs in as a non-staff user and checks both layers.
+
 ## Logs
 
 Every log line goes through one logger (`src/observability/logger.ts`): Payload's, the plugins'
