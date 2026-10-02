@@ -73,3 +73,8 @@ pnpm lint && pnpm typecheck && pnpm test:int && pnpm build
 ```
 
 `test:int` uses the database in `DATABASE_URL` and cleans up after itself.
+
+GitHub Actions runs the same checks on every push and pull request (`.github/workflows/ci.yml`),
+plus two that need a fresh database: every migration must apply cleanly to an empty database, and
+`payload migrate:create --skip-empty` must find nothing to write. If that second check fails, a
+collection or block changed without a migration; create one and commit it.
