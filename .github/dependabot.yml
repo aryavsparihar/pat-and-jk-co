@@ -11,9 +11,6 @@ updates:
     open-pull-requests-limit: 5
     versioning-strategy: increase
     groups:
-      # Payload's packages must move together: mixed versions do not work
-      payload:
-        patterns: ['payload', '@payloadcms/*']
       next-react:
         patterns: ['next', 'eslint-config-next', 'react', 'react-dom', '@types/react', '@types/react-dom']
       development:
@@ -26,6 +23,11 @@ updates:
       # Major versions are deliberate upgrades, not chores
       - dependency-name: '*'
         update-types: ['version-update:semver-major']
+      # Payload is upgraded by hand, every package at once. Each @payloadcms package pins `payload`
+      # to an exact version, which Dependabot cannot resolve as a group: it proposed a lone
+      # `payload` bump that would not install. Security alerts still arrive in the Security tab.
+      - dependency-name: 'payload'
+      - dependency-name: '@payloadcms/*'
 
   - package-ecosystem: github-actions
     directory: /
