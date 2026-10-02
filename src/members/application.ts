@@ -12,6 +12,7 @@ import {
   partnerSchema,
 } from './forms/schemas'
 import type { MemberKind } from './ids'
+import { stepValues } from './forms/values'
 
 /**
  * Reading, saving and submitting an applicant's own application.
@@ -81,45 +82,6 @@ const toFields = (step: ArtistStep, data: Record<string, unknown>): Partial<Appl
   }
 }
 
-/** What is stored, put back into the shape a step's schema checks */
-export const fromFields = (step: ArtistStep, app: Application): Record<string, unknown> => {
-  const idOf = (v: unknown) => (v && typeof v === 'object' ? (v as { id: number }).id : v)
-  switch (step) {
-    case 'about':
-      return { ...app.about, dateOfBirth: app.about?.dateOfBirth?.slice(0, 10) }
-    case 'address':
-      return {
-        residence: app.address?.residence,
-        correspondenceSame: app.address?.correspondenceSame ?? true,
-        correspondence: app.address?.correspondence,
-      }
-    case 'practice':
-      return { ...app.practice, recognition: app.practice?.recognition ?? [] }
-    case 'portfolio':
-      return {
-        works: (app.portfolio ?? []).map(({ id: _id, ...work }) => ({
-          ...work,
-          image: idOf(work.image),
-        })),
-      }
-    case 'review':
-      return { ...app.declarations }
-  }
-}
-
-const strip = (value: unknown): unknown => {
-  // Payload returns nulls for empty optional fields; the schemas expect them absent
-  if (Array.isArray(value)) return value.map(strip)
-  if (value && typeof value === 'object') {
-    return Object.fromEntries(
-      Object.entries(value)
-        .filter(([key, v]) => v !== null && key !== 'id')
-        .map(([key, v]) => [key, strip(v)]),
-    )
-  }
-  return value
-}
-
 /** Checks one artist step and saves it. */
 export const saveArtistStep = async (
   payload: Payload,
@@ -187,7 +149,7 @@ export const artistProblems = (
 ): Record<string, Record<string, string>> => {
   const problems: Record<string, Record<string, string>> = {}
   for (const step of ARTIST_STEPS) {
-    const parsed = ARTIST_STEP_SCHEMAS[step].safeParse(strip(fromFields(step, application)))
+    const parsed = ARTIST_STEP_SCHEMAS[step].safeParse(stepValues(step, application))
     if (!parsed.success) problems[step] = fieldErrors(parsed.error)
   }
   return problems

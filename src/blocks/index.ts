@@ -10,6 +10,7 @@ import { Manifesto } from './Manifesto/config'
 import { MediaBlock } from './MediaBlock/config'
 import { Openings } from './Openings/config'
 import { PageIntro } from './PageIntro/config'
+import { Paths } from './Paths/config'
 import { Principles } from './Principles/config'
 import { Quote } from './Quote/config'
 import { Split } from './Split/config'
@@ -31,6 +32,7 @@ export const pageBlocks: Block[] = [
   VentureSpotlight,
   VenturesGrid,
   Principles,
+  Paths,
   Quote,
   Leadership,
   JournalFeed,

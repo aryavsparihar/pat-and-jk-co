@@ -13,6 +13,7 @@ import { MediaBlock } from './MediaBlock/Component'
 import { OpeningsBlock } from './Openings/Component'
 import { PageIntroBlock } from './PageIntro/Component'
 import { PrinciplesBlock } from './Principles/Component'
+import { PathsBlock } from './Paths/Component'
 import { QuoteBlock } from './Quote/Component'
 import { SplitBlock } from './Split/Component'
 import type { BlockContext } from './types'
@@ -35,6 +36,7 @@ const blockComponents: {
   ventureSpotlight: VentureSpotlightBlock,
   venturesGrid: VenturesGridBlock,
   principles: PrinciplesBlock,
+  paths: PathsBlock,
   quote: QuoteBlock,
   leadership: LeadershipBlock,
   journalFeed: JournalFeedBlock,

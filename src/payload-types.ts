@@ -210,6 +210,7 @@ export interface Page {
     | VentureSpotlightBlock
     | VenturesGridBlock
     | PrinciplesBlock
+    | PathsBlock
     | QuoteBlock
     | LeadershipBlock
     | JournalFeedBlock
@@ -862,6 +863,38 @@ export interface PrinciplesBlock {
   id?: string | null;
   blockName?: string | null;
   blockType: 'principles';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "PathsBlock".
+ */
+export interface PathsBlock {
+  /**
+   * Short label shown above the heading in small capitals (optional).
+   */
+  eyebrow?: string | null;
+  /**
+   * Wrap words in *asterisks* to set them in italics, e.g. "A *quiet* revolution".
+   */
+  heading?: string | null;
+  intro?: string | null;
+  artists: {
+    heading: string;
+    text: string;
+    linkLabel: string;
+  };
+  partners: {
+    heading: string;
+    text: string;
+    linkLabel: string;
+  };
+  /**
+   * A line beneath the two paths, linking to the member sign-in.
+   */
+  signInText?: string | null;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'paths';
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -2147,6 +2180,7 @@ export interface PagesSelect<T extends boolean = true> {
         ventureSpotlight?: T | VentureSpotlightBlockSelect<T>;
         venturesGrid?: T | VenturesGridBlockSelect<T>;
         principles?: T | PrinciplesBlockSelect<T>;
+        paths?: T | PathsBlockSelect<T>;
         quote?: T | QuoteBlockSelect<T>;
         leadership?: T | LeadershipBlockSelect<T>;
         journalFeed?: T | JournalFeedBlockSelect<T>;
@@ -2329,6 +2363,32 @@ export interface PrinciplesBlockSelect<T extends boolean = true> {
         id?: T;
       };
   numbering?: T;
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "PathsBlock_select".
+ */
+export interface PathsBlockSelect<T extends boolean = true> {
+  eyebrow?: T;
+  heading?: T;
+  intro?: T;
+  artists?:
+    | T
+    | {
+        heading?: T;
+        text?: T;
+        linkLabel?: T;
+      };
+  partners?:
+    | T
+    | {
+        heading?: T;
+        text?: T;
+        linkLabel?: T;
+      };
+  signInText?: T;
   id?: T;
   blockName?: T;
 }

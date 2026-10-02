@@ -13,6 +13,7 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { getPayload, type CollectionSlug, type Payload } from 'payload'
 
+import { howItWorksBlock, pathsBlock } from './collaborate'
 import { h, p, root } from './lexical'
 
 const TENANT_SLUG = 'pjk'
@@ -245,7 +246,7 @@ async function seed() {
     summary:
       'We are looking for fine and contemporary artists to show and represent. Send a link to your portfolio and a few lines about your practice.',
     applyLabel: 'Submit your work',
-    applyUrl: '/collaborate#form',
+    applyUrl: '/collaborate/artists',
     status: 'open',
     order: 1,
   })
@@ -256,7 +257,7 @@ async function seed() {
     summary:
       'We are building the websites and systems that every venture under PJK will share. Designers and engineers who care about detail are welcome to get in touch.',
     applyLabel: 'Express interest',
-    applyUrl: '/collaborate#form',
+    applyUrl: '/collaborate/partners',
     status: 'open',
     order: 2,
   })
@@ -749,6 +750,7 @@ async function seed() {
         intro:
           'We work with artists, craftspeople, curators, designers, engineers and partners who care about doing things properly.',
       },
+      pathsBlock,
       {
         blockType: 'principles',
         eyebrow: 'Who we work with',
@@ -776,6 +778,7 @@ async function seed() {
           },
         ],
       },
+      howItWorksBlock,
       { blockType: 'openings', eyebrow: 'Open calls', heading: 'Current openings' },
       {
         blockType: 'formBlock',
