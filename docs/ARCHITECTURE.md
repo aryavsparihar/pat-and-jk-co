@@ -39,6 +39,37 @@ visit being counted twice.
 (`src/fields/slug.ts` plus a `['tenant', 'slug']` unique index), so every brand can have its own
 `home` and `about`.
 
+## Members (artists and partners)
+
+Staff and members are two separate Payload auth collections, and nothing about one carries over
+to the other.
+
+| | Staff (`users`) | Members (`members`) |
+| --- | --- | --- |
+| Sign in | Company mailbox code, then password (`/admin-access`) | Emailed code only; no passwords exist |
+| Session | Payload's own token, 8 hours | `pjk_member` cookie, a week from last use, 30 days at most (`src/security/memberSession.ts`) |
+| Reaches `/admin` | Yes, behind the gate | Never |
+| Recognised by | Payload's JWT strategy | `src/security/memberStrategy.ts` |
+
+**Access is decided by collection, never by "signed in".** Use `isStaff(user)` or
+`isMember(user)` from `src/access/roles.ts`. `src/access/memberGuard.ts` wraps every collection
+not listed in `MEMBER_COLLECTIONS`, so a member gets a visitor's access there; collections built
+for members (`members`, `applications`, later `artworks`) are in that list and must check
+ownership in their own rules. **A new member-owned collection must be added to the list and given
+owner-only rules, with a test in `tests/int/members.int.spec.ts`.**
+
+One-time codes for both audiences come from `src/security/challenges.ts`. A code is checked with
+an atomic attempt reservation and spent with an atomic update, so parallel guesses and parallel
+correct submissions are both safe.
+
+**Member IDs** (`AT000001`, `PT000001`) are issued only on approval, from the Postgres sequences
+`member_id_artist_seq` and `member_id_partner_seq`, inside the approval transaction
+(`src/members/decide.ts`). Never compute one from existing rows. The sequences are declared in the
+Drizzle schema through `afterSchemaInit` in `payload.config.ts`, which is what keeps development
+push from dropping them. **Applications** carry a random reference (`APP-7K3Q9X`) from the first
+step. Their `stage` (never `status`) is moved only by the server: a submission, or a staff
+decision through `POST /api/applications/:id/decide`.
+
 ## Admin access
 
 Reaching `/admin` requires a one-time code emailed to a company address; the check happens in
