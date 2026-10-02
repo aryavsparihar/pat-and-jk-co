@@ -1,6 +1,8 @@
-import { describe, expect, it } from 'vitest'
+import { getPayload, type Payload } from 'payload'
+import config from '@/payload.config'
+import { beforeAll, describe, expect, it } from 'vitest'
 
-import { footerFromSettings } from '@/email/footer'
+import { emailFooter, footerFromSettings } from '@/email/footer'
 import {
   directionsUrl,
   isIndianPin,
@@ -101,11 +103,14 @@ describe('the registered office', () => {
 })
 
 describe('the email footer, read from a brand’s settings', () => {
+  let payload: Payload
+
+  // Starting Payload belongs in a hook, not the test: on a cold CI runner it takes seconds
+  beforeAll(async () => {
+    payload = await getPayload({ config: await config })
+  })
+
   it('uses the brand’s own office and domain', async () => {
-    const { getPayload } = await import('payload')
-    const { default: config } = await import('@/payload.config')
-    const { emailFooter } = await import('@/email/footer')
-    const payload = await getPayload({ config: await config })
     const context = { disableRevalidate: true }
 
     const old = await payload.find({
