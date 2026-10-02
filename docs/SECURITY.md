@@ -74,6 +74,30 @@ decides access here. Two layers make sure of it:
 
 `tests/int/access.int.spec.ts` signs in as a non-staff user and checks both layers.
 
+## Members
+
+Artists and partners sign in with a one-time code and nothing else (the page, `/collaborate/signin`, comes with the onboarding).
+The endpoints live under `/next/members/`.
+
+| | |
+| --- | --- |
+| Codes | The same implementation as the staff gate (`src/security/challenges.ts`): 6 digits, 10 minutes, single use, 5 attempts, keyed hash salted per challenge, constant-time compare. Attempts are reserved atomically before comparing, so parallel guesses cannot exceed five |
+| Code requests | 5 per address and 20 per IP per hour, counted in Postgres |
+| Verification | 30 per IP per hour; an address with 10 wrong codes in an hour is **locked** for the rest of the hour, even against the right code, and the lockout is logged |
+| Enumeration | A sign-in request gets the same reply whether or not the address is registered; an application request always sends a code, so it reveals nothing either |
+| Sessions | `pjk_member` cookie: httpOnly, SameSite=Lax, Secure in production, signed with `MEMBER_SESSION_SECRET`. A week from last use, never more than 30 days. A new session on every sign-in (the old one is ended). The database holds only a keyed hash of the session secret, and no IP address |
+| Sign out everywhere | Ends every session of the member at once. Suspending a member does the same |
+| Origin | Every state-changing member endpoint refuses requests whose `Origin` is not the site's own |
+| Admin | Members can never reach `/admin`: their collection refuses admin access, the member guard refuses it again, and the staff gate stands in front of it |
+| Audit | Code requests, sends, failures, lockouts, sign-ins, sign-outs, creations, decisions and issued member IDs all go to the security log; decisions record the staff member who took them |
+
+**If member accounts are compromised:** rotate `MEMBER_SESSION_SECRET` in Vercel and redeploy.
+Every member session ends at once; staff are unaffected.
+
+The staff gate now shares this code-checking implementation. Its rules and messages are unchanged,
+but two flaws went with the move: parallel guesses could each be compared before the attempt limit
+applied, and the failure response was a single shared object, which can only be read once.
+
 ## Logs
 
 Every log line goes through one logger (`src/observability/logger.ts`): Payload's, the plugins'

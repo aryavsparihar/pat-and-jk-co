@@ -45,6 +45,7 @@ git push -u origin main
 | `PAYLOAD_SECRET` | output of `openssl rand -hex 32` |
 | `PREVIEW_SECRET` | another `openssl rand -hex 32` |
 | `CRON_SECRET` | another `openssl rand -hex 32` |
+| `MEMBER_SESSION_SECRET` | `openssl rand -base64 32`. Signs artist and partner sessions; rotating it signs every member out and nobody else |
 | `NEXT_PUBLIC_SERVER_URL` | `https://pjk.co.in` |
 | `DEFAULT_TENANT_SLUG` | `pjk` |
 | `RESEND_API_KEY` | from step 6 (can be added later) |
