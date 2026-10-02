@@ -11106,18 +11106,17 @@
           "primaryKey": false,
           "notNull": true
         },
-        "member_id": {
-          "name": "member_id",
+        "artist_id": {
+          "name": "artist_id",
           "type": "varchar",
           "primaryKey": false,
           "notNull": false
         },
-        "type": {
-          "name": "type",
-          "type": "enum_members_type",
-          "typeSchema": "public",
+        "partner_id": {
+          "name": "partner_id",
+          "type": "varchar",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
         "standing": {
           "name": "standing",
@@ -11125,7 +11124,7 @@
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
-          "default": "'applicant'"
+          "default": "'active'"
         },
         "partner_category": {
           "name": "partner_category",
@@ -11134,8 +11133,14 @@
           "primaryKey": false,
           "notNull": false
         },
-        "approved_at": {
-          "name": "approved_at",
+        "artist_approved_at": {
+          "name": "artist_approved_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "partner_approved_at": {
+          "name": "partner_approved_at",
           "type": "timestamp(3) with time zone",
           "primaryKey": false,
           "notNull": false
@@ -11183,11 +11188,26 @@
           "method": "btree",
           "with": {}
         },
-        "members_member_id_idx": {
-          "name": "members_member_id_idx",
+        "members_artist_id_idx": {
+          "name": "members_artist_id_idx",
           "columns": [
             {
-              "expression": "member_id",
+              "expression": "artist_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "members_partner_id_idx": {
+          "name": "members_partner_id_idx",
+          "columns": [
+            {
+              "expression": "partner_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -11264,6 +11284,12 @@
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
+        },
+        "issued_id": {
+          "name": "issued_id",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
         },
         "stage": {
           "name": "stage",
@@ -11351,7 +11377,22 @@
               "nulls": "last"
             }
           ],
-          "isUnique": true,
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "applications_issued_id_idx": {
+          "name": "applications_issued_id_idx",
+          "columns": [
+            {
+              "expression": "issued_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -11412,6 +11453,27 @@
             }
           ],
           "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "member_type_idx": {
+          "name": "member_type_idx",
+          "columns": [
+            {
+              "expression": "member_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -16360,20 +16422,11 @@
         "suspended"
       ]
     },
-    "public.enum_members_type": {
-      "name": "enum_members_type",
-      "schema": "public",
-      "values": [
-        "artist",
-        "partner"
-      ]
-    },
     "public.enum_members_standing": {
       "name": "enum_members_standing",
       "schema": "public",
       "values": [
-        "applicant",
-        "approved",
+        "active",
         "suspended"
       ]
     },
@@ -16557,6 +16610,6 @@
     "tables": {},
     "columns": {}
   },
-  "id": "a756e1fa-ff18-4766-bb7f-3d863bf97b50",
+  "id": "a4859e40-f09a-47f5-85ce-1c0420aee175",
   "prevId": "00000000-0000-0000-0000-000000000000"
 }

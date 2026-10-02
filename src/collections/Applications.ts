@@ -30,7 +30,8 @@ const staffOnlyField: FieldAccess = ({ req: { user } }) => isStaff(user)
 const nobody: FieldAccess = () => false
 
 /**
- * One application per member: how an artist or partner asks to join. It exists from the moment
+ * One application per member per kind: how someone asks to work with PJK as an artist, or as a
+ * partner. The same person may hold one of each, under one sign-in. It exists from the moment
  * an applicant verifies their email (as a draft), carries a reference they can quote
  * (APP-7K3Q9X), and moves through its stages:
  *
@@ -54,10 +55,10 @@ export const Applications: CollectionConfig = {
   admin: {
     group: 'Members',
     useAsTitle: 'reference',
-    defaultColumns: ['reference', 'member', 'type', 'partnerCategory', 'stage', 'submittedAt'],
+    defaultColumns: ['reference', 'member', 'type', 'stage', 'issuedId', 'submittedAt'],
     description:
       'Applications from artists and partners. Approving one issues the member ID and emails the applicant.',
-    listSearchableFields: ['reference'],
+    listSearchableFields: ['reference', 'issuedId'],
   },
   defaultSort: '-createdAt',
   fields: [
@@ -75,7 +76,6 @@ export const Applications: CollectionConfig = {
       type: 'relationship',
       relationTo: 'members',
       required: true,
-      unique: true,
       index: true,
       access: { update: nobody },
       admin: { readOnly: true },
@@ -90,6 +90,19 @@ export const Applications: CollectionConfig = {
       ],
       access: { update: nobody },
       admin: { readOnly: true, position: 'sidebar' },
+    },
+    {
+      // Not "memberId": that would map to the same column as the `member` relationship
+      name: 'issuedId',
+      label: 'Member ID issued',
+      type: 'text',
+      index: true,
+      access: { create: nobody, update: nobody },
+      admin: {
+        readOnly: true,
+        position: 'sidebar',
+        description: 'The AT or PT number this application earned on approval.',
+      },
     },
     {
       name: 'stage',
@@ -167,6 +180,8 @@ export const Applications: CollectionConfig = {
       },
     ],
   },
+  // One artist application and one partner application per person, at most
+  indexes: [{ fields: ['member', 'type'], unique: true }],
   endpoints: [
     {
       // POST /api/applications/:id/decide  { decision, note }. Staff only
@@ -197,7 +212,7 @@ export const Applications: CollectionConfig = {
           })
           return Response.json({
             stage: result.application.stage,
-            memberId: result.member.memberId ?? null,
+            memberId: result.application.issuedId ?? null,
           })
         } catch (error) {
           const status = error instanceof APIError ? error.status : 500

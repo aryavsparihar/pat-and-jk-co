@@ -87,13 +87,17 @@ export const decisionEmail = async (
   if (decision === 'approve') {
     return buildEmail({
       subject: 'Welcome to PAT and J.K. Co.',
-      preheader: `Your application has been approved. Your member ID is ${member.memberId}.`,
+      preheader: `Your application has been approved. Your member ID is ${application.issuedId}.`,
       parts: [
         {
           kind: 'paragraph',
           text: `Your application to join us as ${kind === 'artist' ? 'an artist' : 'a partner'} has been approved. We are glad to have you.`,
         },
-        { kind: 'reference', label: 'Your member ID', value: member.memberId ?? '' },
+        {
+          kind: 'reference',
+          label: kind === 'artist' ? 'Your artist ID' : 'Your partner ID',
+          value: application.issuedId ?? '',
+        },
         {
           kind: 'paragraph',
           text: 'Quote it whenever you write to us. You can now sign in to your account with a code sent to this address.',

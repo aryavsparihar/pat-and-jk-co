@@ -20,9 +20,8 @@ export async function GET(request: Request) {
     {
       signedIn: true,
       member: {
-        memberId: member.memberId ?? null,
-        type: member.type,
-        standing: member.standing,
+        artistId: member.artistId ?? null,
+        partnerId: member.partnerId ?? null,
         displayName: member.displayName ?? null,
       },
     },

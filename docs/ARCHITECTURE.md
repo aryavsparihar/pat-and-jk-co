@@ -62,7 +62,11 @@ One-time codes for both audiences come from `src/security/challenges.ts`. A code
 an atomic attempt reservation and spent with an atomic update, so parallel guesses and parallel
 correct submissions are both safe.
 
-**Member IDs** (`AT000001`, `PT000001`) are issued only on approval, from the Postgres sequences
+**One person, one member record, one sign-in**, whatever they apply for. Someone can be both an
+artist and a partner: they hold one application of each kind (unique on member and type), and the
+member record has a slot for each ID, `artistId` and `partnerId`.
+
+**Member IDs** (`AT000001`, `PT000001`) are issued only on approval, into the slot for that kind, from the Postgres sequences
 `member_id_artist_seq` and `member_id_partner_seq`, inside the approval transaction
 (`src/members/decide.ts`). Never compute one from existing rows. The sequences are declared in the
 Drizzle schema through `afterSchemaInit` in `payload.config.ts`, which is what keeps development
@@ -96,6 +100,11 @@ before each build.
 
 **Do not name a field `status` on a collection that has drafts** — it collides with Payload's own
 `_status` enum in Postgres. (Ventures uses `stage` for this reason.)
+
+**Do not give a field the name of a relationship plus `Id`.** A relationship called `member` is
+stored in the column `member_id`, and so is a text field called `memberId`; Payload silently lets
+the second replace the first, and the relationship loses its foreign key. Applications use
+`issuedId` for this reason. Read the generated migration's `CREATE TABLE` before committing it.
 
 ## Before pushing
 

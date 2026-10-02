@@ -124,17 +124,24 @@ export const decideApplication = async (
       req,
     })
 
+    // The ID slot this kind of application fills: an artist approval never touches a partner ID
+    const slot = application.type === 'artist' ? 'artistId' : 'partnerId'
     let issued: string | undefined
+    let earned: string | null = null
     if (decision === 'approve') {
-      const data: Partial<Member> = {
-        standing: 'approved',
-        approvedAt: new Date().toISOString(),
-        partnerCategory: application.partnerCategory ?? member.partnerCategory,
-      }
-      // A member approved once already keeps the ID they were given
-      if (!member.memberId) {
+      const data: Partial<Member> =
+        application.type === 'artist'
+          ? { artistApprovedAt: new Date().toISOString() }
+          : {
+              partnerApprovedAt: new Date().toISOString(),
+              partnerCategory: application.partnerCategory ?? member.partnerCategory,
+            }
+      // Someone already approved as this kind keeps the ID they were given
+      earned = member[slot] ?? null
+      if (!earned) {
         issued = await nextMemberId(payload, req, application.type)
-        data.memberId = issued
+        data[slot] = issued
+        earned = issued
       }
       member = await payload.update({
         collection: 'members',
@@ -142,7 +149,7 @@ export const decideApplication = async (
         data,
         overrideAccess: true,
         req,
-        context: { issuingMemberId: true, disableRevalidate: true },
+        context: { issuingMemberId: slot, disableRevalidate: true },
       })
     }
 
@@ -154,6 +161,7 @@ export const decideApplication = async (
         decisionNote: cleanNote,
         decidedAt: new Date().toISOString(),
         decidedBy: actor.id,
+        ...(earned ? { issuedId: earned } : {}),
       },
       overrideAccess: true,
       req,
@@ -172,7 +180,7 @@ export const decideApplication = async (
     event: EVENT[decision],
     email: result.member.email,
     actor: actor.id,
-    subject: result.memberId ?? result.member.memberId ?? result.application.reference,
+    subject: result.application.issuedId ?? result.application.reference,
     detail: `${result.application.reference} ${STAGE_AFTER[decision]} by ${actor.email}`,
   })
   if (result.memberId) {

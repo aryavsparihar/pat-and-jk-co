@@ -1,6 +1,7 @@
 import configPromise from '@payload-config'
 import { getPayload } from 'payload'
 
+import { memberIdsOf } from '@/collections/Members'
 import { fromOurOrigin, refuseCrossSite, reply } from '@/members/http'
 import { clientIp } from '@/security/constants'
 import { logSecurityEvent } from '@/security/events'
@@ -25,7 +26,7 @@ export async function POST(request: Request) {
       event: 'member-signed-out',
       email: active.member.email,
       ip: clientIp(request.headers),
-      subject: active.member.memberId ?? undefined,
+      subject: memberIdsOf(active.member),
     })
   }
 
