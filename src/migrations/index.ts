@@ -11,6 +11,7 @@ import * as migration_20261002_162600_fill_office_address from './20261002_16260
 import * as migration_20261002_174436_members_and_applications from './20261002_174436_members_and_applications'
 import * as migration_20261002_181529_application_forms from './20261002_181529_application_forms'
 import * as migration_20261002_182949_paths_block from './20261002_182949_paths_block'
+import * as migration_20261002_183507_applications_switch from './20261002_183507_applications_switch'
 
 export const migrations = [
   {
@@ -77,5 +78,10 @@ export const migrations = [
     up: migration_20261002_182949_paths_block.up,
     down: migration_20261002_182949_paths_block.down,
     name: '20261002_182949_paths_block',
+  },
+  {
+    up: migration_20261002_183507_applications_switch.up,
+    down: migration_20261002_183507_applications_switch.down,
+    name: '20261002_183507_applications_switch',
   },
 ]

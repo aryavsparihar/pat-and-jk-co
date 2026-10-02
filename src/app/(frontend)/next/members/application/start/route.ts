@@ -1,5 +1,13 @@
 import { ensureApplication } from '@/members/accounts'
-import { fromOurOrigin, readJson, refuseCrossSite, reply, requireMember, withRefresh } from '@/members/http'
+import { applicationsOpenness, closedReply } from '@/members/openness'
+import {
+  fromOurOrigin,
+  readJson,
+  refuseCrossSite,
+  reply,
+  requireMember,
+  withRefresh,
+} from '@/members/http'
 import { clientIp } from '@/security/constants'
 import { logSecurityEvent } from '@/security/events'
 
@@ -14,6 +22,9 @@ export async function POST(request: Request) {
   const auth = await requireMember(request)
   if (!auth.ok) return auth.response
   const { payload, member } = auth
+
+  const { open, note } = await applicationsOpenness(payload)
+  if (!open) return closedReply(note)
 
   const body = await readJson<{ type: string }>(request)
   if (body?.type !== 'artist' && body?.type !== 'partner') {

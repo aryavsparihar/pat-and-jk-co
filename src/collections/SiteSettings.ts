@@ -229,6 +229,28 @@ export const SiteSettings: CollectionConfig = {
           ],
         },
         {
+          label: 'Applications',
+          description:
+            'Whether artists and partners can apply on the website. While applications are closed, the application pages show the note below instead of the form, and nothing can be started or sent. Members who already have an account can still sign in.',
+          fields: [
+            {
+              name: 'applicationsOpen',
+              label: 'Applications are open',
+              type: 'checkbox',
+              defaultValue: false,
+            },
+            {
+              name: 'applicationsClosedNote',
+              label: 'Note while applications are closed',
+              type: 'textarea',
+              admin: {
+                description:
+                  'Shown on /collaborate/artists and /collaborate/partners. Leave empty for: “Applications open soon. Please come back in a little while.”',
+              },
+            },
+          ],
+        },
+        {
           label: 'Contact & social',
           fields: [
             {

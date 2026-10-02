@@ -1,5 +1,6 @@
 import { submitPartnerApplication } from '@/members/application'
 import { checkFormToken } from '@/members/formToken'
+import { applicationsOpenness, closedReply } from '@/members/openness'
 import {
   filledHoneypot,
   fromOurOrigin,
@@ -20,6 +21,9 @@ export async function POST(request: Request) {
   const auth = await requireMember(request)
   if (!auth.ok) return auth.response
   const { payload, member } = auth
+
+  const { open, note } = await applicationsOpenness(payload)
+  if (!open) return closedReply(note)
 
   const body = await readJson<{ data: unknown; formToken: string }>(request)
   if (filledHoneypot(body as Record<string, unknown>)) {

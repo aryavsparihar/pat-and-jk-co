@@ -1405,6 +1405,11 @@ export interface SiteSetting {
    * Displays the running number of visits beside the copyright line. The total itself is under Website → Visitor count.
    */
   showVisitorCount?: boolean | null;
+  applicationsOpen?: boolean | null;
+  /**
+   * Shown on /collaborate/artists and /collaborate/partners. Leave empty for: “Applications open soon. Please come back in a little while.”
+   */
+  applicationsClosedNote?: string | null;
   email?: string | null;
   phone?: string | null;
   /**
@@ -2692,6 +2697,8 @@ export interface SiteSettingsSelect<T extends boolean = true> {
       };
   copyrightName?: T;
   showVisitorCount?: T;
+  applicationsOpen?: T;
+  applicationsClosedNote?: T;
   email?: T;
   phone?: T;
   businessEmail?: T;

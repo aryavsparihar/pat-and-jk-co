@@ -78,6 +78,8 @@ People who want to work with PJK apply on the website, at **/collaborate/artists
 
 **Members → Applications** lists them all, newest first. Use **Filters** to narrow the list by type (artist or partner), stage, or date, and the search box to find an application by its reference (e.g. APP-7K3Q9X).
 
+**Opening and closing applications.** **Website → Site settings → Applications → Applications are open.** It is off until you turn it on. While it is off, the two application pages show a short note instead of the form (write your own under *Note while applications are closed*), and nothing can be started or sent; people who already have an account can still sign in.
+
 Open an application to read it. In the sidebar, under **Decision**:
 
 - **Approve.** The person is given a member ID (AT000001 for artists, PT000001 for partners) and an email welcoming them. The ID never changes. Someone can be both an artist and a partner, with one ID of each.

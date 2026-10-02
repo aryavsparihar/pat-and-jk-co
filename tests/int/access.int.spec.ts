@@ -35,7 +35,9 @@ describe('who counts as staff', () => {
     expect(authenticated(reqWith(staff))).toBe(true)
     expect(authenticated(reqWith(outsider))).toBe(false)
     expect(authenticatedOrPublished(reqWith(staff))).toBe(true)
-    expect(authenticatedOrPublished(reqWith(outsider))).toEqual({ _status: { equals: 'published' } })
+    expect(authenticatedOrPublished(reqWith(outsider))).toEqual({
+      _status: { equals: 'published' },
+    })
   })
 })
 
