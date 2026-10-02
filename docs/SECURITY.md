@@ -98,6 +98,29 @@ The staff gate now shares this code-checking implementation. Its rules and messa
 but two flaws went with the move: parallel guesses could each be compared before the attempt limit
 applied, and the failure response was a single shared object, which can only be read once.
 
+## Identity and bank details (KYC)
+
+Encrypted field by field under a key kept only in the environment, shown masked, revealed only to
+KYC reviewers with a logged reason, and deleted on a schedule. The whole design, its retention
+rules and its threat model are in [KYC.md](KYC.md).
+
+### Aadhaar
+
+We never accept, store or display a full Aadhaar number. An artist who uses Aadhaar gives the last
+four digits and uploads a **masked Aadhaar**, the copy UIDAI issues with the first eight digits
+hidden. Why:
+
+- The Aadhaar Act limits how Aadhaar numbers may be collected and used, and UIDAI requires anyone
+  who stores them to keep them in a separate, specially secured Aadhaar Data Vault. We are not set
+  up for that, and have no need to be: we do not authenticate anyone with Aadhaar. (Our lawyer or
+  CA should confirm this reading along with the privacy notice.)
+- Four digits and a masked copy are enough for a person to check that the document matches the
+  person and the address, which is all we use it for.
+- A number we never hold cannot leak. The server refuses twelve digits with a message that does
+  not repeat them, and the log redaction would remove them in any case.
+
+PAN is preferred over Aadhaar in the form, because we need it to pay and for tax.
+
 ## Logs
 
 Every log line goes through one logger (`src/observability/logger.ts`): Payload's, the plugins'

@@ -74,6 +74,27 @@ push from dropping them. **Applications** carry a random reference (`APP-7K3Q9X`
 step. Their `stage` (never `status`) is moved only by the server: a submission, or a staff
 decision through `POST /api/applications/:id/decide`.
 
+## KYC
+
+Identity and bank details are their own collections, `kyc-records` and `kyc-documents`, not
+fields on members or applications, so no member, editor or public rule can reach them by
+accident. Only `isKycReviewer` (super admins and the `kyc-reviewer` role) reads them, through the
+admin; nothing creates or edits them except `src/kyc/service.ts`, which is the only importer of
+`src/kyc/crypto.ts`. Both are `import 'server-only'`.
+
+Two things to know when changing it:
+
+- **Collection configs must not import the KYC service at the top.** The Payload CLI (and so
+  `payload migrate` on deploy) loads the configs under plain Node, where `server-only` throws.
+  Endpoints load it with `await import('../kyc/service')` inside the handler. The maintenance
+  scripts (`pnpm kyc:purge`, `pnpm kyc:rotate-key`) run with `scripts/allow-server-only.mjs`, and
+  the tests alias it in `vitest.config.mts`.
+- **Every new sealed value needs a context** naming its member and field, and must be added to
+  the reveal, rotation and purge paths. `tests/int/kyc.int.spec.ts` checks the database never
+  holds the plaintext.
+
+See [KYC.md](KYC.md) for the design and its threat model.
+
 ## Admin access
 
 Reaching `/admin` requires a one-time code emailed to a company address; the check happens in
