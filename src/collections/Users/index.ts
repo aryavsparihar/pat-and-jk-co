@@ -42,6 +42,12 @@ export const Users: CollectionConfig = {
   auth: {
     // An admin session lasts a working day; after that, sign in again
     tokenExpiration: 60 * 60 * 8,
+    // Payload leaves Secure off by default. Over HTTPS (production) the session cookie is never
+    // to be sent in the clear; browsers treat localhost as secure, so `pnpm start` still works.
+    cookies: {
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'Lax',
+    },
     // Payload locks an account after repeated wrong passwords
     maxLoginAttempts: 5,
     lockTime: 15 * 60 * 1000,
