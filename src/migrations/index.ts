@@ -7,6 +7,7 @@ import * as migration_20260924_194443_add_venture_opening from './20260924_19444
 import * as migration_20260924_201500_phulhaar_mark_and_opening from './20260924_201500_phulhaar_mark_and_opening'
 import * as migration_20261002_155740_add_rate_limits from './20261002_155740_add_rate_limits'
 import * as migration_20261002_162508_add_office_address from './20261002_162508_add_office_address'
+import * as migration_20261002_162600_fill_office_address from './20261002_162600_fill_office_address'
 
 export const migrations = [
   {
@@ -53,5 +54,10 @@ export const migrations = [
     up: migration_20261002_162508_add_office_address.up,
     down: migration_20261002_162508_add_office_address.down,
     name: '20261002_162508_add_office_address',
+  },
+  {
+    up: migration_20261002_162600_fill_office_address.up,
+    down: migration_20261002_162600_fill_office_address.down,
+    name: '20261002_162600_fill_office_address',
   },
 ]
