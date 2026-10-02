@@ -17,18 +17,25 @@ const readOwnOrStaff: Access = ({ req: { user } }) => {
 const staffOnlyField: FieldAccess = ({ req: { user } }) => isStaff(user)
 const nobody: FieldAccess = () => false
 
+/** The two member-ID slots, and the prefix each must carry */
+export const MEMBER_ID_FIELDS = { artistId: 'AT', partnerId: 'PT' } as const
+
 /**
- * Artists and partners. An auth collection of their own, entirely separate from staff `users`:
+ * A person who works with PJK as an artist, a partner, or both. One email, one sign-in, one
+ * account: someone can hold an artist ID (AT000001) and a partner ID (PT000001) at once, each
+ * issued when the application of that kind is approved. An auth collection of its own, entirely
+ * separate from staff `users`:
  *
  *   - no passwords: the local strategy is off, and a member signs in with a one-time code only
  *     (src/app/(frontend)/next/members), recognised by the session cookie strategy
  *   - never the admin panel: `access.admin` is false, the member guard refuses it again, and the
  *     admin gate in proxy.ts stands in front of it regardless
  *   - a member may read their own record and change only their display name and telephone;
- *     everything that decides what they can do is staff-only, and the member ID is no one's to edit
+ *     everything that decides what they can do is staff-only, and the member IDs are no one's to edit
  *
- * The member ID (AT000001 / PT000001) is issued on approval, from a database sequence, inside the
- * approval transaction (src/members/decide.ts), and can never change afterwards.
+ * Member IDs are issued on approval, from a database sequence per kind, inside the approval
+ * transaction (src/members/decide.ts), and can never change afterwards. What someone has applied
+ * for, and how far each application has got, lives on their applications.
  */
 export const Members: CollectionConfig = {
   slug: 'members',
@@ -51,10 +58,10 @@ export const Members: CollectionConfig = {
   admin: {
     group: 'Members',
     useAsTitle: 'email',
-    defaultColumns: ['memberId', 'email', 'displayName', 'type', 'standing', 'createdAt'],
+    defaultColumns: ['email', 'artistId', 'partnerId', 'displayName', 'standing', 'createdAt'],
     description:
-      'Artists and partners. They sign in at /collaborate/signin with a code sent to their email; they never see this panel. A member ID is issued when their application is approved.',
-    listSearchableFields: ['email', 'memberId', 'displayName'],
+      'Artists and partners: one record per person, whatever they have applied for. They sign in at /collaborate/signin with a code sent to their email and never see this panel. Each member ID is issued when the application of that kind is approved.',
+    listSearchableFields: ['email', 'artistId', 'partnerId', 'displayName'],
   },
   defaultSort: '-createdAt',
   fields: [
@@ -67,44 +74,50 @@ export const Members: CollectionConfig = {
       access: { update: staffOnlyField },
     },
     {
-      name: 'memberId',
-      label: 'Member ID',
-      type: 'text',
-      unique: true,
-      index: true,
-      access: { create: nobody, update: nobody },
-      admin: {
-        position: 'sidebar',
-        readOnly: true,
-        description: 'Issued on approval. Never changes.',
-      },
-    },
-    {
-      name: 'type',
-      type: 'select',
-      required: true,
-      options: [
-        { label: 'Artist', value: 'artist' },
-        { label: 'Partner', value: 'partner' },
+      type: 'row',
+      fields: [
+        {
+          name: 'artistId',
+          label: 'Artist ID',
+          type: 'text',
+          unique: true,
+          index: true,
+          access: { create: nobody, update: nobody },
+          admin: {
+            readOnly: true,
+            width: '50%',
+            description: 'Issued when an artist application is approved. Never changes.',
+          },
+        },
+        {
+          name: 'partnerId',
+          label: 'Partner ID',
+          type: 'text',
+          unique: true,
+          index: true,
+          access: { create: nobody, update: nobody },
+          admin: {
+            readOnly: true,
+            width: '50%',
+            description: 'Issued when a partner application is approved. Never changes.',
+          },
+        },
       ],
-      access: { update: staffOnlyField },
-      admin: { position: 'sidebar' },
     },
     {
       // Not "status": avoids any clash with Payload's own field names, here and in future
       name: 'standing',
       type: 'select',
       required: true,
-      defaultValue: 'applicant',
+      defaultValue: 'active',
       options: [
-        { label: 'Applicant: application not yet approved', value: 'applicant' },
-        { label: 'Approved member', value: 'approved' },
+        { label: 'Active', value: 'active' },
         { label: 'Suspended: cannot sign in', value: 'suspended' },
       ],
       access: { update: staffOnlyField },
       admin: {
         position: 'sidebar',
-        description: 'Suspending a member ends their sessions at once and stops them signing in.',
+        description: 'Suspending someone ends their sessions at once and stops them signing in.',
       },
     },
     {
@@ -112,13 +125,19 @@ export const Members: CollectionConfig = {
       type: 'select',
       options: PARTNER_CATEGORIES.map(({ value, label }) => ({ value, label })),
       access: { update: staffOnlyField },
-      admin: { position: 'sidebar', condition: (data) => data?.type === 'partner' },
+      admin: { position: 'sidebar', condition: (data) => Boolean(data?.partnerId) },
     },
     {
-      name: 'approvedAt',
+      name: 'artistApprovedAt',
       type: 'date',
       access: { create: nobody, update: nobody },
-      admin: { position: 'sidebar', readOnly: true },
+      admin: { position: 'sidebar', readOnly: true, condition: (data) => Boolean(data?.artistId) },
+    },
+    {
+      name: 'partnerApprovedAt',
+      type: 'date',
+      access: { create: nobody, update: nobody },
+      admin: { position: 'sidebar', readOnly: true, condition: (data) => Boolean(data?.partnerId) },
     },
     { name: 'displayName', type: 'text', maxLength: 120 },
     { name: 'phone', type: 'text', maxLength: 20 },
@@ -128,18 +147,17 @@ export const Members: CollectionConfig = {
       ({ data, originalDoc, operation, context }) => {
         if (data.email !== undefined) data.email = normaliseEmail(data.email)
 
-        // The member ID is written once, by the approval, and never again
-        const before = originalDoc?.memberId ?? null
-        if (data.memberId !== undefined && data.memberId !== before) {
-          if (before || !context.issuingMemberId) {
-            throw new APIError('A member ID cannot be changed.', 400, undefined, true)
+        // Each member ID is written once, by an approval, and never again
+        for (const [field, prefix] of Object.entries(MEMBER_ID_FIELDS)) {
+          const before = (originalDoc as Record<string, unknown> | undefined)?.[field] ?? null
+          const after = data[field]
+          if (after === undefined || after === before) continue
+          if (before || operation === 'create' || context.issuingMemberId !== field) {
+            throw new APIError('A member ID cannot be set or changed by hand.', 400, undefined, true)
           }
-          if (!MEMBER_ID_PATTERN.test(String(data.memberId))) {
-            throw new APIError('That is not a member ID.', 400, undefined, true)
+          if (!MEMBER_ID_PATTERN.test(String(after)) || !String(after).startsWith(prefix)) {
+            throw new APIError('That is not a member ID of this kind.', 400, undefined, true)
           }
-        }
-        if (operation === 'create' && data.memberId && !context.issuingMemberId) {
-          throw new APIError('A member ID is issued on approval.', 400, undefined, true)
         }
         return data
       },
@@ -161,3 +179,7 @@ export const Members: CollectionConfig = {
   },
   timestamps: true,
 }
+
+/** "AT000004 · PT000002": every member ID someone holds, for logs and lists */
+export const memberIdsOf = (member: { artistId?: string | null; partnerId?: string | null }) =>
+  [member.artistId, member.partnerId].filter(Boolean).join(' · ') || undefined

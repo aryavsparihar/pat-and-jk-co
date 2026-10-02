@@ -1501,7 +1501,7 @@ export interface User {
   collection: 'users';
 }
 /**
- * Artists and partners. They sign in at /collaborate/signin with a code sent to their email; they never see this panel. A member ID is issued when their application is approved.
+ * Artists and partners: one record per person, whatever they have applied for. They sign in at /collaborate/signin with a code sent to their email and never see this panel. Each member ID is issued when the application of that kind is approved.
  *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "members".
@@ -1510,16 +1510,20 @@ export interface Member {
   id: number;
   email: string;
   /**
-   * Issued on approval. Never changes.
+   * Issued when an artist application is approved. Never changes.
    */
-  memberId?: string | null;
-  type: 'artist' | 'partner';
+  artistId?: string | null;
   /**
-   * Suspending a member ends their sessions at once and stops them signing in.
+   * Issued when a partner application is approved. Never changes.
    */
-  standing: 'applicant' | 'approved' | 'suspended';
+  partnerId?: string | null;
+  /**
+   * Suspending someone ends their sessions at once and stops them signing in.
+   */
+  standing: 'active' | 'suspended';
   partnerCategory?: ('placement' | 'design-technology' | 'partnership') | null;
-  approvedAt?: string | null;
+  artistApprovedAt?: string | null;
+  partnerApprovedAt?: string | null;
   displayName?: string | null;
   phone?: string | null;
   updatedAt: string;
@@ -1540,6 +1544,10 @@ export interface Application {
   reference: string;
   member: number | Member;
   type: 'artist' | 'partner';
+  /**
+   * The AT or PT number this application earned on approval.
+   */
+  issuedId?: string | null;
   stage: 'draft' | 'submitted' | 'under-review' | 'changes-requested' | 'approved' | 'rejected';
   partnerCategory?: ('placement' | 'design-technology' | 'partnership') | null;
   /**
@@ -2650,11 +2658,12 @@ export interface UsersSelect<T extends boolean = true> {
  */
 export interface MembersSelect<T extends boolean = true> {
   email?: T;
-  memberId?: T;
-  type?: T;
+  artistId?: T;
+  partnerId?: T;
   standing?: T;
   partnerCategory?: T;
-  approvedAt?: T;
+  artistApprovedAt?: T;
+  partnerApprovedAt?: T;
   displayName?: T;
   phone?: T;
   updatedAt?: T;
@@ -2668,6 +2677,7 @@ export interface ApplicationsSelect<T extends boolean = true> {
   reference?: T;
   member?: T;
   type?: T;
+  issuedId?: T;
   stage?: T;
   partnerCategory?: T;
   decisionNote?: T;

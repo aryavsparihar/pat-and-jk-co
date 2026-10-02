@@ -1,6 +1,7 @@
 import configPromise from '@payload-config'
 import { getPayload } from 'payload'
 
+import { memberIdsOf } from '@/collections/Members'
 import { findMember } from '@/members/accounts'
 import { sendMemberCode } from '@/members/emails'
 import { filledHoneypot, fromOurOrigin, readJson, refuseCrossSite, reply } from '@/members/http'
@@ -93,7 +94,7 @@ export async function POST(request: Request) {
     event: 'member-code-requested',
     email,
     ip,
-    subject: member?.memberId ?? undefined,
+    subject: member ? memberIdsOf(member) : undefined,
     detail: `${purpose}: ${deliverable ? 'code sent' : suspended ? 'member suspended' : 'no member'}`,
   })
 

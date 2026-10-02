@@ -8,7 +8,7 @@ import { POST as requestCode } from '@/app/(frontend)/next/members/request-code/
 import { GET as sessionInfo } from '@/app/(frontend)/next/members/session/route'
 import { POST as signOutEverywhere } from '@/app/(frontend)/next/members/sign-out-everywhere/route'
 import { POST as verifyCode } from '@/app/(frontend)/next/members/verify-code/route'
-import { startApplication } from '@/members/accounts'
+import { ensureApplication } from '@/members/accounts'
 import { decideApplication } from '@/members/decide'
 import {
   APPLICATION_REFERENCE_PATTERN,
@@ -317,8 +317,9 @@ describe('asking for a code', () => {
 describe('signing in', () => {
   it('creates an applicant with a draft application on their first code', async () => {
     const { member, response } = await applyAndSignIn('apply-artist')
-    expect(member).toMatchObject({ type: 'artist', standing: 'applicant' })
-    expect(member.memberId ?? null).toBeNull()
+    expect(member).toMatchObject({ standing: 'active' })
+    expect(member.artistId ?? null).toBeNull()
+    expect(member.partnerId ?? null).toBeNull()
     const application = (
       await payload.find({
         collection: 'applications',
@@ -465,8 +466,11 @@ describe('sessions', () => {
 })
 
 describe('approval and member IDs', () => {
-  const submitted = async (type: 'artist' | 'partner') => {
-    const { member, application } = await startApplication(payload, { email: unique(type), type })
+  const submitted = async (type: 'artist' | 'partner', email?: string) => {
+    const { member, application } = await ensureApplication(payload, {
+      email: email ?? unique(type),
+      type,
+    })
     await payload.update({
       collection: 'applications',
       id: application.id,
@@ -479,7 +483,7 @@ describe('approval and member IDs', () => {
   it('issues an ID only on approval, from the right sequence', async () => {
     const artist = await submitted('artist')
     const partner = await submitted('partner')
-    expect(artist.member.memberId ?? null).toBeNull()
+    expect(artist.member.artistId ?? null).toBeNull()
 
     const a = await decideApplication(payload, {
       applicationId: artist.application.id,
@@ -491,10 +495,12 @@ describe('approval and member IDs', () => {
       decision: 'approve',
       actor: staff,
     })
-    expect(a.member.memberId).toMatch(/^AT\d{6}$/)
-    expect(p.member.memberId).toMatch(/^PT\d{6}$/)
-    expect(a.member.standing).toBe('approved')
+    expect(a.member.artistId).toMatch(/^AT\d{6}$/)
+    expect(a.member.partnerId ?? null).toBeNull()
+    expect(p.member.partnerId).toMatch(/^PT\d{6}$/)
+    expect(p.member.artistId ?? null).toBeNull()
     expect(a.application.stage).toBe('approved')
+    expect(a.application.issuedId).toBe(a.member.artistId)
   })
 
   it('gives every approval its own number when many happen at once', async () => {
@@ -508,7 +514,7 @@ describe('approval and member IDs', () => {
         }),
       ),
     )
-    const ids = results.map((r) => r.member.memberId!)
+    const ids = results.map((r) => r.member.artistId!)
     expect(new Set(ids).size).toBe(12)
     const numbers = ids.map((id) => Number(id.slice(2))).sort((x, y) => x - y)
     // Gap-tolerant, but these twelve were taken back to back
@@ -537,7 +543,7 @@ describe('approval and member IDs', () => {
       id: member.id,
       overrideAccess: true,
     })
-    expect(reloaded.memberId ?? null).toBeNull()
+    expect(reloaded.artistId ?? null).toBeNull()
   })
 
   it('never lets a member ID change once issued', async () => {
@@ -551,19 +557,23 @@ describe('approval and member IDs', () => {
       payload.update({
         collection: 'members',
         id: member.id,
-        data: { memberId: 'AT999999' },
+        data: { artistId: 'AT999999' },
         overrideAccess: true,
       }),
-    ).rejects.toThrow(/cannot be changed/)
+    ).rejects.toThrow(/cannot be set or changed/)
+    // Nor can the empty slot be filled by hand, even by the server outside an approval
+    await expect(
+      payload.update({
+        collection: 'members',
+        id: member.id,
+        data: { partnerId: 'PT000777' },
+        overrideAccess: true,
+      }),
+    ).rejects.toThrow(/cannot be set or changed/)
     await expect(
       payload.create({
         collection: 'members',
-        data: {
-          email: unique('forged'),
-          type: 'artist',
-          standing: 'applicant',
-          memberId: 'AT000777',
-        },
+        data: { email: unique('forged'), standing: 'active', artistId: 'AT000777' },
         overrideAccess: true,
       }),
     ).rejects.toThrow()
@@ -593,6 +603,69 @@ describe('approval and member IDs', () => {
     ).rejects.toThrow()
   })
 
+  it('lets one person be both an artist and a partner, under one sign-in', async () => {
+    const email = unique('both')
+    const artist = await submitted('artist', email)
+    const { member: asArtist } = await decideApplication(payload, {
+      applicationId: artist.application.id,
+      decision: 'approve',
+      actor: staff,
+    })
+
+    // The same person applies as a partner through the real endpoints, signed in as themselves
+    const ip = nextIp()
+    const requested = await post(requestCode, { email, purpose: 'apply-partner' }, { ip })
+    const { challengeId } = (await requested.json()) as { challengeId: number }
+    await setCode(challengeId, '808080')
+    expect((await post(verifyCode, { challengeId, code: '808080' }, { ip })).status).toBe(200)
+
+    const members = await payload.find({
+      collection: 'members',
+      where: { email: { equals: email } },
+      overrideAccess: true,
+    })
+    expect(members.totalDocs).toBe(1)
+    const applications = await payload.find({
+      collection: 'applications',
+      where: { member: { equals: asArtist.id } },
+      overrideAccess: true,
+      depth: 0,
+    })
+    expect(applications.docs.map((a) => a.type).sort()).toEqual(['artist', 'partner'])
+
+    const partnerApp = applications.docs.find((a) => a.type === 'partner')!
+    await payload.update({
+      collection: 'applications',
+      id: partnerApp.id,
+      data: { stage: 'submitted' },
+      overrideAccess: true,
+    })
+    const { member: both } = await decideApplication(payload, {
+      applicationId: partnerApp.id,
+      decision: 'approve',
+      actor: staff,
+    })
+    expect(both.id).toBe(asArtist.id)
+    expect(both.artistId).toBe(asArtist.artistId)
+    expect(both.partnerId).toMatch(/^PT\d{6}$/)
+
+    // A second artist application for the same person is the same application, not a new one
+    const again = await ensureApplication(payload, { email, type: 'artist' })
+    expect(again.createdApplication).toBe(false)
+    await expect(
+      payload.create({
+        collection: 'applications',
+        data: {
+          reference: newApplicationReference(),
+          member: both.id,
+          type: 'partner',
+          stage: 'draft',
+        },
+        overrideAccess: true,
+      }),
+    ).rejects.toThrow()
+  })
+
   it('records the decision with the member of staff who took it', async () => {
     const { application, member } = await submitted('artist')
     const { member: approved } = await decideApplication(payload, {
@@ -608,9 +681,9 @@ describe('approval and member IDs', () => {
     })
     const approvedEvent = events.docs.find((e) => e.event === 'application-approved')!
     expect(approvedEvent.actor).toBe(staff.id)
-    expect(approvedEvent.subject).toBe(approved.memberId)
+    expect(approvedEvent.subject).toBe(approved.artistId)
     expect(
-      events.docs.some((e) => e.event === 'member-id-issued' && e.subject === approved.memberId),
+      events.docs.some((e) => e.event === 'member-id-issued' && e.subject === approved.artistId),
     ).toBe(true)
   })
 })
@@ -666,20 +739,20 @@ describe('what one member can see of another', () => {
     const updated = await payload.update({
       collection: 'members',
       id: a.member.id,
-      data: { displayName: 'Asha', standing: 'approved', type: 'partner' } as never,
+      data: { displayName: 'Asha', standing: 'suspended', partnerCategory: 'partnership' } as never,
       ...asMember(a.member),
     })
     expect(updated.displayName).toBe('Asha')
-    expect(updated.standing).toBe('applicant')
-    expect(updated.type).toBe('artist')
+    expect(updated.standing).toBe('active')
+    expect(updated.partnerCategory ?? null).toBeNull()
     // Payload drops fields a user may not write rather than refusing the request
     const selfIssued = await payload.update({
       collection: 'members',
       id: a.member.id,
-      data: { memberId: 'AT000001' } as never,
+      data: { artistId: 'AT000001' } as never,
       ...asMember(a.member),
     })
-    expect(selfIssued.memberId ?? null).toBeNull()
+    expect(selfIssued.artistId ?? null).toBeNull()
 
     const own = (
       await payload.find({

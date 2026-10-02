@@ -1,7 +1,8 @@
 import configPromise from '@payload-config'
 import { getPayload } from 'payload'
 
-import { findMember, startApplication } from '@/members/accounts'
+import { memberIdsOf } from '@/collections/Members'
+import { ensureApplication, findMember } from '@/members/accounts'
 import { fromOurOrigin, readJson, refuseCrossSite, reply } from '@/members/http'
 import { challengeEmail, checkChallenge } from '@/security/challenges'
 import {
@@ -35,7 +36,9 @@ const LOCK_WINDOW_SECONDS = 3600
  *   - limited per IP, so nobody can work through codes from one place
  *   - an address that has had ten wrong codes in an hour is locked for the rest of that hour:
  *     even the right code is refused, and the lockout goes to the security log
- *   - an applicant's first verified code creates their member record and draft application
+ *   - a verified application code makes sure the person has a draft application of that kind,
+ *     creating their member record first if they are new; an existing artist applying as a
+ *     partner keeps their one account and gains a second application
  *   - signing in always starts a new session; one the browser already held is ended (rotation)
  */
 export async function POST(request: Request) {
@@ -102,21 +105,29 @@ export async function POST(request: Request) {
   const email = result.email
   let member = await findMember(payload, email)
 
-  if (!member) {
-    if (result.purpose !== 'apply-artist' && result.purpose !== 'apply-partner') return rejected()
-    const started = await startApplication(payload, {
+  if (member?.standing === 'suspended') {
+    await logSecurityEvent(payload, { event: 'member-blocked', email, ip, detail: 'suspended' })
+    return rejected()
+  }
+
+  if (result.purpose === 'apply-artist' || result.purpose === 'apply-partner') {
+    const ensured = await ensureApplication(payload, {
       email,
       type: result.purpose === 'apply-artist' ? 'artist' : 'partner',
     })
-    member = started.member
-    await logSecurityEvent(payload, {
-      event: 'member-created',
-      email,
-      ip,
-      subject: started.application.reference,
-      detail: result.purpose,
-    })
+    member = ensured.member
+    if (ensured.createdMember || ensured.createdApplication) {
+      await logSecurityEvent(payload, {
+        event: 'member-created',
+        email,
+        ip,
+        subject: ensured.application.reference,
+        detail: `${result.purpose}${ensured.createdMember ? ', new member' : ', existing member'}`,
+      })
+    }
   }
+
+  if (!member) return rejected()
 
   if (member.standing === 'suspended') {
     await logSecurityEvent(payload, { event: 'member-blocked', email, ip, detail: 'suspended' })
@@ -136,12 +147,12 @@ export async function POST(request: Request) {
     event: 'member-signed-in',
     email,
     ip,
-    subject: member.memberId ?? undefined,
+    subject: memberIdsOf(member),
     detail: result.purpose ?? 'signin',
   })
 
   return reply(
-    { ok: true, type: member.type, standing: member.standing },
+    { ok: true, artistId: member.artistId ?? null, partnerId: member.partnerId ?? null },
     { headers: { 'Set-Cookie': sessionCookieHeader(session.value, session.expiresAt) } },
   )
 }

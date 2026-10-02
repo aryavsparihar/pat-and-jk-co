@@ -2,8 +2,7 @@ import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
 
 export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   await db.execute(sql`
-   CREATE TYPE "public"."enum_members_type" AS ENUM('artist', 'partner');
-  CREATE TYPE "public"."enum_members_standing" AS ENUM('applicant', 'approved', 'suspended');
+   CREATE TYPE "public"."enum_members_standing" AS ENUM('active', 'suspended');
   CREATE TYPE "public"."enum_members_partner_category" AS ENUM('placement', 'design-technology', 'partnership');
   CREATE TYPE "public"."enum_applications_type" AS ENUM('artist', 'partner');
   CREATE TYPE "public"."enum_applications_stage" AS ENUM('draft', 'submitted', 'under-review', 'changes-requested', 'approved', 'rejected');
@@ -29,11 +28,12 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   CREATE TABLE "members" (
   	"id" serial PRIMARY KEY NOT NULL,
   	"email" varchar NOT NULL,
-  	"member_id" varchar,
-  	"type" "enum_members_type" NOT NULL,
-  	"standing" "enum_members_standing" DEFAULT 'applicant' NOT NULL,
+  	"artist_id" varchar,
+  	"partner_id" varchar,
+  	"standing" "enum_members_standing" DEFAULT 'active' NOT NULL,
   	"partner_category" "enum_members_partner_category",
-  	"approved_at" timestamp(3) with time zone,
+  	"artist_approved_at" timestamp(3) with time zone,
+  	"partner_approved_at" timestamp(3) with time zone,
   	"display_name" varchar,
   	"phone" varchar,
   	"updated_at" timestamp(3) with time zone DEFAULT now() NOT NULL,
@@ -45,6 +45,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	"reference" varchar NOT NULL,
   	"member_id" integer NOT NULL,
   	"type" "enum_applications_type" NOT NULL,
+  	"issued_id" varchar,
   	"stage" "enum_applications_stage" DEFAULT 'draft' NOT NULL,
   	"partner_category" "enum_applications_partner_category",
   	"decision_note" varchar,
@@ -83,15 +84,18 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   ALTER TABLE "applications" ADD CONSTRAINT "applications_decided_by_id_users_id_fk" FOREIGN KEY ("decided_by_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "member_sessions" ADD CONSTRAINT "member_sessions_member_id_members_id_fk" FOREIGN KEY ("member_id") REFERENCES "public"."members"("id") ON DELETE set null ON UPDATE no action;
   CREATE UNIQUE INDEX "members_email_idx" ON "members" USING btree ("email");
-  CREATE UNIQUE INDEX "members_member_id_idx" ON "members" USING btree ("member_id");
+  CREATE UNIQUE INDEX "members_artist_id_idx" ON "members" USING btree ("artist_id");
+  CREATE UNIQUE INDEX "members_partner_id_idx" ON "members" USING btree ("partner_id");
   CREATE INDEX "members_updated_at_idx" ON "members" USING btree ("updated_at");
   CREATE INDEX "members_created_at_idx" ON "members" USING btree ("created_at");
   CREATE UNIQUE INDEX "applications_reference_idx" ON "applications" USING btree ("reference");
-  CREATE UNIQUE INDEX "applications_member_idx" ON "applications" USING btree ("member_id");
+  CREATE INDEX "applications_member_idx" ON "applications" USING btree ("member_id");
+  CREATE INDEX "applications_issued_id_idx" ON "applications" USING btree ("issued_id");
   CREATE INDEX "applications_stage_idx" ON "applications" USING btree ("stage");
   CREATE INDEX "applications_decided_by_idx" ON "applications" USING btree ("decided_by_id");
   CREATE INDEX "applications_updated_at_idx" ON "applications" USING btree ("updated_at");
   CREATE INDEX "applications_created_at_idx" ON "applications" USING btree ("created_at");
+  CREATE UNIQUE INDEX "member_type_idx" ON "applications" USING btree ("member_id","type");
   CREATE INDEX "member_sessions_member_idx" ON "member_sessions" USING btree ("member_id");
   CREATE UNIQUE INDEX "member_sessions_sid_idx" ON "member_sessions" USING btree ("sid");
   CREATE INDEX "member_sessions_expires_at_idx" ON "member_sessions" USING btree ("expires_at");
@@ -110,6 +114,16 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   CREATE INDEX "payload_locked_documents_rels_applications_id_idx" ON "payload_locked_documents_rels" USING btree ("applications_id");
   CREATE INDEX "payload_locked_documents_rels_member_sessions_id_idx" ON "payload_locked_documents_rels" USING btree ("member_sessions_id");
   CREATE INDEX "payload_preferences_rels_members_id_idx" ON "payload_preferences_rels" USING btree ("members_id");`)
+
+  // A record in the deploy log of where member numbering begins: the first artist approved will
+  // be AT000001 and the first partner PT000001 (is_called = false means nextval returns last_value)
+  for (const name of ['member_id_artist_seq', 'member_id_partner_seq']) {
+    const result = await db.execute(sql.raw(`SELECT last_value, is_called FROM "${name}"`))
+    const row = result.rows[0] as { last_value: string; is_called: boolean } | undefined
+    payload.logger.info(
+      `${name}: next value ${row?.is_called ? Number(row.last_value) + 1 : row?.last_value}`,
+    )
+  }
 }
 
 export async function down({ db, payload, req }: MigrateDownArgs): Promise<void> {
@@ -149,7 +163,6 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   ALTER TABLE "payload_locked_documents_rels" DROP COLUMN "applications_id";
   ALTER TABLE "payload_locked_documents_rels" DROP COLUMN "member_sessions_id";
   ALTER TABLE "payload_preferences_rels" DROP COLUMN "members_id";
-  DROP TYPE "public"."enum_members_type";
   DROP TYPE "public"."enum_members_standing";
   DROP TYPE "public"."enum_members_partner_category";
   DROP TYPE "public"."enum_applications_type";

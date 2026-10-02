@@ -12,34 +12,65 @@ import type { MemberKind } from './ids'
 import { newApplicationReference } from './ids'
 
 /**
- * Creates an applicant: a member record (no member ID yet; that comes on approval) and their draft
- * application, in one transaction, so there is never a member without an application or the other
- * way round. A clash on the random reference is retried with a fresh one.
+ * Makes sure someone has an application of a kind: creating their member record if this is the
+ * first thing they have ever applied for, and a draft application of that kind if they have none.
+ * Someone who is already an approved artist and now applies as a partner keeps their one record
+ * and sign-in, and gains a second application. Both writes happen in one transaction, so there is
+ * never a member without the application they came for. A clash on the random reference is retried.
  */
-export const startApplication = async (
+export const ensureApplication = async (
   payload: Payload,
   { email, type }: { email: string; type: MemberKind },
-): Promise<{ member: Member; application: Application }> => {
+): Promise<{
+  member: Member
+  application: Application
+  createdMember: boolean
+  createdApplication: boolean
+}> => {
   for (let attempt = 0; attempt < 5; attempt++) {
     const req = await createLocalReq({}, payload)
     await initTransaction(req)
     try {
-      const member = await payload.create({
+      let member = (
+        await payload.find({
+          collection: 'members',
+          where: { email: { equals: email } },
+          limit: 1,
+          depth: 0,
+          overrideAccess: true,
+          req,
+        })
+      ).docs[0]
+      const createdMember = !member
+      member ??= await payload.create({
         collection: 'members',
-        data: { email, type, standing: 'applicant' },
+        data: { email, standing: 'active' },
         overrideAccess: true,
         req,
         context: { disableRevalidate: true },
       })
-      const application = await payload.create({
+
+      let application = (
+        await payload.find({
+          collection: 'applications',
+          where: { and: [{ member: { equals: member.id } }, { type: { equals: type } }] },
+          limit: 1,
+          depth: 0,
+          overrideAccess: true,
+          req,
+        })
+      ).docs[0]
+      const createdApplication = !application
+      application ??= await payload.create({
         collection: 'applications',
         data: { reference: newApplicationReference(), member: member.id, type, stage: 'draft' },
         overrideAccess: true,
         req,
         context: { disableRevalidate: true },
       })
+
       await commitTransaction(req)
-      return { member, application }
+      return { member, application, createdMember, createdApplication }
     } catch (error) {
       await killTransaction(req)
       const clash = /reference/i.test(String((error as Error)?.message))
