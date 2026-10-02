@@ -3,6 +3,7 @@ import { getPayload } from 'payload'
 
 import { memberIdsOf } from '@/collections/Members'
 import { ensureApplication, findMember } from '@/members/accounts'
+import { applicationsOpenness } from '@/members/openness'
 import { fromOurOrigin, readJson, refuseCrossSite, reply } from '@/members/http'
 import { challengeEmail, checkChallenge } from '@/security/challenges'
 import {
@@ -110,7 +111,12 @@ export async function POST(request: Request) {
     return rejected()
   }
 
-  if (result.purpose === 'apply-artist' || result.purpose === 'apply-partner') {
+  // A code issued just before applications closed may still sign someone in, but starts nothing
+  const applying =
+    (result.purpose === 'apply-artist' || result.purpose === 'apply-partner') &&
+    (await applicationsOpenness(payload)).open
+
+  if (applying && (result.purpose === 'apply-artist' || result.purpose === 'apply-partner')) {
     const ensured = await ensureApplication(payload, {
       email,
       type: result.purpose === 'apply-artist' ? 'artist' : 'partner',

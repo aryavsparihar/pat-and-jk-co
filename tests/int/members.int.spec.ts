@@ -24,6 +24,8 @@ import { hashOtp } from '@/security/otp'
 import type { User } from '@/payload-types'
 import { execute } from '@/utilities/sql'
 
+import { openApplicationsForTests } from '../helpers/applicationsOpen'
+
 /*
  * Members end to end: codes, sessions, the sign-in endpoints, member IDs and who can see what.
  * Every address is @example.test and every person is made up; everything created is removed.
@@ -31,6 +33,7 @@ import { execute } from '@/utilities/sql'
  */
 
 let payload: Payload
+let closeApplications: () => Promise<void>
 // A form shown ten seconds ago, as a real page would have sent
 const formToken = () => createFormToken(Date.now() - 10_000)
 const DOMAIN = '@example.test'
@@ -54,7 +57,13 @@ const post = (
   if (opts.origin !== null) headers.set('origin', opts.origin ?? ORIGIN)
   if (opts.cookie) headers.set('cookie', opts.cookie)
   return handler(
-    new Request(`${ORIGIN}/next/members`, { method: 'POST', headers, body: JSON.stringify(handler === requestCode ? { formToken: formToken(), ...(body as object) } : body) }),
+    new Request(`${ORIGIN}/next/members`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(
+        handler === requestCode ? { formToken: formToken(), ...(body as object) } : body,
+      ),
+    }),
   )
 }
 
@@ -115,6 +124,7 @@ const cleanup = async () => {
 beforeAll(async () => {
   payload = await getPayload({ config: await config })
   await cleanup()
+  closeApplications = await openApplicationsForTests(payload)
   const found = await payload.find({
     collection: 'users',
     where: { email: { equals: 'members-test@pjk.co.in' } },
@@ -137,6 +147,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await cleanup()
+  await closeApplications()
   await payload.delete({
     collection: 'users',
     where: { email: { equals: 'members-test@pjk.co.in' } },
@@ -425,7 +436,9 @@ describe('sessions', () => {
     const flip = (text: string, at: number) =>
       text.slice(0, at) + (text[at] === 'A' ? 'B' : 'A') + text.slice(at + 1)
     expect(await readSession(payload, `${sid}.${secret}.${flip(signature!, 0)}`)).toBeNull()
-    expect(await readSession(payload, `${sid}.${secret}.${flip(signature!, signature!.length - 1)}`)).toBeNull()
+    expect(
+      await readSession(payload, `${sid}.${secret}.${flip(signature!, signature!.length - 1)}`),
+    ).toBeNull()
     expect(await readSession(payload, `${sid}.${flip(secret!, 5)}.${signature}`)).toBeNull()
     expect(await readSession(payload, 'nonsense')).toBeNull()
   })

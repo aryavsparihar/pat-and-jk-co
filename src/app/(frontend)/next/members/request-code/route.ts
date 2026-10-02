@@ -4,6 +4,7 @@ import { getPayload } from 'payload'
 import { memberIdsOf } from '@/collections/Members'
 import { findMember } from '@/members/accounts'
 import { checkFormToken } from '@/members/formToken'
+import { applicationsOpenness, closedReply } from '@/members/openness'
 import { sendMemberCode } from '@/members/emails'
 import { filledHoneypot, fromOurOrigin, readJson, refuseCrossSite, reply } from '@/members/http'
 import { issueChallenge, type Purpose } from '@/security/challenges'
@@ -57,6 +58,11 @@ export async function POST(request: Request) {
   }
   if (timing !== 'ok')
     return reply({ message: 'Please reload the page and try again.' }, { status: 400 })
+
+  if (purpose !== 'signin') {
+    const { open, note } = await applicationsOpenness(payload)
+    if (!open) return closedReply(note)
+  }
 
   const limit = await hitLimits(payload, [
     {

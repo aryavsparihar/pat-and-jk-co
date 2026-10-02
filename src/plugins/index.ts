@@ -17,6 +17,7 @@ import {
 import { revalidateFrontend } from '@/hooks/revalidateFrontend'
 import type { Config, Page, Post, Venture } from '@/payload-types'
 import { emailFooter } from '@/email/footer'
+import { blobEnvironmentPrefix } from '@/members/storage'
 import { docPath } from '@/utilities/docHref'
 import { getServerSideURL } from '@/utilities/getURL'
 
@@ -154,7 +155,8 @@ export const plugins: Plugin[] = [
     collections: {
       media: true,
       // Served through Payload's file route, which applies the collection's read rule
-      'portfolio-images': { prefix: 'portfolio' },
+      // Kept apart from production's on preview deployments (src/members/storage.ts)
+      'portfolio-images': { prefix: `${blobEnvironmentPrefix()}portfolio` },
     },
     token: process.env.BLOB_READ_WRITE_TOKEN || '',
   }),
