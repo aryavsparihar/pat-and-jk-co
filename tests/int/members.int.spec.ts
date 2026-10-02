@@ -10,6 +10,7 @@ import { POST as signOutEverywhere } from '@/app/(frontend)/next/members/sign-ou
 import { POST as verifyCode } from '@/app/(frontend)/next/members/verify-code/route'
 import { ensureApplication } from '@/members/accounts'
 import { decideApplication } from '@/members/decide'
+import { createFormToken } from '@/members/formToken'
 import {
   APPLICATION_REFERENCE_PATTERN,
   formatMemberId,
@@ -30,6 +31,8 @@ import { execute } from '@/utilities/sql'
  */
 
 let payload: Payload
+// A form shown ten seconds ago, as a real page would have sent
+const formToken = () => createFormToken(Date.now() - 10_000)
 const DOMAIN = '@example.test'
 const ORIGIN = process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000'
 let staff: User
@@ -51,7 +54,7 @@ const post = (
   if (opts.origin !== null) headers.set('origin', opts.origin ?? ORIGIN)
   if (opts.cookie) headers.set('cookie', opts.cookie)
   return handler(
-    new Request(`${ORIGIN}/next/members`, { method: 'POST', headers, body: JSON.stringify(body) }),
+    new Request(`${ORIGIN}/next/members`, { method: 'POST', headers, body: JSON.stringify(handler === requestCode ? { formToken: formToken(), ...(body as object) } : body) }),
   )
 }
 
@@ -418,8 +421,12 @@ describe('sessions', () => {
     const { value } = await createSession(payload, { memberId: member.id })
     const [sid, secret, signature] = value.split('.')
     expect(await readSession(payload, value)).not.toBeNull()
-    expect(await readSession(payload, `${sid}.${secret}.${signature!.slice(0, -2)}AA`)).toBeNull()
-    expect(await readSession(payload, `${sid}.${'A'.repeat(43)}.${signature}`)).toBeNull()
+    // Change one character, to one it certainly is not (a fixed replacement could match by chance)
+    const flip = (text: string, at: number) =>
+      text.slice(0, at) + (text[at] === 'A' ? 'B' : 'A') + text.slice(at + 1)
+    expect(await readSession(payload, `${sid}.${secret}.${flip(signature!, 0)}`)).toBeNull()
+    expect(await readSession(payload, `${sid}.${secret}.${flip(signature!, signature!.length - 1)}`)).toBeNull()
+    expect(await readSession(payload, `${sid}.${flip(secret!, 5)}.${signature}`)).toBeNull()
     expect(await readSession(payload, 'nonsense')).toBeNull()
   })
 
