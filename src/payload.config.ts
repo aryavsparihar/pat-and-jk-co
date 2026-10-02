@@ -20,10 +20,14 @@ import { Tenants } from './collections/Tenants'
 import { Users } from './collections/Users'
 import { Ventures } from './collections/Ventures'
 import { VisitorCounts } from './collections/VisitorCounts'
+import { loadEnv } from './env'
 import { plugins } from './plugins'
 import { isStaff } from './access/roles'
 import { defaultLexical } from '@/fields/defaultLexical'
 import { getServerSideURL } from './utilities/getURL'
+
+// Fails fast, naming every missing or malformed variable (src/env.ts)
+const env = loadEnv()
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -86,7 +90,7 @@ export default buildConfig({
   editor: defaultLexical,
   db: postgresAdapter({
     pool: {
-      connectionString: process.env.DATABASE_URL || '',
+      connectionString: env.DATABASE_URL,
     },
     migrationDir: path.resolve(dirname, 'migrations'),
   }),
@@ -126,7 +130,7 @@ export default buildConfig({
       })
     : undefined,
   plugins,
-  secret: process.env.PAYLOAD_SECRET,
+  secret: env.PAYLOAD_SECRET,
   sharp,
   typescript: {
     outputFile: path.resolve(dirname, 'payload-types.ts'),

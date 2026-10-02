@@ -1,7 +1,7 @@
 {
   "name": "pjk-website",
   "version": "1.0.0",
-  "description": "PAT and J.K. Co. \u2014 group website and multi-brand CMS",
+  "description": "PAT and J.K. Co. — group website and multi-brand CMS",
   "license": "UNLICENSED",
   "type": "module",
   "scripts": {
@@ -57,7 +57,8 @@
     "react-dom": "19.2.6",
     "react-hook-form": "7.71.1",
     "sharp": "0.35.4",
-    "tailwind-merge": "3.6.0"
+    "tailwind-merge": "3.6.0",
+    "zod": "4.6.5"
   },
   "devDependencies": {
     "@playwright/test": "1.58.2",

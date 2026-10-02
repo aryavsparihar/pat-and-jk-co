@@ -52,6 +52,8 @@ git push -u origin main
 | `EMAIL_FROM_NAME` | `PAT and J.K. Co.` |
 | `CONTACT_INBOX` | `hello@pjk.co.in` |
 
+The app checks these when it starts (`src/env.ts`). If one is missing or malformed, the build stops with a list naming each problem, and the live site carries on running the previous deployment. In production `NEXT_PUBLIC_SERVER_URL`, `RESEND_API_KEY` and `BLOB_READ_WRITE_TOKEN` are required as well.
+
 5. Deploy. The first deploy creates all database tables.
 
 ## 4. Load the starter content
