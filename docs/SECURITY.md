@@ -59,6 +59,25 @@ same-origin` is set everywhere.
 If something in the admin panel ever fails to load, the CSP in `next.config.ts` is the first thing
 to check: the browser console names the directive that blocked it.
 
+## Logs
+
+Every log line goes through one logger (`src/observability/logger.ts`): Payload's, the plugins'
+and ours. In production it writes JSON, one object per line; locally it stays readable. Before
+anything is written, `src/observability/redact.ts` removes email addresses, phone numbers, PAN,
+IFSC, and any run of 9 to 18 digits (Aadhaar and bank account numbers), wherever they appear: in
+the message, in fields, inside error messages and stacks. Values under keys such as `password`,
+`otp`, `token`, `pan` or `accountNumber` are dropped whatever they contain. A test logs a PAN every
+way it can and checks it never comes out.
+
+Unhandled errors in pages and routes are logged the same way by `src/instrumentation.ts`, with the
+query string stripped from the path.
+
+The redaction is a safety net, not permission. Two rules still apply to new code:
+
+- **Never put personal data in an error message.** Next.js prints raw errors as well, outside our
+  logger. Say *which* record (an id, an application reference), never *whose* details.
+- **Never log a request body** from a form that collects personal data.
+
 ## Rate limits
 
 `src/security/rateLimit.ts` is the one place limits are counted. Each check is a single atomic

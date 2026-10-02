@@ -21,6 +21,7 @@ import { Users } from './collections/Users'
 import { Ventures } from './collections/Ventures'
 import { VisitorCounts } from './collections/VisitorCounts'
 import { loadEnv } from './env'
+import { createLogger } from './observability/logger'
 import { plugins } from './plugins'
 import { isStaff } from './access/roles'
 import { defaultLexical } from '@/fields/defaultLexical'
@@ -129,6 +130,8 @@ export default buildConfig({
         defaultFromName: process.env.EMAIL_FROM_NAME || 'PAT and J.K. Co.',
       })
     : undefined,
+  // JSON lines in production, with personal data redacted from every line (src/observability)
+  logger: createLogger(),
   plugins,
   secret: env.PAYLOAD_SECRET,
   sharp,
