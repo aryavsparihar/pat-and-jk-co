@@ -118,8 +118,8 @@ describe('the member guard over collections that are not ours', () => {
 
   it('cannot queue a job or open the admin panel', async () => {
     const req = { user: outsider, headers: new Headers() } as never
-    expect(await payload.config.jobs.access.queue!({ req })).toBe(false)
-    expect(await payload.config.jobs.access.run!({ req })).toBe(false)
+    expect(await payload.config.jobs.access!.queue!({ req })).toBe(false)
+    expect(await payload.config.jobs.access!.run!({ req })).toBe(false)
     const users = payload.collections.users.config.access
     expect(await users.admin!({ req })).toBe(false)
   })
