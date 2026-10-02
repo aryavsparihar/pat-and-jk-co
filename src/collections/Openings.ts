@@ -1,6 +1,7 @@
 import type { CollectionConfig } from 'payload'
 
 import { authenticated } from '../access/authenticated'
+import { isStaff } from '../access/roles'
 import { revalidateFrontend, revalidateFrontendAfterDelete } from '../hooks/revalidateFrontend'
 
 /** Open calls for artists, collaborators, partners and roles — shown by the "Openings list" block. */
@@ -13,8 +14,8 @@ export const Openings: CollectionConfig = {
   access: {
     create: authenticated,
     delete: authenticated,
-    // Visitors only ever see open calls; signed-in editors see everything
-    read: ({ req: { user } }) => (user ? true : { status: { equals: 'open' } }),
+    // Visitors only ever see open calls; staff see everything
+    read: ({ req: { user } }) => (isStaff(user) ? true : { status: { equals: 'open' } }),
     update: authenticated,
   },
   admin: {

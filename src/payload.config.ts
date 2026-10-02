@@ -20,6 +20,7 @@ import { Users } from './collections/Users'
 import { Ventures } from './collections/Ventures'
 import { VisitorCounts } from './collections/VisitorCounts'
 import { plugins } from './plugins'
+import { isStaff } from './access/roles'
 import { defaultLexical } from '@/fields/defaultLexical'
 import { getServerSideURL } from './utilities/getURL'
 
@@ -123,8 +124,8 @@ export default buildConfig({
   jobs: {
     access: {
       run: ({ req }: { req: PayloadRequest }): boolean => {
-        // Allow logged in users to execute this endpoint (default)
-        if (req.user) return true
+        // Staff may run the queue by hand from the admin panel
+        if (isStaff(req.user)) return true
 
         const secret = process.env.CRON_SECRET
         if (!secret) return false

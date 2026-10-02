@@ -3,7 +3,7 @@ import { APIError } from 'payload'
 
 import { getTenantAccess } from '@payloadcms/plugin-multi-tenant/utilities'
 
-import { isSuperAdmin } from '@/access/roles'
+import { isStaff, isSuperAdmin } from '@/access/roles'
 import { HONEYPOT_FIELD } from '@/utilities/honeypot'
 
 const MAX_FIELDS = 30
@@ -40,7 +40,7 @@ export const protectSubmission: CollectionBeforeChangeHook = async ({ data, oper
     throw new APIError('Your message could not be sent.', 400, undefined, true)
   }
 
-  if (!req.user) {
+  if (!isStaff(req.user)) {
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'
     if (rateLimited(ip)) {
       throw new APIError(
@@ -133,7 +133,7 @@ export const submissionTenantField: Field = {
 
 /** Super admins see all enquiries; editors see only their brands'; the public sees none. */
 export const readSubmissions: Access = ({ req: { user } }) => {
-  if (!user) return false
+  if (!isStaff(user)) return false
   if (isSuperAdmin(user)) return true
   return getTenantAccess({ fieldName: 'tenant', user: user as never })
 }
