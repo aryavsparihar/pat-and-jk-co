@@ -10,18 +10,26 @@ import { POST as savePartner } from '@/app/(frontend)/next/members/application/p
 import { GET as getApplication } from '@/app/(frontend)/next/members/application/route'
 import { POST as saveStep } from '@/app/(frontend)/next/members/application/step/route'
 import { POST as submitArtist } from '@/app/(frontend)/next/members/application/submit/route'
+import { POST as saveKycStep } from '@/app/(frontend)/next/members/kyc/route'
 import { POST as uploadPicture } from '@/app/(frontend)/next/members/portfolio/route'
 import { POST as requestCode } from '@/app/(frontend)/next/members/request-code/route'
 import { ensureApplication } from '@/members/accounts'
 import { decideApplication } from '@/members/decide'
 import { checkFormToken, createFormToken } from '@/members/formToken'
-import { cleanImage, isOwnIncomingBlob, PortfolioError } from '@/members/portfolio'
+import {
+  cleanImage,
+  isOwnIncomingBlob,
+  PORTFOLIO_MIN_LONG_SIDE,
+  PortfolioError,
+} from '@/members/portfolio'
 import { createSession } from '@/security/memberSession'
 import { MEMBER_COOKIE } from '@/security/constants'
 import type { User } from '@/payload-types'
 import { execute } from '@/utilities/sql'
 
 import { openApplicationsForTests } from '../helpers/applicationsOpen'
+import { goodKyc, removeKycFor } from '../helpers/kyc'
+import { storeKycDocument } from '@/kyc/service'
 
 /*
  * The onboarding, through the real route handlers: saving steps, pictures, sending, and the
@@ -119,6 +127,7 @@ const cleanup = async () => {
   })
   for (const image of images.docs)
     await payload.delete({ collection: 'portfolio-images', id: image.id, overrideAccess: true })
+  await removeKycFor(payload, like)
   await execute(
     payload,
     sql`DELETE FROM member_sessions WHERE member_id IN (SELECT id FROM members WHERE email LIKE ${like})`,
@@ -219,7 +228,17 @@ describe('pictures of the work', () => {
     await expect(cleanImage(Buffer.from('GIF89a not really'))).rejects.toBeInstanceOf(
       PortfolioError,
     )
-    await expect(cleanImage(await photo('jpeg', 400, 300))).rejects.toThrow(/small/)
+  })
+
+  it('take a small picture as it is, with no minimum size for now', async () => {
+    expect(PORTFOLIO_MIN_LONG_SIDE).toBeNull()
+    const small = await cleanImage(await photo('jpeg', 400, 300))
+    expect([small.width, small.height]).toEqual([400, 300])
+  })
+
+  it('shrink a very large picture to 4000 px, and keep its proportions', async () => {
+    const large = await cleanImage(await photo('jpeg', 6000, 3000))
+    expect([large.width, large.height]).toEqual([4000, 2000])
   })
 
   it('are only imported from this artist’s own folder in our Blob store', () => {
@@ -300,8 +319,21 @@ describe('an artist application', () => {
     )
   })
 
+  it('kindly refuses an applicant under 18, on the server', async () => {
+    const { cookie } = await applicant('artist')
+    const born = new Date()
+    born.setUTCFullYear(born.getUTCFullYear() - 17)
+    const response = await call(saveStep, cookie, {
+      step: 'about',
+      data: { ...goodSteps.about, dateOfBirth: born.toISOString().slice(0, 10) },
+    })
+    expect(response.status).toBe(422)
+    const { errors } = (await response.json()) as { errors: Record<string, string> }
+    expect(errors.dateOfBirth).toMatch(/18 or over/)
+  })
+
   it('cannot be sent until every step is right, then cannot be changed', async () => {
-    const { cookie, application } = await applicant('artist')
+    const { cookie, application, member } = await applicant('artist')
     const early = await call(submitArtist, cookie, {})
     expect(early.status).toBe(422)
 
@@ -322,6 +354,16 @@ describe('an artist application', () => {
       heightCm: 90,
     }))
     expect((await call(saveStep, cookie, { step: 'portfolio', data: { works } })).status).toBe(200)
+    // Identity and bank details go through their own endpoint, encrypted (tests/int/kyc.int.spec.ts)
+    expect((await call(saveStep, cookie, { step: 'kyc', data: {} })).status).toBeGreaterThanOrEqual(
+      400,
+    )
+    const passport = await storeKycDocument(payload, {
+      member,
+      kind: 'other-id',
+      bytes: Buffer.from('%PDF-1.7\n% a made-up passport page\n%%EOF\n'),
+    })
+    expect((await call(saveKycStep, cookie, goodKyc({ 'other-id': passport.id }))).status).toBe(200)
     expect((await call(saveStep, cookie, { step: 'review', data: goodSteps.review })).status).toBe(
       200,
     )

@@ -151,6 +151,10 @@ export const plugins: Plugin[] = [
   vercelBlobStorage({
     // Enabled automatically on Vercel once a Blob store is connected; local dev writes to public/media
     enabled: Boolean(process.env.BLOB_READ_WRITE_TOKEN),
+    // Add the plugin's fields (the per-file `prefix` above all) whether or not it is enabled, so
+    // the schema is the same locally, where migrations are generated, as on Vercel. Without this,
+    // portfolio_images had no `prefix` column and every query on it failed once deployed.
+    alwaysInsertFields: true,
     clientUploads: true,
     collections: {
       media: true,

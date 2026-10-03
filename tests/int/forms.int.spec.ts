@@ -9,7 +9,15 @@ import {
   practiceSchema,
 } from '@/members/forms/schemas'
 import { STATES_AND_TERRITORIES } from '@/members/forms/india'
-import { ageOn, instagramUrl, isGstin, isPin, isWebUrl, toE164 } from '@/members/forms/validators'
+import {
+  ageOn,
+  instagramUrl,
+  isGstin,
+  isPin,
+  isWebUrl,
+  todayInIndia,
+  toE164,
+} from '@/members/forms/validators'
 
 /* Every person and number here is made up. */
 
@@ -65,6 +73,13 @@ describe('validators', () => {
     expect(ageOn('2008-10-02', today)).toBe(18)
     expect(ageOn('2008-10-03', today)).toBe(17)
     expect(ageOn('2026-02-30', today)).toBeNull()
+  })
+
+  it('count birthdays by the day in India', () => {
+    // 00:30 in India on 2 October is still 1 October in UTC
+    const justAfterMidnight = new Date(Date.UTC(2026, 9, 1, 19, 0))
+    expect(ageOn('2008-10-02', todayInIndia(justAfterMidnight))).toBe(18)
+    expect(ageOn('2008-10-02', justAfterMidnight)).toBe(17)
   })
 
   it('list every state and union territory once', () => {

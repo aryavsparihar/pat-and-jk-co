@@ -99,13 +99,30 @@ export async function POST(request: Request) {
     const image = await ingestPortfolioImage(payload, member, bytes)
     return withRefresh(reply({ image: imageView(image) }, { status: 201 }), auth.refresh)
   } catch (error) {
-    if (error instanceof PortfolioError)
+    // The applicant sees a refusal's own words, or a generic message; staff see why in the logs.
+    // The member's number only, never their email or the file's name.
+    if (error instanceof PortfolioError) {
+      payload.logger.info({
+        msg: 'Portfolio upload refused',
+        member: member.id,
+        status: error.status,
+        reason: error.message,
+        via: incoming ? 'blob' : 'direct',
+      })
       return reply({ message: error.message }, { status: error.status })
-    payload.logger.error({ err: error, msg: 'Portfolio upload failed' })
+    }
+    payload.logger.error({
+      err: error,
+      msg: 'Portfolio upload failed',
+      member: member.id,
+      via: incoming ? 'blob' : 'direct',
+    })
     return reply({ message: 'That picture could not be saved. Please try again.' }, { status: 500 })
   } finally {
     // The raw upload is never kept: only the cleaned copy is
-    if (incoming) await del(incoming).catch(() => undefined)
+    // The incoming folder is in the public media store: its token, never a fallback credential
+    if (incoming)
+      await del(incoming, { token: process.env.BLOB_READ_WRITE_TOKEN }).catch(() => undefined)
   }
 }
 

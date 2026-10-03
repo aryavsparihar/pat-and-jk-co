@@ -69,7 +69,10 @@ export const aboutSchema = z.object({
     .string({ error: 'Please add your date of birth.' })
     .trim()
     .refine((v) => ageOn(v) !== null, 'Please use the date picker, or the form YYYY-MM-DD.')
-    .refine((v) => (ageOn(v) ?? 0) >= 18, 'We can only work with artists who are 18 or over.')
+    .refine(
+      (v) => (ageOn(v) ?? 0) >= 18,
+      'Thank you for thinking of us. We can only work with artists who are 18 or over, and we would be glad to hear from you then.',
+    )
     .refine((v) => (ageOn(v) ?? 0) <= 120, 'Please check the year.'),
   phone,
   language: z.enum(LANGUAGES, { error: 'Please choose a language.' }),
@@ -261,8 +264,11 @@ export const declarationsSchema = z.object({
   }),
 })
 
-/** The artist's steps, in order. KYC sits between the portfolio and the review (Phase 5). */
-export const ARTIST_STEPS = ['about', 'address', 'practice', 'portfolio', 'review'] as const
+/**
+ * The artist's steps, in order. Identity and bank details (kyc) have their own endpoint and their
+ * own checks (src/kyc), so the generic step saver refuses that step and its schema here is empty.
+ */
+export const ARTIST_STEPS = ['about', 'address', 'practice', 'portfolio', 'kyc', 'review'] as const
 export type ArtistStep = (typeof ARTIST_STEPS)[number]
 
 export const ARTIST_STEP_SCHEMAS = {
@@ -270,6 +276,7 @@ export const ARTIST_STEP_SCHEMAS = {
   address: addressStepSchema,
   practice: practiceSchema,
   portfolio: portfolioSchema,
+  kyc: z.object({}),
   review: declarationsSchema,
 } as const
 

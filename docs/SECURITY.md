@@ -74,6 +74,13 @@ decides access here. Two layers make sure of it:
 
 `tests/int/access.int.spec.ts` signs in as a non-staff user and checks both layers.
 
+**Both cookies at once.** A browser can carry a staff session and a member session together (a
+member of staff who has tried the artist form). Payload stops at the first auth strategy that
+recognises someone and runs its staff JWT strategy last by default, which let the member win.
+`src/security/strategyOrder.ts` moves it to the front at start-up, so the staff session wins in
+`/admin` and the staff APIs; with only a member cookie nothing changes, and members still never
+reach `/admin`. `tests/int/session-precedence.int.spec.ts` checks both.
+
 ## Members
 
 Artists and partners sign in with a one-time code and nothing else (the page, `/collaborate/signin`, comes with the onboarding).
@@ -97,6 +104,40 @@ Every member session ends at once; staff are unaffected.
 The staff gate now shares this code-checking implementation. Its rules and messages are unchanged,
 but two flaws went with the move: parallel guesses could each be compared before the attempt limit
 applied, and the failure response was a single shared object, which can only be read once.
+
+## Identity and bank details (KYC)
+
+Encrypted field by field under a key kept only in the environment, shown masked, revealed only to
+KYC reviewers with a logged reason, and deleted on a schedule. The whole design, its retention
+rules and its threat model are in [KYC.md](KYC.md).
+
+### Aadhaar
+
+Every artist gives a **PAN**: we need it to pay them and for tax. They also give a second ID with
+an address: by default a **masked e-Aadhaar**, the PDF UIDAI issues with the first eight digits
+hidden, with its last four digits; or, as an equal choice with no extra steps, a passport, voter
+ID or driving licence, checked by hand. A private company may not make Aadhaar compulsory, which is
+why the choice is a real one. We never accept, store or display a full Aadhaar number. Why:
+
+- The Aadhaar Act limits how Aadhaar numbers may be collected and used, and UIDAI requires anyone
+  who stores them to keep them in a separate, specially secured Aadhaar Data Vault. We are not set
+  up for that, and have no need to be: we do not authenticate anyone with Aadhaar. (Our lawyer or
+  CA should confirm this reading along with the privacy notice.)
+- Four digits and a masked copy are enough for a person to check that the document matches the
+  person and the address, which is all we use it for.
+- A number we never hold cannot leak. The server refuses twelve digits with a message that does
+  not repeat them, and the log redaction would remove them in any case. If an uploaded PDF turns
+  out to be unmasked, the check deletes it rather than keep it.
+
+**The e-Aadhaar PDF's password** opens the file once, in memory, for the advisory signature and
+details check (docs/KYC.md#verification). It is never stored, never logged (the logger drops any
+`password` field, and request bodies are never logged), and never sent back.
+
+**Offline e-KYC (not built).** UIDAI's signed offline e-KYC (the XML in a ZIP opened with a share
+code, or the Secure QR) would let us confirm a name, date of birth and address without ever seeing
+the Aadhaar number. It is not used yet: since the 2025 amendments to the Aadhaar (Authentication
+and Offline Verification) Regulations, at least the XML route needs registration with UIDAI as an
+Offline Verification Seeking Entity, and that is a decision for the business and its lawyer first.
 
 ## Logs
 

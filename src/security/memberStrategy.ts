@@ -5,7 +5,8 @@ import { readMemberCookie, readSession } from './memberSession'
 /**
  * How Payload recognises a member: by the session cookie, and nothing else. Members have no
  * password and no Payload token. Runs for any request carrying the cookie; a request without it
- * costs nothing. Staff come first in the strategy order, so a staff session always wins.
+ * costs nothing. Payload would run this before its staff JWT strategy, so the order is changed
+ * at start-up and a staff session wins when both cookies are present (src/security/strategyOrder.ts).
  */
 export const memberSessionStrategy: AuthStrategy = {
   name: 'member-session',

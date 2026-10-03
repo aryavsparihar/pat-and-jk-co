@@ -23,15 +23,22 @@ export const tidy = (value: unknown): unknown => {
   return value
 }
 
-export const stepValues = (step: ArtistStep, app: Partial<Application>): Record<string, unknown> => {
+export const stepValues = (
+  step: ArtistStep,
+  app: Partial<Application>,
+): Record<string, unknown> => {
   switch (step) {
     case 'about':
-      return tidy({ ...app.about, dateOfBirth: app.about?.dateOfBirth?.slice(0, 10) }) as Record<string, unknown>
+      return tidy({ ...app.about, dateOfBirth: app.about?.dateOfBirth?.slice(0, 10) }) as Record<
+        string,
+        unknown
+      >
     case 'address':
       return tidy({
         residence: { country: 'India', ...app.address?.residence },
         correspondenceSame: app.address?.correspondenceSame ?? true,
-        correspondence: app.address?.correspondenceSame === false ? app.address?.correspondence : undefined,
+        correspondence:
+          app.address?.correspondenceSame === false ? app.address?.correspondence : undefined,
       }) as Record<string, unknown>
     case 'practice':
       return tidy({ mediums: [], recognition: [], ...app.practice }) as Record<string, unknown>
@@ -39,6 +46,9 @@ export const stepValues = (step: ArtistStep, app: Partial<Application>): Record<
       return {
         works: (app.portfolio ?? []).map((work) => tidy({ ...work, image: idOf(work.image) })),
       }
+    case 'kyc':
+      // Never returned to the browser: the KYC step shows masked values from its own endpoint
+      return {}
     case 'review':
       return tidy({
         originalWork: app.declarations?.originalWork ?? false,

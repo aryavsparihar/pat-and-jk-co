@@ -9,6 +9,8 @@ import { fileURLToPath } from 'url'
 import { AccessRequests } from './collections/AccessRequests'
 import { Applications } from './collections/Applications'
 import { Categories } from './collections/Categories'
+import { KycDocuments } from './collections/KycDocuments'
+import { KycRecords } from './collections/KycRecords'
 import { LoginChallenges } from './collections/LoginChallenges'
 import { Members } from './collections/Members'
 import { MemberSessions } from './collections/MemberSessions'
@@ -32,7 +34,8 @@ import { plugins } from './plugins'
 import { guardMemberAccess } from './access/memberGuard'
 import { isStaff } from './access/roles'
 import { defaultLexical } from '@/fields/defaultLexical'
-import { getServerSideURL } from './utilities/getURL'
+import { putStaffSessionFirst } from './security/strategyOrder'
+import { trustedOrigins } from './utilities/getURL'
 
 // Fails fast, naming every missing or malformed variable (src/env.ts)
 const env = loadEnv()
@@ -40,11 +43,9 @@ const env = loadEnv()
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 
-// Extra origins allowed to call the API with cookies (e.g. additional brand domains)
-const allowedOrigins = [
-  getServerSideURL(),
-  ...(process.env.ALLOWED_ORIGINS?.split(',').map((o) => o.trim()) ?? []),
-].filter(Boolean)
+// Origins allowed to call the API with cookies: the site's URL and ALLOWED_ORIGINS, or on a
+// Preview deployment its own URLs (src/utilities/getURL.ts)
+const allowedOrigins = trustedOrigins()
 
 export default buildConfig({
   admin: {
@@ -133,6 +134,8 @@ export default buildConfig({
     Members,
     Applications,
     PortfolioImages,
+    KycRecords,
+    KycDocuments,
     AccessRequests,
     SecurityEvents,
     LoginChallenges,
@@ -158,6 +161,8 @@ export default buildConfig({
     : undefined,
   // JSON lines in production, with personal data redacted from every line (src/observability)
   logger: createLogger(),
+  // Staff session before member session when a request carries both (src/security/strategyOrder.ts)
+  onInit: async (payload) => putStaffSessionFirst(payload),
   plugins,
   secret: env.PAYLOAD_SECRET,
   sharp,

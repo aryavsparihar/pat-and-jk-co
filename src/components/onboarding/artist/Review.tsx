@@ -1,9 +1,10 @@
 'use client'
 
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 
 import { LANGUAGES, MEDIUMS, PRICE_RANGES } from '@/members/forms/schemas'
 
+import { api } from '../api'
 import { Check } from '../fields'
 import type { StepProps, Values } from './steps'
 
@@ -39,6 +40,24 @@ export const ReviewStep: React.FC<
   const address = all.address ?? {}
   const practice = all.practice ?? {}
   const works: Values[] = all.portfolio?.works ?? []
+  const [kyc, setKyc] = useState<{
+    panMasked: string | null
+    aadhaarMasked: string | null
+    idChoice: 'aadhaar' | 'other' | null
+    otherIdKind: string | null
+    bank: { accountMasked: string; bankName: string }
+  } | null>(null)
+
+  // Only the masked view ever reaches the browser
+  useEffect(() => {
+    let current = true
+    void api<{ kyc: typeof kyc }>('/next/members/kyc').then((r) => {
+      if (current) setKyc(r.data.kyc ?? null)
+    })
+    return () => {
+      current = false
+    }
+  }, [])
 
   const sections: Section[] = [
     {
@@ -87,6 +106,29 @@ export const ReviewStep: React.FC<
       step: 'portfolio',
       title: 'Your work',
       rows: [['Works', works.length ? works.map((w) => w.title || 'Untitled').join(', ') : '—']],
+    },
+    {
+      step: 'kyc',
+      title: 'Identity and bank',
+      rows: [
+        ['PAN', kyc?.panMasked],
+        ...(kyc?.aadhaarMasked ? [['Aadhaar', kyc.aadhaarMasked] as [string, string]] : []),
+        ...(kyc?.idChoice === 'other'
+          ? [
+              [
+                'ID',
+                (
+                  {
+                    passport: 'Passport',
+                    'voter-id': 'Voter ID',
+                    'driving-licence': 'Driving licence',
+                  } as Record<string, string>
+                )[kyc.otherIdKind ?? ''] ?? 'Another ID',
+              ] as [string, string],
+            ]
+          : []),
+        ['Account', kyc ? `${kyc.bank.accountMasked}, ${kyc.bank.bankName}` : undefined],
+      ],
     },
   ]
 

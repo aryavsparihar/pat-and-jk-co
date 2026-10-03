@@ -19,7 +19,13 @@ import { blobEnvironmentPrefix } from './storage'
 
 export const PORTFOLIO_MAX_BYTES = 25 * 1024 * 1024
 const MAX_PIXELS = 50_000_000
-const MIN_LONG_SIDE = 800
+/**
+ * The smallest picture accepted, in pixels on its longest side, for application pictures and the
+ * portfolio alike. Null: no minimum for now. Set a number here to bring one back; the check and
+ * its message are already in place.
+ */
+export const PORTFOLIO_MIN_LONG_SIDE: number | null = null
+/** Larger pictures are shrunk to this; smaller ones are never enlarged */
 const MAX_LONG_SIDE = 4000
 /** Ten works, with room to replace a few pictures along the way */
 export const MAX_IMAGES_PER_MEMBER = 16
@@ -54,9 +60,9 @@ export const cleanImage = async (
     throw new PortfolioError('Please send a JPEG, PNG or WebP picture.')
   }
   const longSide = Math.max(meta.width ?? 0, meta.height ?? 0)
-  if (longSide < MIN_LONG_SIDE) {
+  if (PORTFOLIO_MIN_LONG_SIDE !== null && longSide < PORTFOLIO_MIN_LONG_SIDE) {
     throw new PortfolioError(
-      `That picture is small. Please send one at least ${MIN_LONG_SIDE} pixels on its longest side.`,
+      `That picture is small. Please send one at least ${PORTFOLIO_MIN_LONG_SIDE} pixels on its longest side.`,
     )
   }
 

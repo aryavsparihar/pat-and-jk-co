@@ -42,6 +42,24 @@ export const memberCodeEmail = async (
   payload: Payload,
   { code, purpose }: { code: string; purpose: Purpose },
 ): Promise<BuiltEmail> => {
+  if (purpose === 'step-up') {
+    return buildEmail({
+      subject: 'Confirm a change to your PJK account',
+      preheader: `Your code is ${code}. It expires in ${OTP_TTL_MINUTES} minutes.`,
+      parts: [
+        {
+          kind: 'paragraph',
+          text: 'Here is the code to confirm a change to your account, such as new bank details.',
+        },
+        { kind: 'code', code },
+        {
+          kind: 'note',
+          text: `It expires in ${OTP_TTL_MINUTES} minutes and works once. If you are not changing anything, do not use it, and please tell us: someone may be signed in as you.`,
+        },
+      ],
+      footer: await emailFooter(payload),
+    })
+  }
   const applying = purpose !== 'signin'
   return buildEmail({
     subject: applying ? 'Your PJK verification code' : 'Your PJK sign-in code',
@@ -209,4 +227,115 @@ export const notifyStaffOfApplication = async (
     footer: await emailFooter(payload),
   })
   return send(payload, to, email)
+}
+
+/**
+ * After a change of bank details is requested. Says only that it happened: never the details.
+ * The link lets the real owner stop it if it was not them.
+ */
+export const sendBankChangeNotice = async (
+  payload: Payload,
+  { member, cancelToken }: { member: Member; cancelToken: string },
+): Promise<boolean> =>
+  send(
+    payload,
+    member.email,
+    buildEmail({
+      subject: 'Your bank details were changed',
+      preheader: 'If this was not you, stop the change now.',
+      parts: [
+        {
+          kind: 'paragraph',
+          text: 'Someone signed in to your PJK account and asked to change the bank account we pay you into. We will check the new details before using them; until then, the old ones stay as they are.',
+        },
+        { kind: 'paragraph', text: 'If this was you, there is nothing to do.' },
+        {
+          kind: 'paragraph',
+          text: 'If it was not you, stop the change now. We will sign everyone out of your account, and you should then tell us at once.',
+        },
+        {
+          kind: 'link',
+          label: 'This was not me',
+          url: `${getServerSideURL()}/account/bank-change/cancel?t=${encodeURIComponent(cancelToken)}`,
+        },
+      ],
+      footer: await emailFooter(payload),
+    }),
+  )
+
+/** Where staff notices go: the technical inbox, else the business one, else the contact inbox */
+const staffInbox = async (payload: Payload): Promise<string | undefined> => {
+  const settings = (
+    await payload.find({
+      collection: 'site-settings',
+      where: { 'tenant.slug': { equals: process.env.DEFAULT_TENANT_SLUG || 'pjk' } },
+      limit: 1,
+      depth: 0,
+      overrideAccess: true,
+    })
+  ).docs[0]
+  return (
+    settings?.technicalEmail ||
+    settings?.businessEmail ||
+    settings?.email ||
+    process.env.CONTACT_INBOX ||
+    undefined
+  )
+}
+
+/** Staff are told a change of bank details is waiting, or was stopped; nothing more */
+export const notifyStaffOfBankChange = async (
+  payload: Payload,
+  { reference, cancelled }: { reference?: string | null; cancelled?: boolean },
+): Promise<boolean> => {
+  const to = await staffInbox(payload)
+  if (!to) return false
+  return send(
+    payload,
+    to,
+    buildEmail({
+      subject: cancelled
+        ? `Bank change stopped by the member: ${reference ?? ''}`
+        : `Bank details change waiting: ${reference ?? ''}`,
+      preheader: cancelled
+        ? 'They said it was not them. Their sessions have been ended.'
+        : 'Check the new details before approving them.',
+      parts: [
+        {
+          kind: 'paragraph',
+          text: cancelled
+            ? `The member behind ${reference ?? 'this account'} said they did not ask to change their bank details. The change has been stopped and every session on the account ended. Please contact them.`
+            : `A member (${reference ?? 'see the admin'}) has asked to change their bank details. Check the new details and the documents, then approve the change in the KYC record.`,
+        },
+      ],
+      footer: await emailFooter(payload),
+    }),
+  )
+}
+
+/**
+ * Staff are told a member has asked something about their data: a copy, deletion, or withdrawing
+ * consent. Only the kind and the member's reference; staff look the rest up in the admin.
+ */
+export const notifyStaffOfDataRequest = async (
+  payload: Payload,
+  { reference, request }: { reference?: string | null; request: string },
+): Promise<boolean> => {
+  const to = await staffInbox(payload)
+  if (!to) return false
+  return send(
+    payload,
+    to,
+    buildEmail({
+      subject: `Data request: ${reference ?? 'a member'}`,
+      preheader: 'The law gives us a limited time to answer it.',
+      parts: [
+        {
+          kind: 'paragraph',
+          text: `A member (${reference ?? 'see Security events in the admin'}) has asked: ${request}. Please deal with it as docs/KYC.md describes, and write to them when it is done.`,
+        },
+      ],
+      footer: await emailFooter(payload),
+    }),
+  )
 }

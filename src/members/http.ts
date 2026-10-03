@@ -3,19 +3,14 @@ import { getPayload, type Payload } from 'payload'
 
 import type { Member } from '@/payload-types'
 import { readMemberCookie, readSession } from '@/security/memberSession'
-import { getServerSideURL } from '@/utilities/getURL'
+import { trustedOrigins } from '@/utilities/getURL'
 import { HONEYPOT_FIELD } from '@/utilities/honeypot'
 
 /**
  * Small pieces every member endpoint shares.
  */
 
-const allowedOrigins = () =>
-  new Set(
-    [getServerSideURL(), ...(process.env.ALLOWED_ORIGINS?.split(',') ?? [])]
-      .map((o) => o.trim().replace(/\/$/, ''))
-      .filter(Boolean),
-  )
+const allowedOrigins = () => new Set(trustedOrigins())
 
 /**
  * State-changing member requests must come from the site's own pages. The session cookie is

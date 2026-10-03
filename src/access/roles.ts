@@ -29,6 +29,18 @@ export const isMember = (user: unknown): user is { id: number; collection: 'memb
 export const isSuperAdmin = (user?: unknown): boolean =>
   isStaff(user) && Boolean(user.roles?.includes('super-admin'))
 
+/**
+ * Who may see identity and bank details, and only ever through the logged reveal: super admins
+ * and staff given the KYC reviewer role. Editors never can.
+ */
+export const isKycReviewer = (
+  user?: unknown,
+): user is User & { collection: typeof STAFF_COLLECTION } =>
+  isStaff(user) &&
+  Boolean(user.roles?.some((role) => role === 'super-admin' || role === 'kyc-reviewer'))
+
+export const kycReviewerOnly: Access = ({ req: { user } }) => isKycReviewer(user)
+
 export const superAdminOnly: Access = ({ req: { user } }) => isSuperAdmin(user)
 
 export const superAdminOnlyField: FieldAccess = ({ req: { user } }) => isSuperAdmin(user)

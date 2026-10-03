@@ -52,8 +52,11 @@ git push -u origin main
 | `EMAIL_FROM_ADDRESS` | `noreply@pjk.co.in` |
 | `EMAIL_FROM_NAME` | `PAT and J.K. Co.` |
 | `CONTACT_INBOX` | `hello@pjk.co.in` |
+| `KYC_ENCRYPTION_KEY` | `openssl rand -base64 32`. Encrypts identity and bank details. Use a different key for Preview. Keep an offline copy: losing it loses every KYC record. See [KYC.md](KYC.md) |
+| `KYC_BLIND_INDEX_KEY` | another `openssl rand -base64 32`, never the same as the encryption key. Finds duplicate PANs and accounts without decrypting |
+| `KYC_STORE_ID` | set by Vercel when you create a second, **private** Blob store (Storage → Create → Blob, access Private, named `pjk-kyc`) and connect it to Production and Preview with the prefix `KYC`. It is reached with the deployment's OIDC token, so there is no token to copy. Vercel also adds `KYC_WEBHOOK_PUBLIC_KEY`, which the site does not use |
 
-The app checks these when it starts (`src/env.ts`). If one is missing or malformed, the build stops with a list naming each problem, and the live site carries on running the previous deployment. In production `NEXT_PUBLIC_SERVER_URL`, `RESEND_API_KEY` and `BLOB_READ_WRITE_TOKEN` are required as well.
+The app checks these when it starts (`src/env.ts`). If one is missing or malformed, the build stops with a list naming each problem, and the live site carries on running the previous deployment. In production `NEXT_PUBLIC_SERVER_URL`, `RESEND_API_KEY`, `BLOB_READ_WRITE_TOKEN`, `KYC_ENCRYPTION_KEY`, `KYC_BLIND_INDEX_KEY` and `KYC_STORE_ID` are required as well.
 
 5. Deploy. The first deploy creates all database tables.
 
@@ -92,7 +95,7 @@ Which inbox receives each form is set per form under **Enquiries → Forms → E
 
 ## 7. Scheduled publishing
 
-Editors can schedule pages and posts to publish later. `vercel.json` runs Payload's job queue once a day (the most frequent schedule Vercel's Hobby plan allows). On Vercel Pro, change the schedule to hourly (`0 * * * *`) for finer timing.
+Editors can schedule pages and posts to publish later. `vercel.json` runs Payload's job queue once a day (the most frequent schedule Vercel's Hobby plan allows). On Vercel Pro, change the schedule to hourly (`0 * * * *`) for finer timing. It also runs the KYC purge once a week ([KYC.md](KYC.md#retention)). Both are authorised by `CRON_SECRET`, which must be set in Production.
 
 ## 8. After launch
 

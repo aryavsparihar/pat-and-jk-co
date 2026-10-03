@@ -1,17 +1,22 @@
-import * as migration_20260912_200332_initial from './20260912_200332_initial'
-import * as migration_20260918_171527_admin_gate from './20260918_171527_admin_gate'
-import * as migration_20260918_223130_add_technical_email from './20260918_223130_add_technical_email'
-import * as migration_20260919_131846_add_business_email from './20260919_131846_add_business_email'
-import * as migration_20260924_185422_add_visitor_count from './20260924_185422_add_visitor_count'
-import * as migration_20260924_194443_add_venture_opening from './20260924_194443_add_venture_opening'
-import * as migration_20260924_201500_phulhaar_mark_and_opening from './20260924_201500_phulhaar_mark_and_opening'
-import * as migration_20261002_155740_add_rate_limits from './20261002_155740_add_rate_limits'
-import * as migration_20261002_162508_add_office_address from './20261002_162508_add_office_address'
-import * as migration_20261002_162600_fill_office_address from './20261002_162600_fill_office_address'
-import * as migration_20261002_174436_members_and_applications from './20261002_174436_members_and_applications'
-import * as migration_20261002_181529_application_forms from './20261002_181529_application_forms'
-import * as migration_20261002_182949_paths_block from './20261002_182949_paths_block'
-import * as migration_20261002_183507_applications_switch from './20261002_183507_applications_switch'
+import * as migration_20260912_200332_initial from './20260912_200332_initial';
+import * as migration_20260918_171527_admin_gate from './20260918_171527_admin_gate';
+import * as migration_20260918_223130_add_technical_email from './20260918_223130_add_technical_email';
+import * as migration_20260919_131846_add_business_email from './20260919_131846_add_business_email';
+import * as migration_20260924_185422_add_visitor_count from './20260924_185422_add_visitor_count';
+import * as migration_20260924_194443_add_venture_opening from './20260924_194443_add_venture_opening';
+import * as migration_20260924_201500_phulhaar_mark_and_opening from './20260924_201500_phulhaar_mark_and_opening';
+import * as migration_20261002_155740_add_rate_limits from './20261002_155740_add_rate_limits';
+import * as migration_20261002_162508_add_office_address from './20261002_162508_add_office_address';
+import * as migration_20261002_162600_fill_office_address from './20261002_162600_fill_office_address';
+import * as migration_20261002_174436_members_and_applications from './20261002_174436_members_and_applications';
+import * as migration_20261002_181529_application_forms from './20261002_181529_application_forms';
+import * as migration_20261002_182949_paths_block from './20261002_182949_paths_block';
+import * as migration_20261002_183507_applications_switch from './20261002_183507_applications_switch';
+import * as migration_20261002_191825_kyc from './20261002_191825_kyc';
+import * as migration_20261003_063513_storage_prefix from './20261003_063513_storage_prefix';
+import * as migration_20261003_065247_kyc_legal_hold_event from './20261003_065247_kyc_legal_hold_event';
+import * as migration_20261003_065900_kyc_aadhaar_optional from './20261003_065900_kyc_aadhaar_optional';
+import * as migration_20261003_072617_kyc_identity_choice from './20261003_072617_kyc_identity_choice';
 
 export const migrations = [
   {
@@ -84,4 +89,29 @@ export const migrations = [
     down: migration_20261002_183507_applications_switch.down,
     name: '20261002_183507_applications_switch',
   },
-]
+  {
+    up: migration_20261002_191825_kyc.up,
+    down: migration_20261002_191825_kyc.down,
+    name: '20261002_191825_kyc',
+  },
+  {
+    up: migration_20261003_063513_storage_prefix.up,
+    down: migration_20261003_063513_storage_prefix.down,
+    name: '20261003_063513_storage_prefix',
+  },
+  {
+    up: migration_20261003_065247_kyc_legal_hold_event.up,
+    down: migration_20261003_065247_kyc_legal_hold_event.down,
+    name: '20261003_065247_kyc_legal_hold_event',
+  },
+  {
+    up: migration_20261003_065900_kyc_aadhaar_optional.up,
+    down: migration_20261003_065900_kyc_aadhaar_optional.down,
+    name: '20261003_065900_kyc_aadhaar_optional',
+  },
+  {
+    up: migration_20261003_072617_kyc_identity_choice.up,
+    down: migration_20261003_072617_kyc_identity_choice.down,
+    name: '20261003_072617_kyc_identity_choice'
+  },
+];

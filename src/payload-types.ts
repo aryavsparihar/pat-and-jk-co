@@ -82,6 +82,8 @@ export interface Config {
     members: Member;
     applications: Application;
     'portfolio-images': PortfolioImage;
+    'kyc-records': KycRecord;
+    'kyc-documents': KycDocument;
     'access-requests': AccessRequest;
     'security-events': SecurityEvent;
     'login-challenges': LoginChallenge;
@@ -117,6 +119,8 @@ export interface Config {
     members: MembersSelect<false> | MembersSelect<true>;
     applications: ApplicationsSelect<false> | ApplicationsSelect<true>;
     'portfolio-images': PortfolioImagesSelect<false> | PortfolioImagesSelect<true>;
+    'kyc-records': KycRecordsSelect<false> | KycRecordsSelect<true>;
+    'kyc-documents': KycDocumentsSelect<false> | KycDocumentsSelect<true>;
     'access-requests': AccessRequestsSelect<false> | AccessRequestsSelect<true>;
     'security-events': SecurityEventsSelect<false> | SecurityEventsSelect<true>;
     'login-challenges': LoginChallengesSelect<false> | LoginChallengesSelect<true>;
@@ -403,6 +407,7 @@ export interface Media {
     };
     [k: string]: unknown;
   } | null;
+  prefix?: string | null;
   folder?: (number | null) | FolderInterface;
   updatedAt: string;
   createdAt: string;
@@ -1510,7 +1515,7 @@ export interface VisitorCount {
 export interface User {
   id: number;
   name: string;
-  roles: ('super-admin' | 'editor')[];
+  roles: ('super-admin' | 'editor' | 'kyc-reviewer')[];
   /**
    * Suspending someone blocks sign-in immediately, without deleting their account or their work.
    */
@@ -1688,7 +1693,7 @@ export interface Application {
     interest?: string | null;
     message?: string | null;
   };
-  completedSteps?: ('about' | 'address' | 'practice' | 'portfolio' | 'review')[] | null;
+  completedSteps?: ('about' | 'address' | 'practice' | 'portfolio' | 'kyc' | 'review')[] | null;
   /**
    * Sent with a rejection or a request for changes; the applicant sees it.
    */
@@ -1713,6 +1718,7 @@ export interface PortfolioImage {
   id: number;
   owner: number | Member;
   alt?: string | null;
+  prefix?: string | null;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -1742,6 +1748,104 @@ export interface PortfolioImage {
       filename?: string | null;
     };
   };
+}
+/**
+ * Identity and bank details. Values are encrypted and shown masked; revealing one asks for a reason and is recorded in the security log.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "kyc-records".
+ */
+export interface KycRecord {
+  id: number;
+  member: number | Member;
+  reference?: string | null;
+  keyId?: string | null;
+  wrappedKey?: string | null;
+  idType?: ('pan' | 'aadhaar') | null;
+  panSealed?: string | null;
+  panNameSealed?: string | null;
+  aadhaarLast4Sealed?: string | null;
+  idMasked?: string | null;
+  idChoice?: ('aadhaar' | 'other') | null;
+  otherIdKind?: ('passport' | 'voter-id' | 'driving-licence') | null;
+  aadhaarMasked?: string | null;
+  aadhaarCheck?: {
+    result?: ('verified' | 'not-verified' | 'manual-review') | null;
+    reasons?: string | null;
+    signer?: string | null;
+    signedOn?: string | null;
+    checkedAt?: string | null;
+    mode?: string | null;
+  };
+  addressOnIdMatches?: boolean | null;
+  accountNumberSealed?: string | null;
+  ifscSealed?: string | null;
+  holderNameSealed?: string | null;
+  branchNameSealed?: string | null;
+  accountMasked?: string | null;
+  ifscMasked?: string | null;
+  bankName?: string | null;
+  accountType?: ('savings' | 'current') | null;
+  /**
+   * A warning only. Check before approving.
+   */
+  nameMismatch?: boolean | null;
+  panIndex?: string | null;
+  accountIndex?: string | null;
+  duplicates?: string | null;
+  documents?: (number | KycDocument)[] | null;
+  verification?: {
+    status?: ('unverified' | 'verified' | 'failed') | null;
+    method?: ('manual' | 'penny-drop' | 'pan-service') | null;
+    verifiedAt?: string | null;
+    verifiedBy?: (number | null) | User;
+    providerReference?: string | null;
+  };
+  /**
+   * The current details stay in force until this is approved.
+   */
+  pendingBank?: {
+    pendingAccountNumberSealed?: string | null;
+    pendingIfscSealed?: string | null;
+    pendingHolderNameSealed?: string | null;
+    pendingBranchNameSealed?: string | null;
+    pendingAccountMasked?: string | null;
+    pendingIfscMasked?: string | null;
+    pendingBankName?: string | null;
+    pendingAccountType?: ('savings' | 'current') | null;
+    requestedAt?: string | null;
+    cancelTokenHash?: string | null;
+  };
+  /**
+   * When the artist gave consent. A record: it cannot be changed.
+   */
+  consentedAt?: string | null;
+  /**
+   * Set when the artist withdraws consent. For a withdrawal received by letter or email, use "Record a withdrawal" above.
+   */
+  consentWithdrawnAt?: string | null;
+  /**
+   * Kept until this date even if consent is withdrawn, where the law requires it (e.g. records of payments). Changed only with "Legal hold" above, which logs a reason.
+   */
+  legalHoldUntil?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "kyc-documents".
+ */
+export interface KycDocument {
+  id: number;
+  member: number | Member;
+  kind: 'pan-card' | 'masked-aadhaar' | 'other-id' | 'address-proof' | 'bank-proof';
+  contentType: string;
+  size?: number | null;
+  storageKey: string;
+  keyId: string;
+  wrappedKey: string;
+  updatedAt: string;
+  createdAt: string;
 }
 /**
  * People asking for an admin account. Approving one creates their account and emails them a link to set a password. Only @pjk.co.in addresses can ask.
@@ -1800,7 +1904,18 @@ export interface SecurityEvent {
     | 'application-submitted'
     | 'application-approved'
     | 'application-rejected'
-    | 'application-changes-requested';
+    | 'application-changes-requested'
+    | 'kyc-saved'
+    | 'kyc-revealed'
+    | 'kyc-document-opened'
+    | 'kyc-bank-change-requested'
+    | 'kyc-bank-change-cancelled'
+    | 'kyc-bank-change-approved'
+    | 'kyc-consent-withdrawn'
+    | 'kyc-purged'
+    | 'data-request'
+    | 'kyc-legal-hold-changed'
+    | 'kyc-aadhaar-checked';
   email?: string | null;
   ip?: string | null;
   detail?: string | null;
@@ -1823,7 +1938,7 @@ export interface LoginChallenge {
   ip?: string | null;
   deliverable?: boolean | null;
   audience: 'staff' | 'member';
-  purpose?: ('signin' | 'apply-artist' | 'apply-partner') | null;
+  purpose?: ('signin' | 'apply-artist' | 'apply-partner' | 'step-up') | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -2077,6 +2192,14 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'portfolio-images';
         value: number | PortfolioImage;
+      } | null)
+    | ({
+        relationTo: 'kyc-records';
+        value: number | KycRecord;
+      } | null)
+    | ({
+        relationTo: 'kyc-documents';
+        value: number | KycDocument;
       } | null)
     | ({
         relationTo: 'access-requests';
@@ -2533,6 +2656,7 @@ export interface MediaSelect<T extends boolean = true> {
   tenant?: T;
   alt?: T;
   caption?: T;
+  prefix?: T;
   folder?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -3006,6 +3130,7 @@ export interface ApplicationsSelect<T extends boolean = true> {
 export interface PortfolioImagesSelect<T extends boolean = true> {
   owner?: T;
   alt?: T;
+  prefix?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;
@@ -3041,6 +3166,91 @@ export interface PortfolioImagesSelect<T extends boolean = true> {
               filename?: T;
             };
       };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "kyc-records_select".
+ */
+export interface KycRecordsSelect<T extends boolean = true> {
+  member?: T;
+  reference?: T;
+  keyId?: T;
+  wrappedKey?: T;
+  idType?: T;
+  panSealed?: T;
+  panNameSealed?: T;
+  aadhaarLast4Sealed?: T;
+  idMasked?: T;
+  idChoice?: T;
+  otherIdKind?: T;
+  aadhaarMasked?: T;
+  aadhaarCheck?:
+    | T
+    | {
+        result?: T;
+        reasons?: T;
+        signer?: T;
+        signedOn?: T;
+        checkedAt?: T;
+        mode?: T;
+      };
+  addressOnIdMatches?: T;
+  accountNumberSealed?: T;
+  ifscSealed?: T;
+  holderNameSealed?: T;
+  branchNameSealed?: T;
+  accountMasked?: T;
+  ifscMasked?: T;
+  bankName?: T;
+  accountType?: T;
+  nameMismatch?: T;
+  panIndex?: T;
+  accountIndex?: T;
+  duplicates?: T;
+  documents?: T;
+  verification?:
+    | T
+    | {
+        status?: T;
+        method?: T;
+        verifiedAt?: T;
+        verifiedBy?: T;
+        providerReference?: T;
+      };
+  pendingBank?:
+    | T
+    | {
+        pendingAccountNumberSealed?: T;
+        pendingIfscSealed?: T;
+        pendingHolderNameSealed?: T;
+        pendingBranchNameSealed?: T;
+        pendingAccountMasked?: T;
+        pendingIfscMasked?: T;
+        pendingBankName?: T;
+        pendingAccountType?: T;
+        requestedAt?: T;
+        cancelTokenHash?: T;
+      };
+  consentedAt?: T;
+  consentWithdrawnAt?: T;
+  legalHoldUntil?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "kyc-documents_select".
+ */
+export interface KycDocumentsSelect<T extends boolean = true> {
+  member?: T;
+  kind?: T;
+  contentType?: T;
+  size?: T;
+  storageKey?: T;
+  keyId?: T;
+  wrappedKey?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

@@ -23,23 +23,29 @@ const secret = (min: number) =>
     .min(min, `is too short: at least ${min} characters (${GENERATE})`)
 
 const optionalSecret = (min: number) =>
-  z
-    .string()
-    .trim()
-    .min(min, `is too short: at least ${min} characters (${GENERATE})`)
-    .optional()
+  z.string().trim().min(min, `is too short: at least ${min} characters (${GENERATE})`).optional()
 
 /** Empty strings in .env files mean "not set" */
 const blankToUndefined = (value: unknown) =>
   typeof value === 'string' && value.trim() === '' ? undefined : value
 
-const optional = <T extends z.ZodType>(schema: T) => z.preprocess(blankToUndefined, schema.optional())
+const optional = <T extends z.ZodType>(schema: T) =>
+  z.preprocess(blankToUndefined, schema.optional())
 
 const origin = z
   .url({ error: 'must be a full URL such as https://pjk.co.in' })
   .refine((v) => !v.endsWith('/'), 'must not end with a slash')
 
 const email = z.email({ error: 'must be an email address' })
+
+/** A 32-byte key, base64-encoded, for the KYC encryption (src/kyc/crypto.ts) */
+const kycKey = z
+  .string()
+  .trim()
+  .refine(
+    (v) => /^[A-Za-z0-9+/]+={0,2}$/.test(v) && Buffer.from(v, 'base64').length === 32,
+    'must be 32 bytes, base64-encoded (generate one with: openssl rand -base64 32)',
+  )
 
 const schema = z.object({
   // Required everywhere
@@ -54,17 +60,15 @@ const schema = z.object({
   CRON_SECRET: optional(optionalSecret(16)),
   DEFAULT_TENANT_SLUG: optional(z.string().regex(/^[a-z0-9-]+$/, 'must be a brand slug, e.g. pjk')),
   ALLOWED_ORIGINS: optional(
-    z
-      .string()
-      .refine(
-        (v) =>
-          v
-            .split(',')
-            .map((o) => o.trim())
-            .filter(Boolean)
-            .every((o) => origin.safeParse(o).success),
-        'must be a comma-separated list of origins such as https://phulhaar.com',
-      ),
+    z.string().refine(
+      (v) =>
+        v
+          .split(',')
+          .map((o) => o.trim())
+          .filter(Boolean)
+          .every((o) => origin.safeParse(o).success),
+      'must be a comma-separated list of origins such as https://phulhaar.com',
+    ),
   ),
   ADMIN_EMAIL_DOMAIN: optional(z.string().regex(/^[a-z0-9.-]+\.[a-z]{2,}$/i, 'must be a domain')),
 
@@ -84,6 +88,22 @@ const schema = z.object({
   BLOB_READ_WRITE_TOKEN: optional(
     z.string().startsWith('vercel_blob_rw_', 'must be a Vercel Blob read-write token'),
   ),
+
+  // KYC (docs/KYC.md). Two different keys, both kept offline as well: losing the encryption key
+  // loses every KYC record. The previous key is set only while rotating (pnpm kyc:rotate-key)
+  KYC_ENCRYPTION_KEY: optional(kycKey),
+  KYC_ENCRYPTION_KEY_PREVIOUS: optional(kycKey),
+  KYC_BLIND_INDEX_KEY: optional(kycKey),
+  // The private Blob store for identity documents (pjk-kyc), reached with the deployment's OIDC
+  // token: no read-write token exists for it, by design (src/kyc/documentStore.ts)
+  KYC_STORE_ID: optional(
+    z
+      .string()
+      .trim()
+      .regex(/^store_[A-Za-z0-9]+$/, 'must be a Blob store ID (store_…)'),
+  ),
+  // Set by Vercel with the public media store; read only to make sure KYC never uses it
+  BLOB_STORE_ID: optional(z.string().trim()),
 
   // Set by Vercel
   VERCEL_ENV: optional(z.enum(['production', 'preview', 'development'])),
@@ -105,6 +125,12 @@ const productionRequirements: { key: keyof Env; why: string }[] = [
   {
     key: 'BLOB_READ_WRITE_TOKEN',
     why: 'without it, uploads are written to a serverless disk that is thrown away',
+  },
+  { key: 'KYC_ENCRYPTION_KEY', why: 'identity and bank details are encrypted with it' },
+  { key: 'KYC_BLIND_INDEX_KEY', why: 'duplicate PANs and accounts are found with it' },
+  {
+    key: 'KYC_STORE_ID',
+    why: 'identity documents are kept in the private Blob store pjk-kyc, never the public one',
   },
 ]
 
@@ -129,6 +155,27 @@ export const parseEnv = (source: Record<string, string | undefined>): EnvResult 
     }
     if (env.NEXT_PUBLIC_SERVER_URL && !env.NEXT_PUBLIC_SERVER_URL.startsWith('https://')) {
       problems.push('NEXT_PUBLIC_SERVER_URL must use https:// in production')
+    }
+  }
+
+  if (parsed.success) {
+    const same = (a?: string, b?: string) => Boolean(a && b && a.trim() === b.trim())
+    if (same(env.KYC_ENCRYPTION_KEY, env.KYC_BLIND_INDEX_KEY)) {
+      problems.push('KYC_BLIND_INDEX_KEY must be a different key from KYC_ENCRYPTION_KEY')
+    }
+    if (same(env.KYC_ENCRYPTION_KEY, env.KYC_ENCRYPTION_KEY_PREVIOUS)) {
+      problems.push('KYC_ENCRYPTION_KEY_PREVIOUS must be the old key, not the current one')
+    }
+    if (env.KYC_ENCRYPTION_KEY_PREVIOUS && !env.KYC_ENCRYPTION_KEY) {
+      problems.push('KYC_ENCRYPTION_KEY_PREVIOUS is set without KYC_ENCRYPTION_KEY')
+    }
+    const storeId = (v?: string) =>
+      v
+        ?.trim()
+        .replace(/^store_/i, '')
+        .toLowerCase()
+    if (env.KYC_STORE_ID && storeId(env.KYC_STORE_ID) === storeId(env.BLOB_STORE_ID)) {
+      problems.push('KYC_STORE_ID must be the private KYC store, not the public media store')
     }
   }
 

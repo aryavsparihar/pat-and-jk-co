@@ -50,7 +50,12 @@ export const artistApplicationFields: Field[] = [
         type: 'row',
         fields: [
           { name: 'legalName', type: 'text', admin: { width: '50%' } },
-          { name: 'displayName', label: 'Name they work under', type: 'text', admin: { width: '50%' } },
+          {
+            name: 'displayName',
+            label: 'Name they work under',
+            type: 'text',
+            admin: { width: '50%' },
+          },
         ],
       },
       {
@@ -59,7 +64,10 @@ export const artistApplicationFields: Field[] = [
           {
             name: 'dateOfBirth',
             type: 'date',
-            admin: { width: '33%', date: { pickerAppearance: 'dayOnly', displayFormat: 'd MMMM yyyy' } },
+            admin: {
+              width: '33%',
+              date: { pickerAppearance: 'dayOnly', displayFormat: 'd MMMM yyyy' },
+            },
           },
           { name: 'phone', type: 'text', admin: { width: '33%' } },
           {
@@ -79,7 +87,11 @@ export const artistApplicationFields: Field[] = [
     admin: { condition: isArtist, readOnly: true },
     fields: [
       { name: 'residence', type: 'group', fields: addressFields() },
-      { name: 'correspondenceSame', label: 'Correspondence goes to the same address', type: 'checkbox' },
+      {
+        name: 'correspondenceSame',
+        label: 'Correspondence goes to the same address',
+        type: 'checkbox',
+      },
       {
         name: 'correspondence',
         label: 'Address for correspondence',
@@ -173,11 +185,16 @@ export const artistApplicationFields: Field[] = [
     type: 'group',
     admin: { condition: isArtist, readOnly: true },
     fields: [
-      { name: 'originalWork', label: 'The work is their own, and they hold the rights', type: 'checkbox' },
+      {
+        name: 'originalWork',
+        label: 'The work is their own, and they hold the rights',
+        type: 'checkbox',
+      },
       { name: 'accurate', label: 'The information is accurate', type: 'checkbox' },
       {
         name: 'consentProcessing',
-        label: 'Consented to identity and bank details being processed for verification and payouts',
+        label:
+          'Consented to identity and bank details being processed for verification and payouts',
         type: 'checkbox',
       },
       { name: 'consentedAt', type: 'date', admin: { date: { pickerAppearance: 'dayAndTime' } } },
@@ -238,7 +255,10 @@ export const progressFields: Field[] = [
     name: 'completedSteps',
     type: 'select',
     hasMany: true,
-    options: ['about', 'address', 'practice', 'portfolio', 'review'].map((v) => ({ label: v, value: v })),
+    options: ['about', 'address', 'practice', 'portfolio', 'kyc', 'review'].map((v) => ({
+      label: v,
+      value: v,
+    })),
     admin: { position: 'sidebar', readOnly: true, condition: isArtist },
   },
 ]

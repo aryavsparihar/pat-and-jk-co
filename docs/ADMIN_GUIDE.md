@@ -90,6 +90,33 @@ Every decision is recorded under **Administration → Security log**, with your 
 
 **Members → Members** lists everyone who has applied, with their member IDs. To stop someone signing in, set **Standing** to *Suspended*; every device they were signed in on is signed out at once.
 
+### Identity and bank details
+
+Artists give their PAN (and, if they choose, a masked Aadhaar with its last four digits, for their address) and their bank details as part of their application. You see them under **Members → KYC records**, but only if you are a super admin or have the **KYC reviewer** role (given under **Users**). Editors never see them.
+
+Everything is shown masked, like `XXXXXXXX4821`. In the record's sidebar:
+
+- **Reveal full details.** You are asked why. The full values appear for one minute, then disappear. Your name and your reason go in the security log every time, so give a real reason ("Checking the account before the first payment").
+- **Download** a document, again with a reason. It downloads to your computer: delete it when you are done, and never forward it.
+- **Possible duplicates** lists other applications with the same PAN or account. Look before approving.
+- A **name mismatch** means the name on the bank account looks different from the artist's. Often it is a joint account or initials; ask if you are not sure.
+
+**Before you approve an artist, or mark their details verified**, check each of these:
+
+1. The name on the PAN, and on the masked Aadhaar if given, is the artist's name. Small differences are fine (an initial, a middle name); a different person is not.
+2. The account holder's name matches the artist, or you know why it does not (a joint account, say).
+3. The PAN card, masked Aadhaar and cheque or passbook, if given, show the same details as were typed in.
+4. Nothing under **Possible duplicates**, or you know why.
+5. **The identity document, by hand, whatever the automatic check says.** On the masked e-Aadhaar or the other ID: the name matches the PAN and the application; the date of birth matches "About you"; the photo is of a real person and fits the age; and, for Aadhaar, the last four digits are the ones the artist typed.
+6. **Read the "Identity document" box in the sidebar.** *Verified* means UIDAI's signature and the details all checked out. *Could not verify* gives the reason (a changed file, digits that do not match). *Needs a check by hand* means the check could not finish (a photo or scan, no password); do the checks above with extra care. A passport, voter ID or driving licence is always checked by hand.
+7. **Before the first payout to a new account**, send ₹1 to it and ask the artist to confirm they received it. Do the same after any change of bank account.
+
+**When an artist changes their bank account** after approval, you are emailed. The old account stays in use until you approve the new one: open the record, reveal the details, check them against the documents (a cancelled cheque or passbook helps), and press **Approve the new details**. If the artist says the change was not theirs, they can stop it from their email; you are told, and they are signed out everywhere. Call them before doing anything else.
+
+**Consent and legal hold.** The dates in the sidebar cannot be edited. If an artist withdraws consent by letter or email rather than from their account, press **Record a withdrawal** and say how and when it reached you. If we must keep a record for longer (payment records for tax, say), press **Set a legal hold**, give the date, and say why; the same button changes or lifts it. Both go in the security log with your name and reason.
+
+If an artist asks for a copy of their data, or for it to be deleted, you are emailed. Tell the developer, who runs the deletion (see docs/KYC.md).
+
 ### The collaborate page
 
 The page at /collaborate is an ordinary page, built from blocks. **Ways to work with us** is the block with the two large links to the applications; its words are yours to change, but where the links lead is fixed. **How it works** is a *Principles* block with roman numerals.

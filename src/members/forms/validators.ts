@@ -67,8 +67,14 @@ export const instagramUrl = (value: string): string | null => {
   return /^[A-Za-z0-9._]{1,30}$/.test(handle) ? `https://www.instagram.com/${handle}` : null
 }
 
-/** Whole years between a date of birth and today */
-export const ageOn = (dateOfBirth: string, today = new Date()): number | null => {
+/**
+ * Today's date as it is in India, in the UTC fields of a Date. Ages are counted by the Indian
+ * calendar day, so someone turning 18 can apply from midnight in India, not 5½ hours later.
+ */
+export const todayInIndia = (now = new Date()): Date => new Date(now.getTime() + 330 * 60_000)
+
+/** Whole years between a date of birth and today (in India) */
+export const ageOn = (dateOfBirth: string, today = todayInIndia()): number | null => {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateOfBirth.trim())
   if (!match) return null
   const [, y, m, d] = match.map(Number) as [number, number, number, number]
