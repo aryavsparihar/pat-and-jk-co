@@ -230,9 +230,34 @@ uploads**, which the CCA roots also need first:
 - **Confirm on a real file:** `pnpm kyc:check-aadhaar /path/to/masked-eaadhaar.pdf` runs the same
   check on your own machine. It asks for the password and the details with typing hidden, and
   prints only the result, the reasons and the signer.
-- **Install the CCA roots:** `src/kyc/ccaRoots.ts` is empty until India's CCA root certificates
-  are added from cca.gov.in. Until then the chain is not checked and the best result is *needs a
-  check by hand*.
+- **CCA roots are installed** (below), so a genuine, untouched e-Aadhaar can now come out *verified*.
+
+#### The CCA root certificates
+
+`src/kyc/ccaRoots.ts` holds the two roots of India's PKI that are for signing documents. They
+were downloaded over HTTPS from cca.gov.in on 3 October 2026:
+
+| Root | Source | SHA-256 fingerprint | Valid |
+| --- | --- | --- | --- |
+| CCA India 2022 | https://cca.gov.in/cca/sites/default/files/files/CCAIndia2022.cer | `9A3FD3176798E842DDCB12C262F11CFACCA70A8B84C6EA6FDA30842A95A94CD8` | 2022 to 2042 |
+| CCA India 2014 | https://cca.gov.in/cca/sites/default/files/files/CCAIndia2014.cer | `60109BC6C38328598A112C7A25E38B0F23E5A7511CB815FB64E0C4FF05DB7DF7` | 2014 to 2024 (expired) |
+
+**How they were checked.** cca.gov.in does not publish fingerprints on its root certificate page
+(https://cca.gov.in/root_certificate.html); it offers out-of-band verification by email to
+verifyroot@cca.gov.in instead. So each file's fingerprint was compared with Microsoft's
+trusted-root record in the CCADB (the database the browser and OS root programs share), which
+lists both under the CCA, for document signing, with exactly these SHA-256 values. Their subjects
+and validity dates also match the cca.gov.in page. For a second confirmation, write to
+verifyroot@cca.gov.in.
+
+**What is left out, and why.** CCA India 2022 SPL and 2015 SPL are for websites (Microsoft lists
+them for server authentication), not for signing documents, so trusting them here would widen
+trust for nothing. The expired 2014 root is kept because a file is checked as at the moment UIDAI
+signed it: a masked e-Aadhaar downloaded before March 2024 chains to it.
+
+**When the roots change.** CCA India 2022 lasts to 2042. If the CCA issues a new document-signing
+root, add it the same way: download from cca.gov.in, compare the fingerprint with an independent
+record, and note both here.
 
 Tests use made-up PDFs signed by a made-up chain (`tests/fixtures/eaadhaar`, rebuilt with
 `scripts/fixtures/make-eaadhaar-fixtures.py`).
