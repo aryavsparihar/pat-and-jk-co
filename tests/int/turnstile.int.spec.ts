@@ -20,6 +20,8 @@ const ORIGIN = process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000'
 const DOMAIN = '@turnstile.example.test'
 const SECRET = '1x0000000000000000000000000000000AA'
 const withKey = { ...process.env, TURNSTILE_SECRET_KEY: SECRET }
+// Shaped like a real secret, which production uses; made up
+const withRealKey = { ...process.env, TURNSTILE_SECRET_KEY: '0x4AAAAAAexample-not-a-real-secret' }
 
 /** What Cloudflare's siteverify answers, for one call */
 const cloudflare = (answer: unknown, status = 200) =>
@@ -80,7 +82,7 @@ describe('the Turnstile check', () => {
   it('refuses a token from another form, or one Cloudflare rejects', async () => {
     expect(
       await verifyTurnstile('token', 'apply-artist', {
-        env: withKey,
+        env: withRealKey,
         fetchImpl: cloudflare({ success: true, action: 'contact' }),
       }),
     ).toEqual({ ok: false, reason: 'wrong-form' })
@@ -90,6 +92,22 @@ describe('the Turnstile check', () => {
         fetchImpl: cloudflare({ success: false, 'error-codes': ['timeout-or-duplicate'] }),
       }),
     ).toEqual({ ok: false, reason: 'timeout-or-duplicate' })
+  })
+
+  it('takes Cloudflare’s test keys on a preview, and only those, without the form’s name', async () => {
+    const placeholder = cloudflare({ success: true, action: '' })
+    expect(
+      await verifyTurnstile('token', 'signin', { env: withKey, fetchImpl: placeholder }),
+    ).toEqual({
+      ok: true,
+      checked: true,
+    })
+    expect(
+      await verifyTurnstile('token', 'signin', { env: withRealKey, fetchImpl: placeholder }),
+    ).toEqual({
+      ok: false,
+      reason: 'wrong-form',
+    })
   })
 
   it('lets a request through, noted, when Cloudflare cannot be reached', async () => {

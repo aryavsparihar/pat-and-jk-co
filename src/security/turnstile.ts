@@ -19,6 +19,13 @@ export const TURNSTILE_FIELD = 'cf-turnstile-response'
 /** One per form, so a token earned on one cannot be spent on another */
 export type TurnstileAction = 'signin' | 'apply-artist' | 'apply-partner' | 'contact'
 
+/**
+ * Cloudflare's published test secrets (always pass, always fail, already spent). Their answers
+ * carry a placeholder in place of the form's action, so the action cannot be compared; previews
+ * use them, production never does
+ */
+const TEST_SECRET = /^[123]x0+AA$/
+
 export type TurnstileResult =
   { ok: true; checked: boolean; note?: string } | { ok: false; reason: string }
 
@@ -56,6 +63,7 @@ export const verifyTurnstile = async (
   if (!outcome.success) {
     return { ok: false, reason: (outcome['error-codes'] ?? []).join(',') || 'not-genuine' }
   }
-  if (outcome.action !== action) return { ok: false, reason: 'wrong-form' }
+  if (outcome.action !== action && !TEST_SECRET.test(secret))
+    return { ok: false, reason: 'wrong-form' }
   return { ok: true, checked: true }
 }

@@ -17,7 +17,7 @@ PAT and J.K. Co. ("PJK", "we") runs this website and works with artists and part
 personal data you give us here, we are the data fiduciary. You can write to us about it at
 **[confirm: privacy@pjk.co.in or another address]**, or by post to our registered office,
 **[confirm: address as in Site settings]**. Our grievance officer is Mr. Yuvraj Singh Pathania, the proprietor, who can be reached at
-**[confirm: his email address]**.
+yuvraj@pjk.co.in.
 
 ## What we collect, and why
 
