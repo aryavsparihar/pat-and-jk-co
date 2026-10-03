@@ -5,7 +5,7 @@ test.describe('Frontend', () => {
   test('homepage shows the PJK brand and navigation', async ({ page }) => {
     await page.goto('http://localhost:3000')
     await expect(page).toHaveTitle(/PAT and J\.K\. Co\./)
-    await expect(page.locator('h1').first()).toContainText('builds and runs businesses')
+    await expect(page.locator('h1').first()).toContainText('umbrella our ventures')
     const nav = page.getByRole('navigation', { name: 'Main' })
     for (const label of ['About', 'Ventures', 'Leadership', 'Journal', 'Collaborate']) {
       await expect(nav.getByRole('link', { name: label })).toBeVisible()

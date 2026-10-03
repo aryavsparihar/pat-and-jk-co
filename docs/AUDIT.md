@@ -280,8 +280,25 @@ invocations ever show up on the bill.
 **Done.** 25 integration and unit tests (`tests/int/`) covering tenancy, form validation, the
 admin gate, OTPs and passwords. They pass. Playwright specs exist for the frontend and admin.
 
-**Needs work.** Tests only run by hand (fixed by `A8`). Phases 3–8 add the access-control, crypto
-and end-to-end suites.
+**Since then.** Every push runs the integration suite (`verify`) and the end-to-end suite (`e2e`,
+Playwright against a throwaway Postgres) in CI; a skipped test fails the run. The end-to-end
+tests (`tests/e2e/`) walk through the flows that matter most: an artist application with KYC (both
+identity paths, stopping halfway and coming back), a partner application, signing in with a code,
+staff approval issuing an ID, an approved artist adding a work, a pending artist kept out of the
+portal, a bank change stopped with "this was not me", and a staff and a member session in one
+browser. Test runs never send email (`playwright.config.ts`, `vitest.setup.ts`).
+
+**Not covered end to end, by choice.** Each is covered by integration tests where noted; worth
+adding if the flow changes or breaks:
+
+- Staff reviewing a work or a profile in the admin (integration: `portal`).
+- KYC reveal and document download through the reason dialog (integration: `kyc`).
+- Recording a consent withdrawal, and setting a legal hold (integration: `kyc`).
+- Changing the email address with a code to the new address (integration: `portal`).
+- Data copy and deletion requests from the account page.
+- The weekly KYC purge (integration: `kyc`).
+- Firefox, Safari and phone-sized screens: Chromium at desktop size only.
+- An automated accessibility check (axe) on the application steps.
 
 ## 15. Scaling
 
