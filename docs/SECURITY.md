@@ -113,10 +113,11 @@ rules and its threat model are in [KYC.md](KYC.md).
 
 ### Aadhaar
 
-Every artist gives a **PAN**: we need it to pay them and for tax, and it is the identity we check.
-Aadhaar is **optional**, and only as a way to show an address: a **masked Aadhaar**, the copy UIDAI
-issues with the first eight digits hidden, with its last four digits. We never accept, store or
-display a full Aadhaar number. Why:
+Every artist gives a **PAN**: we need it to pay them and for tax. They also give a second ID with
+an address: by default a **masked e-Aadhaar**, the PDF UIDAI issues with the first eight digits
+hidden, with its last four digits; or, as an equal choice with no extra steps, a passport, voter
+ID or driving licence, checked by hand. A private company may not make Aadhaar compulsory, which is
+why the choice is a real one. We never accept, store or display a full Aadhaar number. Why:
 
 - The Aadhaar Act limits how Aadhaar numbers may be collected and used, and UIDAI requires anyone
   who stores them to keep them in a separate, specially secured Aadhaar Data Vault. We are not set
@@ -125,7 +126,12 @@ display a full Aadhaar number. Why:
 - Four digits and a masked copy are enough for a person to check that the document matches the
   person and the address, which is all we use it for.
 - A number we never hold cannot leak. The server refuses twelve digits with a message that does
-  not repeat them, and the log redaction would remove them in any case.
+  not repeat them, and the log redaction would remove them in any case. If an uploaded PDF turns
+  out to be unmasked, the check deletes it rather than keep it.
+
+**The e-Aadhaar PDF's password** opens the file once, in memory, for the advisory signature and
+details check (docs/KYC.md#verification). It is never stored, never logged (the logger drops any
+`password` field, and request bodies are never logged), and never sent back.
 
 **Offline e-KYC (not built).** UIDAI's signed offline e-KYC (the XML in a ZIP opened with a share
 code, or the Secure QR) would let us confirm a name, date of birth and address without ever seeing

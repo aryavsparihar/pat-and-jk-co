@@ -73,6 +73,14 @@ describe('redacting structured values', () => {
     })
   })
 
+  it('drops an e-Aadhaar PDF password, under any of its names', () => {
+    const output = JSON.stringify(
+      redact({ aadhaarPassword: 'MADE1990', body: { password: 'MADE1990' }, other: 'kept' }),
+    )
+    expect(output).not.toContain('MADE1990')
+    expect(output).toContain('kept')
+  })
+
   it('copes with cycles', () => {
     const a: Record<string, unknown> = { email: EMAIL }
     a.self = a

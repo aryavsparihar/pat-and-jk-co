@@ -107,7 +107,9 @@ Everything is shown masked, like `XXXXXXXX4821`. In the record's sidebar:
 2. The account holder's name matches the artist, or you know why it does not (a joint account, say).
 3. The PAN card, masked Aadhaar and cheque or passbook, if given, show the same details as were typed in.
 4. Nothing under **Possible duplicates**, or you know why.
-5. **Before the first payout to a new account**, send ₹1 to it and ask the artist to confirm they received it. Do the same after any change of bank account.
+5. **The identity document, by hand, whatever the automatic check says.** On the masked e-Aadhaar or the other ID: the name matches the PAN and the application; the date of birth matches "About you"; the photo is of a real person and fits the age; and, for Aadhaar, the last four digits are the ones the artist typed.
+6. **Read the "Identity document" box in the sidebar.** *Verified* means UIDAI's signature and the details all checked out. *Could not verify* gives the reason (a changed file, digits that do not match). *Needs a check by hand* means the check could not finish (a photo or scan, no password); do the checks above with extra care. A passport, voter ID or driving licence is always checked by hand.
+7. **Before the first payout to a new account**, send ₹1 to it and ask the artist to confirm they received it. Do the same after any change of bank account.
 
 **When an artist changes their bank account** after approval, you are emailed. The old account stays in use until you approve the new one: open the record, reveal the details, check them against the documents (a cancelled cheque or passbook helps), and press **Approve the new details**. If the artist says the change was not theirs, they can stop it from their email; you are told, and they are signed out everywhere. Call them before doing anything else.
 

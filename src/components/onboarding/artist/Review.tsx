@@ -43,6 +43,8 @@ export const ReviewStep: React.FC<
   const [kyc, setKyc] = useState<{
     panMasked: string | null
     aadhaarMasked: string | null
+    idChoice: 'aadhaar' | 'other' | null
+    otherIdKind: string | null
     bank: { accountMasked: string; bankName: string }
   } | null>(null)
 
@@ -111,6 +113,20 @@ export const ReviewStep: React.FC<
       rows: [
         ['PAN', kyc?.panMasked],
         ...(kyc?.aadhaarMasked ? [['Aadhaar', kyc.aadhaarMasked] as [string, string]] : []),
+        ...(kyc?.idChoice === 'other'
+          ? [
+              [
+                'ID',
+                (
+                  {
+                    passport: 'Passport',
+                    'voter-id': 'Voter ID',
+                    'driving-licence': 'Driving licence',
+                  } as Record<string, string>
+                )[kyc.otherIdKind ?? ''] ?? 'Another ID',
+              ] as [string, string],
+            ]
+          : []),
         ['Account', kyc ? `${kyc.bank.accountMasked}, ${kyc.bank.bankName}` : undefined],
       ],
     },

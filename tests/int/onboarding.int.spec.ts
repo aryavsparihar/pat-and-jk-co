@@ -29,6 +29,7 @@ import { execute } from '@/utilities/sql'
 
 import { openApplicationsForTests } from '../helpers/applicationsOpen'
 import { goodKyc, removeKycFor } from '../helpers/kyc'
+import { storeKycDocument } from '@/kyc/service'
 
 /*
  * The onboarding, through the real route handlers: saving steps, pictures, sending, and the
@@ -332,7 +333,7 @@ describe('an artist application', () => {
   })
 
   it('cannot be sent until every step is right, then cannot be changed', async () => {
-    const { cookie, application } = await applicant('artist')
+    const { cookie, application, member } = await applicant('artist')
     const early = await call(submitArtist, cookie, {})
     expect(early.status).toBe(422)
 
@@ -357,7 +358,12 @@ describe('an artist application', () => {
     expect((await call(saveStep, cookie, { step: 'kyc', data: {} })).status).toBeGreaterThanOrEqual(
       400,
     )
-    expect((await call(saveKycStep, cookie, goodKyc())).status).toBe(200)
+    const passport = await storeKycDocument(payload, {
+      member,
+      kind: 'other-id',
+      bytes: Buffer.from('%PDF-1.7\n% a made-up passport page\n%%EOF\n'),
+    })
+    expect((await call(saveKycStep, cookie, goodKyc({ 'other-id': passport.id }))).status).toBe(200)
     expect((await call(saveStep, cookie, { step: 'review', data: goodSteps.review })).status).toBe(
       200,
     )

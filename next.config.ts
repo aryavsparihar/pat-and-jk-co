@@ -86,6 +86,13 @@ const nextConfig: NextConfig = {
   devIndicators: false,
   // Don't generate assistant instruction files in the repo
   agentRules: false,
+  // pdf.js reads masked e-Aadhaar PDFs on the server (src/kyc/aadhaarCheck.ts). Left unbundled, it
+  // finds its worker beside itself in node_modules; the worker is loaded by a computed path, so it
+  // is added to the KYC route's traced files by hand, or a deployment would not include it
+  serverExternalPackages: ['pdfjs-dist'],
+  outputFileTracingIncludes: {
+    '/next/members/kyc': ['./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs'],
+  },
   // Temporarily required on Windows until Next.js fixes Turbopack Sass resolution.
   // See: https://github.com/vercel/next.js/issues/86431
   sassOptions: {

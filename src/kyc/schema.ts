@@ -26,6 +26,7 @@ const text = (max: number, message: string) =>
 export const KYC_DOCUMENT_KINDS = [
   'pan-card',
   'masked-aadhaar',
+  'other-id',
   'address-proof',
   'bank-proof',
 ] as const
@@ -68,11 +69,18 @@ export const bankSchema = z
     { when: () => true },
   )
 
+/** The identity documents an artist may give instead of Aadhaar, all checked by hand */
+export const OTHER_ID_KINDS = ['passport', 'voter-id', 'driving-licence'] as const
+export type OtherIdKind = (typeof OTHER_ID_KINDS)[number]
+
 /**
- * Identity: a PAN, with the name as printed on it, from every artist. Aadhaar is optional and only
- * ever as a masked copy (for the address) with its last four digits; the full number is refused.
- * The two Aadhaar parts come together or not at all. If the masked Aadhaar shows an address other
- * than the one given, a separate proof of address is needed.
+ * Identity: a PAN, with the name as printed on it, from every artist. Then, as two equal
+ * choices: a masked e-Aadhaar with its last four digits (the full number is refused), or another
+ * ID: a passport, voter ID or driving licence. Either shows an address; if it is not the address
+ * given, a separate proof of address is needed.
+ *
+ * The masked e-Aadhaar's PDF password is optional and travels only with this request: it opens
+ * the file in memory for the check (src/kyc/aadhaarCheck.ts) and is never stored or logged.
  */
 export const kycSchema = z
   .object({
@@ -81,14 +89,19 @@ export const kycSchema = z
     }),
     pan: z.string({ error: 'Please give your PAN.' }),
     panName: z.string().optional(),
+    idChoice: z.enum(['aadhaar', 'other'], {
+      error: 'Please choose a masked Aadhaar or another ID.',
+    }),
     aadhaarLast4: z.string().optional(),
-    // Asked only when a masked Aadhaar is given: does it show the address we were given?
+    aadhaarPassword: z.string().max(64).optional(),
+    otherIdKind: z.enum(OTHER_ID_KINDS).optional(),
     addressOnIdMatches: z.boolean().optional(),
     bank: bankSchema,
     documents: z
       .object({
         'pan-card': documentId,
         'masked-aadhaar': documentId,
+        'other-id': documentId,
         'address-proof': documentId,
         'bank-proof': documentId,
       })
@@ -111,26 +124,30 @@ export const kycSchema = z
         issue(['panName'], 'Please give your name exactly as it is on your PAN card.')
       }
 
-      const digits = String(value.aadhaarLast4 ?? '').trim()
-      const maskedCopy = Boolean(documents['masked-aadhaar'])
-      if (looksLikeFullAadhaar(digits)) {
-        // Never accept, store or echo a full Aadhaar number
-        issue(['aadhaarLast4'], 'Please give only the last four digits, not the whole number.')
-      } else if (digits && !isAadhaarLast4(digits)) {
-        issue(['aadhaarLast4'], 'Please give the last four digits of your Aadhaar.')
-      } else if (maskedCopy && !digits) {
-        issue(['aadhaarLast4'], 'Please add the last four digits shown on your masked Aadhaar.')
+      if (value.idChoice === 'aadhaar') {
+        const digits = String(value.aadhaarLast4 ?? '').trim()
+        if (looksLikeFullAadhaar(digits)) {
+          // Never accept, store or echo a full Aadhaar number
+          issue(['aadhaarLast4'], 'Please give only the last four digits, not the whole number.')
+        } else if (!isAadhaarLast4(digits)) {
+          issue(['aadhaarLast4'], 'Please give the last four digits shown on your masked Aadhaar.')
+        }
+        if (!documents['masked-aadhaar']) {
+          issue(['documents', 'masked-aadhaar'], 'Please upload your masked e-Aadhaar.')
+        }
       }
-      if (digits && !maskedCopy) {
-        issue(
-          ['documents', 'masked-aadhaar'],
-          'Please upload the masked Aadhaar as well, or leave the Aadhaar digits empty.',
-        )
+      if (value.idChoice === 'other') {
+        if (!value.otherIdKind) {
+          issue(['otherIdKind'], 'Please choose which ID you are giving us.')
+        }
+        if (!documents['other-id']) {
+          issue(['documents', 'other-id'], 'Please upload a copy of your ID.')
+        }
       }
-      if (maskedCopy && typeof value.addressOnIdMatches !== 'boolean') {
+
+      if (typeof value.addressOnIdMatches !== 'boolean') {
         issue(['addressOnIdMatches'], 'Please tell us whether the address on it matches.')
-      }
-      if (maskedCopy && value.addressOnIdMatches === false && !documents['address-proof']) {
+      } else if (value.addressOnIdMatches === false && !documents['address-proof']) {
         issue(
           ['documents', 'address-proof'],
           'As the address differs, please upload a proof of your current address.',
@@ -140,13 +157,19 @@ export const kycSchema = z
     { when: () => true },
   )
   .transform((value) => {
-    const aadhaarLast4 = value.aadhaarLast4?.trim() || undefined
+    const aadhaar = value.idChoice === 'aadhaar'
+    const documents = { ...value.documents }
+    // Only the documents of the choice made are kept with the record
+    if (aadhaar) delete documents['other-id']
+    else delete documents['masked-aadhaar']
     return {
       ...value,
       pan: normalisePan(value.pan),
       panName: value.panName?.trim() ?? '',
-      aadhaarLast4,
-      addressOnIdMatches: aadhaarLast4 ? value.addressOnIdMatches : undefined,
+      aadhaarLast4: aadhaar ? value.aadhaarLast4?.trim() : undefined,
+      aadhaarPassword: aadhaar ? value.aadhaarPassword || undefined : undefined,
+      otherIdKind: aadhaar ? undefined : value.otherIdKind,
+      documents,
     }
   })
 

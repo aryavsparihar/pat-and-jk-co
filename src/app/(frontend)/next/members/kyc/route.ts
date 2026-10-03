@@ -10,7 +10,16 @@ import {
 import { applicationsOpenness, closedReply } from '@/members/openness'
 import { fieldErrors } from '@/members/forms/schemas'
 import { kycSchema } from '@/kyc/schema'
-import { KycError, maskedKyc, saveKyc } from '@/kyc/service'
+import {
+  checkStoredAadhaar,
+  KycError,
+  maskedKyc,
+  recordAadhaarCheck,
+  runAadhaarCheck,
+  saveKyc,
+} from '@/kyc/service'
+import { AADHAAR_CHECK_MODE } from '@/kyc/settings'
+import { after } from 'next/server'
 import { hitLimit } from '@/security/rateLimit'
 
 export const dynamic = 'force-dynamic'
@@ -60,10 +69,46 @@ export async function POST(request: Request) {
     )
   }
 
+  const input = parsed.data
+  const aadhaarDocument =
+    input.idChoice === 'aadhaar' ? input.documents['masked-aadhaar'] : undefined
+  const checkInput = aadhaarDocument
+    ? {
+        memberId: member.id,
+        documentId: aadhaarDocument,
+        // Held in memory for the check only; never stored, never logged
+        password: input.aadhaarPassword,
+        last4: input.aadhaarLast4,
+        panName: input.panName,
+        dateOfBirth: application.about?.dateOfBirth ?? null,
+      }
+    : null
+
+  // Enforcing: a masked e-Aadhaar that cannot be verified stops the step here, with the reason
+  if (checkInput && AADHAAR_CHECK_MODE === 'enforcing') {
+    try {
+      const check = await checkStoredAadhaar(payload, checkInput)
+      if (check.result === 'not-verified') {
+        if (check.unmasked) await recordAadhaarCheck(payload, checkInput, check)
+        return reply(
+          {
+            message: 'We could not verify your masked e-Aadhaar.',
+            errors: { 'documents.masked-aadhaar': check.reasons[0] ?? 'Please upload it again.' },
+          },
+          { status: 422 },
+        )
+      }
+    } catch (error) {
+      if (error instanceof KycError)
+        return reply({ message: error.message }, { status: error.status })
+      throw error
+    }
+  }
+
   try {
     await saveKyc(payload, {
       member,
-      input: parsed.data,
+      input,
       legalName: application.about?.legalName,
       reference: application.reference,
     })
@@ -72,6 +117,21 @@ export async function POST(request: Request) {
       return reply({ message: error.message }, { status: error.status })
     payload.logger.error({ err: error, msg: 'KYC save failed' })
     return reply({ message: 'Your details could not be saved. Please try again.' }, { status: 500 })
+  }
+
+  if (checkInput) {
+    // Advisory (the default): the check runs after the artist has their answer, records its
+    // result for staff, and can never hold the application up
+    const work = () => runAadhaarCheck(payload, checkInput).then(() => undefined)
+    if (AADHAAR_CHECK_MODE === 'enforcing') await work()
+    else {
+      try {
+        after(work)
+      } catch {
+        // Outside a request (tests, scripts): run it now
+        await work()
+      }
+    }
   }
 
   const completed = new Set(application.completedSteps ?? [])

@@ -1766,7 +1766,17 @@ export interface KycRecord {
   panNameSealed?: string | null;
   aadhaarLast4Sealed?: string | null;
   idMasked?: string | null;
+  idChoice?: ('aadhaar' | 'other') | null;
+  otherIdKind?: ('passport' | 'voter-id' | 'driving-licence') | null;
   aadhaarMasked?: string | null;
+  aadhaarCheck?: {
+    result?: ('verified' | 'not-verified' | 'manual-review') | null;
+    reasons?: string | null;
+    signer?: string | null;
+    signedOn?: string | null;
+    checkedAt?: string | null;
+    mode?: string | null;
+  };
   addressOnIdMatches?: boolean | null;
   accountNumberSealed?: string | null;
   ifscSealed?: string | null;
@@ -1828,7 +1838,7 @@ export interface KycRecord {
 export interface KycDocument {
   id: number;
   member: number | Member;
-  kind: 'pan-card' | 'masked-aadhaar' | 'address-proof' | 'bank-proof';
+  kind: 'pan-card' | 'masked-aadhaar' | 'other-id' | 'address-proof' | 'bank-proof';
   contentType: string;
   size?: number | null;
   storageKey: string;
@@ -1904,7 +1914,8 @@ export interface SecurityEvent {
     | 'kyc-consent-withdrawn'
     | 'kyc-purged'
     | 'data-request'
-    | 'kyc-legal-hold-changed';
+    | 'kyc-legal-hold-changed'
+    | 'kyc-aadhaar-checked';
   email?: string | null;
   ip?: string | null;
   detail?: string | null;
@@ -3170,7 +3181,19 @@ export interface KycRecordsSelect<T extends boolean = true> {
   panNameSealed?: T;
   aadhaarLast4Sealed?: T;
   idMasked?: T;
+  idChoice?: T;
+  otherIdKind?: T;
   aadhaarMasked?: T;
+  aadhaarCheck?:
+    | T
+    | {
+        result?: T;
+        reasons?: T;
+        signer?: T;
+        signedOn?: T;
+        checkedAt?: T;
+        mode?: T;
+      };
   addressOnIdMatches?: T;
   accountNumberSealed?: T;
   ifscSealed?: T;

@@ -21,6 +21,10 @@ export const goodKyc = (documents: Record<string, number> = {}) => ({
   consent: true,
   pan: FAKE.pan,
   panName: FAKE.panName,
+  // The other-ID path by default; tests of the e-Aadhaar path set idChoice themselves
+  idChoice: 'other',
+  otherIdKind: 'passport',
+  addressOnIdMatches: true,
   bank: {
     holderName: FAKE.holderName,
     accountNumber: FAKE.account,

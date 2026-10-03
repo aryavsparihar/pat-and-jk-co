@@ -39,6 +39,7 @@ export const securityEventTypes = [
   'kyc-purged',
   'data-request',
   'kyc-legal-hold-changed',
+  'kyc-aadhaar-checked',
 ] as const
 
 /**

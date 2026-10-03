@@ -10,17 +10,27 @@ import { Check, ErrorSummary, type Errors, fieldClass, TextField } from '../fiel
 type Masked = {
   panMasked: string | null
   aadhaarMasked: string | null
+  idChoice: 'aadhaar' | 'other' | null
+  otherIdKind: OtherIdKind | null
   addressOnIdMatches: boolean | null
   bank: { accountMasked: string; ifscMasked: string; bankName: string; accountType: string }
   nameMismatch: boolean
   documents: { id: number; kind: string }[]
 } | null
 
-type DocKind = 'pan-card' | 'masked-aadhaar' | 'address-proof' | 'bank-proof'
+type DocKind = 'pan-card' | 'masked-aadhaar' | 'other-id' | 'address-proof' | 'bank-proof'
+type OtherIdKind = 'passport' | 'voter-id' | 'driving-licence'
+
+const OTHER_ID_LABEL: Record<OtherIdKind, string> = {
+  passport: 'Passport',
+  'voter-id': 'Voter ID',
+  'driving-licence': 'Driving licence',
+}
 
 const DOC_LABEL: Record<DocKind, string> = {
   'pan-card': 'PAN card',
-  'masked-aadhaar': 'Masked Aadhaar',
+  'masked-aadhaar': 'Masked e-Aadhaar',
+  'other-id': 'Your ID',
   'address-proof': 'Proof of address',
   'bank-proof': 'Cancelled cheque or passbook',
 }
@@ -128,6 +138,7 @@ export const KycStep: React.FC<{
   const [editing, setEditing] = useState(false)
   const [v, setV] = useState<Record<string, string | boolean | undefined>>({
     accountType: 'savings',
+    idChoice: 'aadhaar',
   })
   const [docs, setDocs] = useState<Partial<Record<DocKind, number>>>({})
   const [errors, setErrors] = useState<Errors>({})
@@ -190,7 +201,11 @@ export const KycStep: React.FC<{
         consent: v.consent === true,
         pan: s('pan'),
         panName: s('panName'),
-        aadhaarLast4: s('aadhaarLast4') || undefined,
+        idChoice: v.idChoice,
+        aadhaarLast4: v.idChoice === 'aadhaar' ? s('aadhaarLast4') : undefined,
+        // Sent once, to open the PDF for the check; not kept here or on the server
+        aadhaarPassword: v.idChoice === 'aadhaar' ? s('aadhaarPassword') || undefined : undefined,
+        otherIdKind: v.idChoice === 'other' ? v.otherIdKind : undefined,
         addressOnIdMatches:
           typeof v.addressOnIdMatches === 'boolean' ? v.addressOnIdMatches : undefined,
         bank: {
@@ -215,7 +230,7 @@ export const KycStep: React.FC<{
       return
     }
     // Forget what was typed: from here on only the masked view is shown
-    setV({ accountType: 'savings' })
+    setV({ accountType: 'savings', idChoice: 'aadhaar' })
     setMasked(result.data.kyc)
     setEditing(false)
     onSaved(result.data.completedSteps)
@@ -260,6 +275,12 @@ export const KycStep: React.FC<{
             <>
               <dt className="label pt-1">Aadhaar</dt>
               <dd className="tracking-wider">{masked.aadhaarMasked}</dd>
+            </>
+          )}
+          {masked.idChoice === 'other' && masked.otherIdKind && (
+            <>
+              <dt className="label pt-1">ID</dt>
+              <dd>{OTHER_ID_LABEL[masked.otherIdKind]}, to be checked by our team</dd>
             </>
           )}
           <dt className="label pt-1">Account</dt>
@@ -339,89 +360,173 @@ export const KycStep: React.FC<{
         />
 
         <fieldset className="grid gap-y-6 border-t border-border pt-8">
-          <legend className="label">
-            Aadhaar
-            <span className="ml-2 normal-case tracking-normal text-muted-foreground">
-              (optional)
-            </span>
-          </legend>
-          <p className="measure muted text-base">
-            A masked Aadhaar is a simple way to show us your address. We only ever take the last
-            four digits; please do not give us the whole number.
-          </p>
-          <div className="measure text-base">
-            <p className="font-medium">How to download a masked Aadhaar</p>
-            <ol className="muted mt-2 list-decimal pl-5">
-              <li>
-                Go to myaadhaar.uidai.gov.in and sign in with your Aadhaar number and the code sent
-                to your phone.
-              </li>
-              <li>Choose Download Aadhaar, and tick “Do you want a masked Aadhaar?”.</li>
-              <li>
-                Save the PDF. Its password is the first four letters of your name in capitals and
-                your year of birth.
-              </li>
-              <li>
-                Open it once, then upload it here. A photo of the printed masked copy is fine too.
-              </li>
-            </ol>
+          <legend className="label">A second document, with your address</legend>
+          <div className="grid gap-y-2" role="radiogroup">
+            <label className="flex min-h-11 cursor-pointer items-start gap-4 py-1">
+              <input
+                checked={v.idChoice === 'aadhaar'}
+                className="mt-1 size-5 accent-[var(--primary)]"
+                name="idChoice"
+                onChange={() => set('idChoice')('aadhaar')}
+                type="radio"
+              />
+              <span>
+                Masked e-Aadhaar
+                <span className="muted block text-base">
+                  The quickest: we can check it automatically.
+                </span>
+              </span>
+            </label>
+            <label className="flex min-h-11 cursor-pointer items-start gap-4 py-1">
+              <input
+                checked={v.idChoice === 'other'}
+                className="mt-1 size-5 accent-[var(--primary)]"
+                name="idChoice"
+                onChange={() => set('idChoice')('other')}
+                type="radio"
+              />
+              <span>
+                I’d rather use another ID
+                <span className="muted block text-base">
+                  A passport, voter ID or driving licence. Our team checks it by hand.
+                </span>
+              </span>
+            </label>
           </div>
-          <Upload
-            error={errors['documents.masked-aadhaar']}
-            kind="masked-aadhaar"
-            onUploaded={(id) => setDocs((d) => ({ ...d, 'masked-aadhaar': id }))}
-            optional
-            value={docs['masked-aadhaar']}
-          />
-          <TextField
-            autoComplete="off"
-            className="max-w-xs"
-            errors={errors}
-            hint="The four digits shown on the masked copy."
-            inputMode="numeric"
-            label="Last four digits of your Aadhaar"
-            maxLength={4}
-            name="aadhaarLast4"
-            onValue={(x) => set('aadhaarLast4')(x.replace(/\D/g, ''))}
-            optional={!docs['masked-aadhaar']}
-            value={s('aadhaarLast4')}
-          />
-          {docs['masked-aadhaar'] && (
-            <fieldset
-              aria-describedby={
-                errors.addressOnIdMatches ? 'field-addressOnIdMatches-error' : undefined
-              }
-              id="field-addressOnIdMatches"
-            >
-              <legend className="label mb-2">
-                Does the masked Aadhaar show the address you gave us?
-              </legend>
-              {([true, false] as const).map((yes) => (
-                <label
-                  className="mr-8 inline-flex min-h-11 cursor-pointer items-center gap-3"
-                  key={String(yes)}
-                >
+
+          {v.idChoice === 'aadhaar' ? (
+            <>
+              <p className="measure muted text-base">
+                The masked e-Aadhaar shows only the last four digits of your number. We never ask
+                for, or keep, the whole number.
+              </p>
+              <div className="measure text-base">
+                <p className="font-medium">How to download a masked e-Aadhaar</p>
+                <ol className="muted mt-2 list-decimal pl-5">
+                  <li>
+                    Go to myaadhaar.uidai.gov.in and sign in with your Aadhaar number and the code
+                    sent to your phone.
+                  </li>
+                  <li>Choose Download Aadhaar, and tick “Do you want a masked Aadhaar?”.</li>
+                  <li>Upload the PDF here just as it downloaded, without opening and saving it.</li>
+                </ol>
+                <p className="muted mt-2">
+                  Only have a photo or a scan? Upload that instead; our team will check it by hand.
+                </p>
+              </div>
+              <Upload
+                error={errors['documents.masked-aadhaar']}
+                kind="masked-aadhaar"
+                onUploaded={(id) => setDocs((d) => ({ ...d, 'masked-aadhaar': id }))}
+                value={docs['masked-aadhaar']}
+              />
+              <TextField
+                autoComplete="off"
+                className="max-w-xs"
+                errors={errors}
+                hint="The four digits shown on the masked copy."
+                inputMode="numeric"
+                label="Last four digits of your Aadhaar"
+                maxLength={4}
+                name="aadhaarLast4"
+                onValue={(x) => set('aadhaarLast4')(x.replace(/\D/g, ''))}
+                value={s('aadhaarLast4')}
+              />
+              <TextField
+                autoComplete="off"
+                className="max-w-xs"
+                errors={errors}
+                hint="The PDF’s password: the first four letters of your name in capitals, then your year of birth. We use it once, to check the file, and never keep it."
+                label="The PDF’s password"
+                name="aadhaarPassword"
+                onValue={set('aadhaarPassword')}
+                optional
+                spellCheck={false}
+                type="password"
+                value={s('aadhaarPassword')}
+              />
+            </>
+          ) : (
+            <>
+              <div className="grid gap-y-2" role="radiogroup" aria-label="Which ID">
+                <label className="flex min-h-11 cursor-pointer items-start gap-4 py-1">
                   <input
-                    checked={v.addressOnIdMatches === yes}
-                    className="size-5 accent-[var(--primary)]"
-                    name="addressOnIdMatches"
-                    onChange={() => set('addressOnIdMatches')(yes)}
+                    checked={v.otherIdKind === 'passport'}
+                    className="mt-1 size-5 accent-[var(--primary)]"
+                    name="otherIdKind"
+                    onChange={() => set('otherIdKind')('passport')}
                     type="radio"
                   />
-                  {yes ? 'Yes' : 'No'}
+                  <span>Passport</span>
                 </label>
-              ))}
-              {errors.addressOnIdMatches && (
-                <p
-                  className="mt-2 text-base italic text-destructive"
-                  id="field-addressOnIdMatches-error"
-                >
-                  {errors.addressOnIdMatches}
+                <label className="flex min-h-11 cursor-pointer items-start gap-4 py-1">
+                  <input
+                    checked={v.otherIdKind === 'voter-id'}
+                    className="mt-1 size-5 accent-[var(--primary)]"
+                    name="otherIdKind"
+                    onChange={() => set('otherIdKind')('voter-id')}
+                    type="radio"
+                  />
+                  <span>Voter ID</span>
+                </label>
+                <label className="flex min-h-11 cursor-pointer items-start gap-4 py-1">
+                  <input
+                    checked={v.otherIdKind === 'driving-licence'}
+                    className="mt-1 size-5 accent-[var(--primary)]"
+                    name="otherIdKind"
+                    onChange={() => set('otherIdKind')('driving-licence')}
+                    type="radio"
+                  />
+                  <span>Driving licence</span>
+                </label>
+              </div>
+              {errors.otherIdKind && (
+                <p className="text-base italic text-destructive" id="field-otherIdKind-error">
+                  {errors.otherIdKind}
                 </p>
               )}
-            </fieldset>
+              <Upload
+                error={errors['documents.other-id']}
+                hint="A clear photo or scan of the page with your photo, name, date of birth and address."
+                kind="other-id"
+                onUploaded={(id) => setDocs((d) => ({ ...d, 'other-id': id }))}
+                value={docs['other-id']}
+              />
+            </>
           )}
-          {docs['masked-aadhaar'] && v.addressOnIdMatches === false && (
+
+          <fieldset
+            aria-describedby={
+              errors.addressOnIdMatches ? 'field-addressOnIdMatches-error' : undefined
+            }
+            id="field-addressOnIdMatches"
+          >
+            <legend className="label mb-2">Does it show the address you gave us?</legend>
+            {([true, false] as const).map((yes) => (
+              <label
+                className="mr-8 inline-flex min-h-11 cursor-pointer items-center gap-3"
+                key={String(yes)}
+              >
+                <input
+                  checked={v.addressOnIdMatches === yes}
+                  className="size-5 accent-[var(--primary)]"
+                  name="addressOnIdMatches"
+                  onChange={() => set('addressOnIdMatches')(yes)}
+                  type="radio"
+                />
+                {yes ? 'Yes' : 'No'}
+              </label>
+            ))}
+            {errors.addressOnIdMatches && (
+              <p
+                className="mt-2 text-base italic text-destructive"
+                id="field-addressOnIdMatches-error"
+              >
+                {errors.addressOnIdMatches}
+              </p>
+            )}
+          </fieldset>
+          {v.addressOnIdMatches === false && (
             <Upload
               error={errors['documents.address-proof']}
               hint="A recent utility bill, bank statement or rent agreement in your name."

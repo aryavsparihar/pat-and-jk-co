@@ -4,7 +4,10 @@ import { getPayload, type Payload } from 'payload'
 import sharp from 'sharp'
 import config from '@/payload.config'
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
+
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { POST as cancelBankChange } from '@/app/(frontend)/next/members/kyc/bank-change/cancel/route'
 import { POST as changeBank } from '@/app/(frontend)/next/members/kyc/bank-change/route'
@@ -19,6 +22,7 @@ import {
   runKycPurge,
   revealKyc,
   rotateKycKeys,
+  storeKycDocument,
 } from '@/kyc/service'
 import { ensureApplication } from '@/members/accounts'
 import type { Member, User } from '@/payload-types'
@@ -29,6 +33,19 @@ import { execute } from '@/utilities/sql'
 
 import { openApplicationsForTests } from '../helpers/applicationsOpen'
 import { FAKE, goodKyc, removeKycFor } from '../helpers/kyc'
+
+// The made-up test root stands in for India's CCA roots (scripts/fixtures/make-eaadhaar-fixtures.py)
+vi.mock('@/kyc/ccaRoots', async () => {
+  const fs = await import('node:fs')
+  const p = await import('node:path')
+  return {
+    CCA_ROOTS_PEM: [
+      fs.readFileSync(p.resolve(__dirname, '../fixtures/eaadhaar/test-root.pem'), 'utf8'),
+    ],
+  }
+})
+const eaadhaar = (name: string) =>
+  readFileSync(path.resolve(__dirname, '../fixtures/eaadhaar', name))
 
 /*
  * KYC end to end: what is stored, who can see it, how a bank change is held, and what is deleted
@@ -55,13 +72,26 @@ const artist = async () => {
   await payload.update({
     collection: 'applications',
     id: application.id,
-    data: { about: { legalName: 'Asha Example' } } as never,
+    data: { about: { legalName: 'Asha Example', dateOfBirth: '1990-04-12' } } as never,
     overrideAccess: true,
     context: { disableRevalidate: true },
   })
   const { value } = await createSession(payload, { memberId: member.id })
-  return { member, application, cookie: `${MEMBER_COOKIE}=${encodeURIComponent(value)}` }
+  const cookie = `${MEMBER_COOKIE}=${encodeURIComponent(value)}`
+  // Every artist gives a second ID; tests use a made-up passport scan unless they say otherwise
+  const passport = await storeKycDocument(payload, {
+    member,
+    kind: 'other-id',
+    bytes: Buffer.from('%PDF-1.7\n% a made-up passport page\n%%EOF\n'),
+  })
+  idDocuments.set(cookie, passport.id)
+  return { member, application, cookie }
 }
+
+const idDocuments = new Map<string, number>()
+/** goodKyc with this artist's own made-up ID attached */
+const kycFor = (cookie: string, documents: Record<string, number> = {}) =>
+  goodKyc({ 'other-id': idDocuments.get(cookie)!, ...documents })
 
 const call = (handler: (r: Request) => Promise<Response>, cookie: string, body?: unknown) =>
   handler(
@@ -185,7 +215,7 @@ afterAll(async () => {
 describe('saving the KYC step', () => {
   it('stores only ciphertext, masks, and indexes, and replies with the masked view', async () => {
     const { member, cookie, application } = await artist()
-    const response = await call(saveKycStep, cookie, goodKyc())
+    const response = await call(saveKycStep, cookie, kycFor(cookie))
     expect(response.status).toBe(200)
     const body = (await response.json()) as {
       kyc: { panMasked: string; bank: { accountMasked: string } }
@@ -229,7 +259,11 @@ describe('saving the KYC step', () => {
   it('refuses a full Aadhaar number and never stores it', async () => {
     const { member, cookie } = await artist()
     const full = '999988887777'
-    const response = await call(saveKycStep, cookie, { ...goodKyc(), aadhaarLast4: full })
+    const response = await call(saveKycStep, cookie, {
+      ...kycFor(cookie),
+      idChoice: 'aadhaar',
+      aadhaarLast4: full,
+    })
     expect(response.status).toBe(422)
     const body = (await response.json()) as { errors: Record<string, string> }
     expect(body.errors.aadhaarLast4).toMatch(/only the last four/)
@@ -237,76 +271,158 @@ describe('saving the KYC step', () => {
     expect(await rawRecord(member.id)).toBe('')
   })
 
-  it('needs a PAN from every artist, even one who gives Aadhaar', async () => {
+  it('needs a PAN from every artist, whichever ID they give', async () => {
     const { cookie } = await artist()
-    const response = await call(saveKycStep, cookie, {
-      ...goodKyc(),
-      pan: '',
-      panName: '',
-      aadhaarLast4: '4821',
-    })
+    const response = await call(saveKycStep, cookie, { ...kycFor(cookie), pan: '', panName: '' })
     expect(response.status).toBe(422)
     const { errors } = (await response.json()) as { errors: Record<string, string> }
     expect(errors.pan).toBeTruthy()
     expect(errors.panName).toBeTruthy()
   })
 
-  it('takes Aadhaar only as a masked copy with its last four digits, together', async () => {
-    const { member, cookie } = await artist()
-    const pdf = Buffer.from('%PDF-1.7\n% a made-up masked Aadhaar\n%%EOF\n')
-
-    // Digits without the masked copy, or the copy without the digits: refused
-    const digitsOnly = await call(saveKycStep, cookie, { ...goodKyc(), aadhaarLast4: '4821' })
-    expect(((await digitsOnly.json()) as { errors: Record<string, string> }).errors).toHaveProperty(
-      ['documents.masked-aadhaar'],
-    )
-    const { document } = (await (
-      await upload(cookie, 'masked-aadhaar', pdf, 'aadhaar.pdf', 'application/pdf')
-    ).json()) as { document: { id: number } }
-    const copyOnly = await call(saveKycStep, cookie, {
-      ...goodKyc({ 'masked-aadhaar': document.id }),
-      addressOnIdMatches: true,
+  it('asks for the masked e-Aadhaar and its digits, or another ID and which one', async () => {
+    const { cookie } = await artist()
+    const aadhaar = await call(saveKycStep, cookie, {
+      ...goodKyc(),
+      idChoice: 'aadhaar',
     })
-    expect(
-      ((await copyOnly.json()) as { errors: Record<string, string> }).errors.aadhaarLast4,
-    ).toBeTruthy()
+    const aadhaarErrors = ((await aadhaar.json()) as { errors: Record<string, string> }).errors
+    expect(aadhaarErrors).toHaveProperty(['documents.masked-aadhaar'])
+    expect(aadhaarErrors).toHaveProperty(['aadhaarLast4'])
 
-    // An address that differs needs its own proof
-    const differs = await call(saveKycStep, cookie, {
-      ...goodKyc({ 'masked-aadhaar': document.id }),
-      aadhaarLast4: '4821',
-      addressOnIdMatches: false,
-    })
-    expect(((await differs.json()) as { errors: Record<string, string> }).errors).toHaveProperty([
-      'documents.address-proof',
-    ])
-
-    const saved = await call(saveKycStep, cookie, {
-      ...goodKyc({ 'masked-aadhaar': document.id }),
-      aadhaarLast4: '4821',
-      addressOnIdMatches: true,
-    })
-    expect(saved.status).toBe(200)
-    const { kyc } = (await saved.json()) as {
-      kyc: { panMasked: string; aadhaarMasked: string }
-    }
-    expect(kyc.panMasked).toBe('ABCxxxxx4F')
-    expect(kyc.aadhaarMasked).toBe('XXXX XXXX 4821')
-    expect(await rawRecord(member.id)).not.toMatch(/"aadhaar_last4_sealed":"4821"/)
+    const other = await call(saveKycStep, cookie, { ...goodKyc(), otherIdKind: undefined })
+    const otherErrors = ((await other.json()) as { errors: Record<string, string> }).errors
+    expect(otherErrors).toHaveProperty(['documents.other-id'])
+    expect(otherErrors).toHaveProperty(['otherIdKind'])
   })
 
-  it('needs nothing about Aadhaar from an artist who does not give it', async () => {
-    const { cookie } = await artist()
-    const response = await call(saveKycStep, cookie, goodKyc())
+  it('takes another ID as an equal choice, for staff to check by hand', async () => {
+    const { member, cookie } = await artist()
+    const response = await call(saveKycStep, cookie, kycFor(cookie))
     expect(response.status).toBe(200)
-    const { kyc } = (await response.json()) as { kyc: { aadhaarMasked: string | null } }
-    expect(kyc.aadhaarMasked).toBeNull()
+    const { kyc } = (await response.json()) as {
+      kyc: { idChoice: string; otherIdKind: string; aadhaarMasked: string | null }
+    }
+    expect(kyc).toMatchObject({ idChoice: 'other', otherIdKind: 'passport', aadhaarMasked: null })
+    expect((await recordOf(member.id)).aadhaarCheck?.result ?? null).toBeNull()
+  })
+
+  it('checks the original masked e-Aadhaar, and never keeps its password', async () => {
+    const { member, cookie } = await artist()
+    const { document } = (await (
+      await upload(
+        cookie,
+        'masked-aadhaar',
+        eaadhaar('masked-signed.pdf'),
+        'eaadhaar.pdf',
+        'application/pdf',
+      )
+    ).json()) as { document: { id: number } }
+    const saved = await call(saveKycStep, cookie, {
+      ...goodKyc({ 'masked-aadhaar': document.id }),
+      idChoice: 'aadhaar',
+      aadhaarLast4: '4821',
+      aadhaarPassword: 'ASHA1990',
+    })
+    expect(saved.status).toBe(200)
+    const { kyc } = (await saved.json()) as { kyc: { aadhaarMasked: string } }
+    expect(kyc.aadhaarMasked).toBe('XXXX XXXX 4821')
+
+    const record = await recordOf(member.id)
+    expect(record.aadhaarCheck?.result).toBe('verified')
+    expect(record.aadhaarCheck?.mode).toBe('advisory')
+    expect(record.aadhaarCheck?.signer).toMatch(/Unique Identification Authority of India/)
+
+    // The password is nowhere: not in the record, the log, or any table we write
+    const row = await rawRecord(member.id)
+    expect(row).not.toContain('ASHA1990')
+    const [{ hits }] = await execute<{ hits: number }>(
+      payload,
+      sql`SELECT count(*)::int AS hits FROM security_events WHERE detail LIKE '%ASHA1990%'`,
+    )
+    expect(hits).toBe(0)
+  })
+
+  it('records why it could not verify, and still lets the application go ahead', async () => {
+    const { member, cookie } = await artist()
+    const { document } = (await (
+      await upload(
+        cookie,
+        'masked-aadhaar',
+        eaadhaar('masked-changed-after-signing.pdf'),
+        'eaadhaar.pdf',
+        'application/pdf',
+      )
+    ).json()) as { document: { id: number } }
+    const saved = await call(saveKycStep, cookie, {
+      ...goodKyc({ 'masked-aadhaar': document.id }),
+      idChoice: 'aadhaar',
+      aadhaarLast4: '1111',
+      aadhaarPassword: 'ASHA1990',
+    })
+    expect(saved.status).toBe(200)
+    const check = (await recordOf(member.id)).aadhaarCheck
+    expect(check?.result).toBe('not-verified')
+    expect(check?.reasons).toMatch(/changed after UIDAI signed it/)
+    expect(check?.reasons).toMatch(/last four digits/)
+  })
+
+  it('marks a photo or scan for a check by hand', async () => {
+    const { member, cookie } = await artist()
+    const photo = await sharp({
+      create: { width: 600, height: 400, channels: 3, background: { r: 220, g: 220, b: 220 } },
+    })
+      .jpeg()
+      .toBuffer()
+    const { document } = (await (
+      await upload(cookie, 'masked-aadhaar', photo, 'aadhaar.jpg', 'image/jpeg')
+    ).json()) as { document: { id: number } }
+    const saved = await call(saveKycStep, cookie, {
+      ...goodKyc({ 'masked-aadhaar': document.id }),
+      idChoice: 'aadhaar',
+      aadhaarLast4: '4821',
+    })
+    expect(saved.status).toBe(200)
+    const check = (await recordOf(member.id)).aadhaarCheck
+    expect(check?.result).toBe('manual-review')
+    expect(check?.reasons).toMatch(/photo or scan/)
+  })
+
+  it('deletes an unmasked copy rather than keep a full Aadhaar number', async () => {
+    const { member, cookie } = await artist()
+    const { document } = (await (
+      await upload(
+        cookie,
+        'masked-aadhaar',
+        eaadhaar('unmasked-signed.pdf'),
+        'eaadhaar.pdf',
+        'application/pdf',
+      )
+    ).json()) as { document: { id: number } }
+    await call(saveKycStep, cookie, {
+      ...goodKyc({ 'masked-aadhaar': document.id }),
+      idChoice: 'aadhaar',
+      aadhaarLast4: '4821',
+      aadhaarPassword: 'ASHA1990',
+    })
+    const record = await recordOf(member.id)
+    expect(record.aadhaarCheck?.result).toBe('not-verified')
+    expect(record.aadhaarCheck?.reasons).toMatch(/full Aadhaar number/)
+    expect((record.documents ?? []).map((d) => (typeof d === 'object' ? d.id : d))).not.toContain(
+      document.id,
+    )
+    const left = await payload.count({
+      collection: 'kyc-documents',
+      where: { id: { equals: document.id } },
+      overrideAccess: true,
+    })
+    expect(left.totalDocs).toBe(0)
   })
 
   it('needs consent, matching account numbers and a personal PAN', async () => {
     const { cookie } = await artist()
     const response = await call(saveKycStep, cookie, {
-      ...goodKyc(),
+      ...kycFor(cookie),
       consent: false,
       pan: 'ABCCE1234F',
       bank: { ...goodKyc().bank, accountNumberConfirm: '999900004822' },
@@ -319,8 +435,8 @@ describe('saving the KYC step', () => {
   it('finds another member with the same PAN without decrypting anything', async () => {
     const first = await artist()
     const second = await artist()
-    expect((await call(saveKycStep, first.cookie, goodKyc())).status).toBe(200)
-    expect((await call(saveKycStep, second.cookie, goodKyc())).status).toBe(200)
+    expect((await call(saveKycStep, first.cookie, kycFor(first.cookie))).status).toBe(200)
+    expect((await call(saveKycStep, second.cookie, kycFor(second.cookie))).status).toBe(200)
     const record = await recordOf(second.member.id)
     expect(JSON.stringify(record.duplicates)).toContain(first.application.reference)
   })
@@ -381,7 +497,11 @@ describe('identity documents', () => {
     const { document } = (await (
       await upload(owner.cookie, 'bank-proof', pdf, 'cheque.pdf', 'application/pdf')
     ).json()) as { document: { id: number } }
-    const response = await call(saveKycStep, other.cookie, goodKyc({ 'bank-proof': document.id }))
+    const response = await call(
+      saveKycStep,
+      other.cookie,
+      kycFor(other.cookie, { 'bank-proof': document.id }),
+    )
     expect(response.status).toBeGreaterThanOrEqual(400)
   })
 })
@@ -389,7 +509,7 @@ describe('identity documents', () => {
 describe('who can see KYC', () => {
   it('not an editor, a member, or anyone through REST', async () => {
     const { member, cookie } = await artist()
-    await call(saveKycStep, cookie, goodKyc())
+    await call(saveKycStep, cookie, kycFor(cookie))
 
     await expect(
       payload.find({ collection: 'kyc-records', user: editor, overrideAccess: false }),
@@ -423,7 +543,7 @@ describe('who can see KYC', () => {
 
   it('a full reveal needs a reviewer and a reason, and is recorded', async () => {
     const { member, cookie } = await artist()
-    await call(saveKycStep, cookie, goodKyc())
+    await call(saveKycStep, cookie, kycFor(cookie))
     const record = await recordOf(member.id)
     const reveal = endpoint('kyc-records', '/:id/reveal')
     const request = (user: unknown, reason: string) =>
@@ -460,7 +580,7 @@ describe('who can see KYC', () => {
 describe('changing bank details after approval', () => {
   it('needs a fresh code, keeps the old details until staff approve, and can be stopped', async () => {
     const { member, cookie } = await artist()
-    await call(saveKycStep, cookie, goodKyc())
+    await call(saveKycStep, cookie, kycFor(cookie))
     // Member IDs are only ever issued on approval, so the test sets one directly
     await execute(
       payload,
@@ -522,7 +642,7 @@ describe('changing bank details after approval', () => {
 
   it('“this was not me” stops the change and signs the account out', async () => {
     const { member, cookie } = await artist()
-    await call(saveKycStep, cookie, goodKyc())
+    await call(saveKycStep, cookie, kycFor(cookie))
     const { requestBankChange } = await import('@/kyc/service')
     const { cancelToken } = await requestBankChange(payload, {
       member: member as Member,
@@ -560,7 +680,8 @@ describe('retention and keys', () => {
     const held = await artist()
     const stale = await artist()
     const fresh = await artist()
-    for (const a of [withdrawn, held, stale, fresh]) await call(saveKycStep, a.cookie, goodKyc())
+    for (const a of [withdrawn, held, stale, fresh])
+      await call(saveKycStep, a.cookie, kycFor(a.cookie))
 
     const now = new Date().toISOString()
     await execute(
@@ -639,7 +760,7 @@ describe('retention and keys', () => {
 
   it('rotates the master key without touching the data', async () => {
     const { member, cookie } = await artist()
-    await call(saveKycStep, cookie, goodKyc())
+    await call(saveKycStep, cookie, kycFor(cookie))
     const record = await recordOf(member.id)
 
     process.env.KYC_ENCRYPTION_KEY_PREVIOUS = process.env.KYC_ENCRYPTION_KEY
@@ -668,7 +789,7 @@ describe('retention and keys', () => {
 describe('consent and legal hold', () => {
   it('cannot be edited by anyone through the API, not even a super admin', async () => {
     const { member, cookie } = await artist()
-    await call(saveKycStep, cookie, goodKyc())
+    await call(saveKycStep, cookie, kycFor(cookie))
     const record = await recordOf(member.id)
     expect(record.consentedAt).toBeTruthy()
     for (const data of [
@@ -694,7 +815,7 @@ describe('consent and legal hold', () => {
 
   it('a withdrawal received outside the site is recorded with a reason, once', async () => {
     const { member, cookie } = await artist()
-    await call(saveKycStep, cookie, goodKyc())
+    await call(saveKycStep, cookie, kycFor(cookie))
     const record = await recordOf(member.id)
     const handler = endpoint('kyc-records', '/:id/record-withdrawal')
     const request = (user: unknown, reason: string) =>
@@ -727,7 +848,7 @@ describe('consent and legal hold', () => {
 
   it('a legal hold is set and lifted only with a reason, and both are logged', async () => {
     const { member, cookie } = await artist()
-    await call(saveKycStep, cookie, goodKyc())
+    await call(saveKycStep, cookie, kycFor(cookie))
     const record = await recordOf(member.id)
     const handler = endpoint('kyc-records', '/:id/legal-hold')
     const request = (user: unknown, until: string | null, reason: string) =>
@@ -771,7 +892,7 @@ describe('the admin’s API tab for a KYC record', () => {
     const { document } = (await (
       await upload(cookie, 'bank-proof', pdf, 'cheque.pdf', 'application/pdf')
     ).json()) as { document: { id: number } }
-    await call(saveKycStep, cookie, goodKyc({ 'bank-proof': document.id }))
+    await call(saveKycStep, cookie, kycFor(cookie, { 'bank-proof': document.id }))
     const record = await recordOf(member.id)
 
     // What the API tab fetches: the record through REST, as the signed-in reviewer

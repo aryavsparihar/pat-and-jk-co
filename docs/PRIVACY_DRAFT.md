@@ -27,11 +27,15 @@ address, and what you tell us about your work, with pictures of it. To consider 
 and to work with you if we approve it.
 
 **Identity and bank details (artists).** Your PAN and the name on it, which we ask of every
-artist; if you choose, a masked copy of your Aadhaar with its last four digits, to show your
-address, and a proof of address if that address differs from the one you gave; and your bank
-account details, with a cheque or passbook if you choose. To be sure of who you are, to pay you, and to
-keep the records the law requires when we pay you. We ask for your separate consent to this, and
-we use these details for nothing else.
+artist. A second ID showing your address: a masked e-Aadhaar with its last four digits, or, if you
+would rather, a passport, voter ID or driving licence. A proof of address if that address differs
+from the one you gave. Your bank account details, with a cheque or passbook if you choose. To be
+sure of who you are, to pay you, and to keep the records the law requires when we pay you. We ask
+for your separate consent to this, and we use these details for nothing else.
+
+If you give us a masked e-Aadhaar and its password, we use the password once, to open the file
+and check UIDAI's digital signature and that the details match; we do not keep the password. You
+do not have to give us Aadhaar at all. **[confirm with counsel: wording on offline verification]**
 
 We never ask for, or keep, your full Aadhaar number.
 

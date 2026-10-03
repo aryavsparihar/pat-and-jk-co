@@ -46,6 +46,15 @@ export const KycPanel: React.FC = () => {
     ([fields]) => fields.consentWithdrawnAt?.value as string | undefined,
   )
   const holdUntil = useFormFields(([fields]) => fields.legalHoldUntil?.value as string | undefined)
+  const idChoice = useFormFields(([fields]) => fields.idChoice?.value as string | undefined)
+  const check = useFormFields(([fields]) => ({
+    result: fields['aadhaarCheck.result']?.value as string | undefined,
+    reasons: fields['aadhaarCheck.reasons']?.value as string | undefined,
+    signer: fields['aadhaarCheck.signer']?.value as string | undefined,
+    signedOn: fields['aadhaarCheck.signedOn']?.value as string | undefined,
+    checkedAt: fields['aadhaarCheck.checkedAt']?.value as string | undefined,
+    mode: fields['aadhaarCheck.mode']?.value as string | undefined,
+  }))
   const router = useRouter()
   const [values, setValues] = useState<Record<string, string> | null>(null)
   const [left, setLeft] = useState(0)
@@ -211,8 +220,58 @@ export const KycPanel: React.FC = () => {
     await act('legal-hold', { until: until.trim() || null, reason }, 'The legal hold is changed.')
   }
 
+  const CHECK_WORDS: Record<string, { label: string; colour: string }> = {
+    verified: { label: 'Verified', colour: 'var(--theme-success-500)' },
+    'not-verified': { label: 'Could not verify', colour: 'var(--theme-error-500)' },
+    'manual-review': { label: 'Needs a check by hand', colour: 'var(--theme-warning-500)' },
+  }
+
   return (
     <div style={{ marginBottom: 'calc(var(--base) * 1.5)' }}>
+      <p className="field-label">Identity document</p>
+      {idChoice === 'other' ? (
+        <p style={{ marginBottom: 'var(--base)' }}>
+          Another ID, to be checked by hand against the PAN and the application.
+        </p>
+      ) : idChoice === 'aadhaar' ? (
+        <div style={{ marginBottom: 'var(--base)' }} role="status">
+          {check.result ? (
+            <>
+              <p>
+                <strong style={{ color: CHECK_WORDS[check.result]?.colour }}>
+                  {CHECK_WORDS[check.result]?.label ?? check.result}
+                </strong>{' '}
+                <span style={{ opacity: 0.7 }}>
+                  ({check.mode === 'enforcing' ? 'enforcing' : 'advisory'}
+                  {check.checkedAt
+                    ? `, ${new Date(check.checkedAt).toLocaleDateString('en-IN')}`
+                    : ''}
+                  )
+                </span>
+              </p>
+              {check.reasons && (
+                <ul style={{ margin: '0.25rem 0 0', paddingLeft: '1.1rem' }}>
+                  {check.reasons.split('\n').map((r) => (
+                    <li key={r}>{r}</li>
+                  ))}
+                </ul>
+              )}
+              {check.signer && (
+                <p style={{ opacity: 0.7, marginTop: '0.25rem' }}>
+                  Signed by {check.signer}
+                  {check.signedOn ? ` on ${check.signedOn}` : ''}
+                </p>
+              )}
+            </>
+          ) : (
+            <p style={{ opacity: 0.7 }}>The masked e-Aadhaar has not been checked yet.</p>
+          )}
+          <p style={{ opacity: 0.7, marginTop: '0.25rem' }}>
+            Whatever this says, check the name, date of birth, photo and last four digits by hand.
+          </p>
+        </div>
+      ) : null}
+
       <p className="field-label">Full details</p>
       {values ? (
         <div>

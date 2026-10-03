@@ -19,7 +19,9 @@ import {
   unwrapDataKey,
   wrapDataKey,
 } from './crypto'
+import { checkMaskedAadhaar, type AadhaarCheck } from './aadhaarCheck'
 import { deleteEncrypted, kycPrefix, readEncrypted, storeEncrypted } from './documentStore'
+import { AADHAAR_CHECK_MODE } from './settings'
 import type { KycDocumentKind, KycInput } from './schema'
 import { maskAadhaar, maskAccount, maskIfsc, maskPan, namesPlausiblyMatch } from './values'
 
@@ -166,7 +168,18 @@ export const saveKyc = async (
     panNameSealed: seal('panName', input.panName),
     aadhaarLast4Sealed: seal('aadhaarLast4', input.aadhaarLast4),
     idMasked: maskPan(input.pan),
+    idChoice: input.idChoice,
+    otherIdKind: input.otherIdKind ?? null,
     aadhaarMasked: input.aadhaarLast4 ? maskAadhaar(input.aadhaarLast4) : null,
+    // Filled in by runAadhaarCheck once the masked e-Aadhaar has been checked
+    aadhaarCheck: {
+      result: null,
+      reasons: null,
+      signer: null,
+      signedOn: null,
+      checkedAt: null,
+      mode: null,
+    },
     addressOnIdMatches: input.addressOnIdMatches ?? null,
     accountNumberSealed: seal('accountNumber', input.bank.accountNumber),
     ifscSealed: seal('ifsc', input.bank.ifsc),
@@ -205,7 +218,7 @@ export const saveKyc = async (
     event: 'kyc-saved',
     email: member.email,
     subject: reference,
-    detail: `pan${input.aadhaarLast4 ? ' and masked aadhaar' : ''}${nameMismatch ? ', name differs' : ''}${data.duplicates ? ', possible duplicate' : ''}`,
+    detail: `pan and ${input.idChoice === 'aadhaar' ? 'masked aadhaar' : (input.otherIdKind ?? 'other id')}${nameMismatch ? ', name differs' : ''}${data.duplicates ? ', possible duplicate' : ''}`,
   })
   return record
 }
@@ -223,6 +236,8 @@ export const maskedKyc = async (payload: Payload, memberId: number) => {
   return {
     panMasked: record.idType === 'pan' ? record.idMasked : null,
     aadhaarMasked: record.aadhaarMasked ?? (record.idType === 'aadhaar' ? record.idMasked : null),
+    idChoice: record.idChoice ?? (record.aadhaarMasked ? 'aadhaar' : null),
+    otherIdKind: record.otherIdKind ?? null,
     addressOnIdMatches: record.addressOnIdMatches,
     bank: {
       accountMasked: record.accountMasked,
@@ -249,6 +264,9 @@ export const kycProblems = async (payload: Payload, memberId: number): Promise<s
   if (!record) return ['Please add your identity and bank details.']
   // Records saved before PAN was required may have only Aadhaar digits
   if (record.idType !== 'pan') return ['Please add your PAN to your identity details.']
+  // Records saved before a second ID was asked of everyone
+  if (!record.idChoice)
+    return ['Please add a masked e-Aadhaar or another ID to your identity details.']
   return record.consentWithdrawnAt
     ? ['Please give your consent again to send your application.']
     : []
@@ -390,6 +408,16 @@ export const revealKyc = async (
   return values
 }
 
+type SealedDocument = KycDocument & { storageKey: string; keyId: string; wrappedKey: string }
+
+/** A document's plaintext, in memory. Callers decide what to log; this logs nothing. */
+const decryptDocument = async (document: SealedDocument): Promise<Buffer> => {
+  const memberId = typeof document.member === 'object' ? document.member.id : document.member
+  const context = documentContext(memberId, storageNameOf(document.storageKey))
+  const key = unwrapDataKey({ keyId: document.keyId, wrappedKey: document.wrappedKey }, context)
+  return openFile(key, await readEncrypted(document.storageKey), context)
+}
+
 export const openKycDocument = async (
   payload: Payload,
   { documentId, actor, reason }: { documentId: number; actor: User; reason: unknown },
@@ -403,9 +431,7 @@ export const openKycDocument = async (
     showHiddenFields: true,
   })) as KycDocument & { storageKey: string; keyId: string; wrappedKey: string }
   const memberId = typeof document.member === 'object' ? document.member.id : document.member
-  const context = documentContext(memberId, storageNameOf(document.storageKey))
-  const key = unwrapDataKey({ keyId: document.keyId, wrappedKey: document.wrappedKey }, context)
-  const bytes = openFile(key, await readEncrypted(document.storageKey), context)
+  const bytes = await decryptDocument(document)
   const record = await findRecord(payload, memberId)
   await logSecurityEvent(payload, {
     event: 'kyc-document-opened',
@@ -418,6 +444,114 @@ export const openKycDocument = async (
     contentType: document.contentType,
     filename: `${document.kind}-${record?.reference ?? memberId}.${document.contentType === 'application/pdf' ? 'pdf' : 'jpg'}`,
   }
+}
+
+/* ─── The masked e-Aadhaar check ─────────────────────────────────────── */
+
+export type AadhaarCheckInput = {
+  memberId: number
+  documentId: number
+  /** The PDF's password: used here, in memory, and dropped. Never stored or logged. */
+  password?: string
+  last4?: string
+  panName?: string
+  dateOfBirth?: string | null
+}
+
+/** Opens the stored masked e-Aadhaar in memory and runs the check on it. Records nothing. */
+export const checkStoredAadhaar = async (
+  payload: Payload,
+  input: AadhaarCheckInput,
+): Promise<AadhaarCheck> => {
+  const document = (await payload.findByID({
+    collection: 'kyc-documents',
+    id: input.documentId,
+    depth: 0,
+    overrideAccess: true,
+    showHiddenFields: true,
+  })) as SealedDocument
+  return checkMaskedAadhaar({
+    file: await decryptDocument(document),
+    password: input.password,
+    last4: input.last4,
+    panName: input.panName,
+    dateOfBirth: input.dateOfBirth,
+  })
+}
+
+/**
+ * Records a check's result on the member's KYC record, for staff. An unmasked copy is never
+ * kept: its file and document are deleted, and the record says why.
+ */
+export const recordAadhaarCheck = async (
+  payload: Payload,
+  { memberId, documentId }: { memberId: number; documentId: number },
+  check: AadhaarCheck,
+): Promise<void> => {
+  const record = await findRecord(payload, memberId)
+  if (!record) return
+  let documents = (record.documents ?? []).map((d) => (typeof d === 'object' ? d.id : d))
+  if (check.unmasked) {
+    const document = (await payload.findByID({
+      collection: 'kyc-documents',
+      id: documentId,
+      depth: 0,
+      overrideAccess: true,
+      showHiddenFields: true,
+    })) as SealedDocument
+    await deleteEncrypted(document.storageKey)
+    documents = documents.filter((id) => id !== documentId)
+    await payload.update({
+      collection: 'kyc-records',
+      id: record.id,
+      data: { documents },
+      overrideAccess: true,
+      context: { disableRevalidate: true },
+    })
+    await payload.delete({
+      collection: 'kyc-documents',
+      id: documentId,
+      overrideAccess: true,
+      context: { disableRevalidate: true },
+    })
+  }
+  await payload.update({
+    collection: 'kyc-records',
+    id: record.id,
+    data: {
+      aadhaarCheck: {
+        result: check.result,
+        reasons: check.reasons.join('\n') || null,
+        signer: check.signer ?? null,
+        signedOn: check.signedOn ?? null,
+        checkedAt: new Date().toISOString(),
+        mode: AADHAAR_CHECK_MODE,
+      },
+    } as never,
+    overrideAccess: true,
+    context: { disableRevalidate: true },
+  })
+  await logSecurityEvent(payload, {
+    event: 'kyc-aadhaar-checked',
+    subject: record.reference ?? `member ${memberId}`,
+    detail: `${check.result}${check.unmasked ? ', unmasked copy deleted' : ''} (${AADHAAR_CHECK_MODE})`,
+  })
+}
+
+/** Checks and records in one go, never throwing: a failure to check is itself a result */
+export const runAadhaarCheck = async (payload: Payload, input: AadhaarCheckInput) => {
+  let check: AadhaarCheck
+  try {
+    check = await checkStoredAadhaar(payload, input)
+  } catch (error) {
+    payload.logger.error({ err: error, msg: 'Masked e-Aadhaar check failed to run' })
+    check = {
+      result: 'manual-review',
+      reasons: ['The check could not be run on this file. Please check it by hand.'],
+    }
+  }
+  await recordAadhaarCheck(payload, input, check)
+  return check
 }
 
 /* ─── Changing bank details after approval ──────────────────────────────── */

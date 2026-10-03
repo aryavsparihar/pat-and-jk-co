@@ -42,6 +42,7 @@ export const KycDocuments: CollectionConfig = {
       options: [
         { label: 'PAN card', value: 'pan-card' },
         { label: 'Masked Aadhaar', value: 'masked-aadhaar' },
+        { label: 'Passport, voter ID or driving licence', value: 'other-id' },
         { label: 'Proof of address', value: 'address-proof' },
         { label: 'Cancelled cheque or passbook', value: 'bank-proof' },
       ],

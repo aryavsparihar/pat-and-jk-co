@@ -10,14 +10,16 @@ part protects against. The code is in `src/kyc/`; nothing else touches a key.
 | --- | --- | --- |
 | PAN, and the name on it | **Required from every artist**: we need it to pay and for tax | Encrypted, plus a masked copy (`ABCxxxxx4F`) |
 | PAN card | Optional | Encrypted file |
-| Aadhaar | **Optional**, and then **only** a masked Aadhaar (the copy UIDAI issues with the first eight digits hidden) with its last four digits, together. It shows us the address | Last four encrypted, plus `XXXX XXXX 1234`; the copy as an encrypted file |
-| Proof of address | Only if the masked Aadhaar shows an address other than the one given | Encrypted file |
+| A second ID, with an address | **Required.** By default a **masked e-Aadhaar** (the PDF UIDAI issues with the first eight digits hidden) with its last four digits. As an equal choice, with no extra steps: **"I'd rather use another ID"**, a passport, voter ID or driving licence, checked by hand | Aadhaar: last four encrypted, plus `XXXX XXXX 1234`. Either way, the document as an encrypted file. Other ID numbers are not asked for |
+| The masked e-Aadhaar PDF's password | Optional. Opens the PDF once, in memory, for the check below | **Never stored or logged** |
+| Proof of address | Only if the ID shows an address other than the one given | Encrypted file |
 | Account holder's name, account number, IFSC, branch | Required | Encrypted, plus `XXXXXXXX1234` and `SBIN0xxxxxx` |
 | Bank name, account type | Required | Plain text: neither identifies anyone |
 | Cancelled cheque or passbook | Optional | Encrypted file |
 
-Records saved before PAN became required may hold only Aadhaar digits; such an application cannot
-be sent until a PAN is added. The full Aadhaar number is never accepted, anywhere: the form asks for four digits, the server
+Records saved before PAN became required may hold only Aadhaar digits, and records saved before a
+second ID was required may have none; such an application cannot be sent until the missing part
+is added. The full Aadhaar number is never accepted, anywhere: the form asks for four digits, the server
 refuses twelve with a message that does not repeat them, and the logs would redact them anyway.
 Why, in [SECURITY.md](SECURITY.md#aadhaar).
 
@@ -198,6 +200,48 @@ need an account, so neither is used without asking first:
   authorised provider.
 
 The record has fields for the method and the provider's reference, ready for either.
+
+### The masked e-Aadhaar check (advisory)
+
+When an artist gives a masked e-Aadhaar, the server checks it (`src/kyc/aadhaarCheck.ts`) and
+records what it found on the KYC record, shown in its sidebar:
+
+1. **The original PDF.** A photo or scan is accepted, and marked *needs a check by hand*.
+2. **UIDAI's digital signature,** read from the file's raw bytes, so no password is needed for
+   this part: valid; covering the whole file, so nothing was changed after signing; made by UIDAI;
+   and chaining to one of India's CCA root certificates (`src/kyc/ccaRoots.ts`), with dates
+   checked as at the signing time.
+3. **Inside, with the PDF's password** (the artist types it; it opens the file in memory and is
+   dropped): the copy is masked, the last four digits are the ones typed, the name is the name on
+   the PAN, and the date of birth is the one in "About you", read as an Indian date.
+
+The result is **verified**, **could not verify** with a plain reason, or **needs a check by hand**
+(no password, a photo, an unreadable file, a name that only partly matches, no CCA roots
+installed). Reasons never repeat a value from the file. Every check is in the security log
+(`kyc-aadhaar-checked`). If the file turns out to show a **full** Aadhaar number, it is deleted
+at once rather than kept, and the record says so.
+
+**Advisory, not enforcing.** `AADHAAR_CHECK_MODE` in `src/kyc/settings.ts` is `'advisory'`: the
+check runs after the artist has their answer (Next.js `after()`), records its result, and never
+blocks or delays an application. `'enforcing'` would run it first and refuse a masked e-Aadhaar
+that could not be verified. **Enforcing stays off until the check has been confirmed on real
+uploads**, which the CCA roots also need first:
+
+- **Confirm on a real file:** `pnpm kyc:check-aadhaar /path/to/masked-eaadhaar.pdf` runs the same
+  check on your own machine. It asks for the password and the details with typing hidden, and
+  prints only the result, the reasons and the signer.
+- **Install the CCA roots:** `src/kyc/ccaRoots.ts` is empty until India's CCA root certificates
+  are added from cca.gov.in. Until then the chain is not checked and the best result is *needs a
+  check by hand*.
+
+Tests use made-up PDFs signed by a made-up chain (`tests/fixtures/eaadhaar`, rebuilt with
+`scripts/fixtures/make-eaadhaar-fixtures.py`).
+
+**UIDAI registration.** Checking the signature on an e-Aadhaar PDF is not one of the two modes the
+2025 amendment's Regulation 13A names for OVSE registration (paperless offline e-KYC, and
+Verifiable Credentials through the Aadhaar app), but the sources are not consistent: the lawyer
+should confirm it. Making Aadhaar compulsory is not allowed for a private company, which is why
+the other-ID choice is an equal one.
 
 **Possible later addition: UIDAI offline e-KYC. Not built.** UIDAI's signed offline e-KYC, the
 XML in a ZIP opened with the artist's share code or the Secure QR, would let us confirm a name,
