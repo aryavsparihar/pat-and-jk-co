@@ -92,7 +92,7 @@ Every decision is recorded under **Administration → Security log**, with your 
 
 ### Identity and bank details
 
-Artists give their PAN (and, if they choose, a masked Aadhaar with its last four digits, for their address) and their bank details as part of their application. You see them under **Members → KYC records**, but only if you are a super admin or have the **KYC reviewer** role (given under **Users**). Editors never see them.
+Artists give their PAN, a second ID with their address (a masked e-Aadhaar with its last four digits, or, if they prefer, a passport, voter ID or driving licence) and their bank details as part of their application. You see them under **Members → KYC records**, but only if you are a super admin or have the **KYC reviewer** role (given under **Users**). Editors never see them.
 
 Everything is shown masked, like `XXXXXXXX4821`. In the record's sidebar:
 

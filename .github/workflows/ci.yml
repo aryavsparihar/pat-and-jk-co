@@ -84,3 +84,68 @@ jobs:
 
       - name: Production build
         run: pnpm build
+
+  # The end-to-end tests (tests/e2e) in a real browser, against the app running on a throwaway
+  # database that is migrated and seeded first. Nothing here is a real secret or a real person.
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: pjk
+          POSTGRES_PASSWORD: pjk
+          POSTGRES_DB: pjk_e2e
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U pjk"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgres://pjk:pjk@localhost:5432/pjk_e2e
+      PAYLOAD_SECRET: ci-only-0000000000000000000000000000000000000000000000000000000000
+      PREVIEW_SECRET: ci-only-preview-secret-00000000000000000000
+      CRON_SECRET: ci-only-cron-secret-0000000000000000000000000
+      NEXT_PUBLIC_SERVER_URL: http://localhost:3000
+      DEFAULT_TENANT_SLUG: pjk
+      NEXT_TELEMETRY_DISABLED: '1'
+      CI: 'true'
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Install the browser
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Migrate and seed the throwaway database
+        run: |
+          pnpm payload migrate
+          pnpm seed
+        env:
+          NODE_ENV: production
+
+      - name: End-to-end tests
+        run: pnpm test:e2e
+
+      - name: Keep the report when something fails
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

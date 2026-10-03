@@ -10,6 +10,10 @@ Everything visitors see is editable from the admin panel at `/admin` — pages, 
 | [docs/ADMIN_GUIDE.md](docs/ADMIN_GUIDE.md)       | Editors — how to manage content (plain language, no code)        |
 | [docs/ADDING_A_BRAND.md](docs/ADDING_A_BRAND.md) | Launching another brand's website on this platform               |
 | [docs/BRANDS.md](docs/BRANDS.md)                 | Each venture's palette, type and logo rules                      |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)     | How the code fits together, for developers                       |
+| [docs/SECURITY.md](docs/SECURITY.md)             | Sign-in, sessions, access rules, logs and rate limits            |
+| [docs/KYC.md](docs/KYC.md)                       | How artists' identity and bank details are kept, and why         |
+| [docs/PRIVACY_DRAFT.md](docs/PRIVACY_DRAFT.md)   | The privacy notice, in draft for legal review                    |
 
 ## Stack
 
@@ -37,6 +41,8 @@ Visitor → pjk.co.in/about
 - **Brands (tenants).** Each brand — PJK, and later Phulhaar Gallery, etc. — has its own domains, pages, journal, ventures, people, media, forms, redirects and site settings (logo, colours, navigation, footer). The [multi-tenant plugin](https://payloadcms.com/docs/plugins/multi-tenant) keeps their content separate; editors only see the brands assigned to them.
 - **Page builder.** Pages are an ordered list of blocks (Hero, Page intro, Statement, Text, Image & text, Venture spotlight, Ventures grid, Principles, Quote, People grid, Journal feed, Openings list, Form, Call to action). Editors add, remove and reorder them.
 - **Always fresh, always fast.** Pages are pre-rendered static HTML. Any change in the admin calls `revalidatePath('/', 'layout')` (see `src/hooks/revalidateFrontend.ts`), so the next visitor gets the updated page. Pages also refresh hourly as a safety net.
+- **Artists and partners.** People apply at `/collaborate/artists` and `/collaborate/partners`, signing in with a code emailed to them (no passwords). Staff decide in the admin; approval issues a member ID (`AT000001`, `PT000001`). Approved artists get a portal at `/account`: a profile and works that reach the public only after staff approve them, and a masked view of where they are paid. Applications open and close with one switch in Site settings.
+- **Identity and bank details (KYC).** PAN from every artist, and a masked e-Aadhaar or another ID, encrypted field by field under keys kept only in the environment, shown masked, and revealed only to KYC reviewers with a logged reason. See [docs/KYC.md](docs/KYC.md).
 - **Design system.** A brand picks four colours (brand, background, paper, text) in Site settings; hairlines, hovers and muted text are derived from them in `globals.css`. Entirely serif: Cormorant Garamond for display, EB Garamond for text and small capitals. Woodland green is the ink on ivory; solid green is kept for the footer and feature plates.
 
 ## Local development
@@ -66,7 +72,10 @@ Unknown hostnames (like `localhost`) show the brand in `DEFAULT_TENANT_SLUG`. To
 | `pnpm build` · `pnpm start`                        | Production build and server                                            |
 | `pnpm lint` · `pnpm typecheck`                     | ESLint and TypeScript                                                  |
 | `pnpm test:int`                                    | Unit + integration tests (uses `DATABASE_URL`; cleans up after itself) |
-| `pnpm test:e2e`                                    | Playwright browser tests against a seeded dev server                   |
+| `pnpm test:e2e`                                    | Playwright browser tests: applying, signing in, approval, the portal   |
+| `pnpm kyc:purge` (`--apply`)                       | Delete KYC data past its retention (also runs weekly in production)    |
+| `pnpm kyc:rotate-key` (`--apply`)                  | Move KYC records onto a new encryption key                             |
+| `pnpm kyc:check-aadhaar <file>`                    | Run the masked e-Aadhaar check on a real file, locally                 |
 | `pnpm generate:types`                              | Regenerate `src/payload-types.ts` after changing collections or blocks |
 | `pnpm payload migrate:create <name>`               | Create a database migration after schema changes (see below)           |
 | `pnpm brand:trace` · `brand:icons` · `brand:embed` | Vectorise a logo PNG, rebuild favicons/share image, embed brand SVGs   |
@@ -92,15 +101,23 @@ src/
   blocks/<Name>/config.ts          block fields (admin)   ─┐ listed in blocks/index.ts
   blocks/<Name>/Component.tsx      block rendering (site) ─┘ and blocks/RenderBlocks.tsx
   plugins/index.ts                 multi-tenant, forms, SEO, redirects, Blob storage
+  members/                         applications, decisions, the member portal, emails
+  kyc/                             KYC encryption, documents, the e-Aadhaar check (server only)
+  security/                        codes, sessions, rate limits, the admin gate, CSP
   app/(frontend)/tenant-sites/[host]/   public routes: /, /[slug], /ventures/[slug], /journal/[slug],
                                         sitemap.xml, robots.txt
   app/(payload)/                   admin panel & API (generated by Payload)
-  components/                      header, footer, cards, typography, media
+  components/                      header, footer, cards, typography, media; onboarding/ (the
+                                   application forms), portal/ (the member's account),
+                                   phulhaar/ (Phulhaar's frame), admin/ (sidebar panels, dialogs)
+  app/(frontend)/next/members/     the members' endpoints: codes, applications, KYC, the portal
   seed/                            starter content for the PJK brand
   migrations/                      production database migrations
 scripts/brand/                     logo tracing and icon generation
 public/brand/                      traced PJK logo, wordmark, leaf ornament, share image
-docs/                              setup, admin and new-brand guides
+tests/int/                         integration tests (Vitest, against a real database)
+tests/e2e/                         end-to-end tests (Playwright, against the running app)
+docs/                              setup, admin, security, KYC and new-brand guides
 ```
 
 ## Security notes
@@ -112,3 +129,5 @@ Full detail in [docs/SECURITY.md](docs/SECURITY.md).
 - Every sign-in attempt, approval and refusal is recorded in the security log.
 - Form submissions: honeypot + per-IP rate limit + server-side validation against the form's fields; enquiries are readable only by signed-in users of the owning brand.
 - Drafts are only visible in the admin's authenticated preview. Security headers are set in `next.config.ts`.
+- **Members** sign in with an emailed code only and can never reach `/admin`; when a browser holds both a staff and a member session, the staff one wins in the admin.
+- **KYC** values are encrypted at rest and never returned by any API; documents live encrypted in a private store. Every reveal and download is logged with a reason.

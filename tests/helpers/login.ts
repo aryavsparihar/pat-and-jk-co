@@ -36,9 +36,17 @@ export async function login({
   ])
 
   await page.goto(`${serverURL}/admin/login`)
+  await page.waitForLoadState('networkidle')
 
-  await page.fill('#field-email', user.email)
-  await page.fill('#field-password', user.password)
+  // On a cold development server the form can finish loading after the fields are filled, and
+  // empty them; fill again until both values have stuck
+  await expect(async () => {
+    await page.fill('#field-email', user.email)
+    await page.fill('#field-password', user.password)
+    await page.waitForTimeout(500)
+    await expect(page.locator('#field-email')).toHaveValue(user.email, { timeout: 1000 })
+    await expect(page.locator('#field-password')).toHaveValue(user.password, { timeout: 1000 })
+  }).toPass({ timeout: 60_000 })
   await page.click('button[type="submit"]')
 
   await page.waitForURL(`${serverURL}/admin`)

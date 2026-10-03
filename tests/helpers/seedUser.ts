@@ -3,7 +3,7 @@ import config from '../../src/payload.config.js'
 
 export const testUser = {
   email: 'e2e-test@pjk.co.in',
-  password: 'E2e-Test-Passw0rd!',
+  password: 'Quiet-Forest-Lamp-29!',
   name: 'E2E Test',
 }
 
