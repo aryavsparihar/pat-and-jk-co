@@ -24,7 +24,9 @@ export type TurnstileAction = 'signin' | 'apply-artist' | 'apply-partner' | 'con
  * carry a placeholder in place of the form's action, so the action cannot be compared; previews
  * use them, production never does
  */
-const TEST_SECRET = /^[123]x0+AA$/
+export const TURNSTILE_TEST_SECRET = /^[123]x0+AA$/
+/** And their test site keys (visible and invisible widgets): always pass, block, or challenge */
+export const TURNSTILE_TEST_SITE_KEY = /^[123]x0+[A-F]{2}$/
 
 export type TurnstileResult =
   { ok: true; checked: boolean; note?: string } | { ok: false; reason: string }
@@ -63,7 +65,7 @@ export const verifyTurnstile = async (
   if (!outcome.success) {
     return { ok: false, reason: (outcome['error-codes'] ?? []).join(',') || 'not-genuine' }
   }
-  if (outcome.action !== action && !TEST_SECRET.test(secret))
+  if (outcome.action !== action && !TURNSTILE_TEST_SECRET.test(secret))
     return { ok: false, reason: 'wrong-form' }
   return { ok: true, checked: true }
 }

@@ -67,7 +67,8 @@ refuses one that is missing, used before, or earned on a different form. Only th
 token are sent to Cloudflare, never the person's IP address or anything they typed. If Cloudflare
 cannot be reached the request goes ahead and the reason is logged: the honeypot, the form-start
 token and the rate limits still apply. Without `TURNSTILE_SECRET_KEY` (a developer's machine, the
-tests) the check is skipped; production refuses to start without both keys. The staff sign-in
+tests) the check is skipped; production refuses to start without both keys, or with Cloudflare's
+test keys, which previews use and which pass everyone. The staff sign-in
 gate is not covered: its sign-in model is unchanged.
 
 ## Staff and members

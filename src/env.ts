@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+import { TURNSTILE_TEST_SECRET, TURNSTILE_TEST_SITE_KEY } from './security/turnstile'
+
 /**
  * Every environment variable the app reads, checked once at boot.
  *
@@ -165,6 +167,17 @@ export const parseEnv = (source: Record<string, string | undefined>): EnvResult 
     }
     if (env.NEXT_PUBLIC_SERVER_URL && !env.NEXT_PUBLIC_SERVER_URL.startsWith('https://')) {
       problems.push('NEXT_PUBLIC_SERVER_URL must use https:// in production')
+    }
+    // Cloudflare's test keys pass everyone: right for a preview, an open door in production
+    if (TURNSTILE_TEST_SECRET.test(env.TURNSTILE_SECRET_KEY?.trim() ?? '')) {
+      problems.push(
+        "TURNSTILE_SECRET_KEY is one of Cloudflare's test keys; production needs the real one",
+      )
+    }
+    if (TURNSTILE_TEST_SITE_KEY.test(env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim() ?? '')) {
+      problems.push(
+        "NEXT_PUBLIC_TURNSTILE_SITE_KEY is one of Cloudflare's test keys; production needs the real one",
+      )
     }
   }
 

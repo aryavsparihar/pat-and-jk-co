@@ -77,11 +77,25 @@ describe('environment validation', () => {
         KYC_ENCRYPTION_KEY: fakeKey(1),
         KYC_BLIND_INDEX_KEY: fakeKey(2),
         KYC_STORE_ID: 'store_exampleKycNotReal',
-        // Cloudflare's published test keys
-        NEXT_PUBLIC_TURNSTILE_SITE_KEY: '1x00000000000000000000AA',
-        TURNSTILE_SECRET_KEY: '1x0000000000000000000000000000000AA',
+        // Shaped like real keys; made up
+        NEXT_PUBLIC_TURNSTILE_SITE_KEY: '0x4AAAAAAAexampleNotReal',
+        TURNSTILE_SECRET_KEY: '0x4AAAAAAAexample-secret-not-real',
       }).problems,
     ).toEqual([])
+  })
+
+  it('refuses Cloudflare’s test Turnstile keys in production, and allows them on a preview', () => {
+    const testKeys = {
+      ...base,
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY: '1x00000000000000000000AA',
+      TURNSTILE_SECRET_KEY: '1x0000000000000000000000000000000AA',
+    }
+    const text = parseEnv({ ...testKeys, VERCEL_ENV: 'production' }).problems.join('\n')
+    expect(text).toMatch(/TURNSTILE_SECRET_KEY is one of Cloudflare's test keys/)
+    expect(text).toMatch(/NEXT_PUBLIC_TURNSTILE_SITE_KEY is one of Cloudflare's test keys/)
+    // Values are never repeated in the message
+    expect(text).not.toContain('1x0000')
+    expect(parseEnv({ ...testKeys, VERCEL_ENV: 'preview' }).problems).toEqual([])
   })
 
   it('lets a preview run without production-only settings', () => {
