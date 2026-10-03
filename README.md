@@ -14,6 +14,7 @@ Everything visitors see is editable from the admin panel at `/admin` — pages, 
 | [docs/SECURITY.md](docs/SECURITY.md)             | Sign-in, sessions, access rules, logs and rate limits            |
 | [docs/KYC.md](docs/KYC.md)                       | How artists' identity and bank details are kept, and why         |
 | [docs/PRIVACY_DRAFT.md](docs/PRIVACY_DRAFT.md)   | The privacy notice, in draft for legal review                    |
+| [docs/LAUNCH.md](docs/LAUNCH.md)                 | What must be done before applications open on 8 November         |
 
 ## Stack
 

@@ -405,6 +405,8 @@ In the order they are fixed. Each is its own commit.
 
 ## What needs doing by hand
 
+> Superseded by [LAUNCH.md](LAUNCH.md), which carries what is still open. Kept for the record.
+
 **Vercel**
 
 1. **Settings → Environment Variables → `DATABASE_URL`**: check the Production value's host contains
