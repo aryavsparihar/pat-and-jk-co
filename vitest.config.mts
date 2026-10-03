@@ -7,12 +7,16 @@ export default defineConfig({
   plugins: [tsconfigPaths(), react()],
   resolve: {
     // `import 'server-only'` throws outside a React Server build; the tests are server code
-    alias: { 'server-only': fileURLToPath(new URL('./tests/helpers/server-only.ts', import.meta.url)) },
+    alias: {
+      'server-only': fileURLToPath(new URL('./tests/helpers/server-only.ts', import.meta.url)),
+    },
   },
   test: {
     environment: 'jsdom',
     setupFiles: ['./vitest.setup.ts'],
     include: ['tests/int/**/*.int.spec.ts'],
+    // In CI, any test that did not run fails the build (tests/helpers/noSkippedTests.ts)
+    reporters: ['default', './tests/helpers/noSkippedTests.ts'],
     // The files share one database; in parallel they race to sync its schema and to clean up
     fileParallelism: false,
     // These tests talk to a real database, which on a cold CI runner is slower than on a laptop

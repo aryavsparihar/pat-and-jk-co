@@ -63,6 +63,29 @@ describe('the masked e-Aadhaar check', () => {
     expect(check.reasons.join(' ')).toMatch(/root certificates are not installed/)
   })
 
+  it('trusts India’s CCA roots only: a chain from anywhere else is refused', async () => {
+    // The real roots (src/kyc/ccaRoots.ts), not the test one: the made-up chain must fail
+    const check = await checkMaskedAadhaar({
+      file: fixture('masked-signed.pdf'),
+      ...good,
+      roots: undefined,
+    })
+    expect(check.result).toBe('not-verified')
+    expect(check.reasons.join(' ')).toMatch(/does not chain to India’s CCA roots/)
+  })
+
+  it('carries the two document-signing CCA roots, with the recorded fingerprints', async () => {
+    const { CCA_ROOTS_PEM } = await import('@/kyc/ccaRoots')
+    const { X509Certificate } = await import('node:crypto')
+    const fingerprints = CCA_ROOTS_PEM.map((pem) =>
+      new X509Certificate(pem).fingerprint256.replace(/:/g, ''),
+    )
+    expect(fingerprints).toEqual([
+      '9A3FD3176798E842DDCB12C262F11CFACCA70A8B84C6EA6FDA30842A95A94CD8',
+      '60109BC6C38328598A112C7A25E38B0F23E5A7511CB815FB64E0C4FF05DB7DF7',
+    ])
+  })
+
   it('flags an unmasked copy so it is not kept', async () => {
     const check = await checkMaskedAadhaar({ file: fixture('unmasked-signed.pdf'), ...good })
     expect(check.result).toBe('not-verified')
