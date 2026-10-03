@@ -88,10 +88,14 @@ const nextConfig: NextConfig = {
   agentRules: false,
   // pdf.js reads masked e-Aadhaar PDFs on the server (src/kyc/aadhaarCheck.ts). Left unbundled, it
   // finds its worker beside itself in node_modules; the worker is loaded by a computed path, so it
-  // is added to the KYC route's traced files by hand, or a deployment would not include it
+  // is added to the KYC route's traced files by hand, or a deployment would not include it. The
+  // path is the real file in pnpm's store: node_modules/pdfjs-dist itself is a symlink, which
+  // Vercel cannot package ("invalid deployment package ... symlinked directories")
   serverExternalPackages: ['pdfjs-dist'],
   outputFileTracingIncludes: {
-    '/next/members/kyc': ['./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs'],
+    '/next/members/kyc': [
+      './node_modules/.pnpm/pdfjs-dist@*/node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs',
+    ],
   },
   // Temporarily required on Windows until Next.js fixes Turbopack Sass resolution.
   // See: https://github.com/vercel/next.js/issues/86431
