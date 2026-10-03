@@ -278,6 +278,42 @@ describe('a work, from the artist to the public', () => {
     expect((await createRoute(request('POST', cookie, work([theirs.id])))).status).toBe(422)
   })
 
+  it('takes empty fields as the form sends them, and an edit that empties one clears it', async () => {
+    const { member, cookie } = await someone('artist')
+    const image = await picture(member)
+    // The browser's form sends every field, an empty one as null
+    const created = await createRoute(
+      request('POST', cookie, {
+        ...work([image.id]),
+        edition: 'One of three',
+        depthCm: null,
+        description: null,
+      }),
+    )
+    expect(created.status).toBe(200)
+    const { artwork } = await json<{ artwork: { id: number } }>(created)
+
+    const edited = await updateRoute(
+      request('PATCH', cookie, {
+        ...work([image.id]),
+        edition: null,
+        forSale: false,
+        priceInr: null,
+        depthCm: null,
+        description: null,
+      }),
+      params(artwork.id),
+    )
+    expect(edited.status).toBe(200)
+    const stored = await payload.findByID({
+      collection: 'artworks',
+      id: artwork.id,
+      overrideAccess: true,
+    })
+    expect(stored.edition ?? null).toBeNull()
+    expect(stored.priceInr ?? null).toBeNull()
+  })
+
   it('archiving hides a work and its pictures at once; bringing it back shows it again', async () => {
     const { member, cookie } = await someone('artist')
     const image = await picture(member)

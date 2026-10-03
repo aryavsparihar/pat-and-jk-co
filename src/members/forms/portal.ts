@@ -8,18 +8,20 @@ import { isWebUrl } from './validators'
  * server's check is the one that counts. Messages are plain and never repeat a value back.
  */
 
+// The account forms send every field, an empty one as null, and an edit replaces what was there:
+// so empty means null, which clears the field, where undefined would leave the old value in place
 const optionalText = (max: number) =>
   z
     .string()
     .trim()
     .max(max, `Please keep this under ${max} characters.`)
-    .optional()
-    .transform((v) => (v ? v : undefined))
+    .nullish()
+    .transform((v) => (v ? v : null))
 
 const optionalNumber = (min: number, max: number, message: string) =>
   z.preprocess(
-    (v) => (v === '' || v === null || v === undefined ? undefined : Number(v)),
-    z.number({ error: message }).min(min, message).max(max, message).optional(),
+    (v) => (v === '' || v === null || v === undefined ? null : Number(v)),
+    z.number({ error: message }).min(min, message).max(max, message).nullable(),
   )
 
 export const ARTWORK_AVAILABILITY_VALUES = [
@@ -53,7 +55,7 @@ export const artworkSchema = z
       .max(8, 'Up to eight pictures, please.'),
   })
   .superRefine((value, ctx) => {
-    if (value.forSale && value.priceInr === undefined) {
+    if (value.forSale && value.priceInr == null) {
       ctx.addIssue({
         code: 'custom',
         path: ['priceInr'],
@@ -61,7 +63,7 @@ export const artworkSchema = z
       })
     }
   })
-  .transform((value) => ({ ...value, priceInr: value.forSale ? value.priceInr : undefined }))
+  .transform((value) => ({ ...value, priceInr: value.forSale ? value.priceInr : null }))
 
 export type ArtworkInput = z.infer<typeof artworkSchema>
 

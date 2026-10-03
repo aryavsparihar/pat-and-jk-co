@@ -127,7 +127,7 @@ The most common aim of an account takeover is to redirect payments, so:
 every device and tells staff. The page does nothing until its button is pressed, so a mail
 scanner following the link cannot trigger it; the token is single-use and only its hash is stored.
 
-The member's screens for this come in Phase 6; the endpoints and the staff side are in place.
+The artist does this from **Payouts** in their account (`/account/payouts`).
 
 ## Retention
 
@@ -158,7 +158,7 @@ hold** / **Change the legal hold**. Both ask for a reason and write it to the se
 (`kyc-consent-withdrawn`, `kyc-legal-hold-changed`), with the old and new dates for a hold.
 
 **Withdrawing consent and deletion.** A member can withdraw consent or ask for their data or its
-deletion (`/next/members/data-request`; the screen comes in Phase 6). Withdrawal takes effect at
+deletion from **Account → Your data** (`/account/settings`, through `/next/members/data-request`). Withdrawal takes effect at
 once: the record is marked, an application cannot be sent until consent is given again, and the
 next purge deletes it. Every request is logged and emailed to staff. A member record cannot be
 deleted while KYC exists for it (the database refuses), so purge first.

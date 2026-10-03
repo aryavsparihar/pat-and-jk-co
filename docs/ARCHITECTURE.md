@@ -165,3 +165,29 @@ GitHub Actions runs the same checks on every push and pull request (`.github/wor
 plus two that need a fresh database: every migration must apply cleanly to an empty database, and
 `payload migrate:create --skip-empty` must find nothing to write. If that second check fails, a
 collection or block changed without a migration; create one and commit it.
+
+## Tests
+
+| | What | Runs against |
+| --- | --- | --- |
+| `pnpm test:int` | Integration tests (`tests/int`, Vitest): the route handlers, access rules, KYC encryption, the e-Aadhaar check, the portal | `DATABASE_URL`, cleaning up after itself |
+| `pnpm test:e2e` | End-to-end tests (`tests/e2e`, Playwright) in a real browser: an artist applying step by step and coming back, PAN with a masked e-Aadhaar, another ID, a partner, signing in with a code, staff approving an application, an approved artist adding a work, a pending one kept out, a bank change stopped from the email's link, and staff and member sessions in one browser | the app as `pnpm dev`, and the same database |
+
+**End-to-end tests** do outside the browser what a person would: `tests/helpers/e2e.ts` sets the
+code "in the email" to a known one, signs staff in the way Payload does (no password or email
+code), and opens applications for the run and closes them again. Everyone they make is at
+`@e2e.example.test` and is removed afterwards. Locally, to use a Chromium you already have rather
+than Playwright's download, set `PLAYWRIGHT_CHROMIUM_PATH`.
+
+**In CI** (`.github/workflows/ci.yml`) the `verify` job runs lint, typecheck, the migrations on an
+empty database, the drift check, the integration tests and the build; the `e2e` job runs the
+end-to-end tests against a second throwaway Postgres, migrated and seeded first, and keeps the
+Playwright report when something fails. **No test may be skipped in CI**: a reporter
+(`tests/helpers/noSkippedTests.ts`) fails the run and names any test that did not run.
+
+**Switching branches locally.** Development pushes the schema straight to your database, so after
+running a branch with more tables, a branch with fewer finds tables it would drop and stops to ask
+"Accept warnings and push schema to database? (y/N)". Under the tests nobody answers: a file's setup
+times out and its tests are skipped (and fail the run). Run the newer branch, or answer the prompt
+in `pnpm dev` if you mean to drop them.
+

@@ -46,6 +46,7 @@ assignment.
 | Public forms | Cloudflare Turnstile (below), honeypot, 5 submissions per IP per 10 minutes (counted in Postgres, so the limit holds across every serverless instance; see `src/security/rateLimit.ts`), fields checked against the form definition (unknown fields dropped, required fields enforced, dropdowns limited to their own options), values capped at 5 000 characters, brand assigned from the form rather than from the request |
 | Enquiries | Readable only by signed-in users of the owning brand; never by the public |
 | Drafts | Filtered out for anyone not signed in, including through `?draft=true` on the API |
+| Trusted origins | Payload's CSRF and CORS lists and the member endpoints' `Origin` check share one list (`trustedOrigins` in `src/utilities/getURL.ts`). Production trusts https://pjk.co.in and `ALLOWED_ORIGINS` only. A preview deployment also trusts its own `VERCEL_URL` and `VERCEL_BRANCH_URL`, so saving in its admin works; those are never trusted in production. `tests/int/origins.int.spec.ts` checks both |
 | Dependencies | `pnpm audit --prod` is clean; `pnpm-workspace.yaml` pins patched versions of transitive packages |
 
 There are two policies. The public site's `script-src` is `'self' 'unsafe-inline'`: no
@@ -159,6 +160,9 @@ Offline Verification Seeking Entity, and that is a decision for the business and
   and every other device is signed out. A pending change is bound to its own code, so a code for
   anything else cannot complete it.
 - A member can see and sign out each of their devices, and only their own.
+- A new bank account is not used until staff approve it. The artist is emailed at once with a
+  **This was not me** link, valid once; it stops the change, signs them out everywhere and tells
+  staff (docs/KYC.md).
 
 ## Logs
 
