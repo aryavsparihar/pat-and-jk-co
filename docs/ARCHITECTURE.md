@@ -95,6 +95,23 @@ Two things to know when changing it:
 
 See [KYC.md](KYC.md) for the design and its threat model.
 
+## The member portal
+
+An approved artist's account (`/account`, `/account/profile`, `/account/works`, `/account/payouts`,
+`/account/settings`); an approved partner sees their standing, PT ID and contact details; an
+applicant sees only their applications. Pages load the member with `src/members/accountPage.ts`;
+every write goes through `/next/members/portal/*` (`src/members/portalHttp.ts`: signed in, same
+origin, rate limited), never Payload's API, which members cannot reach for `artworks` at all.
+
+**Review before public.** Members edit a working copy; staff approval publishes a snapshot
+(`published` on a work, `publicProfile` on a member), and only snapshots are ever read for the
+public (`publicArtworksOf`). The pattern lives in `src/members/reviewFields.ts`; it is not
+Payload's drafts, so no field is called `status`.
+
+**Public pictures.** Portfolio images are private unless `public` is set, and only
+`syncPublicImages` sets it: true for the pictures of an approved, unarchived work and the approved
+portrait, false for everything else of that member's. It runs after every approval and archive.
+
 ## Admin access
 
 Reaching `/admin` requires a one-time code emailed to a company address; the check happens in

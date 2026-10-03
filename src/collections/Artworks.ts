@@ -34,10 +34,10 @@ export const Artworks: CollectionConfig = {
   admin: {
     group: 'Members',
     useAsTitle: 'title',
-    defaultColumns: ['title', 'owner', 'review.state', 'availability', 'archived', 'updatedAt'],
+    defaultColumns: ['title', 'owner', 'availability', 'archived', 'updatedAt'],
     hidden: ({ user }) => !isStaff(user),
     description:
-      'Works approved artists add from their account. New and edited works wait for review: approve them from the sidebar to make them public.',
+      'Works approved artists add from their account. New and edited works wait for review: filter by Review › State is "Waiting for review", and approve them from the sidebar to make them public.',
   },
   defaultSort: '-updatedAt',
   fields: [

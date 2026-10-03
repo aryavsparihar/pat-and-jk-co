@@ -1825,7 +1825,7 @@ export interface Application {
   createdAt: string;
 }
 /**
- * Works approved artists add from their account. New and edited works wait for review: approve them from the sidebar to make them public.
+ * Works approved artists add from their account. New and edited works wait for review: filter by Review › State is "Waiting for review", and approve them from the sidebar to make them public.
  *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "artworks".

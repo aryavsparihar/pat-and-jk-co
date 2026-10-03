@@ -117,6 +117,18 @@ Everything is shown masked, like `XXXXXXXX4821`. In the record's sidebar:
 
 If an artist asks for a copy of their data, or for it to be deleted, you are emailed. Tell the developer, who runs the deletion (see docs/KYC.md).
 
+### Approved artists' works and profiles
+
+Once approved, an artist has a portal at /account: their profile, their works, where we pay them, and their account. Nothing they write there is shown to the public until you approve it.
+
+- **Members → Artworks** lists every work. Use **Filters → Review › State is "Waiting for review"** to see what needs looking at. Open a work: check the facts and the pictures, then in the sidebar press **Approve and publish**, or write a note and press **Ask for changes**. The artist is emailed either way.
+- **Profiles** are reviewed the same way, from the artist's record in **Members → Members**, under **Profile review** in the sidebar.
+- When an artist changes something already public, the version you approved stays up until you approve the change.
+- An artist can **archive** a work themselves; it disappears from the public at once, with no review.
+- Contact details (phone, postal address) change straight away: they are never shown to the public.
+
+You are emailed whenever something is sent for review. Every approval and request for changes is in the security log with your name.
+
 ### The collaborate page
 
 The page at /collaborate is an ordinary page, built from blocks. **Ways to work with us** is the block with the two large links to the applications; its words are yours to change, but where the links lead is fixed. **How it works** is a *Principles* block with roman numerals.
