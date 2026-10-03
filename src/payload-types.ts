@@ -1766,6 +1766,7 @@ export interface KycRecord {
   panNameSealed?: string | null;
   aadhaarLast4Sealed?: string | null;
   idMasked?: string | null;
+  aadhaarMasked?: string | null;
   addressOnIdMatches?: boolean | null;
   accountNumberSealed?: string | null;
   ifscSealed?: string | null;
@@ -3169,6 +3170,7 @@ export interface KycRecordsSelect<T extends boolean = true> {
   panNameSealed?: T;
   aadhaarLast4Sealed?: T;
   idMasked?: T;
+  aadhaarMasked?: T;
   addressOnIdMatches?: T;
   accountNumberSealed?: T;
   ifscSealed?: T;

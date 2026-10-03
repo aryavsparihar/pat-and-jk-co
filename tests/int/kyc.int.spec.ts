@@ -188,10 +188,10 @@ describe('saving the KYC step', () => {
     const response = await call(saveKycStep, cookie, goodKyc())
     expect(response.status).toBe(200)
     const body = (await response.json()) as {
-      kyc: { idMasked: string; bank: { accountMasked: string } }
+      kyc: { panMasked: string; bank: { accountMasked: string } }
       completedSteps: string[]
     }
-    expect(body.kyc.idMasked).toBe('ABCxxxxx4F')
+    expect(body.kyc.panMasked).toBe('ABCxxxxx4F')
     expect(body.kyc.bank.accountMasked).toBe('XXXXXXXX4821')
     expect(body.completedSteps).toContain('kyc')
     expect(JSON.stringify(body)).not.toContain(FAKE.account)
@@ -229,17 +229,78 @@ describe('saving the KYC step', () => {
   it('refuses a full Aadhaar number and never stores it', async () => {
     const { member, cookie } = await artist()
     const full = '999988887777'
-    const response = await call(saveKycStep, cookie, {
-      ...goodKyc(),
-      idType: 'aadhaar',
-      pan: undefined,
-      aadhaarLast4: full,
-    })
+    const response = await call(saveKycStep, cookie, { ...goodKyc(), aadhaarLast4: full })
     expect(response.status).toBe(422)
     const body = (await response.json()) as { errors: Record<string, string> }
     expect(body.errors.aadhaarLast4).toMatch(/only the last four/)
     expect(JSON.stringify(body)).not.toContain(full)
     expect(await rawRecord(member.id)).toBe('')
+  })
+
+  it('needs a PAN from every artist, even one who gives Aadhaar', async () => {
+    const { cookie } = await artist()
+    const response = await call(saveKycStep, cookie, {
+      ...goodKyc(),
+      pan: '',
+      panName: '',
+      aadhaarLast4: '4821',
+    })
+    expect(response.status).toBe(422)
+    const { errors } = (await response.json()) as { errors: Record<string, string> }
+    expect(errors.pan).toBeTruthy()
+    expect(errors.panName).toBeTruthy()
+  })
+
+  it('takes Aadhaar only as a masked copy with its last four digits, together', async () => {
+    const { member, cookie } = await artist()
+    const pdf = Buffer.from('%PDF-1.7\n% a made-up masked Aadhaar\n%%EOF\n')
+
+    // Digits without the masked copy, or the copy without the digits: refused
+    const digitsOnly = await call(saveKycStep, cookie, { ...goodKyc(), aadhaarLast4: '4821' })
+    expect(((await digitsOnly.json()) as { errors: Record<string, string> }).errors).toHaveProperty(
+      ['documents.masked-aadhaar'],
+    )
+    const { document } = (await (
+      await upload(cookie, 'masked-aadhaar', pdf, 'aadhaar.pdf', 'application/pdf')
+    ).json()) as { document: { id: number } }
+    const copyOnly = await call(saveKycStep, cookie, {
+      ...goodKyc({ 'masked-aadhaar': document.id }),
+      addressOnIdMatches: true,
+    })
+    expect(
+      ((await copyOnly.json()) as { errors: Record<string, string> }).errors.aadhaarLast4,
+    ).toBeTruthy()
+
+    // An address that differs needs its own proof
+    const differs = await call(saveKycStep, cookie, {
+      ...goodKyc({ 'masked-aadhaar': document.id }),
+      aadhaarLast4: '4821',
+      addressOnIdMatches: false,
+    })
+    expect(((await differs.json()) as { errors: Record<string, string> }).errors).toHaveProperty([
+      'documents.address-proof',
+    ])
+
+    const saved = await call(saveKycStep, cookie, {
+      ...goodKyc({ 'masked-aadhaar': document.id }),
+      aadhaarLast4: '4821',
+      addressOnIdMatches: true,
+    })
+    expect(saved.status).toBe(200)
+    const { kyc } = (await saved.json()) as {
+      kyc: { panMasked: string; aadhaarMasked: string }
+    }
+    expect(kyc.panMasked).toBe('ABCxxxxx4F')
+    expect(kyc.aadhaarMasked).toBe('XXXX XXXX 4821')
+    expect(await rawRecord(member.id)).not.toMatch(/"aadhaar_last4_sealed":"4821"/)
+  })
+
+  it('needs nothing about Aadhaar from an artist who does not give it', async () => {
+    const { cookie } = await artist()
+    const response = await call(saveKycStep, cookie, goodKyc())
+    expect(response.status).toBe(200)
+    const { kyc } = (await response.json()) as { kyc: { aadhaarMasked: string | null } }
+    expect(kyc.aadhaarMasked).toBeNull()
   })
 
   it('needs consent, matching account numbers and a personal PAN', async () => {

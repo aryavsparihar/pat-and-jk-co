@@ -41,8 +41,8 @@ export const ReviewStep: React.FC<
   const practice = all.practice ?? {}
   const works: Values[] = all.portfolio?.works ?? []
   const [kyc, setKyc] = useState<{
-    idType: string
-    idMasked: string
+    panMasked: string | null
+    aadhaarMasked: string | null
     bank: { accountMasked: string; bankName: string }
   } | null>(null)
 
@@ -109,7 +109,8 @@ export const ReviewStep: React.FC<
       step: 'kyc',
       title: 'Identity and bank',
       rows: [
-        [kyc?.idType === 'aadhaar' ? 'Aadhaar' : 'PAN', kyc?.idMasked],
+        ['PAN', kyc?.panMasked],
+        ...(kyc?.aadhaarMasked ? [['Aadhaar', kyc.aadhaarMasked] as [string, string]] : []),
         ['Account', kyc ? `${kyc.bank.accountMasked}, ${kyc.bank.bankName}` : undefined],
       ],
     },

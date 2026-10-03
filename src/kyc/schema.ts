@@ -68,16 +68,22 @@ export const bankSchema = z
     { when: () => true },
   )
 
+/**
+ * Identity: a PAN, with the name as printed on it, from every artist. Aadhaar is optional and only
+ * ever as a masked copy (for the address) with its last four digits; the full number is refused.
+ * The two Aadhaar parts come together or not at all. If the masked Aadhaar shows an address other
+ * than the one given, a separate proof of address is needed.
+ */
 export const kycSchema = z
   .object({
     consent: z.literal(true, {
       error: 'We need your consent before we can take your identity and bank details.',
     }),
-    idType: z.enum(['pan', 'aadhaar'], { error: 'Please choose PAN or Aadhaar.' }),
-    pan: z.string().optional(),
+    pan: z.string({ error: 'Please give your PAN.' }),
     panName: z.string().optional(),
     aadhaarLast4: z.string().optional(),
-    addressOnIdMatches: z.boolean({ error: 'Please tell us whether the address matches.' }),
+    // Asked only when a masked Aadhaar is given: does it show the address we were given?
+    addressOnIdMatches: z.boolean().optional(),
     bank: bankSchema,
     documents: z
       .object({
@@ -92,69 +98,56 @@ export const kycSchema = z
     (value, ctx) => {
       // May run on a partly invalid value (see `when` below), so nothing here assumes a shape
       const documents = (value.documents ?? {}) as Partial<Record<KycDocumentKind, number>>
-      if (value.idType === 'pan') {
-        const problem = panProblem(String(value.pan ?? ''))
-        if (problem === 'format') {
-          ctx.addIssue({
-            code: 'custom',
-            path: ['pan'],
-            message: 'A PAN is ten characters: five letters, four digits, a letter.',
-          })
-        } else if (problem === 'not-individual') {
-          ctx.addIssue({
-            code: 'custom',
-            path: ['pan'],
-            message: 'That looks like the PAN of a business. Please give your own, personal PAN.',
-          })
-        }
-        if (!String(value.panName ?? '').trim()) {
-          ctx.addIssue({
-            code: 'custom',
-            path: ['panName'],
-            message: 'Please give your name exactly as it is on your PAN card.',
-          })
-        }
+      const issue = (path: (string | number)[], message: string) =>
+        ctx.addIssue({ code: 'custom', path, message })
+
+      const problem = panProblem(String(value.pan ?? ''))
+      if (problem === 'format') {
+        issue(['pan'], 'A PAN is ten characters: five letters, four digits, a letter.')
+      } else if (problem === 'not-individual') {
+        issue(['pan'], 'That looks like the PAN of a business. Please give your own, personal PAN.')
       }
-      if (value.idType === 'aadhaar') {
-        const given = String(value.aadhaarLast4 ?? '')
-        if (looksLikeFullAadhaar(given)) {
-          // Never accept, store or echo a full Aadhaar number
-          ctx.addIssue({
-            code: 'custom',
-            path: ['aadhaarLast4'],
-            message: 'Please give only the last four digits, not the whole number.',
-          })
-        } else if (!isAadhaarLast4(given)) {
-          ctx.addIssue({
-            code: 'custom',
-            path: ['aadhaarLast4'],
-            message: 'Please give the last four digits of your Aadhaar.',
-          })
-        }
-        if (!documents['masked-aadhaar']) {
-          ctx.addIssue({
-            code: 'custom',
-            path: ['documents', 'masked-aadhaar'],
-            message:
-              'Please upload a masked Aadhaar: the version that shows only the last four digits.',
-          })
-        }
+      if (!String(value.panName ?? '').trim()) {
+        issue(['panName'], 'Please give your name exactly as it is on your PAN card.')
       }
-      if (value.addressOnIdMatches === false && !documents['address-proof']) {
-        ctx.addIssue({
-          code: 'custom',
-          path: ['documents', 'address-proof'],
-          message: 'As the address differs, please upload a proof of your current address.',
-        })
+
+      const digits = String(value.aadhaarLast4 ?? '').trim()
+      const maskedCopy = Boolean(documents['masked-aadhaar'])
+      if (looksLikeFullAadhaar(digits)) {
+        // Never accept, store or echo a full Aadhaar number
+        issue(['aadhaarLast4'], 'Please give only the last four digits, not the whole number.')
+      } else if (digits && !isAadhaarLast4(digits)) {
+        issue(['aadhaarLast4'], 'Please give the last four digits of your Aadhaar.')
+      } else if (maskedCopy && !digits) {
+        issue(['aadhaarLast4'], 'Please add the last four digits shown on your masked Aadhaar.')
+      }
+      if (digits && !maskedCopy) {
+        issue(
+          ['documents', 'masked-aadhaar'],
+          'Please upload the masked Aadhaar as well, or leave the Aadhaar digits empty.',
+        )
+      }
+      if (maskedCopy && typeof value.addressOnIdMatches !== 'boolean') {
+        issue(['addressOnIdMatches'], 'Please tell us whether the address on it matches.')
+      }
+      if (maskedCopy && value.addressOnIdMatches === false && !documents['address-proof']) {
+        issue(
+          ['documents', 'address-proof'],
+          'As the address differs, please upload a proof of your current address.',
+        )
       }
     },
     { when: () => true },
   )
-  .transform((value) => ({
-    ...value,
-    pan: value.idType === 'pan' ? normalisePan(value.pan ?? '') : undefined,
-    panName: value.idType === 'pan' ? value.panName?.trim() : undefined,
-    aadhaarLast4: value.idType === 'aadhaar' ? value.aadhaarLast4?.trim() : undefined,
-  }))
+  .transform((value) => {
+    const aadhaarLast4 = value.aadhaarLast4?.trim() || undefined
+    return {
+      ...value,
+      pan: normalisePan(value.pan),
+      panName: value.panName?.trim() ?? '',
+      aadhaarLast4,
+      addressOnIdMatches: aadhaarLast4 ? value.addressOnIdMatches : undefined,
+    }
+  })
 
 export type KycInput = z.infer<typeof kycSchema>

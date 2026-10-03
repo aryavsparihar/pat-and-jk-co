@@ -106,9 +106,10 @@ rules and its threat model are in [KYC.md](KYC.md).
 
 ### Aadhaar
 
-We never accept, store or display a full Aadhaar number. An artist who uses Aadhaar gives the last
-four digits and uploads a **masked Aadhaar**, the copy UIDAI issues with the first eight digits
-hidden. Why:
+Every artist gives a **PAN**: we need it to pay them and for tax, and it is the identity we check.
+Aadhaar is **optional**, and only as a way to show an address: a **masked Aadhaar**, the copy UIDAI
+issues with the first eight digits hidden, with its last four digits. We never accept, store or
+display a full Aadhaar number. Why:
 
 - The Aadhaar Act limits how Aadhaar numbers may be collected and used, and UIDAI requires anyone
   who stores them to keep them in a separate, specially secured Aadhaar Data Vault. We are not set
@@ -119,7 +120,11 @@ hidden. Why:
 - A number we never hold cannot leak. The server refuses twelve digits with a message that does
   not repeat them, and the log redaction would remove them in any case.
 
-PAN is preferred over Aadhaar in the form, because we need it to pay and for tax.
+**Offline e-KYC (not built).** UIDAI's signed offline e-KYC (the XML in a ZIP opened with a share
+code, or the Secure QR) would let us confirm a name, date of birth and address without ever seeing
+the Aadhaar number. It is not used yet: since the 2025 amendments to the Aadhaar (Authentication
+and Offline Verification) Regulations, at least the XML route needs registration with UIDAI as an
+Offline Verification Seeking Entity, and that is a decision for the business and its lawyer first.
 
 ## Logs
 

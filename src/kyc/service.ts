@@ -160,12 +160,14 @@ export const saveKyc = async (
     member: member.id,
     reference,
     ...wrapped,
-    idType: input.idType,
+    // Every artist gives a PAN; the column is kept for records saved before that was so
+    idType: 'pan' as const,
     panSealed: seal('pan', input.pan),
     panNameSealed: seal('panName', input.panName),
     aadhaarLast4Sealed: seal('aadhaarLast4', input.aadhaarLast4),
-    idMasked: input.idType === 'pan' ? maskPan(input.pan!) : maskAadhaar(input.aadhaarLast4!),
-    addressOnIdMatches: input.addressOnIdMatches,
+    idMasked: maskPan(input.pan),
+    aadhaarMasked: input.aadhaarLast4 ? maskAadhaar(input.aadhaarLast4) : null,
+    addressOnIdMatches: input.addressOnIdMatches ?? null,
     accountNumberSealed: seal('accountNumber', input.bank.accountNumber),
     ifscSealed: seal('ifsc', input.bank.ifsc),
     holderNameSealed: seal('holderName', input.bank.holderName),
@@ -203,7 +205,7 @@ export const saveKyc = async (
     event: 'kyc-saved',
     email: member.email,
     subject: reference,
-    detail: `${input.idType}${nameMismatch ? ', name differs' : ''}${data.duplicates ? ', possible duplicate' : ''}`,
+    detail: `pan${input.aadhaarLast4 ? ' and masked aadhaar' : ''}${nameMismatch ? ', name differs' : ''}${data.duplicates ? ', possible duplicate' : ''}`,
   })
   return record
 }
@@ -219,8 +221,8 @@ export const maskedKyc = async (payload: Payload, memberId: number) => {
     overrideAccess: true,
   })
   return {
-    idType: record.idType,
-    idMasked: record.idMasked,
+    panMasked: record.idType === 'pan' ? record.idMasked : null,
+    aadhaarMasked: record.aadhaarMasked ?? (record.idType === 'aadhaar' ? record.idMasked : null),
     addressOnIdMatches: record.addressOnIdMatches,
     bank: {
       accountMasked: record.accountMasked,
@@ -245,6 +247,8 @@ export const maskedKyc = async (payload: Payload, memberId: number) => {
 export const kycProblems = async (payload: Payload, memberId: number): Promise<string[]> => {
   const record = await findRecord(payload, memberId)
   if (!record) return ['Please add your identity and bank details.']
+  // Records saved before PAN was required may have only Aadhaar digits
+  if (record.idType !== 'pan') return ['Please add your PAN to your identity details.']
   return record.consentWithdrawnAt
     ? ['Please give your consent again to send your application.']
     : []

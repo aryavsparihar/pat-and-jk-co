@@ -19,10 +19,8 @@ export const FAKE = {
 
 export const goodKyc = (documents: Record<string, number> = {}) => ({
   consent: true,
-  idType: 'pan',
   pan: FAKE.pan,
   panName: FAKE.panName,
-  addressOnIdMatches: true,
   bank: {
     holderName: FAKE.holderName,
     accountNumber: FAKE.account,

@@ -33,7 +33,7 @@ export const AboutStep: React.FC<StepProps> = ({ values, set, errors }) => (
     <TextField
       autoComplete="name"
       errors={errors}
-      hint="As it appears on your PAN or Aadhaar. We use it only to verify who you are."
+      hint="As it appears on your PAN. We use it only to verify who you are."
       label="Your full legal name"
       name="legalName"
       onValue={(v) => set('legalName', v)}

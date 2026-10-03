@@ -80,7 +80,7 @@ export const KycRecords: CollectionConfig = {
   admin: {
     group: 'Members',
     useAsTitle: 'reference',
-    defaultColumns: ['reference', 'idType', 'idMasked', 'accountMasked', 'bankName'],
+    defaultColumns: ['reference', 'idMasked', 'aadhaarMasked', 'accountMasked', 'bankName'],
     hidden: ({ user }) => !isKycReviewer(user),
     description:
       'Identity and bank details. Values are encrypted and shown masked; revealing one asks for a reason and is recorded in the security log.',
@@ -105,6 +105,7 @@ export const KycRecords: CollectionConfig = {
     sealed('wrappedKey'),
 
     {
+      // Always "pan" now that every artist gives a PAN; kept for records saved before
       name: 'idType',
       label: 'Identity document',
       type: 'select',
@@ -118,10 +119,11 @@ export const KycRecords: CollectionConfig = {
     sealed('panSealed'),
     sealed('panNameSealed'),
     sealed('aadhaarLast4Sealed'),
-    masked('idMasked', 'Identity number'),
+    masked('idMasked', 'PAN'),
+    masked('aadhaarMasked', 'Aadhaar (optional, last four only)'),
     {
       name: 'addressOnIdMatches',
-      label: 'Address on the ID matches the address given',
+      label: 'Address on the masked Aadhaar matches the address given',
       type: 'checkbox',
       access: { create: nobody, update: nobody },
       admin: { readOnly: true },

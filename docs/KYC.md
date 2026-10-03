@@ -8,15 +8,16 @@ part protects against. The code is in `src/kyc/`; nothing else touches a key.
 
 | | Required | Kept as |
 | --- | --- | --- |
-| PAN, and the name on it | One of PAN or Aadhaar. PAN is preferred: we need it to pay and for tax | Encrypted, plus a masked copy (`ABCxxxxx4F`) |
-| Aadhaar | **Only the last four digits**, with a masked Aadhaar (the version UIDAI issues with the first eight digits hidden) | Encrypted, plus `XXXX XXXX 1234` |
+| PAN, and the name on it | **Required from every artist**: we need it to pay and for tax | Encrypted, plus a masked copy (`ABCxxxxx4F`) |
 | PAN card | Optional | Encrypted file |
-| Proof of address | Only if the address on the ID differs from the one given | Encrypted file |
+| Aadhaar | **Optional**, and then **only** a masked Aadhaar (the copy UIDAI issues with the first eight digits hidden) with its last four digits, together. It shows us the address | Last four encrypted, plus `XXXX XXXX 1234`; the copy as an encrypted file |
+| Proof of address | Only if the masked Aadhaar shows an address other than the one given | Encrypted file |
 | Account holder's name, account number, IFSC, branch | Required | Encrypted, plus `XXXXXXXX1234` and `SBIN0xxxxxx` |
 | Bank name, account type | Required | Plain text: neither identifies anyone |
 | Cancelled cheque or passbook | Optional | Encrypted file |
 
-The full Aadhaar number is never accepted, anywhere: the form asks for four digits, the server
+Records saved before PAN became required may hold only Aadhaar digits; such an application cannot
+be sent until a PAN is added. The full Aadhaar number is never accepted, anywhere: the form asks for four digits, the server
 refuses twelve with a message that does not repeat them, and the logs would redact them anyway.
 Why, in [SECURITY.md](SECURITY.md#aadhaar).
 

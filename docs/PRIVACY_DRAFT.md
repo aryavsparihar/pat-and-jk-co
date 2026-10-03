@@ -26,9 +26,10 @@ personal data you give us here, we are the data fiduciary. You can write to us a
 address, and what you tell us about your work, with pictures of it. To consider your application
 and to work with you if we approve it.
 
-**Identity and bank details (artists).** Your PAN and the name on it, or the last four digits of
-your Aadhaar with a masked copy of the card; a proof of address if needed; and your bank account
-details, with a cheque or passbook if you choose. To be sure of who you are, to pay you, and to
+**Identity and bank details (artists).** Your PAN and the name on it, which we ask of every
+artist; if you choose, a masked copy of your Aadhaar with its last four digits, to show your
+address, and a proof of address if that address differs from the one you gave; and your bank
+account details, with a cheque or passbook if you choose. To be sure of who you are, to pay you, and to
 keep the records the law requires when we pay you. We ask for your separate consent to this, and
 we use these details for nothing else.
 

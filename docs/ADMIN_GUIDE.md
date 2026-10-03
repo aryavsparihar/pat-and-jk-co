@@ -92,7 +92,7 @@ Every decision is recorded under **Administration → Security log**, with your 
 
 ### Identity and bank details
 
-Artists give their PAN (or the last four digits of their Aadhaar) and their bank details as part of their application. You see them under **Members → KYC records**, but only if you are a super admin or have the **KYC reviewer** role (given under **Users**). Editors never see them.
+Artists give their PAN (and, if they choose, a masked Aadhaar with its last four digits, for their address) and their bank details as part of their application. You see them under **Members → KYC records**, but only if you are a super admin or have the **KYC reviewer** role (given under **Users**). Editors never see them.
 
 Everything is shown masked, like `XXXXXXXX4821`. In the record's sidebar:
 
@@ -103,7 +103,7 @@ Everything is shown masked, like `XXXXXXXX4821`. In the record's sidebar:
 
 **Before you approve an artist, or mark their details verified**, check each of these:
 
-1. The name on the PAN (or the masked Aadhaar) is the artist's name. Small differences are fine (an initial, a middle name); a different person is not.
+1. The name on the PAN, and on the masked Aadhaar if given, is the artist's name. Small differences are fine (an initial, a middle name); a different person is not.
 2. The account holder's name matches the artist, or you know why it does not (a joint account, say).
 3. The PAN card, masked Aadhaar and cheque or passbook, if given, show the same details as were typed in.
 4. Nothing under **Possible duplicates**, or you know why.
