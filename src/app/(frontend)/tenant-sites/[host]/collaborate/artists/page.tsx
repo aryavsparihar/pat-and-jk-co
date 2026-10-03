@@ -2,13 +2,16 @@ import type { Metadata } from 'next'
 import { headers } from 'next/headers'
 
 import { ArtistOnboarding } from '@/components/onboarding/ArtistOnboarding'
+import { PhulhaarClosed } from '@/components/phulhaar/PhulhaarClosed'
 import { PhulhaarPage } from '@/components/phulhaar/PhulhaarPage'
 import { phulhaarDisplayFor } from '@/brands/phulhaar'
 import { createFormToken } from '@/members/formToken'
 import { applicationsOpenness } from '@/members/openness'
-import { ApplicationsClosed } from '@/components/onboarding/ApplicationsClosed'
 import configPromise from '@payload-config'
 import { getPayload } from 'payload'
+
+const ABOUT =
+  'Phulhaar Gallery by PJK shows fine and contemporary art, chosen with care and placed with people who will live with it.'
 
 // Rendered per request: the page carries a fresh form token and a per-request script nonce
 export const dynamic = 'force-dynamic'
@@ -30,14 +33,14 @@ export default async function ArtistApplicationPage({
     <PhulhaarPage
       display={display}
       heading="Show your work with *Phulhaar*"
-      intro="Phulhaar Gallery by PJK shows fine and contemporary art, chosen with care and placed with people who will live with it. Tell us about yourself and your work. It takes about twenty minutes, and you can stop and come back at any time."
+      intro={
+        open
+          ? `${ABOUT} Tell us about yourself and your work. It takes about twenty minutes, and you can stop and come back at any time.`
+          : ABOUT
+      }
       label="Apply as an artist"
     >
-      {open ? (
-        <ArtistOnboarding formToken={createFormToken()} />
-      ) : (
-        <ApplicationsClosed note={note} />
-      )}
+      {open ? <ArtistOnboarding formToken={createFormToken()} /> : <PhulhaarClosed note={note} />}
     </PhulhaarPage>
   )
 }

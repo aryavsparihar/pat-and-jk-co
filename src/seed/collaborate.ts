@@ -1,7 +1,7 @@
 /**
  * The blocks the collaborate page gains with the onboarding: the two ways in, and how it works.
- * Used by the seed for a fresh install. On the live site the page already has content of its own,
- * so these are added there only with the owner's say-so (see docs/ADMIN_GUIDE.md).
+ * Used by the seed for a fresh install, and by the migration that added them to the live page,
+ * which already had content of its own (src/migrations/20261004_090000_collaborate_ways_in.ts).
  */
 export const pathsBlock = {
   blockType: 'paths',
