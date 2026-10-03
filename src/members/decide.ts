@@ -1,6 +1,6 @@
 import { sql } from '@payloadcms/db-postgres'
+import { publicError } from '@/utilities/publicError'
 import {
-  APIError,
   commitTransaction,
   createLocalReq,
   initTransaction,
@@ -97,21 +97,14 @@ export const decideApplication = async (
     })
 
     if (!ALLOWED_FROM[decision].includes(application.stage)) {
-      throw new APIError(
+      throw publicError(
         `An application that is "${application.stage}" cannot be given that decision.`,
         409,
-        undefined,
-        true,
       )
     }
     const cleanNote = (note ?? '').trim().slice(0, 4000) || null
     if (decision !== 'approve' && !cleanNote) {
-      throw new APIError(
-        'Write a note to the applicant explaining the decision.',
-        400,
-        undefined,
-        true,
-      )
+      throw publicError('Write a note to the applicant explaining the decision.', 400)
     }
 
     const memberRef = application.member
