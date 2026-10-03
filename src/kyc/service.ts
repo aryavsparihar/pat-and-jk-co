@@ -619,6 +619,92 @@ const removeFile = async (storageKey: string) => {
   await deleteEncrypted(storageKey)
 }
 
+/* ─── Consent and legal hold: staff actions, each with a reason ────────── */
+
+/**
+ * Records a withdrawal of consent that reached us outside the site (a letter, an email). The
+ * member's own request does this through /next/members/data-request; nobody edits the date.
+ */
+export const recordConsentWithdrawal = async (
+  payload: Payload,
+  { recordId, actor, reason }: { recordId: number; actor: User; reason: unknown },
+): Promise<KycRecord> => {
+  const why = requireReason(reason)
+  const record = await payload.findByID({
+    collection: 'kyc-records',
+    id: recordId,
+    depth: 0,
+    overrideAccess: true,
+  })
+  if (record.consentWithdrawnAt) {
+    throw new KycError('Consent is already recorded as withdrawn.', 409)
+  }
+  const updated = await payload.update({
+    collection: 'kyc-records',
+    id: recordId,
+    data: { consentWithdrawnAt: new Date().toISOString() },
+    overrideAccess: true,
+    context: { disableRevalidate: true },
+  })
+  await logSecurityEvent(payload, {
+    event: 'kyc-consent-withdrawn',
+    actor: actor.id,
+    subject: record.reference ?? `record ${record.id}`,
+    detail: `Recorded by ${actor.email}, received outside the site: ${why}`,
+  })
+  return updated
+}
+
+const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/
+
+/**
+ * Sets, moves or lifts the legal hold: while it is in the future, the record is kept even after
+ * consent is withdrawn (docs/KYC.md#retention). Every change is logged with the old and new date.
+ */
+export const setLegalHold = async (
+  payload: Payload,
+  {
+    recordId,
+    actor,
+    until,
+    reason,
+  }: { recordId: number; actor: User; until: unknown; reason: unknown },
+): Promise<KycRecord> => {
+  const why = requireReason(reason)
+  let next: string | null = null
+  if (until !== null && until !== undefined && String(until).trim() !== '') {
+    const day = String(until).trim()
+    const date = new Date(`${day}T23:59:59.999+05:30`)
+    if (!DAY_PATTERN.test(day) || Number.isNaN(date.getTime())) {
+      throw new KycError('Give the date as YYYY-MM-DD.', 400)
+    }
+    if (date.getTime() <= Date.now())
+      throw new KycError('A legal hold must end in the future.', 400)
+    next = date.toISOString()
+  }
+  const record = await payload.findByID({
+    collection: 'kyc-records',
+    id: recordId,
+    depth: 0,
+    overrideAccess: true,
+  })
+  const updated = await payload.update({
+    collection: 'kyc-records',
+    id: recordId,
+    data: { legalHoldUntil: next },
+    overrideAccess: true,
+    context: { disableRevalidate: true },
+  })
+  const show = (v?: string | null) => (v ? v.slice(0, 10) : 'none')
+  await logSecurityEvent(payload, {
+    event: 'kyc-legal-hold-changed',
+    actor: actor.id,
+    subject: record.reference ?? `record ${record.id}`,
+    detail: `${actor.email} changed the legal hold from ${show(record.legalHoldUntil)} to ${show(next)}: ${why}`,
+  })
+  return updated
+}
+
 /* ─── Retention (docs/KYC.md) ───────────────────────────────────────────── */
 
 const DAY = 86_400_000

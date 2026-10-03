@@ -134,7 +134,7 @@ The member's screens for this come in Phase 6; the endpoints and the staff side 
 | KYC of an application never sent | 180 days after it was last touched |
 | KYC after consent is withdrawn | At the next purge, unless a legal hold applies |
 | An uploaded document never saved with the step | After 7 days |
-| KYC of an approved artist | **[confirm with CA]** Kept while they work with us, then for **[N] years** after the last payment, as the Income Tax Act and GST rules require for payment records. Not deleted automatically until this is settled; set **Legal hold until** on the record (by a developer for now) |
+| KYC of an approved artist | **[confirm with CA]** Kept while they work with us, then for **[N] years** after the last payment, as the Income Tax Act and GST rules require for payment records. Not deleted automatically until this is settled; a reviewer sets a legal hold on the record with **Set a legal hold** |
 
 **Weekly purge.** Every Monday at 02:00 UTC, Vercel Cron calls `/next/cron/kyc-purge` (in
 `vercel.json`), authorised by `CRON_SECRET` and refused without it. It applies the rules above,
@@ -146,6 +146,13 @@ By hand, `pnpm kyc:purge` shows what is due and `pnpm kyc:purge --apply` deletes
 production this needs production's database URL and KYC variables, `VERCEL_ENV=production`, and an
 OIDC token, which the Vercel CLI supplies once the project is linked (`vercel env pull`); with the
 cron running, that should rarely be needed.
+
+**Consent and legal hold are records, not settings.** *Consented At*, *Consent Withdrawn At* and
+*Legal Hold Until* cannot be edited by anyone, in the admin or through the API. Consent is
+withdrawn by the artist's own request, or, for a withdrawal that reached us by letter or email,
+by a reviewer's **Record a withdrawal**. A legal hold is set, moved or lifted with **Set a legal
+hold** / **Change the legal hold**. Both ask for a reason and write it to the security log
+(`kyc-consent-withdrawn`, `kyc-legal-hold-changed`), with the old and new dates for a hold.
 
 **Withdrawing consent and deletion.** A member can withdraw consent or ask for their data or its
 deletion (`/next/members/data-request`; the screen comes in Phase 6). Withdrawal takes effect at

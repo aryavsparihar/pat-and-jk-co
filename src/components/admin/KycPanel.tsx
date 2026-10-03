@@ -42,6 +42,10 @@ export const KycPanel: React.FC = () => {
   const pendingSince = useFormFields(
     ([fields]) => fields['pendingBank.requestedAt']?.value as string | undefined,
   )
+  const withdrawnAt = useFormFields(
+    ([fields]) => fields.consentWithdrawnAt?.value as string | undefined,
+  )
+  const holdUntil = useFormFields(([fields]) => fields.legalHoldUntil?.value as string | undefined)
   const router = useRouter()
   const [values, setValues] = useState<Record<string, string> | null>(null)
   const [left, setLeft] = useState(0)
@@ -166,6 +170,47 @@ export const KycPanel: React.FC = () => {
     router.refresh()
   }
 
+  /** A logged staff action on the record: POST with a reason, then reload the record */
+  const act = async (path: string, body: Record<string, unknown>, done: string) => {
+    setBusy(true)
+    setMessage(null)
+    const response = await fetch(`/api/kyc-records/${id}/${path}`, {
+      method: 'POST',
+      credentials: 'include',
+      cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    const reply = (await response.json().catch(() => ({}))) as { message?: string }
+    setBusy(false)
+    if (!response.ok) return setMessage(reply.message ?? 'That could not be done.')
+    setMessage(done)
+    router.refresh()
+  }
+
+  const recordWithdrawal = async () => {
+    if (
+      !window.confirm(
+        'Record that the artist has withdrawn consent? Use this only for a withdrawal that reached us by letter or email. The record will be deleted at the next purge unless a legal hold applies.',
+      )
+    )
+      return
+    const reason = ask('record this withdrawal (how and when it reached us)')
+    if (!reason) return
+    await act('record-withdrawal', { reason }, 'The withdrawal is recorded.')
+  }
+
+  const changeLegalHold = async () => {
+    const until = window.prompt(
+      'Keep this record until which date? YYYY-MM-DD, or leave empty to lift the hold.',
+      holdUntil ? holdUntil.slice(0, 10) : '',
+    )
+    if (until === null) return
+    const reason = ask(until.trim() ? 'set this legal hold' : 'lift this legal hold')
+    if (!reason) return
+    await act('legal-hold', { until: until.trim() || null, reason }, 'The legal hold is changed.')
+  }
+
   return (
     <div style={{ marginBottom: 'calc(var(--base) * 1.5)' }}>
       <p className="field-label">Full details</p>
@@ -239,6 +284,34 @@ export const KycPanel: React.FC = () => {
           </button>
         </>
       )}
+
+      <p className="field-label" style={{ marginTop: 'var(--base)' }}>
+        Consent and retention
+      </p>
+      <p style={{ opacity: 0.8 }}>
+        These dates cannot be edited. Each change below asks for a reason and goes to the security
+        log.
+      </p>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+        {!withdrawnAt && (
+          <button
+            className="btn btn--style-secondary btn--size-small"
+            disabled={busy}
+            onClick={recordWithdrawal}
+            type="button"
+          >
+            Record a withdrawal
+          </button>
+        )}
+        <button
+          className="btn btn--style-secondary btn--size-small"
+          disabled={busy}
+          onClick={changeLegalHold}
+          type="button"
+        >
+          {holdUntil ? 'Change the legal hold' : 'Set a legal hold'}
+        </button>
+      </div>
 
       {message && (
         <p role="status" style={{ marginTop: 'var(--base)' }}>

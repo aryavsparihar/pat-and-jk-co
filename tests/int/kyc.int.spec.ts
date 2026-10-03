@@ -39,6 +39,7 @@ let payload: Payload
 let closeApplications: () => Promise<void>
 let reviewer: User
 let editor: User
+let superAdmin: User
 const DOMAIN = '@kyc.example.test'
 const ORIGIN = process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000'
 let ip = 10
@@ -159,6 +160,7 @@ beforeAll(async () => {
   closeApplications = await openApplicationsForTests(payload)
   reviewer = await staffUser('kyc-reviewer-test@pjk.co.in', ['kyc-reviewer'])
   editor = await staffUser('kyc-editor-test@pjk.co.in', ['editor'])
+  superAdmin = await staffUser('kyc-admin-test@pjk.co.in', ['super-admin'])
 })
 
 afterAll(async () => {
@@ -166,7 +168,15 @@ afterAll(async () => {
   await closeApplications()
   await payload.delete({
     collection: 'users',
-    where: { email: { in: ['kyc-reviewer-test@pjk.co.in', 'kyc-editor-test@pjk.co.in'] } },
+    where: {
+      email: {
+        in: [
+          'kyc-reviewer-test@pjk.co.in',
+          'kyc-editor-test@pjk.co.in',
+          'kyc-admin-test@pjk.co.in',
+        ],
+      },
+    },
     overrideAccess: true,
   })
   process.env = { ...savedEnv }
@@ -591,5 +601,147 @@ describe('retention and keys', () => {
       reason: 'Checking after key rotation',
     })
     expect(revealed.accountNumber).toBe(FAKE.account)
+  })
+})
+
+describe('consent and legal hold', () => {
+  it('cannot be edited by anyone through the API, not even a super admin', async () => {
+    const { member, cookie } = await artist()
+    await call(saveKycStep, cookie, goodKyc())
+    const record = await recordOf(member.id)
+    expect(record.consentedAt).toBeTruthy()
+    for (const data of [
+      { consentedAt: null },
+      { consentWithdrawnAt: new Date().toISOString() },
+      { legalHoldUntil: '2099-01-01T00:00:00.000Z' },
+    ]) {
+      await expect(
+        payload.update({
+          collection: 'kyc-records',
+          id: record.id,
+          data: data as never,
+          user: superAdmin,
+          overrideAccess: false,
+        }),
+      ).rejects.toThrow()
+    }
+    const after = await recordOf(member.id)
+    expect(after.consentedAt).toBe(record.consentedAt)
+    expect(after.consentWithdrawnAt ?? null).toBeNull()
+    expect(after.legalHoldUntil ?? null).toBeNull()
+  })
+
+  it('a withdrawal received outside the site is recorded with a reason, once', async () => {
+    const { member, cookie } = await artist()
+    await call(saveKycStep, cookie, goodKyc())
+    const record = await recordOf(member.id)
+    const handler = endpoint('kyc-records', '/:id/record-withdrawal')
+    const request = (user: unknown, reason: string) =>
+      handler({
+        user,
+        payload,
+        routeParams: { id: String(record.id) },
+        json: async () => ({ reason }),
+      } as never)
+
+    expect((await request(editor, 'A letter from the artist')).status).toBe(403)
+    expect((await request(reviewer, 'letter')).status).toBe(400)
+    expect((await request(reviewer, 'Letter from the artist dated 1 October')).status).toBe(200)
+    expect((await recordOf(member.id)).consentWithdrawnAt).toBeTruthy()
+    expect((await request(reviewer, 'Letter from the artist dated 1 October')).status).toBe(409)
+
+    const logged = await payload.find({
+      collection: 'security-events',
+      where: {
+        and: [
+          { event: { equals: 'kyc-consent-withdrawn' } },
+          { subject: { equals: record.reference } },
+        ],
+      },
+      overrideAccess: true,
+    })
+    expect(logged.docs).toHaveLength(1)
+    expect(logged.docs[0]?.detail).toMatch(/dated 1 October/)
+  })
+
+  it('a legal hold is set and lifted only with a reason, and both are logged', async () => {
+    const { member, cookie } = await artist()
+    await call(saveKycStep, cookie, goodKyc())
+    const record = await recordOf(member.id)
+    const handler = endpoint('kyc-records', '/:id/legal-hold')
+    const request = (user: unknown, until: string | null, reason: string) =>
+      handler({
+        user,
+        payload,
+        routeParams: { id: String(record.id) },
+        json: async () => ({ until, reason }),
+      } as never)
+
+    expect((await request(editor, '2099-01-01', 'Payment records for tax')).status).toBe(403)
+    expect((await request(reviewer, '2001-01-01', 'Payment records for tax')).status).toBe(400)
+    expect((await request(reviewer, '01/01/2099', 'Payment records for tax')).status).toBe(400)
+    expect((await request(reviewer, '2099-01-01', 'Payment records for tax')).status).toBe(200)
+    expect((await recordOf(member.id)).legalHoldUntil?.slice(0, 4)).toBe('2099')
+    expect((await request(reviewer, null, 'Payments settled with the CA')).status).toBe(200)
+    expect((await recordOf(member.id)).legalHoldUntil ?? null).toBeNull()
+
+    const logged = await payload.find({
+      collection: 'security-events',
+      where: {
+        and: [
+          { event: { equals: 'kyc-legal-hold-changed' } },
+          { subject: { equals: record.reference } },
+        ],
+      },
+      sort: 'createdAt',
+      overrideAccess: true,
+    })
+    expect(logged.docs.map((d) => d.detail)).toEqual([
+      expect.stringMatching(/from none to 2099-01-01: Payment records for tax/),
+      expect.stringMatching(/from 2099-01-01 to none: Payments settled with the CA/),
+    ])
+  })
+})
+
+describe('the admin’s API tab for a KYC record', () => {
+  it('shows neither plaintext nor ciphertext nor keys, documents included', async () => {
+    const { member, cookie } = await artist()
+    const pdf = Buffer.from('%PDF-1.7\n% a made-up document\n%%EOF\n')
+    const { document } = (await (
+      await upload(cookie, 'bank-proof', pdf, 'cheque.pdf', 'application/pdf')
+    ).json()) as { document: { id: number } }
+    await call(saveKycStep, cookie, goodKyc({ 'bank-proof': document.id }))
+    const record = await recordOf(member.id)
+
+    // What the API tab fetches: the record through REST, as the signed-in reviewer
+    const seen = JSON.stringify(
+      await payload.findByID({
+        collection: 'kyc-records',
+        id: record.id,
+        depth: 2,
+        user: reviewer,
+        overrideAccess: false,
+      }),
+    )
+
+    for (const plaintext of [FAKE.pan, FAKE.panName, FAKE.account, FAKE.ifsc, 'Example Branch']) {
+      expect(seen).not.toContain(plaintext)
+    }
+    const [raw] = await execute<Record<string, string | null>>(
+      payload,
+      sql`SELECT key_id, wrapped_key, pan_sealed, pan_name_sealed, account_number_sealed, ifsc_sealed, holder_name_sealed, branch_name_sealed, pan_index, account_index FROM kyc_records WHERE id = ${record.id}`,
+    )
+    for (const [column, value] of Object.entries(raw!)) {
+      if (value) expect(seen, column).not.toContain(value)
+    }
+    const [doc] = await execute<Record<string, string>>(
+      payload,
+      sql`SELECT storage_key, key_id, wrapped_key FROM kyc_documents WHERE id = ${document.id}`,
+    )
+    for (const [column, value] of Object.entries(doc!)) expect(seen, column).not.toContain(value)
+    expect(seen).not.toMatch(
+      /Sealed|wrappedKey|keyId|panIndex|accountIndex|cancelTokenHash|storageKey/,
+    )
+    expect(seen).toContain('XXXXXXXX4821')
   })
 })

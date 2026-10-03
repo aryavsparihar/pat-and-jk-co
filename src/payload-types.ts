@@ -1805,10 +1805,16 @@ export interface KycRecord {
     requestedAt?: string | null;
     cancelTokenHash?: string | null;
   };
+  /**
+   * When the artist gave consent. A record: it cannot be changed.
+   */
   consentedAt?: string | null;
+  /**
+   * Set when the artist withdraws consent. For a withdrawal received by letter or email, use "Record a withdrawal" above.
+   */
   consentWithdrawnAt?: string | null;
   /**
-   * Kept until this date even if consent is withdrawn, where the law requires it (e.g. records of payments).
+   * Kept until this date even if consent is withdrawn, where the law requires it (e.g. records of payments). Changed only with "Legal hold" above, which logs a reason.
    */
   legalHoldUntil?: string | null;
   updatedAt: string;
@@ -1896,7 +1902,8 @@ export interface SecurityEvent {
     | 'kyc-bank-change-approved'
     | 'kyc-consent-withdrawn'
     | 'kyc-purged'
-    | 'data-request';
+    | 'data-request'
+    | 'kyc-legal-hold-changed';
   email?: string | null;
   ip?: string | null;
   detail?: string | null;

@@ -14,6 +14,7 @@ import * as migration_20261002_182949_paths_block from './20261002_182949_paths_
 import * as migration_20261002_183507_applications_switch from './20261002_183507_applications_switch';
 import * as migration_20261002_191825_kyc from './20261002_191825_kyc';
 import * as migration_20261003_063513_storage_prefix from './20261003_063513_storage_prefix';
+import * as migration_20261003_065247_kyc_legal_hold_event from './20261003_065247_kyc_legal_hold_event';
 
 export const migrations = [
   {
@@ -94,6 +95,11 @@ export const migrations = [
   {
     up: migration_20261003_063513_storage_prefix.up,
     down: migration_20261003_063513_storage_prefix.down,
-    name: '20261003_063513_storage_prefix'
+    name: '20261003_063513_storage_prefix',
+  },
+  {
+    up: migration_20261003_065247_kyc_legal_hold_event.up,
+    down: migration_20261003_065247_kyc_legal_hold_event.down,
+    name: '20261003_065247_kyc_legal_hold_event'
   },
 ];

@@ -210,16 +210,27 @@ export const KycRecords: CollectionConfig = {
 
     // Consent and retention (docs/KYC.md)
     {
+      // The record of consent: set only when the artist gives it, never edited or cleared
       name: 'consentedAt',
       type: 'date',
       access: { create: nobody, update: nobody },
-      admin: { readOnly: true, position: 'sidebar' },
+      admin: {
+        readOnly: true,
+        position: 'sidebar',
+        description: 'When the artist gave consent. A record: it cannot be changed.',
+      },
     },
     {
+      // Set by the artist's own request, or by "Record a withdrawal" with a logged reason
       name: 'consentWithdrawnAt',
       type: 'date',
       access: { create: nobody, update: nobody },
-      admin: { readOnly: true, position: 'sidebar' },
+      admin: {
+        readOnly: true,
+        position: 'sidebar',
+        description:
+          'Set when the artist withdraws consent. For a withdrawal received by letter or email, use "Record a withdrawal" above.',
+      },
     },
     {
       name: 'legalHoldUntil',
@@ -229,7 +240,7 @@ export const KycRecords: CollectionConfig = {
         readOnly: true,
         position: 'sidebar',
         description:
-          'Kept until this date even if consent is withdrawn, where the law requires it (e.g. records of payments).',
+          'Kept until this date even if consent is withdrawn, where the law requires it (e.g. records of payments). Changed only with "Legal hold" above, which logs a reason.',
       },
     },
   ],
@@ -282,6 +293,64 @@ export const KycRecords: CollectionConfig = {
             return Response.json({ message: error.message }, { status: error.status })
           req.payload.logger.error({ err: error, msg: 'Bank change approval failed' })
           return Response.json({ message: 'The change could not be approved.' }, { status: 500 })
+        }
+      },
+    },
+    {
+      // POST /api/kyc-records/:id/record-withdrawal { reason }. KYC reviewers only; logged with the reason
+      path: '/:id/record-withdrawal',
+      method: 'post',
+      handler: async (req) => {
+        if (!isKycReviewer(req.user))
+          return Response.json({ message: 'Not allowed.' }, { status: 403 })
+        const { KycError, recordConsentWithdrawal } = await import('../kyc/service')
+        const body = (await req.json?.().catch(() => ({}))) as {
+          reason?: string
+          until?: string | null
+        }
+        try {
+          await recordConsentWithdrawal(req.payload, {
+            recordId: Number(req.routeParams?.id),
+            actor: req.user,
+            reason: body?.reason,
+          })
+          return Response.json({ ok: true }, { headers: { 'Cache-Control': 'no-store' } })
+        } catch (error) {
+          if (error instanceof KycError)
+            return Response.json({ message: error.message }, { status: error.status })
+          req.payload.logger.error({ err: error, msg: 'Recording a consent withdrawal failed' })
+          return Response.json(
+            { message: 'The withdrawal could not be recorded.' },
+            { status: 500 },
+          )
+        }
+      },
+    },
+    {
+      // POST /api/kyc-records/:id/legal-hold { until: "YYYY-MM-DD" | null, reason }. KYC reviewers only; logged with the reason
+      path: '/:id/legal-hold',
+      method: 'post',
+      handler: async (req) => {
+        if (!isKycReviewer(req.user))
+          return Response.json({ message: 'Not allowed.' }, { status: 403 })
+        const { KycError, setLegalHold } = await import('../kyc/service')
+        const body = (await req.json?.().catch(() => ({}))) as {
+          reason?: string
+          until?: string | null
+        }
+        try {
+          await setLegalHold(req.payload, {
+            recordId: Number(req.routeParams?.id),
+            actor: req.user,
+            reason: body?.reason,
+            until: body?.until,
+          })
+          return Response.json({ ok: true }, { headers: { 'Cache-Control': 'no-store' } })
+        } catch (error) {
+          if (error instanceof KycError)
+            return Response.json({ message: error.message }, { status: error.status })
+          req.payload.logger.error({ err: error, msg: 'Changing a legal hold failed' })
+          return Response.json({ message: 'The legal hold could not be changed.' }, { status: 500 })
         }
       },
     },

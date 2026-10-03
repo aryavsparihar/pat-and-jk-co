@@ -38,6 +38,7 @@ export const securityEventTypes = [
   'kyc-consent-withdrawn',
   'kyc-purged',
   'data-request',
+  'kyc-legal-hold-changed',
 ] as const
 
 /**
