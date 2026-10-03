@@ -65,8 +65,12 @@ The pack names no typeface, and the wordmark is outlined, so it cannot be set as
 - For everything else the site uses its own serifs, which sit comfortably beside the wordmark's
   high-contrast, flared capitals: **Cormorant Garamond** for display and **EB Garamond** for text
   and small capitals. They are already loaded, so a Phulhaar page costs no extra font download.
-- If a closer echo of the wordmark is ever wanted for short display lines, the nearest free match is
-  Marcellus (flared Roman capitals). Not adopted; ask before adding a font.
+- If a closer echo of the wordmark is wanted for short display lines, the nearest free match is
+  **Marcellus** (flared Roman capitals, SIL Open Font License). It is installed as an option
+  (`src/app/(frontend)/fonts/marcellus-latin-400-normal.woff2`, 14.5 kB, not preloaded) and chosen
+  with one setting, `PHULHAAR_DISPLAY` in `src/brands/phulhaar.ts` (default `'cormorant'`). It
+  applies to headings only; Marcellus has no italic, so an emphasised word keeps Cormorant's.
+  In development, `?display=marcellus` previews it on the artist page.
 
 ### Usage rules
 
@@ -88,7 +92,10 @@ The pack names no typeface, and the wordmark is outlined, so it cannot be set as
 ### Where Phulhaar's identity is used
 
 - The venture page on the PJK site (`/ventures/phulhaar`), through the Logo uploaded in the CMS.
-- The artist onboarding at `/collaborate/artists` (in progress), which follows this brand rather
-  than PJK's.
+- The artist onboarding at `/collaborate/artists`, which follows this brand rather than PJK's
+  (`src/components/phulhaar/`): the cream ground and palette as tokens on `.phulhaar`, the garland
+  breathing slowly beside the form (still under `prefers-reduced-motion`), and the steps as a
+  garland of beads, finished in leaf green, current in the monogram's magenta.
+- The artists' card on `/collaborate`: Phulhaar's cream under a gold rule, with the garland.
 
 Everything else on pjk.co.in stays in the PJK system.

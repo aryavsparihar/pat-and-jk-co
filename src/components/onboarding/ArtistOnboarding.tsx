@@ -13,6 +13,8 @@ import { KycStep } from './artist/KycStep'
 import { PortfolioStep } from './artist/Portfolio'
 import { ReviewStep } from './artist/Review'
 import { CodeSignIn } from './CodeSignIn'
+import { GarlandProgress } from '@/components/phulhaar/GarlandProgress'
+
 import { ErrorSummary, type Errors } from './fields'
 
 const STEP_TITLES: Record<ArtistStep, { title: string; intro: string }> = {
@@ -241,120 +243,104 @@ export const ArtistOnboarding: React.FC<{ formToken: string }> = ({ formToken })
   )
 
   return (
-    <div className="grid gap-x-12 gap-y-10 lg:grid-cols-[14rem_1fr]">
-      <nav aria-label="Application steps">
-        <p className="label mb-4">Application {application.reference}</p>
-        <ol className="grid gap-y-1">
-          {ARTIST_STEPS.map((s, i) => {
-            const done = completed.includes(s)
-            const reachable = done || i <= ARTIST_STEPS.findIndex((x) => !completed.includes(x))
-            return (
-              <li key={s}>
-                <button
-                  aria-current={s === step ? 'step' : undefined}
-                  className="flex min-h-11 w-full items-center gap-3 text-left disabled:opacity-50 aria-[current=step]:font-medium"
-                  disabled={!reachable}
-                  onClick={() => go(s)}
-                  type="button"
-                >
-                  <span aria-hidden className="w-5 text-primary">
-                    {done ? '✓' : `${i + 1}.`}
-                  </span>
-                  <span
-                    className={s === step ? 'underline decoration-1 underline-offset-[0.25em]' : ''}
-                  >
-                    {STEP_TITLES[s].title}
-                  </span>
-                  {done && <span className="sr-only"> (saved)</span>}
-                </button>
-              </li>
-            )
-          })}
-        </ol>
-      </nav>
-
-      {step === 'kyc' ? (
-        <div>
-          {header}
-          <div className="mt-10">
-            <KycStep
-              legalName={values.about?.legalName}
-              onSaved={(done) => {
-                setCompleted(done)
-                go('review')
-              }}
-            />
-          </div>
-          <button
-            className="link link-caps mt-6 min-h-11"
-            onClick={() => go(ARTIST_STEPS[index - 1]!)}
-            type="button"
+    <div>
+      <p className="label mb-6">Application {application.reference}</p>
+      <GarlandProgress
+        completed={completed}
+        current={step}
+        onGo={go}
+        steps={ARTIST_STEPS}
+        titles={
+          Object.fromEntries(ARTIST_STEPS.map((s) => [s, STEP_TITLES[s].title])) as Record<
+            ArtistStep,
+            string
           >
-            Back
-          </button>
-        </div>
-      ) : (
-        <form noValidate onSubmit={step === 'review' ? send : next}>
-          {header}
+        }
+      />
+      <div className="step-in mt-14" key={step}>
+        {step === 'kyc' ? (
+          <div>
+            {header}
+            <div className="mt-10">
+              <KycStep
+                legalName={values.about?.legalName}
+                onSaved={(done) => {
+                  setCompleted(done)
+                  go('review')
+                }}
+              />
+            </div>
+            <button
+              className="link link-caps mt-6 min-h-11"
+              onClick={() => go(ARTIST_STEPS[index - 1]!)}
+              type="button"
+            >
+              Back
+            </button>
+          </div>
+        ) : (
+          <form noValidate onSubmit={step === 'review' ? send : next}>
+            {header}
 
-          {saved && (
-            <p className="mt-6 text-base text-primary" role="status">
-              Saved. You can close this page and come back to it by signing in.
-            </p>
-          )}
-
-          <div className="mt-10">
-            <ErrorSummary errors={errors} />
-            {message && (
-              <p className="mb-8 text-base italic text-destructive" role="alert">
-                {message}
+            {saved && (
+              <p className="mt-6 text-base text-primary" role="status">
+                Saved. You can close this page and come back to it by signing in.
               </p>
             )}
 
-            {step === 'about' && <AboutStep errors={errors} set={set} values={current} />}
-            {step === 'address' && <AddressStep errors={errors} set={set} values={current} />}
-            {step === 'practice' && <PracticeStep errors={errors} set={set} values={current} />}
-            {step === 'portfolio' && <PortfolioStep errors={errors} set={set} values={current} />}
-            {step === 'review' && (
-              <ReviewStep
-                all={values}
-                errors={errors}
-                onEdit={(s) => go(s as ArtistStep)}
-                set={set}
-                values={current}
-              />
-            )}
-          </div>
+            <div className="mt-10">
+              <ErrorSummary errors={errors} />
+              {message && (
+                <p className="mb-8 text-base italic text-destructive" role="alert">
+                  {message}
+                </p>
+              )}
 
-          {step === 'review' && (
-            <div aria-hidden className="absolute -left-[9999px] h-0 w-0 overflow-hidden">
-              <label htmlFor={`${HONEYPOT_FIELD}-send`}>Company website</label>
-              <input
-                autoComplete="off"
-                id={`${HONEYPOT_FIELD}-send`}
-                onChange={(e) => setHoneypot(e.target.value)}
-                tabIndex={-1}
-                value={honeypot}
-              />
+              {step === 'about' && <AboutStep errors={errors} set={set} values={current} />}
+              {step === 'address' && <AddressStep errors={errors} set={set} values={current} />}
+              {step === 'practice' && <PracticeStep errors={errors} set={set} values={current} />}
+              {step === 'portfolio' && <PortfolioStep errors={errors} set={set} values={current} />}
+              {step === 'review' && (
+                <ReviewStep
+                  all={values}
+                  errors={errors}
+                  onEdit={(s) => go(s as ArtistStep)}
+                  set={set}
+                  values={current}
+                />
+              )}
             </div>
-          )}
 
-          <div className="mt-14 flex flex-wrap items-center gap-x-8 gap-y-4 border-t border-border pt-8">
-            <button className="btn btn-solid min-h-11" disabled={busy} type="submit">
-              {busy ? 'Saving…' : step === 'review' ? 'Send my application' : 'Save and continue'}
-            </button>
-            {index > 0 && (
-              <button
-                className="link link-caps min-h-11"
-                onClick={() => go(ARTIST_STEPS[index - 1]!)}
-                type="button"
-              >
-                Back
-              </button>
+            {step === 'review' && (
+              <div aria-hidden className="absolute -left-[9999px] h-0 w-0 overflow-hidden">
+                <label htmlFor={`${HONEYPOT_FIELD}-send`}>Company website</label>
+                <input
+                  autoComplete="off"
+                  id={`${HONEYPOT_FIELD}-send`}
+                  onChange={(e) => setHoneypot(e.target.value)}
+                  tabIndex={-1}
+                  value={honeypot}
+                />
+              </div>
             )}
-          </div>
-        </form>
-      )}
+
+            <div className="mt-14 flex flex-wrap items-center gap-x-8 gap-y-4 border-t border-border pt-8">
+              <button className="btn btn-solid min-h-11" disabled={busy} type="submit">
+                {busy ? 'Saving…' : step === 'review' ? 'Send my application' : 'Save and continue'}
+              </button>
+              {index > 0 && (
+                <button
+                  className="link link-caps min-h-11"
+                  onClick={() => go(ARTIST_STEPS[index - 1]!)}
+                  type="button"
+                >
+                  Back
+                </button>
+              )}
+            </div>
+          </form>
+        )}
+      </div>
     </div>
   )
 }

@@ -4,6 +4,8 @@ import { useDocumentInfo, useFormFields } from '@payloadcms/ui'
 import { useRouter } from 'next/navigation'
 import React, { useEffect, useRef, useState } from 'react'
 
+import { useActionDialog } from './ActionDialog'
+
 const LABELS: Record<string, string> = {
   pan: 'PAN',
   panName: 'Name on PAN',
@@ -21,12 +23,10 @@ const LABELS: Record<string, string> = {
 const KIND_LABELS: Record<string, string> = {
   'pan-card': 'PAN card',
   'masked-aadhaar': 'Masked Aadhaar',
+  'other-id': 'Passport, voter ID or driving licence',
   'address-proof': 'Proof of address',
   'bank-proof': 'Cheque or passbook',
 }
-
-const ask = (what: string) =>
-  window.prompt(`Why do you need to ${what}? This is recorded in the security log with your name.`)
 
 /**
  * The KYC record's sidebar: reveal the full values, open the documents, approve a change of bank
@@ -56,6 +56,7 @@ export const KycPanel: React.FC = () => {
     mode: fields['aadhaarCheck.mode']?.value as string | undefined,
   }))
   const router = useRouter()
+  const { dialog, ask: askDialog } = useActionDialog()
   const [values, setValues] = useState<Record<string, string> | null>(null)
   const [left, setLeft] = useState(0)
   const [kinds, setKinds] = useState<Record<number, string>>({})
@@ -98,8 +99,15 @@ export const KycPanel: React.FC = () => {
   if (!id) return null
 
   const reveal = async () => {
-    const reason = ask('see the full details')
-    if (!reason) return
+    const answer = await askDialog({
+      title: 'Reveal full details',
+      description:
+        'The full values show here for one minute, then disappear. Your name and reason go in the security log.',
+      confirmLabel: 'Reveal',
+      reason: { label: 'Why do you need to see them?' },
+    })
+    if (!answer) return
+    const { reason } = answer
     setBusy(true)
     setMessage(null)
     const response = await fetch(`/api/kyc-records/${id}/reveal`, {
@@ -132,8 +140,15 @@ export const KycPanel: React.FC = () => {
   }
 
   const download = async (documentId: number) => {
-    const reason = ask('open this document')
-    if (!reason) return
+    const answer = await askDialog({
+      title: 'Download this document',
+      description:
+        'It downloads to your computer. Delete it when you are done, and never forward it. Your name and reason go in the security log.',
+      confirmLabel: 'Download',
+      reason: { label: 'Why do you need to open it?' },
+    })
+    if (!answer) return
+    const { reason } = answer
     setMessage(null)
     const response = await fetch(`/api/kyc-documents/${documentId}/download`, {
       method: 'POST',
@@ -158,12 +173,13 @@ export const KycPanel: React.FC = () => {
   }
 
   const approve = async () => {
-    if (
-      !window.confirm(
-        'Approve the new bank details? Check them against the documents first. Payments will go to the new account from now on.',
-      )
-    )
-      return
+    const answer = await askDialog({
+      title: 'Approve the new bank details?',
+      description:
+        'Check them against the documents first. Payments go to the new account from now on.',
+      confirmLabel: 'Approve',
+    })
+    if (!answer) return
     setBusy(true)
     setMessage(null)
     const response = await fetch(`/api/kyc-records/${id}/approve-bank-change`, {
@@ -198,26 +214,38 @@ export const KycPanel: React.FC = () => {
   }
 
   const recordWithdrawal = async () => {
-    if (
-      !window.confirm(
-        'Record that the artist has withdrawn consent? Use this only for a withdrawal that reached us by letter or email. The record will be deleted at the next purge unless a legal hold applies.',
-      )
-    )
-      return
-    const reason = ask('record this withdrawal (how and when it reached us)')
-    if (!reason) return
-    await act('record-withdrawal', { reason }, 'The withdrawal is recorded.')
+    const answer = await askDialog({
+      title: 'Record a withdrawal of consent',
+      description:
+        'Only for a withdrawal that reached us by letter or email. The record is deleted at the next purge unless a legal hold applies.',
+      confirmLabel: 'Record the withdrawal',
+      danger: true,
+      reason: { label: 'How and when did it reach us?' },
+    })
+    if (!answer) return
+    await act('record-withdrawal', { reason: answer.reason }, 'The withdrawal is recorded.')
   }
 
   const changeLegalHold = async () => {
-    const until = window.prompt(
-      'Keep this record until which date? YYYY-MM-DD, or leave empty to lift the hold.',
-      holdUntil ? holdUntil.slice(0, 10) : '',
+    const answer = await askDialog({
+      title: holdUntil ? 'Change the legal hold' : 'Set a legal hold',
+      description:
+        'While a hold is in the future, the record is kept even if consent is withdrawn.',
+      confirmLabel: 'Save the hold',
+      date: {
+        label: 'Keep until',
+        initial: holdUntil ? holdUntil.slice(0, 10) : '',
+        optional: Boolean(holdUntil),
+        hint: holdUntil ? 'YYYY-MM-DD. Leave empty to lift the hold.' : 'YYYY-MM-DD.',
+      },
+      reason: { label: 'Why?' },
+    })
+    if (!answer) return
+    await act(
+      'legal-hold',
+      { until: answer.date || null, reason: answer.reason },
+      answer.date ? 'The legal hold is set.' : 'The legal hold is lifted.',
     )
-    if (until === null) return
-    const reason = ask(until.trim() ? 'set this legal hold' : 'lift this legal hold')
-    if (!reason) return
-    await act('legal-hold', { until: until.trim() || null, reason }, 'The legal hold is changed.')
   }
 
   const CHECK_WORDS: Record<string, { label: string; colour: string }> = {
@@ -228,6 +256,7 @@ export const KycPanel: React.FC = () => {
 
   return (
     <div style={{ marginBottom: 'calc(var(--base) * 1.5)' }}>
+      {dialog}
       <p className="field-label">Identity document</p>
       {idChoice === 'other' ? (
         <p style={{ marginBottom: 'var(--base)' }}>

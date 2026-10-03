@@ -25,6 +25,7 @@ import type { User } from '@/payload-types'
 import { execute } from '@/utilities/sql'
 
 import { openApplicationsForTests } from '../helpers/applicationsOpen'
+import { removeKycFor } from '../helpers/kyc'
 
 /*
  * Members end to end: codes, sessions, the sign-in endpoints, member IDs and who can see what.
@@ -103,6 +104,16 @@ const applyAndSignIn = async (
 
 const cleanup = async () => {
   const like = `%${DOMAIN}`
+  // Anything a member owns goes first, or the database refuses to delete the member
+  await removeKycFor(payload, like)
+  await execute(
+    payload,
+    sql`DELETE FROM artworks WHERE owner_id IN (SELECT id FROM members WHERE email LIKE ${like})`,
+  )
+  await execute(
+    payload,
+    sql`DELETE FROM portfolio_images WHERE owner_id IN (SELECT id FROM members WHERE email LIKE ${like})`,
+  )
   await execute(
     payload,
     sql`DELETE FROM member_sessions WHERE member_id IN (SELECT id FROM members WHERE email LIKE ${like})`,
