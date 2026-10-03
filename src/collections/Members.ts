@@ -1,8 +1,11 @@
-import type { Access, CollectionConfig, FieldAccess } from 'payload'
+import type { Access, CollectionConfig, Field, FieldAccess } from 'payload'
 import { APIError } from 'payload'
 
 import { isMember, isStaff, superAdminOnly } from '../access/roles'
 import { PARTNER_CATEGORIES } from '../members/categories'
+import { MEDIUMS } from '../members/forms/schemas'
+import { publishedFields, reviewGroup } from '../members/reviewFields'
+import { addressFields } from './applicationFields'
 import { MEMBER_ID_PATTERN } from '../members/ids'
 import { normaliseEmail } from '../security/constants'
 import { memberSessionStrategy } from '../security/memberStrategy'
@@ -141,6 +144,82 @@ export const Members: CollectionConfig = {
     },
     { name: 'displayName', type: 'text', maxLength: 120 },
     { name: 'phone', type: 'text', maxLength: 20 },
+    {
+      // Contact details: changed by the member at once, never shown to the public
+      name: 'contactAddress',
+      label: 'Postal address',
+      type: 'group',
+      admin: { condition: (data) => Boolean(data?.artistId || data?.partnerId) },
+      fields: addressFields(),
+    },
+
+    // The artist's public profile (Phase 6 portal). Members edit `profile` from their account;
+    // staff approve it, which publishes `publicProfile`, the only version the public sees.
+    {
+      name: 'profileReviewActions',
+      type: 'ui',
+      admin: {
+        position: 'sidebar',
+        condition: (data) => Boolean(data?.artistId),
+        components: { Field: '@/components/admin/ReviewPanel#ReviewPanel' },
+      },
+    },
+    {
+      ...reviewGroup('profileReview', 'Profile review'),
+      admin: { readOnly: true, condition: (data) => Boolean(data?.artistId) },
+    } as Field,
+    {
+      name: 'profile',
+      label: 'Profile (working copy)',
+      type: 'group',
+      access: { update: staffOnlyField },
+      admin: { condition: (data) => Boolean(data?.artistId) },
+      fields: [
+        { name: 'displayName', label: 'Name shown', type: 'text', maxLength: 120 },
+        { name: 'bio', label: 'Biography', type: 'textarea', maxLength: 2000 },
+        { name: 'statement', label: 'Artist statement', type: 'textarea', maxLength: 2000 },
+        {
+          name: 'links',
+          type: 'array',
+          maxRows: 5,
+          fields: [
+            { name: 'label', type: 'text', maxLength: 60 },
+            { name: 'url', type: 'text', maxLength: 300 },
+          ],
+        },
+        { name: 'portrait', type: 'upload', relationTo: 'portfolio-images' },
+        {
+          name: 'mediums',
+          type: 'select',
+          hasMany: true,
+          options: MEDIUMS.map(({ value, label }) => ({ value, label })),
+        },
+        {
+          name: 'exhibitions',
+          type: 'array',
+          maxRows: 30,
+          fields: [
+            { name: 'title', type: 'text', maxLength: 160 },
+            { name: 'venue', type: 'text', maxLength: 160 },
+            { name: 'year', type: 'number', min: 1900, max: 2100 },
+          ],
+        },
+      ],
+    },
+    ...publishedFields('publicProfile'),
+    {
+      // A change of email address waiting for its code (src/members/account.ts). Hidden: the
+      // pending address is shown to nobody until it is confirmed
+      name: 'emailChange',
+      type: 'group',
+      access: { read: nobody, create: nobody, update: nobody },
+      admin: { hidden: true },
+      fields: [
+        { name: 'pendingEmail', type: 'email' },
+        { name: 'challengeId', type: 'number' },
+        { name: 'requestedAt', type: 'date' },
+      ],
+    },
   ],
   hooks: {
     beforeChange: [
@@ -153,7 +232,12 @@ export const Members: CollectionConfig = {
           const after = data[field]
           if (after === undefined || after === before) continue
           if (before || operation === 'create' || context.issuingMemberId !== field) {
-            throw new APIError('A member ID cannot be set or changed by hand.', 400, undefined, true)
+            throw new APIError(
+              'A member ID cannot be set or changed by hand.',
+              400,
+              undefined,
+              true,
+            )
           }
           if (!MEMBER_ID_PATTERN.test(String(after)) || !String(after).startsWith(prefix)) {
             throw new APIError('That is not a member ID of this kind.', 400, undefined, true)
@@ -177,6 +261,35 @@ export const Members: CollectionConfig = {
       },
     ],
   },
+  endpoints: [
+    {
+      // POST /api/{collection}/:id/profile-review  { decision: 'approve' | 'request-changes', note }. Staff only
+      path: '/:id/profile-review',
+      method: 'post',
+      handler: async (req) => {
+        if (!isStaff(req.user)) return Response.json({ message: 'Not allowed.' }, { status: 403 })
+        const body = (await req.json?.().catch(() => ({}))) as { decision?: string; note?: string }
+        if (body?.decision !== 'approve' && body?.decision !== 'request-changes') {
+          return Response.json({ message: 'Approve, or ask for changes?' }, { status: 400 })
+        }
+        const { PortalError, decideProfile } = await import('../members/artworks')
+        try {
+          await decideProfile(req.payload, {
+            memberId: Number(req.routeParams?.id),
+            decision: body.decision,
+            note: body.note,
+            actor: req.user,
+          })
+          return Response.json({ ok: true })
+        } catch (error) {
+          if (error instanceof PortalError)
+            return Response.json({ message: error.message }, { status: error.status })
+          req.payload.logger.error({ err: error, msg: 'Review decision failed' })
+          return Response.json({ message: 'The decision could not be saved.' }, { status: 500 })
+        }
+      },
+    },
+  ],
   timestamps: true,
 }
 

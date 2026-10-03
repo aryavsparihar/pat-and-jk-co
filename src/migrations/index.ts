@@ -17,6 +17,7 @@ import * as migration_20261003_063513_storage_prefix from './20261003_063513_sto
 import * as migration_20261003_065247_kyc_legal_hold_event from './20261003_065247_kyc_legal_hold_event';
 import * as migration_20261003_065900_kyc_aadhaar_optional from './20261003_065900_kyc_aadhaar_optional';
 import * as migration_20261003_072617_kyc_identity_choice from './20261003_072617_kyc_identity_choice';
+import * as migration_20261003_074020_member_portal from './20261003_074020_member_portal';
 
 export const migrations = [
   {
@@ -112,6 +113,11 @@ export const migrations = [
   {
     up: migration_20261003_072617_kyc_identity_choice.up,
     down: migration_20261003_072617_kyc_identity_choice.down,
-    name: '20261003_072617_kyc_identity_choice'
+    name: '20261003_072617_kyc_identity_choice',
+  },
+  {
+    up: migration_20261003_074020_member_portal.up,
+    down: migration_20261003_074020_member_portal.down,
+    name: '20261003_074020_member_portal'
   },
 ];

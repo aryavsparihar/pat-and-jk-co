@@ -82,6 +82,7 @@ export interface Config {
     members: Member;
     applications: Application;
     'portfolio-images': PortfolioImage;
+    artworks: Artwork;
     'kyc-records': KycRecord;
     'kyc-documents': KycDocument;
     'access-requests': AccessRequest;
@@ -119,6 +120,7 @@ export interface Config {
     members: MembersSelect<false> | MembersSelect<true>;
     applications: ApplicationsSelect<false> | ApplicationsSelect<true>;
     'portfolio-images': PortfolioImagesSelect<false> | PortfolioImagesSelect<true>;
+    artworks: ArtworksSelect<false> | ArtworksSelect<true>;
     'kyc-records': KycRecordsSelect<false> | KycRecordsSelect<true>;
     'kyc-documents': KycDocumentsSelect<false> | KycDocumentsSelect<true>;
     'access-requests': AccessRequestsSelect<false> | AccessRequestsSelect<true>;
@@ -1571,9 +1573,123 @@ export interface Member {
   partnerApprovedAt?: string | null;
   displayName?: string | null;
   phone?: string | null;
+  contactAddress?: {
+    line1?: string | null;
+    line2?: string | null;
+    landmark?: string | null;
+    city?: string | null;
+    district?: string | null;
+    state?: string | null;
+    postalCode?: string | null;
+    country?: string | null;
+  };
+  profileReview?: {
+    state?: ('none' | 'pending' | 'approved' | 'changes-requested') | null;
+    /**
+     * Sent to the member.
+     */
+    note?: string | null;
+    submittedAt?: string | null;
+    reviewedAt?: string | null;
+    reviewedBy?: (number | null) | User;
+  };
+  profile?: {
+    displayName?: string | null;
+    bio?: string | null;
+    statement?: string | null;
+    links?:
+      | {
+          label?: string | null;
+          url?: string | null;
+          id?: string | null;
+        }[]
+      | null;
+    portrait?: (number | null) | PortfolioImage;
+    mediums?:
+      | (
+          | 'painting'
+          | 'drawing'
+          | 'printmaking'
+          | 'sculpture'
+          | 'photography'
+          | 'textile'
+          | 'mixed-media'
+          | 'digital'
+          | 'other'
+        )[]
+      | null;
+    exhibitions?:
+      | {
+          title?: string | null;
+          venue?: string | null;
+          year?: number | null;
+          id?: string | null;
+        }[]
+      | null;
+  };
+  /**
+   * What the public sees: the last version staff approved.
+   */
+  publicProfile?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  publicProfileAt?: string | null;
+  emailChange?: {
+    pendingEmail?: string | null;
+    challengeId?: number | null;
+    requestedAt?: string | null;
+  };
   updatedAt: string;
   createdAt: string;
   collection: 'members';
+}
+/**
+ * Pictures sent with artist applications, and approved artists’ works. Public only once staff approve the work or portrait that uses them.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "portfolio-images".
+ */
+export interface PortfolioImage {
+  id: number;
+  public?: boolean | null;
+  owner: number | Member;
+  alt?: string | null;
+  prefix?: string | null;
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
+  sizes?: {
+    thumbnail?: {
+      url?: string | null;
+      width?: number | null;
+      height?: number | null;
+      mimeType?: string | null;
+      filesize?: number | null;
+      filename?: string | null;
+    };
+    display?: {
+      url?: string | null;
+      width?: number | null;
+      height?: number | null;
+      mimeType?: string | null;
+      filesize?: number | null;
+      filename?: string | null;
+    };
+  };
 }
 /**
  * Applications from artists and partners. Approving one issues the member ID and emails the applicant.
@@ -1709,45 +1825,67 @@ export interface Application {
   createdAt: string;
 }
 /**
- * Pictures sent with artist applications. Not public.
+ * Works approved artists add from their account. New and edited works wait for review: filter by Review › State is "Waiting for review", and approve them from the sidebar to make them public.
  *
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "portfolio-images".
+ * via the `definition` "artworks".
  */
-export interface PortfolioImage {
+export interface Artwork {
   id: number;
   owner: number | Member;
-  alt?: string | null;
-  prefix?: string | null;
+  venture?: (number | null) | Venture;
+  review?: {
+    state?: ('none' | 'pending' | 'approved' | 'changes-requested') | null;
+    /**
+     * Sent to the member.
+     */
+    note?: string | null;
+    submittedAt?: string | null;
+    reviewedAt?: string | null;
+    reviewedBy?: (number | null) | User;
+  };
+  title: string;
+  year?: number | null;
+  medium?: string | null;
+  /**
+   * Canvas, paper, wood panel…
+   */
+  surface?: string | null;
+  widthCm?: number | null;
+  heightCm?: number | null;
+  depthCm?: number | null;
+  /**
+   * "Unique", or e.g. "3 of 10".
+   */
+  edition?: string | null;
+  forSale?: boolean | null;
+  priceInr?: number | null;
+  availability?: ('available' | 'reserved' | 'sold' | 'not-available') | null;
+  description?: string | null;
+  /**
+   * The first is the one shown in lists.
+   */
+  images?: (number | PortfolioImage)[] | null;
+  sortOrder?: number | null;
+  /**
+   * Archived works are never shown.
+   */
+  archived?: boolean | null;
+  /**
+   * What the public sees: the last version staff approved.
+   */
+  published?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  publishedAt?: string | null;
   updatedAt: string;
   createdAt: string;
-  url?: string | null;
-  thumbnailURL?: string | null;
-  filename?: string | null;
-  mimeType?: string | null;
-  filesize?: number | null;
-  width?: number | null;
-  height?: number | null;
-  focalX?: number | null;
-  focalY?: number | null;
-  sizes?: {
-    thumbnail?: {
-      url?: string | null;
-      width?: number | null;
-      height?: number | null;
-      mimeType?: string | null;
-      filesize?: number | null;
-      filename?: string | null;
-    };
-    display?: {
-      url?: string | null;
-      width?: number | null;
-      height?: number | null;
-      mimeType?: string | null;
-      filesize?: number | null;
-      filename?: string | null;
-    };
-  };
 }
 /**
  * Identity and bank details. Values are encrypted and shown masked; revealing one asks for a reason and is recorded in the security log.
@@ -1915,7 +2053,11 @@ export interface SecurityEvent {
     | 'kyc-purged'
     | 'data-request'
     | 'kyc-legal-hold-changed'
-    | 'kyc-aadhaar-checked';
+    | 'kyc-aadhaar-checked'
+    | 'portal-approved'
+    | 'portal-changes-requested'
+    | 'member-email-changed'
+    | 'member-session-ended';
   email?: string | null;
   ip?: string | null;
   detail?: string | null;
@@ -1938,7 +2080,7 @@ export interface LoginChallenge {
   ip?: string | null;
   deliverable?: boolean | null;
   audience: 'staff' | 'member';
-  purpose?: ('signin' | 'apply-artist' | 'apply-partner' | 'step-up') | null;
+  purpose?: ('signin' | 'apply-artist' | 'apply-partner' | 'step-up' | 'email-change') | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -2192,6 +2334,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'portfolio-images';
         value: number | PortfolioImage;
+      } | null)
+    | ({
+        relationTo: 'artworks';
+        value: number | Artwork;
       } | null)
     | ({
         relationTo: 'kyc-records';
@@ -3003,6 +3149,60 @@ export interface MembersSelect<T extends boolean = true> {
   partnerApprovedAt?: T;
   displayName?: T;
   phone?: T;
+  contactAddress?:
+    | T
+    | {
+        line1?: T;
+        line2?: T;
+        landmark?: T;
+        city?: T;
+        district?: T;
+        state?: T;
+        postalCode?: T;
+        country?: T;
+      };
+  profileReview?:
+    | T
+    | {
+        state?: T;
+        note?: T;
+        submittedAt?: T;
+        reviewedAt?: T;
+        reviewedBy?: T;
+      };
+  profile?:
+    | T
+    | {
+        displayName?: T;
+        bio?: T;
+        statement?: T;
+        links?:
+          | T
+          | {
+              label?: T;
+              url?: T;
+              id?: T;
+            };
+        portrait?: T;
+        mediums?: T;
+        exhibitions?:
+          | T
+          | {
+              title?: T;
+              venue?: T;
+              year?: T;
+              id?: T;
+            };
+      };
+  publicProfile?: T;
+  publicProfileAt?: T;
+  emailChange?:
+    | T
+    | {
+        pendingEmail?: T;
+        challengeId?: T;
+        requestedAt?: T;
+      };
   updatedAt?: T;
   createdAt?: T;
 }
@@ -3128,6 +3328,7 @@ export interface ApplicationsSelect<T extends boolean = true> {
  * via the `definition` "portfolio-images_select".
  */
 export interface PortfolioImagesSelect<T extends boolean = true> {
+  public?: T;
   owner?: T;
   alt?: T;
   prefix?: T;
@@ -3166,6 +3367,42 @@ export interface PortfolioImagesSelect<T extends boolean = true> {
               filename?: T;
             };
       };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "artworks_select".
+ */
+export interface ArtworksSelect<T extends boolean = true> {
+  owner?: T;
+  venture?: T;
+  review?:
+    | T
+    | {
+        state?: T;
+        note?: T;
+        submittedAt?: T;
+        reviewedAt?: T;
+        reviewedBy?: T;
+      };
+  title?: T;
+  year?: T;
+  medium?: T;
+  surface?: T;
+  widthCm?: T;
+  heightCm?: T;
+  depthCm?: T;
+  edition?: T;
+  forSale?: T;
+  priceInr?: T;
+  availability?: T;
+  description?: T;
+  images?: T;
+  sortOrder?: T;
+  archived?: T;
+  published?: T;
+  publishedAt?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

@@ -139,6 +139,17 @@ the Aadhaar number. It is not used yet: since the 2025 amendments to the Aadhaar
 and Offline Verification) Regulations, at least the XML route needs registration with UIDAI as an
 Offline Verification Seeking Entity, and that is a decision for the business and its lawyer first.
 
+## The member portal
+
+- Approved artists edit their profile and works through `/next/members/portal/*` only; the
+  `artworks` collection refuses members outright, and member pictures are private.
+- Nothing reaches the public without a member of staff approving it, and a picture is public only
+  while an approved, unarchived work or the approved portrait uses it.
+- Changing the email address needs a code sent to the **new** address; the old address is told,
+  and every other device is signed out. A pending change is bound to its own code, so a code for
+  anything else cannot complete it.
+- A member can see and sign out each of their devices, and only their own.
+
 ## Logs
 
 Every log line goes through one logger (`src/observability/logger.ts`): Payload's, the plugins'

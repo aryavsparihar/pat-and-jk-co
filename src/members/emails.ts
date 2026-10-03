@@ -42,6 +42,24 @@ export const memberCodeEmail = async (
   payload: Payload,
   { code, purpose }: { code: string; purpose: Purpose },
 ): Promise<BuiltEmail> => {
+  if (purpose === 'email-change') {
+    return buildEmail({
+      subject: 'Confirm your new email address',
+      preheader: `Your code is ${code}. It expires in ${OTP_TTL_MINUTES} minutes.`,
+      parts: [
+        {
+          kind: 'paragraph',
+          text: 'Here is the code to make this the email address for your PAT and J.K. Co. account.',
+        },
+        { kind: 'code', code },
+        {
+          kind: 'note',
+          text: `It expires in ${OTP_TTL_MINUTES} minutes and works once. If you did not ask for this, ignore this email: nothing changes without the code.`,
+        },
+      ],
+      footer: await emailFooter(payload),
+    })
+  }
   if (purpose === 'step-up') {
     return buildEmail({
       subject: 'Confirm a change to your PJK account',
@@ -334,6 +352,89 @@ export const notifyStaffOfDataRequest = async (
           kind: 'paragraph',
           text: `A member (${reference ?? 'see Security events in the admin'}) has asked: ${request}. Please deal with it as docs/KYC.md describes, and write to them when it is done.`,
         },
+      ],
+      footer: await emailFooter(payload),
+    }),
+  )
+}
+
+/** Tells the old address that the account's email changed, with a way to report it */
+export const sendEmailChangedNotice = async (
+  payload: Payload,
+  { oldEmail }: { oldEmail: string },
+): Promise<boolean> =>
+  send(
+    payload,
+    oldEmail,
+    buildEmail({
+      subject: 'The email address on your PJK account has changed',
+      preheader: 'If this was you, there is nothing to do.',
+      parts: [
+        {
+          kind: 'paragraph',
+          text: 'The email address on your PAT and J.K. Co. account has just been changed, and confirmed with a code sent to the new address. Codes to sign in will go there from now on.',
+        },
+        {
+          kind: 'note',
+          text: 'If this was not you, reply to this email or write to us straight away, and we will put it right.',
+        },
+      ],
+      footer: await emailFooter(payload),
+    }),
+  )
+
+/** The member hears what staff decided about a work or their profile */
+export const sendReviewDecision = async (
+  payload: Payload,
+  {
+    to,
+    what,
+    approved,
+    note,
+  }: { to: string; what: string; approved: boolean; note?: string | null },
+): Promise<boolean> =>
+  send(
+    payload,
+    to,
+    buildEmail({
+      subject: approved ? `${what} is now public` : `A few changes to ${what.toLowerCase()}`,
+      preheader: approved
+        ? 'Thank you. It can now be seen through Phulhaar.'
+        : 'We have asked for a few changes before it goes up.',
+      parts: [
+        {
+          kind: 'paragraph',
+          text: approved
+            ? `${what} has been approved and can now be seen through Phulhaar.`
+            : `We have looked at ${what.toLowerCase()} and asked for a few changes before it goes up.`,
+        },
+        ...(note ? [{ kind: 'paragraph' as const, text: note }] : []),
+        {
+          kind: 'link',
+          label: 'Your account',
+          url: `${getServerSideURL()}/account`,
+        },
+      ],
+      footer: await emailFooter(payload),
+    }),
+  )
+
+/** Staff hear that something is waiting for review; no details beyond what and whose */
+export const notifyStaffOfReview = async (
+  payload: Payload,
+  { what, memberId, adminPath }: { what: string; memberId: string; adminPath: string },
+): Promise<boolean> => {
+  const to = await staffInbox(payload)
+  if (!to) return false
+  return send(
+    payload,
+    to,
+    buildEmail({
+      subject: `Waiting for review: ${what}`,
+      preheader: `From ${memberId}.`,
+      parts: [
+        { kind: 'paragraph', text: `${memberId} has sent ${what.toLowerCase()} for review.` },
+        { kind: 'link', label: 'Review it', url: `${getServerSideURL()}${adminPath}` },
       ],
       footer: await emailFooter(payload),
     }),

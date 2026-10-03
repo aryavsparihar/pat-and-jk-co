@@ -1,9 +1,11 @@
 import { del } from '@vercel/blob'
 
-import { EDITABLE, findOwnApplication } from '@/members/application'
+import { findOwnApplication } from '@/members/application'
+import { imageInUseByPortal } from '@/members/artworks'
 import { fromOurOrigin, refuseCrossSite, reply, requireMember, withRefresh } from '@/members/http'
 import {
   blobUploadsAvailable,
+  canAddPictures,
   fetchCapped,
   incomingPrefix,
   ingestPortfolioImage,
@@ -59,7 +61,7 @@ export async function POST(request: Request) {
   const { payload, member } = auth
 
   const application = await findOwnApplication(payload, member, 'artist', 0)
-  if (!application || !EDITABLE.includes(application.stage)) {
+  if (!canAddPictures(member, application)) {
     return reply(
       { message: 'Pictures can only be added while your application is open.' },
       { status: 409 },
@@ -136,17 +138,23 @@ export async function DELETE(request: Request) {
   if (!Number.isSafeInteger(id)) return reply({ message: 'Which picture?' }, { status: 400 })
 
   const application = await findOwnApplication(payload, member, 'artist', 0)
-  if (!application || !EDITABLE.includes(application.stage)) {
+  if (!canAddPictures(member, application)) {
     return reply(
       { message: 'Pictures can only be changed while your application is open.' },
       { status: 409 },
     )
   }
-  const inUse = (application.portfolio ?? []).some(
+  const inUse = (application?.portfolio ?? []).some(
     (w) => (typeof w.image === 'object' ? w.image?.id : w.image) === id,
   )
   if (inUse)
     return reply({ message: 'Remove that work from your portfolio first.' }, { status: 409 })
+  if (await imageInUseByPortal(payload, member.id, id)) {
+    return reply(
+      { message: 'That picture is used by one of your works or your profile.' },
+      { status: 409 },
+    )
+  }
 
   const result = await payload.delete({
     collection: 'portfolio-images',

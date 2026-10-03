@@ -1,4 +1,4 @@
-import type { Access, CollectionConfig } from 'payload'
+import type { Access, CollectionConfig, Where } from 'payload'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
@@ -7,11 +7,22 @@ import { isMember, isStaff } from '../access/roles'
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 
-/** Staff see every image; a member sees only their own; the public sees none. */
+/** Staff and the owner can change or remove an image; nobody else. */
 const ownOrStaff: Access = ({ req: { user } }) => {
   if (isStaff(user)) return true
   if (isMember(user)) return { owner: { equals: user.id } }
   return false
+}
+
+/**
+ * Staff see every image; a member sees their own; anyone sees an image staff have approved for
+ * the public (a published work's picture or an approved portrait), and no other.
+ */
+const readable: Access = ({ req: { user } }): boolean | Where => {
+  if (isStaff(user)) return true
+  const approved: Where = { public: { equals: true } }
+  if (isMember(user)) return { or: [{ owner: { equals: user.id } }, approved] }
+  return approved
 }
 
 /**
@@ -30,7 +41,7 @@ export const PortfolioImages: CollectionConfig = {
   labels: { singular: 'Portfolio image', plural: 'Portfolio images' },
   access: {
     create: () => false, // only the server, after checking and cleaning the file
-    read: ownOrStaff,
+    read: readable,
     update: ({ req: { user } }) => isStaff(user),
     delete: ownOrStaff,
   },
@@ -38,9 +49,20 @@ export const PortfolioImages: CollectionConfig = {
     group: 'Members',
     hidden: ({ user }) => !isStaff(user),
     defaultColumns: ['filename', 'owner', 'createdAt'],
-    description: 'Pictures sent with artist applications. Not public.',
+    description:
+      'Pictures sent with artist applications, and approved artists’ works. Public only once staff approve the work or portrait that uses them.',
   },
   fields: [
+    {
+      // Set only by the server when staff approve a work or a portrait that uses this image,
+      // and cleared when nothing public uses it any more (src/members/artworks.ts)
+      name: 'public',
+      type: 'checkbox',
+      defaultValue: false,
+      index: true,
+      access: { create: () => false, update: () => false },
+      admin: { readOnly: true, position: 'sidebar' },
+    },
     {
       name: 'owner',
       type: 'relationship',

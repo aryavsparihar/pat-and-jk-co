@@ -40,6 +40,10 @@ export const securityEventTypes = [
   'data-request',
   'kyc-legal-hold-changed',
   'kyc-aadhaar-checked',
+  'portal-approved',
+  'portal-changes-requested',
+  'member-email-changed',
+  'member-session-ended',
 ] as const
 
 /**

@@ -29,6 +29,23 @@ export const PORTFOLIO_MIN_LONG_SIDE: number | null = null
 const MAX_LONG_SIDE = 4000
 /** Ten works, with room to replace a few pictures along the way */
 export const MAX_IMAGES_PER_MEMBER = 16
+/** An approved artist keeps pictures for every work in their portfolio, up to eight each */
+export const MAX_IMAGES_PER_ARTIST = 400
+
+/** How many pictures this member may keep */
+export const imageLimitFor = (member: Pick<Member, 'artistId'>) =>
+  member.artistId ? MAX_IMAGES_PER_ARTIST : MAX_IMAGES_PER_MEMBER
+
+/**
+ * Pictures can be added while an artist application is open, and at any time once the artist is
+ * approved (for their portfolio).
+ */
+export const canAddPictures = (
+  member: Pick<Member, 'artistId'>,
+  application: { stage: string } | null,
+) =>
+  Boolean(member.artistId) ||
+  Boolean(application && ['draft', 'changes-requested'].includes(application.stage))
 
 const ACCEPTED = new Set(['jpeg', 'png', 'webp'])
 
@@ -97,7 +114,7 @@ export const ingestPortfolioImage = async (
     where: { owner: { equals: member.id } },
     overrideAccess: true,
   })
-  if (existing.totalDocs >= MAX_IMAGES_PER_MEMBER) {
+  if (existing.totalDocs >= imageLimitFor(member)) {
     throw new PortfolioError(
       'You have uploaded a lot of pictures. Please remove some you are not using first.',
       409,
