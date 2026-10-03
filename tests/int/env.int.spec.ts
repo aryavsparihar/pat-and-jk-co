@@ -61,7 +61,7 @@ describe('environment validation', () => {
     expect(text).toMatch(/BLOB_READ_WRITE_TOKEN is required in production/)
     expect(text).toMatch(/MEMBER_SESSION_SECRET is required in production/)
     expect(text).toMatch(/KYC_ENCRYPTION_KEY is required in production/)
-    expect(text).toMatch(/KYC_BLOB_READ_WRITE_TOKEN is required in production/)
+    expect(text).toMatch(/KYC_STORE_ID is required in production/)
     expect(text).toMatch(/must use https/)
 
     expect(
@@ -74,7 +74,7 @@ describe('environment validation', () => {
         MEMBER_SESSION_SECRET: 'z'.repeat(44),
         KYC_ENCRYPTION_KEY: fakeKey(1),
         KYC_BLIND_INDEX_KEY: fakeKey(2),
-        KYC_BLOB_READ_WRITE_TOKEN: 'vercel_blob_rw_private_example_not_real',
+        KYC_STORE_ID: 'store_exampleKycNotReal',
       }).problems,
     ).toEqual([])
   })
@@ -101,10 +101,13 @@ describe('environment validation', () => {
     expect(
       parseEnv({
         ...base,
-        BLOB_READ_WRITE_TOKEN: 'vercel_blob_rw_example_not_real',
-        KYC_BLOB_READ_WRITE_TOKEN: 'vercel_blob_rw_example_not_real',
+        BLOB_STORE_ID: 'store_exampleMediaNotReal',
+        KYC_STORE_ID: 'store_EXAMPLEMEDIANOTREAL',
       }).problems.join(),
-    ).toMatch(/separate, private Blob store/)
+    ).toMatch(/not the public media store/)
+    expect(parseEnv({ ...base, KYC_STORE_ID: 'vercel_blob_rw_x' }).problems.join()).toMatch(
+      /must be a Blob store ID/,
+    )
   })
 
   it('reports problems as one readable error', () => {

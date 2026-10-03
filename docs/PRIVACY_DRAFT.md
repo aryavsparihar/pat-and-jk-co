@@ -63,7 +63,7 @@ We never sell your data or share it for marketing.
 | Enquiries | **[confirm: e.g. 2 years]** after we last wrote to each other |
 | An application we decline | 90 days after our decision, for identity and bank details; **[confirm]** for the rest |
 | An application never sent | 180 days after it was last changed |
-| Details of artists we work with | While we work together, then as long as the law requires us to keep records of payments **[confirm: period under the Income Tax Act and GST rules]** |
+| Details of artists we work with | While we work together, then **[confirm with CA: N years]** after the last payment, as the law requires us to keep records of payments |
 | Identity and bank details after you withdraw consent | Deleted promptly, unless the law requires us to keep them |
 
 ## Your rights
@@ -80,8 +80,8 @@ of India.
 
 ## Children
 
-Our applications are for adults. **[confirm: minimum age, and whether the form should refuse
-anyone under 18; it does not yet]**
+Our applications are for adults: we do not accept applications from anyone under 18, and the
+form checks the date of birth.
 
 ## If something goes wrong
 

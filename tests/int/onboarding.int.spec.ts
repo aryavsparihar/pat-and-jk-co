@@ -303,6 +303,19 @@ describe('an artist application', () => {
     )
   })
 
+  it('kindly refuses an applicant under 18, on the server', async () => {
+    const { cookie } = await applicant('artist')
+    const born = new Date()
+    born.setUTCFullYear(born.getUTCFullYear() - 17)
+    const response = await call(saveStep, cookie, {
+      step: 'about',
+      data: { ...goodSteps.about, dateOfBirth: born.toISOString().slice(0, 10) },
+    })
+    expect(response.status).toBe(422)
+    const { errors } = (await response.json()) as { errors: Record<string, string> }
+    expect(errors.dateOfBirth).toMatch(/18 or over/)
+  })
+
   it('cannot be sent until every step is right, then cannot be changed', async () => {
     const { cookie, application } = await applicant('artist')
     const early = await call(submitArtist, cookie, {})

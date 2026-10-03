@@ -44,7 +44,7 @@ browser ── HTTPS ──▶ /next/members/kyc            (member session, sam
 browser ── file ───▶ /next/members/kyc/document   (4 MB, PDF or JPEG/PNG/WebP by magic bytes)
                         │ images re-encoded (EXIF gone), sealed
                         ▼
-                     private Blob store (KYC_BLOB_READ_WRITE_TOKEN), key in kyc-documents
+                     private Blob store pjk-kyc (KYC_STORE_ID + OIDC), key in kyc-documents
 ```
 
 Nothing typed into the KYC step is kept in the browser: not in storage, and not in memory once it
@@ -60,9 +60,26 @@ is saved. The reply to every save is the masked view.
 - Each field is encrypted with the record's data key. The additional authenticated data names the
   member and the field (`member:12:accountNumber`), so a value cannot be copied into another
   member's record, or into another field, without decryption failing.
-- Documents are encrypted the same way before they leave the server, into a **private** Blob
-  store, separate from the public one used for images. They are never served from a Blob URL,
-  never through the image optimizer, and never cached.
+- Documents are encrypted the same way before they leave the server, into the **private** Blob
+  store `pjk-kyc`, separate from the public `pjk-media` store used for images. They are never
+  served from a Blob URL, never through the image optimizer, and never cached.
+
+**How the server reaches `pjk-kyc`** (`src/kyc/documentStore.ts`). A private store has no
+read-write token: the deployment authenticates with its own short-lived OIDC token, and
+`KYC_STORE_ID` names the store. `@vercel/blob` would fall back to `BLOB_STORE_ID` or
+`BLOB_READ_WRITE_TOKEN` if either were missing, and both belong to the public store, so the code
+never lets it choose: every call passes the OIDC token and `KYC_STORE_ID` explicitly, refuses to
+run without them, refuses a `KYC_STORE_ID` that is the media store's, and checks that each upload
+landed on a `private` URL of the KYC store (deleting it if not). Production will not start
+without `KYC_STORE_ID`. Locally there is no store: documents go, still encrypted, to
+`.uploads/kyc`.
+
+**Production and previews share the store**, each in its own folder: `kyc/` for production,
+`preview/kyc/` for previews (and `development/kyc/` on a laptop). A document outside the current
+environment's folder can be neither read nor deleted. A preview database is a branch of
+production's and may hold copies of production's rows; a purge on a preview deletes those copied
+rows but leaves production's files alone, and `pnpm kyc:rotate-key` only ever touches the database
+it is pointed at, never files.
 
 **Blind indexes** (HMAC-SHA256 under `KYC_BLIND_INDEX_KEY`, a different key) let us see that two
 members gave the same PAN or account, without decrypting anything. The record shows the other
@@ -117,11 +134,18 @@ The member's screens for this come in Phase 6; the endpoints and the staff side 
 | KYC of an application never sent | 180 days after it was last touched |
 | KYC after consent is withdrawn | At the next purge, unless a legal hold applies |
 | An uploaded document never saved with the step | After 7 days |
-| KYC of an approved artist we have paid | Kept while they work with us, then as long as the law requires for payment records. Set **Legal hold until** on the record (by a developer for now) |
+| KYC of an approved artist | **[confirm with CA]** Kept while they work with us, then for **[N] years** after the last payment, as the Income Tax Act and GST rules require for payment records. Not deleted automatically until this is settled; set **Legal hold until** on the record (by a developer for now) |
 
-`pnpm kyc:purge` shows what is due; `pnpm kyc:purge --apply` deletes it, files first, and logs
-each deletion with its reason. It prints member numbers and reasons only. It is not scheduled yet:
-run it monthly, or add it as a Vercel cron when the volume justifies it.
+**Weekly purge.** Every Monday at 02:00 UTC, Vercel Cron calls `/next/cron/kyc-purge` (in
+`vercel.json`), authorised by `CRON_SECRET` and refused without it. It applies the rules above,
+deleting each file before its row; a file that cannot be deleted keeps its row, so the next run
+tries again. Each deletion goes to the security log with its reason, and the run logs its counts
+(`KYC purge` in the Vercel logs). Cron runs only on production.
+
+By hand, `pnpm kyc:purge` shows what is due and `pnpm kyc:purge --apply` deletes it. Against
+production this needs production's database URL and KYC variables, `VERCEL_ENV=production`, and an
+OIDC token, which the Vercel CLI supplies once the project is linked (`vercel env pull`); with the
+cron running, that should rarely be needed.
 
 **Withdrawing consent and deletion.** A member can withdraw consent or ask for their data or its
 deletion (`/next/members/data-request`; the screen comes in Phase 6). Withdrawal takes effect at
@@ -175,9 +199,11 @@ without `KYC_BLIND_INDEX_KEY`. Masks show the last four digits, which is what th
 *Residual:* if the environment leaked too, everything opens; that is why the keys are not in the
 database, not in the repository, and not in logs.
 
-**A leaked Blob URL.** The KYC store is private: a URL alone returns nothing without the token,
-and every object in it is encrypted with a key held only in Postgres, under the master key.
-*Residual:* none from the URL alone. The token is server-only and never sent to a browser.
+**A leaked Blob URL.** The KYC store is private: a URL alone returns nothing without an OIDC token
+for this project, which only our deployments (and linked team members' CLIs) can obtain, and
+which expires within hours. Every object in it is encrypted with a key held only in Postgres,
+under the master key. *Residual:* none from the URL alone. No read-write token for the store
+exists to leak.
 
 **A compromised staff account.** Editors see nothing. A reviewer or super admin can reveal, but
 only one record at a time, each time with a reason, each time logged with their name, and the

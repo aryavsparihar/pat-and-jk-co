@@ -10,12 +10,13 @@ import { POST as cancelBankChange } from '@/app/(frontend)/next/members/kyc/bank
 import { POST as changeBank } from '@/app/(frontend)/next/members/kyc/bank-change/route'
 import { POST as uploadDocument } from '@/app/(frontend)/next/members/kyc/document/route'
 import { GET as readKyc, POST as saveKycStep } from '@/app/(frontend)/next/members/kyc/route'
-import { readEncrypted } from '@/kyc/documentStore'
+import { kycPrefix, readEncrypted, storeEncrypted } from '@/kyc/documentStore'
 import {
   approveBankChange,
   kycPurgeCandidates,
   openKycDocument,
   purgeKyc,
+  runKycPurge,
   revealKyc,
   rotateKycKeys,
 } from '@/kyc/service'
@@ -513,6 +514,56 @@ describe('retention and keys', () => {
 
     await purgeKyc(payload, { memberId: withdrawn.member.id, reason: 'test' })
     expect(await rawRecord(withdrawn.member.id)).toBe('')
+  })
+
+  it('from a preview, deletes copied rows but never production’s files', async () => {
+    const { member } = await artist()
+    // A file in production's folder, and a row pointing at it, as a database branched from
+    // production would hold
+    const env = process.env as Record<string, string | undefined>
+    env.VERCEL_ENV = 'production'
+    const key = await storeEncrypted(
+      `copied-${member.id}.bin`,
+      Buffer.from('v1 made-up ciphertext'),
+    )
+    expect(key.startsWith('kyc/')).toBe(true)
+    const row = await payload.create({
+      collection: 'kyc-documents',
+      data: {
+        member: member.id,
+        kind: 'bank-proof',
+        contentType: 'application/pdf',
+        size: 21,
+        storageKey: key,
+        keyId: 'example',
+        wrappedKey: 'v1.example',
+      } as never,
+      overrideAccess: true,
+    })
+    await execute(
+      payload,
+      sql`UPDATE kyc_documents SET created_at = ${new Date(Date.now() - 86_400_000 * 30).toISOString()} WHERE id = ${row.id}`,
+    )
+
+    env.VERCEL_ENV = 'preview'
+    try {
+      expect(kycPrefix()).toBe('preview/kyc/')
+      const summary = await runKycPurge(payload)
+      expect(summary.failed).toBe(0)
+      const left = await payload.count({
+        collection: 'kyc-documents',
+        where: { id: { equals: row.id } },
+        overrideAccess: true,
+      })
+      expect(left.totalDocs).toBe(0)
+    } finally {
+      env.VERCEL_ENV = 'production'
+    }
+    // The file is still there, and production can still read it
+    expect((await readEncrypted(key)).toString()).toBe('v1 made-up ciphertext')
+    const { deleteEncrypted } = await import('@/kyc/documentStore')
+    await deleteEncrypted(key)
+    delete env.VERCEL_ENV
   })
 
   it('rotates the master key without touching the data', async () => {

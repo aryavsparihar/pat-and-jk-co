@@ -19,7 +19,7 @@ import {
   unwrapDataKey,
   wrapDataKey,
 } from './crypto'
-import { deleteEncrypted, readEncrypted, storeEncrypted } from './documentStore'
+import { deleteEncrypted, kycPrefix, readEncrypted, storeEncrypted } from './documentStore'
 import type { KycDocumentKind, KycInput } from './schema'
 import { maskAadhaar, maskAccount, maskIfsc, maskPan, namesPlausiblyMatch } from './values'
 
@@ -581,7 +581,7 @@ export const purgeKyc = async (
     showHiddenFields: true,
   })
   for (const document of documents.docs as (KycDocument & { storageKey: string })[]) {
-    await deleteEncrypted(document.storageKey).catch(() => undefined)
+    await removeFile(document.storageKey)
     await payload.delete({
       collection: 'kyc-documents',
       id: document.id,
@@ -608,6 +608,17 @@ export const purgeKyc = async (
   return Boolean(record || documents.docs.length)
 }
 
+/**
+ * Deletes a document's file before its row. A file in another environment's folder (a row copied
+ * into a preview database from production) is left alone and only the copied row goes. Any other
+ * failure stops here, so the row survives and the next purge tries again: a row is never deleted
+ * while its file might still exist.
+ */
+const removeFile = async (storageKey: string) => {
+  if (!storageKey.startsWith(kycPrefix())) return
+  await deleteEncrypted(storageKey)
+}
+
 /* ─── Retention (docs/KYC.md) ───────────────────────────────────────────── */
 
 const DAY = 86_400_000
@@ -618,6 +629,8 @@ export const RETENTION = {
   abandonedDraftDays: 180,
   /** A document uploaded but never saved with the step */
   orphanDocumentDays: 7,
+  // Approved artists: [confirm with CA] how many years after the last payment the law requires.
+  // Until that is settled their KYC is never purged automatically (docs/KYC.md#retention).
 } as const
 
 export type PurgeCandidate = { memberId: number; reason: string }
@@ -726,7 +739,7 @@ export const purgeKycDocument = async (payload: Payload, documentId: number): Pr
     overrideAccess: true,
     showHiddenFields: true,
   })) as KycDocument & { storageKey: string }
-  await deleteEncrypted(document.storageKey).catch(() => undefined)
+  await removeFile(document.storageKey)
   await payload.delete({
     collection: 'kyc-documents',
     id: documentId,
@@ -815,4 +828,39 @@ export const rotateKycKeys = async (
   }
 
   return { records, documents, failed, current: current.id }
+}
+
+export type PurgeSummary = {
+  members: number
+  documents: number
+  failed: number
+  reasons: Record<string, number>
+}
+
+/**
+ * Applies the retention rules once: what `pnpm kyc:purge --apply` and the weekly cron run. One
+ * member's failure does not stop the rest; it is counted, and retried next time. Every deletion is
+ * in the security log; the summary carries counts only.
+ */
+export const runKycPurge = async (payload: Payload, now = new Date()): Promise<PurgeSummary> => {
+  const { members, orphanDocuments } = await kycPurgeCandidates(payload, now)
+  const summary: PurgeSummary = { members: 0, documents: 0, failed: 0, reasons: {} }
+  for (const { memberId, reason } of members) {
+    try {
+      await purgeKyc(payload, { memberId, reason: `Retention: ${reason}` })
+      summary.members += 1
+      summary.reasons[reason] = (summary.reasons[reason] ?? 0) + 1
+    } catch {
+      summary.failed += 1
+    }
+  }
+  for (const id of orphanDocuments) {
+    try {
+      await purgeKycDocument(payload, id)
+      summary.documents += 1
+    } catch {
+      summary.failed += 1
+    }
+  }
+  return summary
 }

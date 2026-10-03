@@ -94,10 +94,16 @@ const schema = z.object({
   KYC_ENCRYPTION_KEY: optional(kycKey),
   KYC_ENCRYPTION_KEY_PREVIOUS: optional(kycKey),
   KYC_BLIND_INDEX_KEY: optional(kycKey),
-  // A separate, private Blob store for identity documents
-  KYC_BLOB_READ_WRITE_TOKEN: optional(
-    z.string().startsWith('vercel_blob_rw_', 'must be a Vercel Blob read-write token'),
+  // The private Blob store for identity documents (pjk-kyc), reached with the deployment's OIDC
+  // token: no read-write token exists for it, by design (src/kyc/documentStore.ts)
+  KYC_STORE_ID: optional(
+    z
+      .string()
+      .trim()
+      .regex(/^store_[A-Za-z0-9]+$/, 'must be a Blob store ID (store_…)'),
   ),
+  // Set by Vercel with the public media store; read only to make sure KYC never uses it
+  BLOB_STORE_ID: optional(z.string().trim()),
 
   // Set by Vercel
   VERCEL_ENV: optional(z.enum(['production', 'preview', 'development'])),
@@ -123,8 +129,8 @@ const productionRequirements: { key: keyof Env; why: string }[] = [
   { key: 'KYC_ENCRYPTION_KEY', why: 'identity and bank details are encrypted with it' },
   { key: 'KYC_BLIND_INDEX_KEY', why: 'duplicate PANs and accounts are found with it' },
   {
-    key: 'KYC_BLOB_READ_WRITE_TOKEN',
-    why: 'identity documents are kept in a private Blob store, never the public one',
+    key: 'KYC_STORE_ID',
+    why: 'identity documents are kept in the private Blob store pjk-kyc, never the public one',
   },
 ]
 
@@ -163,8 +169,13 @@ export const parseEnv = (source: Record<string, string | undefined>): EnvResult 
     if (env.KYC_ENCRYPTION_KEY_PREVIOUS && !env.KYC_ENCRYPTION_KEY) {
       problems.push('KYC_ENCRYPTION_KEY_PREVIOUS is set without KYC_ENCRYPTION_KEY')
     }
-    if (same(env.KYC_BLOB_READ_WRITE_TOKEN, env.BLOB_READ_WRITE_TOKEN)) {
-      problems.push('KYC_BLOB_READ_WRITE_TOKEN must belong to a separate, private Blob store')
+    const storeId = (v?: string) =>
+      v
+        ?.trim()
+        .replace(/^store_/i, '')
+        .toLowerCase()
+    if (env.KYC_STORE_ID && storeId(env.KYC_STORE_ID) === storeId(env.BLOB_STORE_ID)) {
+      problems.push('KYC_STORE_ID must be the private KYC store, not the public media store')
     }
   }
 

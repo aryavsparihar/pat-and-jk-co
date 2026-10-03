@@ -69,7 +69,10 @@ export const aboutSchema = z.object({
     .string({ error: 'Please add your date of birth.' })
     .trim()
     .refine((v) => ageOn(v) !== null, 'Please use the date picker, or the form YYYY-MM-DD.')
-    .refine((v) => (ageOn(v) ?? 0) >= 18, 'We can only work with artists who are 18 or over.')
+    .refine(
+      (v) => (ageOn(v) ?? 0) >= 18,
+      'Thank you for thinking of us. We can only work with artists who are 18 or over, and we would be glad to hear from you then.',
+    )
     .refine((v) => (ageOn(v) ?? 0) <= 120, 'Please check the year.'),
   phone,
   language: z.enum(LANGUAGES, { error: 'Please choose a language.' }),

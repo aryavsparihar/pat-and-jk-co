@@ -101,6 +101,14 @@ Everything is shown masked, like `XXXXXXXX4821`. In the record's sidebar:
 - **Possible duplicates** lists other applications with the same PAN or account. Look before approving.
 - A **name mismatch** means the name on the bank account looks different from the artist's. Often it is a joint account or initials; ask if you are not sure.
 
+**Before you approve an artist, or mark their details verified**, check each of these:
+
+1. The name on the PAN (or the masked Aadhaar) is the artist's name. Small differences are fine (an initial, a middle name); a different person is not.
+2. The account holder's name matches the artist, or you know why it does not (a joint account, say).
+3. The PAN card, masked Aadhaar and cheque or passbook, if given, show the same details as were typed in.
+4. Nothing under **Possible duplicates**, or you know why.
+5. **Before the first payout to a new account**, send ₹1 to it and ask the artist to confirm they received it. Do the same after any change of bank account.
+
 **When an artist changes their bank account** after approval, you are emailed. The old account stays in use until you approve the new one: open the record, reveal the details, check them against the documents (a cancelled cheque or passbook helps), and press **Approve the new details**. If the artist says the change was not theirs, they can stop it from their email; you are told, and they are signed out everywhere. Call them before doing anything else.
 
 If an artist asks for a copy of their data, or for it to be deleted, you are emailed. Tell the developer, who runs the deletion (see docs/KYC.md).
