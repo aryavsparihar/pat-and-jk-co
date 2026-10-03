@@ -39,17 +39,13 @@ export async function login({
   await page.waitForLoadState('networkidle')
 
   // On a cold development server the form can finish loading after the fields are filled, and
-  // empty them; fill again until both values have stuck
+  // empty them, even after they seemed to stick; so fill and submit again until the dashboard opens
   await expect(async () => {
     await page.fill('#field-email', user.email)
     await page.fill('#field-password', user.password)
-    await page.waitForTimeout(500)
-    await expect(page.locator('#field-email')).toHaveValue(user.email, { timeout: 1000 })
-    await expect(page.locator('#field-password')).toHaveValue(user.password, { timeout: 1000 })
-  }).toPass({ timeout: 60_000 })
-  await page.click('button[type="submit"]')
-
-  await page.waitForURL(`${serverURL}/admin`)
+    await page.click('button[type="submit"]')
+    await page.waitForURL(`${serverURL}/admin`, { timeout: 15_000 })
+  }).toPass({ timeout: 120_000 })
 
   const dashboardArtifact = page.locator('span[title="Dashboard"]')
   await expect(dashboardArtifact).toBeVisible()
