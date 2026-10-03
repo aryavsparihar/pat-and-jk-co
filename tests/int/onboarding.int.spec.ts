@@ -16,7 +16,12 @@ import { POST as requestCode } from '@/app/(frontend)/next/members/request-code/
 import { ensureApplication } from '@/members/accounts'
 import { decideApplication } from '@/members/decide'
 import { checkFormToken, createFormToken } from '@/members/formToken'
-import { cleanImage, isOwnIncomingBlob, PortfolioError } from '@/members/portfolio'
+import {
+  cleanImage,
+  isOwnIncomingBlob,
+  PORTFOLIO_MIN_LONG_SIDE,
+  PortfolioError,
+} from '@/members/portfolio'
 import { createSession } from '@/security/memberSession'
 import { MEMBER_COOKIE } from '@/security/constants'
 import type { User } from '@/payload-types'
@@ -222,7 +227,17 @@ describe('pictures of the work', () => {
     await expect(cleanImage(Buffer.from('GIF89a not really'))).rejects.toBeInstanceOf(
       PortfolioError,
     )
-    await expect(cleanImage(await photo('jpeg', 400, 300))).rejects.toThrow(/small/)
+  })
+
+  it('take a small picture as it is, with no minimum size for now', async () => {
+    expect(PORTFOLIO_MIN_LONG_SIDE).toBeNull()
+    const small = await cleanImage(await photo('jpeg', 400, 300))
+    expect([small.width, small.height]).toEqual([400, 300])
+  })
+
+  it('shrink a very large picture to 4000 px, and keep its proportions', async () => {
+    const large = await cleanImage(await photo('jpeg', 6000, 3000))
+    expect([large.width, large.height]).toEqual([4000, 2000])
   })
 
   it('are only imported from this artist’s own folder in our Blob store', () => {
