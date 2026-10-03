@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+import { TURNSTILE_TEST_SECRET, TURNSTILE_TEST_SITE_KEY } from './security/turnstile'
+
 /**
  * Every environment variable the app reads, checked once at boot.
  *
@@ -84,6 +86,11 @@ const schema = z.object({
   BUSINESS_INBOX: optional(email),
   TECHNICAL_INBOX: optional(email),
 
+  // Cloudflare Turnstile on the code request and the public forms (src/security/turnstile.ts).
+  // Both or neither: without them, as on a developer's machine, the check is skipped
+  NEXT_PUBLIC_TURNSTILE_SITE_KEY: optional(z.string().min(10, 'must be a Turnstile site key')),
+  TURNSTILE_SECRET_KEY: optional(z.string().min(10, 'must be a Turnstile secret key')),
+
   // Media
   BLOB_READ_WRITE_TOKEN: optional(
     z.string().startsWith('vercel_blob_rw_', 'must be a Vercel Blob read-write token'),
@@ -126,6 +133,11 @@ const productionRequirements: { key: keyof Env; why: string }[] = [
     key: 'BLOB_READ_WRITE_TOKEN',
     why: 'without it, uploads are written to a serverless disk that is thrown away',
   },
+  {
+    key: 'NEXT_PUBLIC_TURNSTILE_SITE_KEY',
+    why: 'the forms show the Cloudflare Turnstile check with it',
+  },
+  { key: 'TURNSTILE_SECRET_KEY', why: 'the server checks Turnstile tokens with it' },
   { key: 'KYC_ENCRYPTION_KEY', why: 'identity and bank details are encrypted with it' },
   { key: 'KYC_BLIND_INDEX_KEY', why: 'duplicate PANs and accounts are found with it' },
   {
@@ -155,6 +167,17 @@ export const parseEnv = (source: Record<string, string | undefined>): EnvResult 
     }
     if (env.NEXT_PUBLIC_SERVER_URL && !env.NEXT_PUBLIC_SERVER_URL.startsWith('https://')) {
       problems.push('NEXT_PUBLIC_SERVER_URL must use https:// in production')
+    }
+    // Cloudflare's test keys pass everyone: right for a preview, an open door in production
+    if (TURNSTILE_TEST_SECRET.test(env.TURNSTILE_SECRET_KEY?.trim() ?? '')) {
+      problems.push(
+        "TURNSTILE_SECRET_KEY is one of Cloudflare's test keys; production needs the real one",
+      )
+    }
+    if (TURNSTILE_TEST_SITE_KEY.test(env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim() ?? '')) {
+      problems.push(
+        "NEXT_PUBLIC_TURNSTILE_SITE_KEY is one of Cloudflare's test keys; production needs the real one",
+      )
     }
   }
 

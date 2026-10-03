@@ -1,5 +1,5 @@
 import type { CollectionConfig } from 'payload'
-import { APIError } from 'payload'
+import { publicError } from '@/utilities/publicError'
 
 import { authenticated } from '../../access/authenticated'
 import { superAdminOnly, superAdminOnlyField, superAdminOrSelf } from '../../access/roles'
@@ -129,11 +129,9 @@ export const Users: CollectionConfig = {
         if (data.email !== undefined) {
           const email = normaliseEmail(data.email)
           if (!isCompanyEmail(email)) {
-            throw new APIError(
+            throw publicError(
               `Admin accounts must use an @${COMPANY_EMAIL_DOMAIN} email address.`,
               400,
-              undefined,
-              true,
             )
           }
           data.email = email
@@ -142,7 +140,7 @@ export const Users: CollectionConfig = {
         // Password rules are enforced here so they apply to every route into the app
         if (typeof data.password === 'string' && data.password.length > 0) {
           const problem = passwordProblem(data.password, data.email ?? req.user?.email)
-          if (problem) throw new APIError(`Password too weak: ${problem}`, 400, undefined, true)
+          if (problem) throw publicError(`Password too weak: ${problem}`, 400)
         }
 
         return data
@@ -154,26 +152,19 @@ export const Users: CollectionConfig = {
         const isLocal = req.payloadAPI === 'local'
 
         if (user.status !== 'active') {
-          throw new APIError(
-            'This account is not active. Ask a super admin to re-enable it.',
-            403,
-            undefined,
-            true,
-          )
+          throw publicError('This account is not active. Ask a super admin to re-enable it.', 403)
         }
         if (!isCompanyEmail(user.email)) {
-          throw new APIError('This account cannot sign in.', 403, undefined, true)
+          throw publicError('This account cannot sign in.', 403)
         }
         if (!isLocal) {
           // The one-time code must have been sent to this same mailbox, so a code for one
           // account cannot be used to try passwords against another.
           const verified = gateEmail(req)
           if (!verified || verified !== normaliseEmail(user.email)) {
-            throw new APIError(
+            throw publicError(
               'Request a sign-in code for this address first at /admin-access.',
               403,
-              undefined,
-              true,
             )
           }
         }

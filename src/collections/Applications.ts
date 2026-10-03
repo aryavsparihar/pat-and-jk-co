@@ -1,4 +1,5 @@
 import type { Access, CollectionConfig, FieldAccess, Where } from 'payload'
+import { publicError } from '@/utilities/publicError'
 import { APIError } from 'payload'
 
 import { isMember, isStaff, superAdminOnly } from '../access/roles'
@@ -6,7 +7,11 @@ import { PARTNER_CATEGORIES } from '../members/categories'
 import { decideApplication, type Decision } from '../members/decide'
 import { APPLICATION_REFERENCE_PATTERN } from '../members/ids'
 
-import { artistApplicationFields, partnerApplicationFields, progressFields } from './applicationFields'
+import {
+  artistApplicationFields,
+  partnerApplicationFields,
+  progressFields,
+} from './applicationFields'
 
 /** Stages an applicant may still edit their own application in */
 export const EDITABLE_STAGES = ['draft', 'changes-requested'] as const
@@ -183,12 +188,7 @@ export const Applications: CollectionConfig = {
     beforeChange: [
       ({ data, operation }) => {
         if (operation === 'create' && !APPLICATION_REFERENCE_PATTERN.test(String(data.reference))) {
-          throw new APIError(
-            'Applications are given a reference by the server.',
-            400,
-            undefined,
-            true,
-          )
+          throw publicError('Applications are given a reference by the server.', 400)
         }
         return data
       },
