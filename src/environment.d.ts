@@ -15,6 +15,8 @@ declare global {
       EMAIL_FROM_ADDRESS?: string
       EMAIL_FROM_NAME?: string
       CONTACT_INBOX?: string
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY?: string
+      TURNSTILE_SECRET_KEY?: string
     }
   }
 }

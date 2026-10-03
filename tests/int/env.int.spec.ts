@@ -62,6 +62,8 @@ describe('environment validation', () => {
     expect(text).toMatch(/MEMBER_SESSION_SECRET is required in production/)
     expect(text).toMatch(/KYC_ENCRYPTION_KEY is required in production/)
     expect(text).toMatch(/KYC_STORE_ID is required in production/)
+    expect(text).toMatch(/TURNSTILE_SECRET_KEY is required in production/)
+    expect(text).toMatch(/NEXT_PUBLIC_TURNSTILE_SITE_KEY is required in production/)
     expect(text).toMatch(/must use https/)
 
     expect(
@@ -75,6 +77,9 @@ describe('environment validation', () => {
         KYC_ENCRYPTION_KEY: fakeKey(1),
         KYC_BLIND_INDEX_KEY: fakeKey(2),
         KYC_STORE_ID: 'store_exampleKycNotReal',
+        // Cloudflare's published test keys
+        NEXT_PUBLIC_TURNSTILE_SITE_KEY: '1x00000000000000000000AA',
+        TURNSTILE_SECRET_KEY: '1x0000000000000000000000000000000AA',
       }).problems,
     ).toEqual([])
   })

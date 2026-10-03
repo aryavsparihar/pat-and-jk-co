@@ -84,6 +84,11 @@ const schema = z.object({
   BUSINESS_INBOX: optional(email),
   TECHNICAL_INBOX: optional(email),
 
+  // Cloudflare Turnstile on the code request and the public forms (src/security/turnstile.ts).
+  // Both or neither: without them, as on a developer's machine, the check is skipped
+  NEXT_PUBLIC_TURNSTILE_SITE_KEY: optional(z.string().min(10, 'must be a Turnstile site key')),
+  TURNSTILE_SECRET_KEY: optional(z.string().min(10, 'must be a Turnstile secret key')),
+
   // Media
   BLOB_READ_WRITE_TOKEN: optional(
     z.string().startsWith('vercel_blob_rw_', 'must be a Vercel Blob read-write token'),
@@ -126,6 +131,11 @@ const productionRequirements: { key: keyof Env; why: string }[] = [
     key: 'BLOB_READ_WRITE_TOKEN',
     why: 'without it, uploads are written to a serverless disk that is thrown away',
   },
+  {
+    key: 'NEXT_PUBLIC_TURNSTILE_SITE_KEY',
+    why: 'the forms show the Cloudflare Turnstile check with it',
+  },
+  { key: 'TURNSTILE_SECRET_KEY', why: 'the server checks Turnstile tokens with it' },
   { key: 'KYC_ENCRYPTION_KEY', why: 'identity and bank details are encrypted with it' },
   { key: 'KYC_BLIND_INDEX_KEY', why: 'duplicate PANs and accounts are found with it' },
   {

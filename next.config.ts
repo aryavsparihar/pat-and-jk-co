@@ -11,8 +11,9 @@ const isDev = process.env.NODE_ENV === 'development'
 /**
  * Content Security Policy, in two strengths.
  *
- * The public site runs no third-party script and never evaluates strings as code, so it gets
- * neither 'unsafe-eval' nor any outside script host, and may only talk to its own origin. The
+ * The public site never evaluates strings as code and runs one outside script, Cloudflare
+ * Turnstile on its forms (src/security/turnstile.ts), which needs its script and its frame from
+ * challenges.cloudflare.com; it may otherwise only talk to its own origin. The
  * admin panel needs more: 'unsafe-eval' for parts of its UI, jsDelivr for the code editor
  * (Monaco) to fetch itself, and outbound HTTPS for client uploads straight to Vercel Blob.
  *
@@ -20,6 +21,8 @@ const isDev = process.env.NODE_ENV === 'development'
  * alternative, a nonce, has to differ on every response, which would mean rendering every page
  * per request instead of serving it from the CDN. See docs/AUDIT.md, section 8.
  */
+const TURNSTILE = 'https://challenges.cloudflare.com'
+
 const contentSecurityPolicy = ({ admin }: { admin: boolean }) =>
   [
     "default-src 'self'",
@@ -37,12 +40,13 @@ const contentSecurityPolicy = ({ admin }: { admin: boolean }) =>
       // Development needs eval for fast refresh
       (admin || isDev) && "'unsafe-eval'",
       admin && 'https://cdn.jsdelivr.net',
+      !admin && TURNSTILE,
     ]
       .filter(Boolean)
       .join(' '),
     "worker-src 'self' blob:",
     admin ? "connect-src 'self' https:" : `connect-src 'self'${isDev ? ' ws: wss:' : ''}`,
-    "frame-src 'self'",
+    admin ? "frame-src 'self'" : `frame-src 'self' ${TURNSTILE}`,
     'upgrade-insecure-requests',
   ].join('; ')
 

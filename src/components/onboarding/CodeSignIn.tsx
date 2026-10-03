@@ -1,5 +1,7 @@
 'use client'
 
+import { useTurnstile } from '@/components/turnstile/useTurnstile'
+import { TURNSTILE_FIELD } from '@/security/turnstile'
 import { HONEYPOT_FIELD } from '@/utilities/honeypot'
 import React, { useEffect, useRef, useState } from 'react'
 
@@ -45,6 +47,7 @@ export const CodeSignIn: React.FC<{
   const [honeypot, setHoneypot] = useState('')
   const [resendIn, setResendIn] = useState(0)
   const codeRef = useRef<HTMLInputElement>(null)
+  const bot = useTurnstile(purpose)
 
   useEffect(() => {
     if (resendIn <= 0) return
@@ -56,8 +59,9 @@ export const CodeSignIn: React.FC<{
     event?.preventDefault()
     setBusy(true)
     setError(null)
+    const human = await bot.getToken()
     const result = await api<{ challengeId: number }>('/next/members/request-code', {
-      body: { email, purpose, formToken, [HONEYPOT_FIELD]: honeypot },
+      body: { email, purpose, formToken, [HONEYPOT_FIELD]: honeypot, [TURNSTILE_FIELD]: human },
     })
     setBusy(false)
     if (!result.ok)
@@ -80,8 +84,8 @@ export const CodeSignIn: React.FC<{
     onSignedIn()
   }
 
-  if (stage === 'code') {
-    return (
+  const form =
+    stage === 'code' ? (
       <form noValidate onSubmit={verify}>
         <p aria-live="polite" className="measure">
           {message} It may take a minute to arrive; check your spam folder if it does not.
@@ -139,56 +143,61 @@ export const CodeSignIn: React.FC<{
           </button>
         </div>
       </form>
+    ) : (
+      <form noValidate onSubmit={requestCode}>
+        <p className="measure">{COPY[purpose].intro}</p>
+        <div className="mt-8 max-w-md">
+          <label className="label mb-1 block" htmlFor="member-email">
+            Email address
+          </label>
+          <input
+            aria-describedby={error ? 'member-email-error' : undefined}
+            aria-invalid={error ? true : undefined}
+            autoComplete="email"
+            className={fieldClass}
+            id="member-email"
+            inputMode="email"
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            type="email"
+            value={email}
+          />
+          {error && (
+            <p
+              className="mt-2 text-base italic text-destructive"
+              id="member-email-error"
+              role="alert"
+            >
+              {error}
+            </p>
+          )}
+        </div>
+        {/* Hidden from people and from screen readers; bots fill it in */}
+        <div aria-hidden className="absolute -left-[9999px] h-0 w-0 overflow-hidden">
+          <label htmlFor={HONEYPOT_FIELD}>Company website</label>
+          <input
+            autoComplete="off"
+            id={HONEYPOT_FIELD}
+            onChange={(e) => setHoneypot(e.target.value)}
+            tabIndex={-1}
+            value={honeypot}
+          />
+        </div>
+        <button
+          className="btn btn-solid mt-9 min-h-11"
+          disabled={busy || !email.includes('@')}
+          type="submit"
+        >
+          {busy ? 'Sending…' : COPY[purpose].button}
+        </button>
+      </form>
     )
-  }
 
+  // Outside both stages, so the check is still there for "send a new code"
   return (
-    <form noValidate onSubmit={requestCode}>
-      <p className="measure">{COPY[purpose].intro}</p>
-      <div className="mt-8 max-w-md">
-        <label className="label mb-1 block" htmlFor="member-email">
-          Email address
-        </label>
-        <input
-          aria-describedby={error ? 'member-email-error' : undefined}
-          aria-invalid={error ? true : undefined}
-          autoComplete="email"
-          className={fieldClass}
-          id="member-email"
-          inputMode="email"
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          type="email"
-          value={email}
-        />
-        {error && (
-          <p
-            className="mt-2 text-base italic text-destructive"
-            id="member-email-error"
-            role="alert"
-          >
-            {error}
-          </p>
-        )}
-      </div>
-      {/* Hidden from people and from screen readers; bots fill it in */}
-      <div aria-hidden className="absolute -left-[9999px] h-0 w-0 overflow-hidden">
-        <label htmlFor={HONEYPOT_FIELD}>Company website</label>
-        <input
-          autoComplete="off"
-          id={HONEYPOT_FIELD}
-          onChange={(e) => setHoneypot(e.target.value)}
-          tabIndex={-1}
-          value={honeypot}
-        />
-      </div>
-      <button
-        className="btn btn-solid mt-9 min-h-11"
-        disabled={busy || !email.includes('@')}
-        type="submit"
-      >
-        {busy ? 'Sending…' : COPY[purpose].button}
-      </button>
-    </form>
+    <>
+      {form}
+      {bot.element}
+    </>
   )
 }

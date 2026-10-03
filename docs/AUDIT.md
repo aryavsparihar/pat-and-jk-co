@@ -434,4 +434,5 @@ In the order they are fixed. Each is its own commit.
 
 - Sentry for error tracking (section 11).
 - Better Stack or UptimeRobot for uptime checks against `/api/health` (section 12).
-- Cloudflare Turnstile for the public forms (Phase 4).
+- Cloudflare Turnstile for the public forms (Phase 4). Done: the code request and the public
+  forms (docs/SECURITY.md).

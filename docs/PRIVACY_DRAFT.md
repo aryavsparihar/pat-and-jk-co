@@ -16,7 +16,8 @@
 PAT and J.K. Co. ("PJK", "we") runs this website and works with artists and partners. For
 personal data you give us here, we are the data fiduciary. You can write to us about it at
 **[confirm: privacy@pjk.co.in or another address]**, or by post to our registered office,
-**[confirm: address as in Site settings]**. Our grievance officer is **[confirm: name and role]**.
+**[confirm: address as in Site settings]**. Our grievance officer is Mr. Yuvraj Singh Pathania, the proprietor, who can be reached at
+**[confirm: his email address]**.
 
 ## What we collect, and why
 
@@ -55,6 +56,7 @@ We use these service providers, who process data for us and only on our instruct
 | Vercel | Hosting the website and storing uploaded files | Singapore, and the United States for some files |
 | Neon | The database | Singapore |
 | Resend | Sending email | United States |
+| Cloudflare (Turnstile) | Telling people from automated programs when a form is sent: it sees your IP address and details of your browser and device, not what you type | United States, and wherever their nearest server is |
 
 Some of your data is therefore stored outside India. **[confirm with counsel: any restriction
 notified under section 16 of the DPDP Act]**
@@ -80,7 +82,7 @@ account. Withdrawing does not undo what we did before, and we may not be able to
 pay you without the details.
 
 We will answer within **[confirm: e.g. 30 days]**. If you are not satisfied, write to our
-grievance officer. If you are still not satisfied, you may complain to the Data Protection Board
+grievance officer, Mr. Yuvraj Singh Pathania. If you are still not satisfied, you may complain to the Data Protection Board
 of India.
 
 ## Children

@@ -24,7 +24,17 @@ export const memberPagePolicy = (nonce: string, { dev = false } = {}): string =>
     "object-src 'none'",
     "frame-ancestors 'none'",
     "form-action 'self'",
-    ["script-src 'self'", `'nonce-${nonce}'`, "'strict-dynamic'", dev && "'unsafe-eval'"].filter(Boolean).join(' '),
+    // Cloudflare Turnstile's loader is added by the app's own script, which 'strict-dynamic'
+    // trusts; the host is listed for browsers that predate 'strict-dynamic'
+    [
+      "script-src 'self'",
+      `'nonce-${nonce}'`,
+      "'strict-dynamic'",
+      'https://challenges.cloudflare.com',
+      dev && "'unsafe-eval'",
+    ]
+      .filter(Boolean)
+      .join(' '),
     // Next.js and next/font set inline styles; styles cannot run code
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
@@ -32,6 +42,7 @@ export const memberPagePolicy = (nonce: string, { dev = false } = {}): string =>
     // Pictures go from the browser straight to Vercel Blob in production
     `connect-src 'self' https://vercel.com https://*.public.blob.vercel-storage.com${dev ? ' ws: wss:' : ''}`,
     "worker-src 'self' blob:",
-    "frame-src 'none'",
+    // Turnstile's challenge, the only frame these pages may show
+    'frame-src https://challenges.cloudflare.com',
     'upgrade-insecure-requests',
   ].join('; ')

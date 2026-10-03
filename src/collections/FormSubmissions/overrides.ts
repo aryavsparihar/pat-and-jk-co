@@ -6,6 +6,7 @@ import { getTenantAccess } from '@payloadcms/plugin-multi-tenant/utilities'
 import { isStaff, isSuperAdmin } from '@/access/roles'
 import { clientIp } from '@/security/constants'
 import { hitLimit } from '@/security/rateLimit'
+import { TURNSTILE_FIELD, verifyTurnstile } from '@/security/turnstile'
 import { HONEYPOT_FIELD } from '@/utilities/honeypot'
 
 const MAX_FIELDS = 30
@@ -30,8 +31,22 @@ export const protectSubmission: CollectionBeforeChangeHook = async ({ data, oper
     throw new APIError('Your message could not be sent.', 400, undefined, true)
   }
 
-  // Visitors are limited; staff and server code calling the Local API (seeds, tests) are not
+  // Visitors are limited and checked; staff and server code calling the Local API (seeds, tests)
+  // are not
   if (!isStaff(req.user) && req.payloadAPI !== 'local') {
+    const token = entries.find((e) => e.field === TURNSTILE_FIELD)?.value
+    const human = await verifyTurnstile(token, 'contact')
+    if (!human.ok) {
+      req.payload.logger.warn(`Form submission refused by the bot check: ${human.reason}`)
+      throw new APIError(
+        'We could not confirm this came from a person. Please try again.',
+        400,
+        undefined,
+        true,
+      )
+    }
+    if (human.note) req.payload.logger.warn(`Bot check skipped (form): ${human.note}`)
+
     const { allowed } = await hitLimit(req.payload, {
       scope: 'form-submit',
       subject: clientIp(req.headers),

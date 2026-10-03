@@ -7,6 +7,8 @@ import React, { useCallback, useMemo, useState } from 'react'
 import { FormProvider, useForm } from 'react-hook-form'
 
 import RichText from '@/components/RichText'
+import { useTurnstile } from '@/components/turnstile/useTurnstile'
+import { TURNSTILE_FIELD } from '@/security/turnstile'
 import { HONEYPOT_FIELD } from '@/utilities/honeypot'
 
 import { fields } from './fields'
@@ -40,6 +42,7 @@ export const FormClient: React.FC<Props> = ({ form }) => {
   const [hasSubmitted, setHasSubmitted] = useState(false)
   const [error, setError] = useState<string | undefined>()
   const router = useRouter()
+  const { element: botCheck, getToken } = useTurnstile('contact')
 
   const onSubmit = useCallback(
     async (data: Record<string, unknown>) => {
@@ -50,6 +53,9 @@ export const FormClient: React.FC<Props> = ({ form }) => {
         field,
         value: typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value ?? ''),
       }))
+      // Cloudflare Turnstile, where it is set up; the server drops it before storing anything
+      const human = await getToken()
+      if (human) submissionData.push({ field: TURNSTILE_FIELD, value: human })
 
       try {
         const res = await fetch('/api/form-submissions', {
@@ -76,7 +82,7 @@ export const FormClient: React.FC<Props> = ({ form }) => {
         setError('We could not reach the server. Please check your connection and try again.')
       }
     },
-    [router, formID, redirect, confirmationType],
+    [router, formID, redirect, confirmationType, getToken],
   )
 
   if (hasSubmitted && confirmationType === 'message') {
@@ -130,6 +136,8 @@ export const FormClient: React.FC<Props> = ({ form }) => {
             {...register(HONEYPOT_FIELD)}
           />
         </div>
+
+        {botCheck}
 
         {error && (
           <p className="mt-6 text-base italic text-destructive" role="alert">
