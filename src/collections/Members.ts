@@ -1,5 +1,5 @@
 import type { Access, CollectionConfig, Field, FieldAccess } from 'payload'
-import { APIError } from 'payload'
+import { publicError } from '@/utilities/publicError'
 
 import { isMember, isStaff, superAdminOnly } from '../access/roles'
 import { PARTNER_CATEGORIES } from '../members/categories'
@@ -232,15 +232,10 @@ export const Members: CollectionConfig = {
           const after = data[field]
           if (after === undefined || after === before) continue
           if (before || operation === 'create' || context.issuingMemberId !== field) {
-            throw new APIError(
-              'A member ID cannot be set or changed by hand.',
-              400,
-              undefined,
-              true,
-            )
+            throw publicError('A member ID cannot be set or changed by hand.', 400)
           }
           if (!MEMBER_ID_PATTERN.test(String(after)) || !String(after).startsWith(prefix)) {
-            throw new APIError('That is not a member ID of this kind.', 400, undefined, true)
+            throw publicError('That is not a member ID of this kind.', 400)
           }
         }
         return data

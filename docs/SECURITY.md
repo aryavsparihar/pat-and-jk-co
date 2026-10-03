@@ -43,7 +43,7 @@ assignment.
 | Hostnames | The `Host` header is validated as a bare hostname before it reaches the brand rewrite (`src/utilities/host.ts`). Anything else is served the default brand. **Do not loosen this** — the header is interpolated into an internal path, and a slash or a `..` in it used to walk the rewrite into `/admin`, past the sign-in gate |
 | Response headers | CSP (stricter on the public site than in the admin), HSTS, `nosniff`, `SAMEORIGIN`, COOP, a restrictive `Permissions-Policy` — all in `next.config.ts` |
 | Uploaded files | Served with `sandbox` and `default-src 'none'`, so an uploaded SVG cannot run script against the site |
-| Public forms | Honeypot, 5 submissions per IP per 10 minutes (counted in Postgres, so the limit holds across every serverless instance; see `src/security/rateLimit.ts`), fields checked against the form definition (unknown fields dropped, required fields enforced, dropdowns limited to their own options), values capped at 5 000 characters, brand assigned from the form rather than from the request |
+| Public forms | Cloudflare Turnstile (below), honeypot, 5 submissions per IP per 10 minutes (counted in Postgres, so the limit holds across every serverless instance; see `src/security/rateLimit.ts`), fields checked against the form definition (unknown fields dropped, required fields enforced, dropdowns limited to their own options), values capped at 5 000 characters, brand assigned from the form rather than from the request |
 | Enquiries | Readable only by signed-in users of the owning brand; never by the public |
 | Drafts | Filtered out for anyone not signed in, including through `?draft=true` on the API |
 | Trusted origins | Payload's CSRF and CORS lists and the member endpoints' `Origin` check share one list (`trustedOrigins` in `src/utilities/getURL.ts`). Production trusts https://pjk.co.in and `ALLOWED_ORIGINS` only. A preview deployment also trusts its own `VERCEL_URL` and `VERCEL_BRANCH_URL`, so saving in its admin works; those are never trusted in production. `tests/int/origins.int.spec.ts` checks both |
@@ -59,6 +59,17 @@ same-origin` is set everywhere.
 
 If something in the admin panel ever fails to load, the CSP in `next.config.ts` is the first thing
 to check: the browser console names the directive that blocked it.
+
+**Cloudflare Turnstile** stands in front of the code request (signing in, and the start of
+both applications) and the public forms. The widget stays out of sight unless Cloudflare wants a
+box ticked; the server checks every token with Cloudflare (`src/security/turnstile.ts`) and
+refuses one that is missing, used before, or earned on a different form. Only the secret and the
+token are sent to Cloudflare, never the person's IP address or anything they typed. If Cloudflare
+cannot be reached the request goes ahead and the reason is logged: the honeypot, the form-start
+token and the rate limits still apply. Without `TURNSTILE_SECRET_KEY` (a developer's machine, the
+tests) the check is skipped; production refuses to start without both keys, or with Cloudflare's
+test keys, which previews use and which pass everyone. The staff sign-in
+gate is not covered: its sign-in model is unchanged.
 
 ## Staff and members
 

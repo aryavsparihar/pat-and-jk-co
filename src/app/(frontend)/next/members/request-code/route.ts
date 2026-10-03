@@ -17,10 +17,11 @@ import {
 } from '@/security/constants'
 import { logSecurityEvent } from '@/security/events'
 import { hitLimits } from '@/security/rateLimit'
+import { TURNSTILE_FIELD, type TurnstileAction, verifyTurnstile } from '@/security/turnstile'
 
 export const dynamic = 'force-dynamic'
 
-const PURPOSES: Purpose[] = ['signin', 'apply-artist', 'apply-partner']
+const PURPOSES = ['signin', 'apply-artist', 'apply-partner'] satisfies (Purpose & TurnstileAction)[]
 
 /** The same words whatever happened, so the answer never says whether an address is registered */
 const SIGN_IN_REPLY = 'If that address is registered, a code is on its way.'
@@ -43,7 +44,7 @@ export async function POST(request: Request) {
   const ip = clientIp(request.headers)
   const body = await readJson<{ email: string; purpose: Purpose }>(request)
   const email = normaliseEmail(body?.email)
-  const purpose = PURPOSES.includes(body?.purpose as Purpose) ? (body!.purpose as Purpose) : null
+  const purpose = PURPOSES.find((p) => p === body?.purpose) ?? null
 
   if (!purpose || !isEmail(email)) {
     return reply({ message: 'Enter your email address.' }, { status: 400 })
@@ -58,6 +59,23 @@ export async function POST(request: Request) {
   }
   if (timing !== 'ok')
     return reply({ message: 'Please reload the page and try again.' }, { status: 400 })
+
+  // Cloudflare Turnstile, where it is set up: the token must be genuine and earned on this form
+  const human = await verifyTurnstile(
+    (body as Record<string, unknown> | null)?.[TURNSTILE_FIELD],
+    purpose,
+  )
+  if (!human.ok) {
+    payload.logger.warn(`Code request refused by the bot check (${purpose}): ${human.reason}`)
+    return reply(
+      {
+        message: 'We could not confirm this came from a person. Please try again.',
+        retryCheck: true,
+      },
+      { status: 400 },
+    )
+  }
+  if (human.note) payload.logger.warn(`Bot check skipped (${purpose}): ${human.note}`)
 
   if (purpose !== 'signin') {
     const { open, note } = await applicationsOpenness(payload)
