@@ -1,0 +1,127 @@
+import { z } from 'zod'
+
+import { MEDIUMS } from './schemas'
+import { isWebUrl } from './validators'
+
+/**
+ * What an approved member may send from their account. Shared by the browser and the server; the
+ * server's check is the one that counts. Messages are plain and never repeat a value back.
+ */
+
+const optionalText = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max, `Please keep this under ${max} characters.`)
+    .optional()
+    .transform((v) => (v ? v : undefined))
+
+const optionalNumber = (min: number, max: number, message: string) =>
+  z.preprocess(
+    (v) => (v === '' || v === null || v === undefined ? undefined : Number(v)),
+    z.number({ error: message }).min(min, message).max(max, message).optional(),
+  )
+
+export const ARTWORK_AVAILABILITY_VALUES = [
+  'available',
+  'reserved',
+  'sold',
+  'not-available',
+] as const
+
+export const artworkSchema = z
+  .object({
+    title: z
+      .string({ error: 'Please give the work a title.' })
+      .trim()
+      .min(1, 'Please give the work a title.')
+      .max(160, 'Please keep the title under 160 characters.'),
+    year: optionalNumber(1900, new Date().getFullYear() + 1, 'Please give a year such as 2024.'),
+    medium: optionalText(120),
+    surface: optionalText(120),
+    widthCm: optionalNumber(0.1, 10000, 'Please give the width in centimetres.'),
+    heightCm: optionalNumber(0.1, 10000, 'Please give the height in centimetres.'),
+    depthCm: optionalNumber(0, 10000, 'Please give the depth in centimetres.'),
+    edition: optionalText(60),
+    forSale: z.boolean().default(true),
+    priceInr: optionalNumber(1, 1e9, 'Please give the price in rupees, as a number.'),
+    availability: z.enum(ARTWORK_AVAILABILITY_VALUES).default('available'),
+    description: optionalText(2000),
+    images: z
+      .array(z.coerce.number().int().positive())
+      .min(1, 'Please add at least one picture of the work.')
+      .max(8, 'Up to eight pictures, please.'),
+  })
+  .superRefine((value, ctx) => {
+    if (value.forSale && value.priceInr === undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['priceInr'],
+        message: 'Please give a price, or mark the work as not for sale.',
+      })
+    }
+  })
+  .transform((value) => ({ ...value, priceInr: value.forSale ? value.priceInr : undefined }))
+
+export type ArtworkInput = z.infer<typeof artworkSchema>
+
+const MEDIUM_VALUES = MEDIUMS.map((m) => m.value) as [string, ...string[]]
+
+export const profileSchema = z.object({
+  displayName: z
+    .string({ error: 'Please give the name you would like shown.' })
+    .trim()
+    .min(1, 'Please give the name you would like shown.')
+    .max(120, 'Please keep the name under 120 characters.'),
+  bio: optionalText(2000),
+  statement: optionalText(2000),
+  links: z
+    .array(
+      z.object({
+        label: z.string().trim().max(60).optional(),
+        url: z
+          .string()
+          .trim()
+          .refine((v) => isWebUrl(v), 'Please give a full web address, starting https://.'),
+      }),
+    )
+    .max(5, 'Up to five links, please.')
+    .default([]),
+  portrait: z.coerce.number().int().positive().optional(),
+  mediums: z.array(z.enum(MEDIUM_VALUES)).max(10).default([]),
+  exhibitions: z
+    .array(
+      z.object({
+        title: z.string().trim().min(1, 'Please give the exhibition a title.').max(160),
+        venue: optionalText(160),
+        year: optionalNumber(1900, new Date().getFullYear() + 1, 'Please give a year.'),
+      }),
+    )
+    .max(30)
+    .default([]),
+})
+
+export type ProfileInput = z.infer<typeof profileSchema>
+
+export const contactSchema = z.object({
+  phone: z
+    .string()
+    .trim()
+    .max(20)
+    .refine((v) => !v || /^\+?[\d\s-]{7,20}$/.test(v), 'Please give a phone number we can call.')
+    .optional(),
+  contactAddress: z
+    .object({
+      line1: optionalText(120),
+      line2: optionalText(120),
+      landmark: optionalText(120),
+      city: optionalText(80),
+      district: optionalText(80),
+      state: optionalText(80),
+      postalCode: optionalText(12),
+      country: optionalText(80),
+    })
+    .optional(),
+})
+
+export type ContactInput = z.infer<typeof contactSchema>

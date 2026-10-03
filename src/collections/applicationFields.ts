@@ -13,7 +13,7 @@ import { LANGUAGES, MEDIUMS, PRICE_RANGES, RECOGNITION_KINDS } from '../members/
 const isArtist = (data: Record<string, unknown>) => data?.type === 'artist'
 const isPartner = (data: Record<string, unknown>) => data?.type === 'partner'
 
-const addressFields = (): Field[] => [
+export const addressFields = (): Field[] => [
   {
     type: 'row',
     fields: [

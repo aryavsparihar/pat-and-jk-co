@@ -1,8 +1,13 @@
 import { handleUpload, type HandleUploadBody } from '@vercel/blob/client'
 
-import { EDITABLE, findOwnApplication } from '@/members/application'
+import { findOwnApplication } from '@/members/application'
 import { fromOurOrigin, refuseCrossSite, reply, requireMember } from '@/members/http'
-import { blobUploadsAvailable, incomingPrefix, PORTFOLIO_MAX_BYTES } from '@/members/portfolio'
+import {
+  blobUploadsAvailable,
+  canAddPictures,
+  incomingPrefix,
+  PORTFOLIO_MAX_BYTES,
+} from '@/members/portfolio'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,7 +28,7 @@ export async function POST(request: Request) {
   const { payload, member } = auth
 
   const application = await findOwnApplication(payload, member, 'artist', 0)
-  if (!application || !EDITABLE.includes(application.stage)) {
+  if (!canAddPictures(member, application)) {
     return reply(
       { message: 'Pictures can only be added while your application is open.' },
       { status: 409 },

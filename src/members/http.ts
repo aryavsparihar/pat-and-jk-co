@@ -1,7 +1,7 @@
 import configPromise from '@payload-config'
 import { getPayload, type Payload } from 'payload'
 
-import type { Member } from '@/payload-types'
+import type { Member, MemberSession } from '@/payload-types'
 import { readMemberCookie, readSession } from '@/security/memberSession'
 import { trustedOrigins } from '@/utilities/getURL'
 import { HONEYPOT_FIELD } from '@/utilities/honeypot'
@@ -56,7 +56,7 @@ export const filledHoneypot = (body: Record<string, unknown> | null): boolean =>
 export const requireMember = async (
   request: Request,
 ): Promise<
-  | { ok: true; payload: Payload; member: Member; refresh?: string }
+  | { ok: true; payload: Payload; member: Member; session: MemberSession; refresh?: string }
   | { ok: false; response: Response }
 > => {
   const payload = await getPayload({ config: configPromise })
@@ -64,7 +64,13 @@ export const requireMember = async (
   if (!active) {
     return { ok: false, response: reply({ message: 'Please sign in again.' }, { status: 401 }) }
   }
-  return { ok: true, payload, member: active.member, refresh: active.refreshCookie }
+  return {
+    ok: true,
+    payload,
+    member: active.member,
+    session: active.session,
+    refresh: active.refreshCookie,
+  }
 }
 
 /** Adds a refreshed session cookie to a reply, when there is one */

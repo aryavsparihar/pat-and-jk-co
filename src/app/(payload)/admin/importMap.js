@@ -25,6 +25,7 @@ import { BlocksFeatureClient as BlocksFeatureClient_e70f5e05f09f93e00b997edb1ef0
 import { FolderTableCell as FolderTableCell_f9c02e79a4aed9a3924487c0cd4cafb1 } from '@payloadcms/next/rsc'
 import { FolderField as FolderField_f9c02e79a4aed9a3924487c0cd4cafb1 } from '@payloadcms/next/rsc'
 import { WatchTenantCollection as WatchTenantCollection_1d0591e3cf4f332c83a86da13a0de59a } from '@payloadcms/plugin-multi-tenant/client'
+import { ReviewPanel as ReviewPanel_caa7f039c39638b50465b2dc4034742a } from '@/components/admin/ReviewPanel'
 import { DecisionPanel as DecisionPanel_676fe2f15dcdfed9d10f593f564c78d0 } from '@/components/admin/DecisionPanel'
 import { KycPanel as KycPanel_0eb769a0ed0fcab70970f575327a3340 } from '@/components/admin/KycPanel'
 import { FolderTypeField as FolderTypeField_2b8867833a34864a02ddf429b0728a40 } from '@payloadcms/next/client'
@@ -69,6 +70,7 @@ export const importMap = {
   "@payloadcms/next/rsc#FolderTableCell": FolderTableCell_f9c02e79a4aed9a3924487c0cd4cafb1,
   "@payloadcms/next/rsc#FolderField": FolderField_f9c02e79a4aed9a3924487c0cd4cafb1,
   "@payloadcms/plugin-multi-tenant/client#WatchTenantCollection": WatchTenantCollection_1d0591e3cf4f332c83a86da13a0de59a,
+  "@/components/admin/ReviewPanel#ReviewPanel": ReviewPanel_caa7f039c39638b50465b2dc4034742a,
   "@/components/admin/DecisionPanel#DecisionPanel": DecisionPanel_676fe2f15dcdfed9d10f593f564c78d0,
   "@/components/admin/KycPanel#KycPanel": KycPanel_0eb769a0ed0fcab70970f575327a3340,
   "@payloadcms/next/client#FolderTypeField": FolderTypeField_2b8867833a34864a02ddf429b0728a40,

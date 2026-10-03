@@ -50,6 +50,7 @@ export const LoginChallenges: CollectionConfig = {
         { label: 'Apply as a partner', value: 'apply-partner' },
         // A fresh code inside a session, before something sensitive (changing bank details)
         { label: 'Confirm a sensitive change', value: 'step-up' },
+        { label: 'Confirm a new email address', value: 'email-change' },
       ],
     },
   ],

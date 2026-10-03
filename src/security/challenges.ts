@@ -22,7 +22,7 @@ import { createOtp, hashOtp, otpMatches } from './otp'
  */
 
 export type Audience = 'staff' | 'member'
-export type Purpose = 'signin' | 'apply-artist' | 'apply-partner' | 'step-up'
+export type Purpose = 'signin' | 'apply-artist' | 'apply-partner' | 'step-up' | 'email-change'
 
 export const issueChallenge = async (
   payload: Payload,
