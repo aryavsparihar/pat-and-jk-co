@@ -34,6 +34,7 @@ import { plugins } from './plugins'
 import { guardMemberAccess } from './access/memberGuard'
 import { isStaff } from './access/roles'
 import { defaultLexical } from '@/fields/defaultLexical'
+import { putStaffSessionFirst } from './security/strategyOrder'
 import { trustedOrigins } from './utilities/getURL'
 
 // Fails fast, naming every missing or malformed variable (src/env.ts)
@@ -160,6 +161,8 @@ export default buildConfig({
     : undefined,
   // JSON lines in production, with personal data redacted from every line (src/observability)
   logger: createLogger(),
+  // Staff session before member session when a request carries both (src/security/strategyOrder.ts)
+  onInit: async (payload) => putStaffSessionFirst(payload),
   plugins,
   secret: env.PAYLOAD_SECRET,
   sharp,

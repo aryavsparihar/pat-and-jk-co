@@ -199,6 +199,20 @@ need an account, so neither is used without asking first:
 
 The record has fields for the method and the provider's reference, ready for either.
 
+**Possible later addition: UIDAI offline e-KYC. Not built.** UIDAI's signed offline e-KYC, the
+XML in a ZIP opened with the artist's share code or the Secure QR, would let us confirm a name,
+date of birth and address without ever seeing the Aadhaar number. The server would check UIDAI's
+signature, keep only the verified name, date of birth and address (encrypted, like the rest), and
+discard the file, the photo and the share code. Two things come first:
+
+- **OVSE registration.** Since the December 2025 amendment to the Aadhaar (Authentication and
+  Offline Verification) Regulations, Regulation 13A requires an entity doing paperless offline
+  e-KYC to register with UIDAI as an Offline Verification Seeking Entity. Sources disagree on
+  whether the Secure QR needs it too. Registration is an application to UIDAI, possibly with fees
+  and logging duties, so it is the business's decision.
+- **Legal review.** A lawyer should confirm the registration question, what we may keep, and the
+  privacy notice's wording, before any of it is built.
+
 ## Threat model
 
 **A stolen database dump.** The attacker gets ciphertext, wrapped data keys, masks, bank names

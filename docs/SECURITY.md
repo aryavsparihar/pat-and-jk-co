@@ -74,6 +74,13 @@ decides access here. Two layers make sure of it:
 
 `tests/int/access.int.spec.ts` signs in as a non-staff user and checks both layers.
 
+**Both cookies at once.** A browser can carry a staff session and a member session together (a
+member of staff who has tried the artist form). Payload stops at the first auth strategy that
+recognises someone and runs its staff JWT strategy last by default, which let the member win.
+`src/security/strategyOrder.ts` moves it to the front at start-up, so the staff session wins in
+`/admin` and the staff APIs; with only a member cookie nothing changes, and members still never
+reach `/admin`. `tests/int/session-precedence.int.spec.ts` checks both.
+
 ## Members
 
 Artists and partners sign in with a one-time code and nothing else (the page, `/collaborate/signin`, comes with the onboarding).
