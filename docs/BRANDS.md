@@ -68,9 +68,9 @@ The pack names no typeface, and the wordmark is outlined, so it cannot be set as
 - If a closer echo of the wordmark is wanted for short display lines, the nearest free match is
   **Marcellus** (flared Roman capitals, SIL Open Font License). It is installed as an option
   (`src/app/(frontend)/fonts/marcellus-latin-400-normal.woff2`, 14.5 kB, not preloaded) and chosen
-  with one setting, `PHULHAAR_DISPLAY` in `src/brands/phulhaar.ts` (default `'cormorant'`). It
+  with one setting, `PHULHAAR_DISPLAY` in `src/brands/phulhaar.ts`, set to `'marcellus'` since 4 October 2026 (`'cormorant'` switches back). It
   applies to headings only; Marcellus has no italic, so an emphasised word keeps Cormorant's.
-  In development, `?display=marcellus` previews it on the artist page.
+  In development, `?display=cormorant` or `?display=marcellus` previews either on the artist page.
 
 ### Usage rules
 
