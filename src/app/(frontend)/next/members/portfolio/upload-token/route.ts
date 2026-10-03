@@ -46,11 +46,16 @@ export async function POST(request: Request) {
           validUntil: Date.now() + 10 * 60 * 1000,
         }
       },
-      // The import step does the work; there is nothing to do when Blob reports completion
-      onUploadCompleted: async () => undefined,
+      // No completion callback: the import step does the work, and a callback could not reach a
+      // preview behind Vercel's deployment protection anyway
     })
     return reply(result)
-  } catch {
+  } catch (error) {
+    payload.logger.warn({
+      msg: 'Portfolio upload token refused',
+      member: member.id,
+      reason: error instanceof Error ? error.message : 'unknown',
+    })
     return reply({ message: 'That upload could not be started.' }, { status: 400 })
   }
 }

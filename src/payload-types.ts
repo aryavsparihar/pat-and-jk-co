@@ -407,6 +407,7 @@ export interface Media {
     };
     [k: string]: unknown;
   } | null;
+  prefix?: string | null;
   folder?: (number | null) | FolderInterface;
   updatedAt: string;
   createdAt: string;
@@ -1717,6 +1718,7 @@ export interface PortfolioImage {
   id: number;
   owner: number | Member;
   alt?: string | null;
+  prefix?: string | null;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -2635,6 +2637,7 @@ export interface MediaSelect<T extends boolean = true> {
   tenant?: T;
   alt?: T;
   caption?: T;
+  prefix?: T;
   folder?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -3108,6 +3111,7 @@ export interface ApplicationsSelect<T extends boolean = true> {
 export interface PortfolioImagesSelect<T extends boolean = true> {
   owner?: T;
   alt?: T;
+  prefix?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;
