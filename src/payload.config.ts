@@ -34,7 +34,7 @@ import { plugins } from './plugins'
 import { guardMemberAccess } from './access/memberGuard'
 import { isStaff } from './access/roles'
 import { defaultLexical } from '@/fields/defaultLexical'
-import { getServerSideURL } from './utilities/getURL'
+import { trustedOrigins } from './utilities/getURL'
 
 // Fails fast, naming every missing or malformed variable (src/env.ts)
 const env = loadEnv()
@@ -42,11 +42,9 @@ const env = loadEnv()
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
 
-// Extra origins allowed to call the API with cookies (e.g. additional brand domains)
-const allowedOrigins = [
-  getServerSideURL(),
-  ...(process.env.ALLOWED_ORIGINS?.split(',').map((o) => o.trim()) ?? []),
-].filter(Boolean)
+// Origins allowed to call the API with cookies: the site's URL and ALLOWED_ORIGINS, or on a
+// Preview deployment its own URLs (src/utilities/getURL.ts)
+const allowedOrigins = trustedOrigins()
 
 export default buildConfig({
   admin: {
