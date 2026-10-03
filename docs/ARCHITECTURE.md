@@ -74,6 +74,15 @@ push from dropping them. **Applications** carry a random reference (`APP-7K3Q9X`
 step. Their `stage` (never `status`) is moved only by the server: a submission, or a staff
 decision through `POST /api/applications/:id/decide`.
 
+## Admin dialogs
+
+Actions that need a reason or a confirmation in the admin (revealing KYC, downloading a document,
+recording a withdrawal, a legal hold, approving a bank change) use `useActionDialog`
+(`src/components/admin/ActionDialog.tsx`), never the browser's `prompt()` or `confirm()`: a
+native `<dialog>` in the admin's colours, a required reason (the action stays disabled until it is
+long enough; the server checks again), Cancel, and Esc to cancel. It is not a `<form>`, because
+Payload renders sidebar fields inside its own document form and forms cannot nest.
+
 ## KYC
 
 Identity and bank details are their own collections, `kyc-records` and `kyc-documents`, not

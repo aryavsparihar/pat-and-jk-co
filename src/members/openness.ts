@@ -20,8 +20,12 @@ export const applicationsOpenness = async (payload: Payload): Promise<Openness> 
     overrideAccess: true,
   })
   const settings = found.docs[0]
+  // On a developer's machine only, DEV_APPLICATIONS_OPEN=1 opens applications without touching
+  // the shared database's switch. Ignored in any production build, previews included
+  const devOpen =
+    process.env.NODE_ENV === 'development' && process.env.DEV_APPLICATIONS_OPEN === '1'
   return {
-    open: settings?.applicationsOpen === true,
+    open: devOpen || settings?.applicationsOpen === true,
     note: settings?.applicationsClosedNote?.trim() || DEFAULT_CLOSED_NOTE,
   }
 }

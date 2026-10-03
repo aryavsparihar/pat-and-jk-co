@@ -49,12 +49,22 @@ const text = localFont({
   adjustFontFallback: 'Times New Roman',
 })
 
+// Phulhaar's optional display face (docs/BRANDS.md#type): flared Roman capitals, the nearest free
+// echo of the wordmark. Not preloaded, so only a page that uses it downloads it
+const phulhaarDisplay = localFont({
+  src: [{ path: './fonts/marcellus-latin-400-normal.woff2', weight: '400', style: 'normal' }],
+  variable: '--font-marcellus',
+  display: 'swap',
+  preload: false,
+  adjustFontFallback: 'Times New Roman',
+})
+
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const { isEnabled } = await draftMode()
 
   return (
     <html
-      className={cn(display.variable, text.variable)}
+      className={cn(display.variable, text.variable, phulhaarDisplay.variable)}
       data-scroll-behavior="smooth"
       lang="en-IN"
       suppressHydrationWarning

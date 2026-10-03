@@ -8,8 +8,10 @@ import React from 'react'
 const HREF = { artists: '/collaborate/artists', partners: '/collaborate/partners' } as const
 
 /**
- * Two generous rows, each a link, with the site's hairline underline and leaning arrow. The
- * section also answers to #form, where the open calls and older links used to point.
+ * Two warm cards on the paper tone, each a link: artists, with Phulhaar's garland, since that is
+ * where they apply; and partners. A gentle lift on hover (none under reduced motion), the site's
+ * leaning arrow, square corners and hairlines as everywhere else. The section also answers to
+ * #form, where the open calls and older links used to point.
  */
 export const PathsBlock: React.FC<PathsBlockProps> = ({
   eyebrow,
@@ -22,21 +24,41 @@ export const PathsBlock: React.FC<PathsBlockProps> = ({
   <Section id="apply" label={eyebrow}>
     <span id="form" />
     <SectionHeading heading={heading} intro={intro} />
-    <ol className="border-t border-border-strong">
+    <ol className="grid gap-5 md:grid-cols-2 md:gap-6">
       {(['artists', 'partners'] as const).map((key) => {
         const item = key === 'artists' ? artists : partners
         if (!item?.heading) return null
         return (
-          <li className="border-b border-border" key={key}>
+          <li key={key}>
             <Link
-              className="row-link grid gap-x-10 gap-y-3 py-10 transition-colors hover:bg-surface sm:grid-cols-[1fr_auto] sm:items-end"
+              className={`row-link group flex h-full flex-col border p-7 ${key === 'artists' ? 'phulhaar-card' : 'border-border bg-surface'} transition duration-300 hover:-translate-y-0.5 hover:border-border-strong hover:shadow-[0_10px_30px_-18px_color-mix(in_oklab,var(--primary)_45%,transparent)] motion-reduce:transition-none motion-reduce:hover:translate-y-0 sm:p-10`}
               href={HREF[key]}
             >
-              <span>
-                <span className="display-md row-title block">{item.heading}</span>
-                <span className="lede measure mt-3 block">{item.text}</span>
-              </span>
-              <span className="link-caps flex items-center gap-4 sm:pb-2">
+              {key === 'artists' ? (
+                // Phulhaar's garland, on the paper tone the mark is drawn for (docs/BRANDS.md)
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  alt=""
+                  className="mb-8 h-auto w-[4.5rem]"
+                  height={1200}
+                  src="/brand/ventures/phulhaar-garland.webp"
+                  width={795}
+                />
+              ) : (
+                // PJK's own sprig, drawn in the ink of the page
+                <span aria-hidden className="mb-8 flex items-end md:h-[6.8rem]">
+                  <span
+                    className="block h-6 w-28 bg-[var(--ink)]"
+                    style={{
+                      mask: 'url(/brand/pjk-sprig.svg) center / contain no-repeat',
+                      WebkitMask: 'url(/brand/pjk-sprig.svg) center / contain no-repeat',
+                    }}
+                  />
+                </span>
+              )}
+              <span className="display-md row-title block">{item.heading}</span>
+              <span className="lede measure mt-4 block flex-1">{item.text}</span>
+              <span className="link-caps mt-10 flex items-center gap-4">
                 {item.linkLabel}
                 <RowArrow />
               </span>
@@ -46,7 +68,7 @@ export const PathsBlock: React.FC<PathsBlockProps> = ({
       })}
     </ol>
     {signInText && (
-      <p className="muted mt-8">
+      <p className="muted mt-10">
         <Link className="link" href="/collaborate/signin">
           {signInText}
         </Link>
