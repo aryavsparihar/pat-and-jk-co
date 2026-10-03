@@ -5,6 +5,10 @@ import 'dotenv/config'
 // in again from .env. The app server and the test workers inherit this, and without a key every
 // email is written to the log instead. tests/helpers/e2e.ts refuses to run if one is set.
 process.env.RESEND_API_KEY = ''
+// Nor ask Cloudflare: without the Turnstile keys the widget stays off and the server skips its
+// check (src/security/turnstile.ts)
+process.env.TURNSTILE_SECRET_KEY = ''
+process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY = ''
 
 /**
  * End-to-end tests (tests/e2e), against the real app and a database the tests may change. In CI
