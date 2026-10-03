@@ -88,9 +88,10 @@ the real email, Blob store, Turnstile keys and KYC encryption together.
 - [ ] **Check the admin:** the application is there. The KYC record shows everything masked.
       **Reveal** and **Download** ask for a reason and appear in the security log. The identity
       document box shows the e-Aadhaar check's result.
-- [ ] **Decide, with care.** Approving uses up `AT000001` for good: member IDs come from a sequence
-      and are never reused. If the first real artist should have it, choose **Ask for changes**
-      instead and check that email arrives. Approval is already covered by the end-to-end tests.
+- [ ] **Ask for changes, do not approve.** Write a short note and press **Ask for changes**, then
+      check that email arrives. Approving would use up `AT000001` for good (member IDs come from a
+      sequence and are never reused), and it is kept for the first real artist. Approval is
+      covered by the end-to-end tests.
 - [ ] **Close applications.**
 - [ ] **Delete it.** Signed in as the test applicant, **Account → Your data**: withdraw consent and
       ask for deletion. Run the purge (Vercel → Crons → `/next/cron/kyc-purge` → Run), or wait for
