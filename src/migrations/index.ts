@@ -18,6 +18,7 @@ import * as migration_20261003_065247_kyc_legal_hold_event from './20261003_0652
 import * as migration_20261003_065900_kyc_aadhaar_optional from './20261003_065900_kyc_aadhaar_optional';
 import * as migration_20261003_072617_kyc_identity_choice from './20261003_072617_kyc_identity_choice';
 import * as migration_20261003_074020_member_portal from './20261003_074020_member_portal';
+import * as migration_20261004_090000_collaborate_ways_in from './20261004_090000_collaborate_ways_in';
 
 export const migrations = [
   {
@@ -119,5 +120,10 @@ export const migrations = [
     up: migration_20261003_074020_member_portal.up,
     down: migration_20261003_074020_member_portal.down,
     name: '20261003_074020_member_portal'
+  },
+  {
+    up: migration_20261004_090000_collaborate_ways_in.up,
+    down: migration_20261004_090000_collaborate_ways_in.down,
+    name: '20261004_090000_collaborate_ways_in'
   },
 ];
