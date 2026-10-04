@@ -7,7 +7,8 @@ import React, { useCallback, useMemo, useState } from 'react'
 import { FormProvider, useForm } from 'react-hook-form'
 
 import RichText from '@/components/RichText'
-import { useTurnstile } from '@/components/turnstile/useTurnstile'
+import { BotCheckHelp } from '@/components/turnstile/BotCheckHelp'
+import { type BotCheckProblem, useTurnstile } from '@/components/turnstile/useTurnstile'
 import { TURNSTILE_FIELD } from '@/security/turnstile'
 import { HONEYPOT_FIELD } from '@/utilities/honeypot'
 
@@ -15,9 +16,11 @@ import { fields } from './fields'
 
 type Props = {
   form: FormType
+  /** The brand's email address, offered when the bot check cannot run */
+  helpEmail?: string | null
 }
 
-export const FormClient: React.FC<Props> = ({ form }) => {
+export const FormClient: React.FC<Props> = ({ form, helpEmail }) => {
   const { id: formID, confirmationMessage, confirmationType, redirect, submitButtonLabel } = form
 
   const defaultValues = useMemo(() => {
@@ -43,6 +46,7 @@ export const FormClient: React.FC<Props> = ({ form }) => {
   const [error, setError] = useState<string | undefined>()
   const router = useRouter()
   const { element: botCheck, getToken } = useTurnstile('contact')
+  const [botProblem, setBotProblem] = useState<BotCheckProblem | null>(null)
 
   const onSubmit = useCallback(
     async (data: Record<string, unknown>) => {
@@ -53,9 +57,16 @@ export const FormClient: React.FC<Props> = ({ form }) => {
         field,
         value: typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value ?? ''),
       }))
-      // Cloudflare Turnstile, where it is set up; the server drops it before storing anything
+      // Cloudflare Turnstile, where it is set up; the server drops it before storing anything.
+      // Without the check nothing is sent: the person is told why and what to do
+      setBotProblem(null)
       const human = await getToken()
-      if (human) submissionData.push({ field: TURNSTILE_FIELD, value: human })
+      if (human.problem) {
+        setIsSubmitting(false)
+        setBotProblem(human.problem)
+        return
+      }
+      if (human.token) submissionData.push({ field: TURNSTILE_FIELD, value: human.token })
 
       try {
         const res = await fetch('/api/form-submissions', {
@@ -137,6 +148,7 @@ export const FormClient: React.FC<Props> = ({ form }) => {
           />
         </div>
 
+        {botProblem && <BotCheckHelp email={helpEmail} problem={botProblem} />}
         {botCheck}
 
         {error && (

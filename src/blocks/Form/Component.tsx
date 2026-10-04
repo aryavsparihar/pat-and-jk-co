@@ -99,7 +99,7 @@ export const FormBlock: React.FC<FormBlockProps & { ctx: BlockContext }> = ({
         </div>
 
         <div className="lg:col-span-5">
-          <FormClient form={form as unknown as FormType} />
+          <FormClient form={form as unknown as FormType} helpEmail={settings?.email} />
         </div>
       </div>
     </Section>

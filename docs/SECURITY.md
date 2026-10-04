@@ -69,7 +69,11 @@ cannot be reached the request goes ahead and the reason is logged: the honeypot,
 token and the rate limits still apply. Without `TURNSTILE_SECRET_KEY` (a developer's machine, the
 tests) the check is skipped; production refuses to start without both keys, or with Cloudflare's
 test keys, which previews use and which pass everyone. The staff sign-in
-gate is not covered: its sign-in model is unchanged.
+gate is not covered: its sign-in model is unchanged. When the check cannot run (Brave Shields
+and privacy extensions often block it) or does not pass, the form sends nothing and says so, with
+what to do: allow challenges.cloudflare.com or turn the shield off for the site, and an email
+address that needs no check. It never waits silently: the script gets 10 seconds to load and the
+check 20 seconds to answer, except while Cloudflare is showing a box to tick.
 
 ## Staff and members
 
