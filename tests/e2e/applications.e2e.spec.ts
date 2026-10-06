@@ -287,3 +287,26 @@ test('a save that cannot reach the server says so, and the button comes back', a
   await page.getByRole('button', { name: 'Save and continue' }).click()
   await expect(page.getByRole('heading', { name: 'Your practice' })).toBeVisible()
 })
+
+test('a save dropped once on the way goes through by itself', async ({ page }) => {
+  const email = uniqueEmail('flaky')
+  await page.goto('/collaborate/artists')
+  await signInWithCode(page, email)
+  await expect(page.getByRole('heading', { name: 'About you' })).toBeVisible()
+
+  // The connection drops the first save only, as a flaky mobile network does
+  let dropped = 0
+  await page.route('**/next/members/application/step', async (route) => {
+    if (dropped++ === 0) return route.abort('connectionreset')
+    return route.continue()
+  })
+  await page.getByLabel('Your full legal name').fill('Asha Example')
+  await page.getByLabel('The name you work under').fill('Asha')
+  await page.getByLabel('Date of birth').fill('1990-04-12')
+  await page.getByLabel('Mobile number').fill('98765 43210')
+  await page.getByLabel('Language you would like us to write in').selectOption('English')
+  await page.getByRole('button', { name: 'Save and continue' }).click()
+  await expect(page.getByRole('heading', { name: 'Where you live' })).toBeVisible()
+  await expect(page.getByText(/We could not reach PJK/)).toHaveCount(0)
+  expect(dropped).toBe(2)
+})
