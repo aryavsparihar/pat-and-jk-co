@@ -23,6 +23,8 @@ type Props = {
   priority?: boolean
   /** Play the arrival animation. Only worth it where the plate opens a page. */
   animate?: boolean
+  /** Let the mark breathe slowly once it has arrived (a brand's own pages; still under reduced motion) */
+  breathe?: boolean
 }
 
 /**
@@ -44,16 +46,20 @@ export const Plate: React.FC<Props> = ({
   markSize = '(max-width: 1024px) 90vw, 32vw',
   priority,
   animate,
+  breathe,
 }) =>
   mark ? (
     <div className={cn('plate plate-paper h-full w-full', animate && 'plate-enter', className)}>
-      <Media
-        fill
-        imgClassName={cn('object-contain p-[11%]', animate && 'mark-enter')}
-        priority={priority}
-        resource={mark}
-        size={markSize}
-      />
+      {/* The breathing sits on its own layer, so it never fights the arrival on the image */}
+      <div className={cn('absolute inset-0', breathe && 'garland-breathe')}>
+        <Media
+          fill
+          imgClassName={cn('object-contain p-[11%]', animate && 'mark-enter')}
+          priority={priority}
+          resource={mark}
+          size={markSize}
+        />
+      </div>
     </div>
   ) : (
     <div className={cn('plate h-full w-full px-8', tone === 'paper' && 'plate-paper', className)}>

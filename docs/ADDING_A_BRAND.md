@@ -49,6 +49,8 @@ The site serves the right brand as soon as DNS resolves — routing is automatic
 
 On the PJK brand, open **Group → Ventures → Phulhaar Gallery by PJK** and set **Website** to the new brand's URL.
 
+**Its own look on the group site.** A venture's row on the ventures index and its venture page follow its **Theme** (Ventures, sidebar); empty means PJK's style. To give a new brand a theme: add its palette as a class in `src/app/(frontend)/globals.css` (as `.phulhaar` is), add an entry to `src/brands/themes.ts` (its class, its display face, its mark for the index row, whether the mark breathes, and an optional "way in" link for its venture page), add the option to `VENTURE_THEME_OPTIONS`, run `pnpm generate:types` and `pnpm payload migrate:create`, and choose it in the admin. Check the brand's own colours against its ground for WCAG AA, as BRANDS.md does for Phulhaar.
+
 ---
 
 ### When a brand needs something new

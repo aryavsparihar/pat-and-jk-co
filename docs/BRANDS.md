@@ -91,7 +91,14 @@ The pack names no typeface, and the wordmark is outlined, so it cannot be set as
 
 ### Where Phulhaar's identity is used
 
-- The venture page on the PJK site (`/ventures/phulhaar`), through the Logo uploaded in the CMS.
+- The venture page on the PJK site (`/ventures/phulhaar-gallery`), in full, through **Theme →
+  Phulhaar** on the venture (`src/brands/themes.ts`): the cream ground and palette, Marcellus
+  headings, the mark breathing on its own cream inside the plate's frame, the opening notice under a
+  gold rule with its occasion in magenta, and a "For artists" card leading to the application.
+  Everything arrives gently and stays still under `prefers-reduced-motion`.
+- Its row on the ventures index, through the same Theme: the cream ground under a gold rule, the
+  garland beside the stage, the name in Marcellus, the number and the arrow in magenta. The rest of
+  the index stays in PJK's style.
 - The artist onboarding at `/collaborate/artists`, which follows this brand rather than PJK's
   (`src/components/phulhaar/`): the cream ground and palette as tokens on `.phulhaar`, the garland
   breathing slowly beside the form (still under `prefers-reduced-motion`), and the steps as a

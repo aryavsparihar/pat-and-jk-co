@@ -594,6 +594,10 @@ export interface Venture {
    */
   stage: 'flagship' | 'live' | 'coming-soon';
   /**
+   * How this venture’s row on the ventures index and its own page look. Empty means PJK’s style.
+   */
+  theme?: ('pjk' | 'phulhaar') | null;
+  /**
    * For a venture that has been announced but has not opened yet. The notice disappears by itself once the date has passed.
    */
   opening?: {
@@ -3033,6 +3037,7 @@ export interface VenturesSelect<T extends boolean = true> {
         description?: T;
       };
   stage?: T;
+  theme?: T;
   opening?:
     | T
     | {

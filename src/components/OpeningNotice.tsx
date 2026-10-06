@@ -11,6 +11,11 @@ type Props = {
   className?: string
   /** `notice` is the announcement set under a venture's mark; `line` is one quiet line in a list */
   as?: 'notice' | 'line'
+  /**
+   * A venture theme's own rule (src/brands/themes.ts): the notice is then set in the theme, the
+   * rule in place of the ornament, the date in its display face and the occasion in its accent
+   */
+  themeRule?: string
 }
 
 /**
@@ -30,7 +35,7 @@ export const isOpeningAhead = (opening: Venture['opening']): boolean => {
   return opensOn >= today
 }
 
-export const OpeningNotice: React.FC<Props> = ({ opening, className, as = 'line' }) => {
+export const OpeningNotice: React.FC<Props> = ({ opening, className, as = 'line', themeRule }) => {
   if (!isOpeningAhead(opening)) return null
 
   const date = opening!.date as string
@@ -43,6 +48,20 @@ export const OpeningNotice: React.FC<Props> = ({ opening, className, as = 'line'
         Opening {when}
         {opening?.note ? ` — ${opening.note}` : ''}
       </span>
+    )
+  }
+
+  if (themeRule) {
+    return (
+      <div className={cn('text-center', className)}>
+        <span aria-hidden className={cn(themeRule, 'mx-auto block w-16')} />
+        <p className="display-sm mt-5 text-primary">Opening {when}</p>
+        {opening?.note && (
+          <p className="mt-2 font-display text-[1.3rem] italic text-[var(--accent)]">
+            {opening.note}
+          </p>
+        )}
+      </div>
     )
   }
 

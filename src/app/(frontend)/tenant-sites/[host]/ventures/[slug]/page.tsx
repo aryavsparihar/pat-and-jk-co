@@ -5,16 +5,23 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import React from 'react'
 
+import configPromise from '@payload-config'
+import { getPayload } from 'payload'
+
+import { ventureTheme } from '@/brands/themes'
 import { ventureStageLabel } from '@/components/cards/VentureCard'
 import { LivePreviewListener } from '@/components/LivePreviewListener'
 import { Media } from '@/components/Media'
 import { OpeningNotice } from '@/components/OpeningNotice'
 import { PayloadRedirects } from '@/components/PayloadRedirects'
 import { Plate } from '@/components/Plate'
+import { RowArrow } from '@/components/RowArrow'
 import RichText from '@/components/RichText'
 import { Section } from '@/components/Typography'
 import { docPath } from '@/utilities/docHref'
+import { applicationsOpenness } from '@/members/openness'
 import { generateMeta } from '@/utilities/meta'
+import { cn } from '@/utilities/ui'
 import { getAllSlugs, getVentureBySlug } from '@/utilities/queries'
 import { getTenantByHost, getTenantContext } from '@/utilities/tenant'
 
@@ -41,6 +48,12 @@ export default async function VenturePage({ params }: Args) {
 
   const cover = venture.cover && typeof venture.cover === 'object' ? venture.cover : null
   const logo = venture.logo && typeof venture.logo === 'object' ? venture.logo : null
+  // A venture with its own theme (Ventures → Theme) is set in that brand's ground, type and colours
+  const theme = ventureTheme(venture)
+  const invite = theme?.invite
+  const open = invite
+    ? (await applicationsOpenness(await getPayload({ config: configPromise }))).open
+    : false
   const facts = [
     { label: 'Stage', value: ventureStageLabel[venture.stage] },
     ...(venture.sector ? [{ label: 'Field', value: venture.sector }] : []),
@@ -48,7 +61,7 @@ export default async function VenturePage({ params }: Args) {
   ]
 
   return (
-    <article>
+    <article className={theme?.className} data-display={theme?.display}>
       {draft && <LivePreviewListener />}
 
       <header className="pb-[clamp(3rem,6vw,5rem)] pt-[clamp(4rem,9vw,7.5rem)]">
@@ -59,9 +72,18 @@ export default async function VenturePage({ params }: Args) {
             </Link>
           </div>
           <div className="md:col-span-9">
-            <h1 className="display-xl max-w-[16ch]">{venture.name}</h1>
+            <h1
+              className={cn('display-xl max-w-[16ch]', theme && 'intro-line [--intro-delay:0.05s]')}
+            >
+              {venture.name}
+            </h1>
             {venture.tagline && (
-              <p className="mt-5 font-display text-[clamp(1.4rem,2.2vw,1.8rem)] italic text-primary">
+              <p
+                className={cn(
+                  'mt-5 font-display text-[clamp(1.4rem,2.2vw,1.8rem)] italic text-primary',
+                  theme && 'intro-line [--intro-delay:0.25s]',
+                )}
+              >
                 {venture.tagline}
               </p>
             )}
@@ -81,7 +103,13 @@ export default async function VenturePage({ params }: Args) {
           <div className="container pb-[clamp(3rem,6vw,5rem)]">
             <div className="mx-auto max-w-[34rem]">
               <div className="relative mx-auto aspect-[5/4] w-full max-w-[30rem]">
-                <Plate animate mark={logo} markSize="(max-width: 640px) 92vw, 30rem" priority />
+                <Plate
+                  animate
+                  breathe={theme?.breathe}
+                  mark={logo}
+                  markSize="(max-width: 640px) 92vw, 30rem"
+                  priority
+                />
               </div>
               {venture.caption && (
                 <p className="intro-line mt-10 whitespace-pre-line text-center font-display text-[clamp(1.3rem,2vw,1.6rem)] italic leading-[1.45] text-primary [--intro-delay:1s]">
@@ -92,10 +120,32 @@ export default async function VenturePage({ params }: Args) {
                 as="notice"
                 className="intro-line mt-11 [--intro-delay:1.2s]"
                 opening={venture.opening}
+                themeRule={theme?.ruleClassName}
               />
             </div>
           </div>
         )
+      )}
+
+      {invite && (
+        // The way in for the people this brand works with. Works whether or not applications
+        // are open: the page it leads to says which, and what to have ready
+        <div className="container pb-[clamp(3rem,6vw,5rem)]">
+          <Link
+            className="row-link intro-line mx-auto block max-w-[46rem] border border-[color-mix(in_oklab,var(--gold,var(--primary))_35%,transparent)] border-t-2 border-t-[var(--gold,var(--primary))] bg-[var(--background)] p-7 [--intro-delay:1.4s] sm:p-10"
+            href={invite.href}
+          >
+            <span className="label block text-[var(--gold-text,var(--primary))]">
+              {invite.label}
+            </span>
+            <span className="display-md row-title mt-3 block">{invite.heading}</span>
+            <span className="measure mt-4 block">{open ? invite.open : invite.closed}</span>
+            <span className="link-caps mt-8 flex items-center gap-4">
+              {open ? invite.action.open : invite.action.closed}
+              <RowArrow />
+            </span>
+          </Link>
+        </div>
       )}
 
       <Section label="About">
