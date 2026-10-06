@@ -255,3 +255,35 @@ test('a member signs in again with a code, and a wrong code is refused', async (
   await expect(page).toHaveURL(/\/account/)
   await expect(page.getByText(`Signed in as ${email}.`)).toBeVisible()
 })
+
+test('a save that cannot reach the server says so, and the button comes back', async ({ page }) => {
+  const email = uniqueEmail('offline')
+  await page.goto('/collaborate/artists')
+  await signInWithCode(page, email)
+  await expect(page.getByRole('heading', { name: 'About you' })).toBeVisible()
+  await page.getByLabel('Your full legal name').fill('Asha Example')
+  await page.getByLabel('The name you work under').fill('Asha')
+  await page.getByLabel('Date of birth').fill('1990-04-12')
+  await page.getByLabel('Mobile number').fill('98765 43210')
+  await page.getByLabel('Language you would like us to write in').selectOption('English')
+  await page.getByRole('button', { name: 'Save and continue' }).click()
+  await expect(page.getByRole('heading', { name: 'Where you live' })).toBeVisible()
+
+  // The connection drops just as the address is saved
+  await page.route('**/next/members/application/step', (route) =>
+    route.abort('internetdisconnected'),
+  )
+  await page.getByLabel('Address line 1').fill('House 1, Example Lane')
+  await page.getByLabel('City or town').fill('Kathua')
+  await page.getByLabel('District').fill('Kathua')
+  await page.getByLabel('State or union territory').selectOption('Jammu and Kashmir')
+  await page.getByLabel('PIN code').fill('184101')
+  await page.getByRole('button', { name: 'Save and continue' }).click()
+  await expect(page.getByText(/We could not reach PJK just now/)).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Save and continue' })).toBeEnabled()
+  // What was typed is still there, and once the connection is back the save goes through
+  await expect(page.getByLabel('City or town')).toHaveValue('Kathua')
+  await page.unroute('**/next/members/application/step')
+  await page.getByRole('button', { name: 'Save and continue' }).click()
+  await expect(page.getByRole('heading', { name: 'Your practice' })).toBeVisible()
+})
