@@ -27,12 +27,18 @@ yuvraj@pjk.co.in.
 address, and what you tell us about your work, with pictures of it. To consider your application
 and to work with you if we approve it.
 
-**Identity and bank details (artists).** Your PAN and the name on it, which we ask of every
-artist. A second ID showing your address: a masked e-Aadhaar with its last four digits, or, if you
-would rather, a passport, voter ID or driving licence. A proof of address if that address differs
-from the one you gave. Your bank account details, with a cheque or passbook if you choose. To be
-sure of who you are, to pay you, and to keep the records the law requires when we pay you. We ask
+**Identity details (artists).** Your PAN and the name on it, which we ask of every artist. A second
+ID showing your address: a masked e-Aadhaar with its last four digits, or, if you would rather, a
+passport, voter ID or driving licence. A proof of address if that address differs from the one you
+gave. To be sure of who you are, and to keep the records the law requires when we pay you. We ask
 for your separate consent to this, and we use these details for nothing else.
+
+**Payout details (artists we work with).** Your bank account: the account holder's name, the
+account number, the IFSC and the branch. We collect these only when a sale needs a payout, not
+when you apply. We ask for them by email, but you add them only in your account on this website,
+after a code we send you; we never ask for bank details by email and never accept them that way.
+We send ₹1 to the account to check it before the first payment. We use them to pay you and to
+keep the records the law requires, and for nothing else.
 
 If you give us a masked e-Aadhaar and its password, we use the password once, to open the file
 and check UIDAI's digital signature and that the details match; we do not keep the password. You
@@ -45,7 +51,7 @@ no advertising or third-party analytics. **[confirm: still true at publication]*
 
 ## How we keep it
 
-Identity and bank details are encrypted as soon as they reach us, documents included, and shown
+Identity and payout details are encrypted as soon as they reach us, documents included, and shown
 even to our own staff only in part (for example, the last four digits of an account). Only the
 few people at PJK who check them can see them in full, and each time they do it is recorded.
 
@@ -68,10 +74,10 @@ We never sell your data or share it for marketing.
 | | Kept until |
 | --- | --- |
 | Enquiries | **[confirm: e.g. 2 years]** after we last wrote to each other |
-| An application we decline | 90 days after our decision, for identity and bank details; **[confirm]** for the rest |
+| An application we decline | 90 days after our decision, for identity details; **[confirm]** for the rest |
 | An application never sent | 180 days after it was last changed |
 | Details of artists we work with | While we work together, then **[confirm with CA: N years]** after the last payment, as the law requires us to keep records of payments |
-| Identity and bank details after you withdraw consent | Deleted promptly, unless the law requires us to keep them |
+| Identity and payout details after you withdraw consent | Deleted promptly, unless the law requires us to keep them |
 
 ## Your rights
 

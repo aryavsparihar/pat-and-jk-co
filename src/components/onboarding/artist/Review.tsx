@@ -30,7 +30,7 @@ const addressLine = (a: Values | undefined) =>
 
 /**
  * Everything once more, with a way back to each step, then the declarations. The consent to
- * process identity and bank details is separate from the others and says what for, for how long,
+ * process identity details is separate from the others and says what for, for how long,
  * and how to take it back, as the Digital Personal Data Protection Act asks.
  */
 export const ReviewStep: React.FC<
@@ -45,7 +45,6 @@ export const ReviewStep: React.FC<
     aadhaarMasked: string | null
     idChoice: 'aadhaar' | 'other' | null
     otherIdKind: string | null
-    bank: { accountMasked: string; bankName: string }
   } | null>(null)
 
   // Only the masked view ever reaches the browser
@@ -109,7 +108,7 @@ export const ReviewStep: React.FC<
     },
     {
       step: 'kyc',
-      title: 'Identity and bank',
+      title: 'Identity',
       rows: [
         ['PAN', kyc?.panMasked],
         ...(kyc?.aadhaarMasked ? [['Aadhaar', kyc.aadhaarMasked] as [string, string]] : []),
@@ -127,7 +126,6 @@ export const ReviewStep: React.FC<
               ] as [string, string],
             ]
           : []),
-        ['Account', kyc ? `${kyc.bank.accountMasked}, ${kyc.bank.bankName}` : undefined],
       ],
     },
   ]
@@ -181,10 +179,10 @@ export const ReviewStep: React.FC<
             error={errors.consentProcessing}
             label={
               <>
-                I agree to PAT and J.K. Co. processing my identity and bank details to verify who I
-                am and to pay me, and for nothing else. They are kept encrypted, seen only by the
-                few people at PJK who verify them, and kept no longer than the privacy notice says.
-                I can withdraw this consent at any time by writing to us. Read the{' '}
+                I agree to PAT and J.K. Co. processing my identity details to verify who I am, and
+                for nothing else. They are kept encrypted, seen only by the few people at PJK who
+                verify them, and kept no longer than the privacy notice says. I can withdraw this
+                consent at any time by writing to us. Read the{' '}
                 <a className="link" href="/privacy" rel="noopener" target="_blank">
                   privacy notice
                   <span className="sr-only"> (opens in a new tab)</span>

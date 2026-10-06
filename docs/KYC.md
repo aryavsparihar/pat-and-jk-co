@@ -1,8 +1,10 @@
-# KYC: identity and bank details
+# KYC: identity and payout details
 
-Artists give us their identity and bank details so that we can be sure who we are paying, and pay
-them. This page is how those details are taken, kept, shown, changed and deleted, and what each
-part protects against. The code is in `src/kyc/`; nothing else touches a key.
+Artists give us their identity details when they apply, so that we can be sure who we work with.
+Bank details (payout details) are not part of the application: we ask for them only when a sale
+needs a payout, and the artist adds them in their own account, never by email. This page is how
+those details are taken, kept, shown, changed and deleted, and what each part protects against.
+The code is in `src/kyc/`; nothing else touches a key.
 
 ## What we take
 
@@ -13,9 +15,12 @@ part protects against. The code is in `src/kyc/`; nothing else touches a key.
 | A second ID, with an address | **Required.** By default a **masked e-Aadhaar** (the PDF UIDAI issues with the first eight digits hidden) with its last four digits. As an equal choice, with no extra steps: **"I'd rather use another ID"**, a passport, voter ID or driving licence, checked by hand | Aadhaar: last four encrypted, plus `XXXX XXXX 1234`. Either way, the document as an encrypted file. Other ID numbers are not asked for |
 | The masked e-Aadhaar PDF's password | Optional. Opens the PDF once, in memory, for the check below | **Never stored or logged** |
 | Proof of address | Only if the ID shows an address other than the one given | Encrypted file |
-| Account holder's name, account number, IFSC, branch | Required | Encrypted, plus `XXXXXXXX1234` and `SBIN0xxxxxx` |
-| Bank name, account type | Required | Plain text: neither identifies anyone |
-| Cancelled cheque or passbook | Optional | Encrypted file |
+| Account holder's name, account number, IFSC, branch | **Only when a sale needs a payout**, added by the artist in their account ([Payout details](#payout-details)) | Encrypted, plus `XXXXXXXX1234` and `SBIN0xxxxxx` |
+| Bank name, account type | With the payout details | Plain text: neither identifies anyone |
+| Cancelled cheque or passbook | No longer asked for; ones given before are kept as they were | Encrypted file |
+
+Applications sent before October 2026 included bank details. Those are kept as they are, under
+the same encryption and retention; nothing about them changed.
 
 Records saved before PAN became required may hold only Aadhaar digits, and records saved before a
 second ID was required may have none; such an application cannot be sent until the missing part
@@ -26,14 +31,14 @@ Why, in [SECURITY.md](SECURITY.md#aadhaar).
 Rules the form and the server share (`src/kyc/values.ts`, `src/kyc/schema.ts`): a PAN is
 `^[A-Z]{5}[0-9]{4}[A-Z]$` with **P** as its fourth character (a person; a company's PAN is refused);
 an IFSC is `^[A-Z]{4}0[A-Z0-9]{6}$`; an account number is 9 to 18 digits, typed twice, and the
-second box refuses pasting. If the account holder's name shares no word with the applicant's legal
-name or the name on the PAN, the form warns and the record is flagged for staff; it is not refused,
-because joint accounts and initials are common.
+second box refuses pasting. If the account holder's name shares no word with the name on the PAN,
+the record is flagged for staff when the payout details are approved; it is not refused, because
+joint accounts and initials are common.
 
-**IFSC lookup.** When an IFSC is typed, the server (never the browser) asks Razorpay's free public
-IFSC directory (`ifsc.razorpay.com`, no account, no key) for the bank and branch, caches the answer
-for 30 days, and fills them in. Only the IFSC is sent. The fields stay editable, and if the lookup
-fails the applicant types them.
+**IFSC lookup.** When an artist types an IFSC in their account, the server (never the browser)
+asks Razorpay's free public IFSC directory (`ifsc.razorpay.com`, no account, no key) for the bank
+and branch, caches the answer for 30 days, and fills them in. Only the IFSC is sent. The fields
+stay editable, and if the lookup fails the artist types them.
 
 ## How it flows
 
@@ -110,24 +115,37 @@ held only in that component's memory, and the reveal is written to the security 
 reviewer and the reason. **Downloading** a document works the same way: a POST with a reason, the
 file sent as an attachment with `no-store`, `nosniff` and a sandboxing CSP, and a log entry.
 
-## Changing bank details after approval
+## Payout details
 
-The most common aim of an account takeover is to redirect payments, so:
+Asked for only when a sale needs a payout, so that we hold bank details for as few people, and for
+as short a time, as we can. The most common aim of an account takeover, or of a fake email, is to
+redirect payments, so:
 
-1. The artist asks for a fresh code by email (**step-up**) even inside an active session, and
-   gives it with the new details (`/next/members/kyc/bank-change`).
-2. The new details are sealed into **Requested change of bank details** on the record. The old
-   ones stay in force.
-3. The artist is emailed that a change was asked for, with no details in the email and a **This
-   was not me** link. Staff are emailed too.
-4. A reviewer checks the new details (reveal, and the documents) and presses **Approve the new
-   details**. Only then do they replace the old ones, marked verified, by that reviewer.
+1. **Staff ask.** On an approved artist's KYC record, a reviewer presses **Request payout details**
+   (`/api/kyc-records/:id/request-payout-details`). The artist is emailed a link to
+   `/account/payouts`. That email never asks for bank details, never contains any, and says that
+   we never ask for them by email. The request is logged with the reviewer's name, and the date
+   shows on the record.
+2. **The artist adds them in their account**, after a fresh code by email (**step-up**), even
+   inside an active session (`/next/members/kyc/bank-change`): the account number typed twice,
+   the IFSC looked up.
+3. They are sealed into **Requested change of bank details** on the record: encrypted, shown only
+   masked, and not used yet. Any earlier account stays in force.
+4. The artist is emailed that it happened, with no details in the email and a **This was not me**
+   link. Staff are emailed too.
+5. A reviewer reveals the details, **sends ₹1 to the account and has the artist confirm it
+   arrived**, then presses **Approve the details**. Only then are they used, marked verified by
+   that reviewer. The name check and the duplicate check run at this point.
+
+Changing the account later is the same, from step 2. **Bank details are never accepted by email**,
+or by any route but this one: if someone sends them, they are not used, and the person is asked to
+add them in their account.
 
 **This was not me** (`/account/bank-change/cancel`) stops the change, signs the account out on
 every device and tells staff. The page does nothing until its button is pressed, so a mail
 scanner following the link cannot trigger it; the token is single-use and only its hash is stored.
 
-The artist does this from **Payouts** in their account (`/account/payouts`).
+The artist does all of this from **Payouts** in their account (`/account/payouts`).
 
 ## Retention
 

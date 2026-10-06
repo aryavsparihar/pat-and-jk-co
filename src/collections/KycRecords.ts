@@ -282,6 +282,19 @@ export const KycRecords: CollectionConfig = {
       },
     },
     {
+      name: 'payoutRequestedAt',
+      label: 'Payout details requested',
+      type: 'date',
+      access: { create: nobody, update: nobody },
+      admin: {
+        readOnly: true,
+        position: 'sidebar',
+        date: { pickerAppearance: 'dayAndTime' },
+        description:
+          'When the artist was last asked to add payout details, with "Request payout details" above.',
+      },
+    },
+    {
       name: 'legalHoldUntil',
       type: 'date',
       access: { create: nobody, update: nobody },
@@ -342,6 +355,36 @@ export const KycRecords: CollectionConfig = {
             return Response.json({ message: error.message }, { status: error.status })
           req.payload.logger.error({ err: error, msg: 'Bank change approval failed' })
           return Response.json({ message: 'The change could not be approved.' }, { status: 500 })
+        }
+      },
+    },
+    {
+      // POST /api/kyc-records/:id/request-payout-details. KYC reviewers only; logged. Emails the
+      // artist a link to their account; the email never asks for, or carries, bank details
+      path: '/:id/request-payout-details',
+      method: 'post',
+      handler: async (req) => {
+        if (!isKycReviewer(req.user))
+          return Response.json({ message: 'Not allowed.' }, { status: 403 })
+        const { KycError, requestPayoutDetails } = await import('../kyc/service')
+        const { sendPayoutDetailsRequest } = await import('../members/emails')
+        try {
+          const { member } = await requestPayoutDetails(req.payload, {
+            recordId: Number(req.routeParams?.id),
+            actor: req.user,
+          })
+          const sent = await sendPayoutDetailsRequest(req.payload, { member })
+          if (!sent)
+            return Response.json(
+              { message: 'The request is recorded, but the email could not be sent. Try again.' },
+              { status: 502 },
+            )
+          return Response.json({ ok: true }, { headers: { 'Cache-Control': 'no-store' } })
+        } catch (error) {
+          if (error instanceof KycError)
+            return Response.json({ message: error.message }, { status: error.status })
+          req.payload.logger.error({ err: error, msg: 'Payout details request failed' })
+          return Response.json({ message: 'The request could not be sent.' }, { status: 500 })
         }
       },
     },

@@ -67,7 +67,7 @@ export const memberCodeEmail = async (
       parts: [
         {
           kind: 'paragraph',
-          text: 'Here is the code to confirm a change to your account, such as new bank details.',
+          text: 'Here is the code to confirm a change to your account, such as adding or changing payout details.',
         },
         { kind: 'code', code },
         {
@@ -248,23 +248,65 @@ export const notifyStaffOfApplication = async (
 }
 
 /**
- * After a change of bank details is requested. Says only that it happened: never the details.
- * The link lets the real owner stop it if it was not them.
+ * An approved artist is asked to add payout details, because a sale needs a payout. It points to
+ * their account and nothing else: it never asks for bank details and never contains any, and says
+ * so, because an email asking for them is the commonest way to steal a payment.
  */
-export const sendBankChangeNotice = async (
+export const sendPayoutDetailsRequest = async (
   payload: Payload,
-  { member, cancelToken }: { member: Member; cancelToken: string },
+  { member }: { member: Member },
 ): Promise<boolean> =>
   send(
     payload,
     member.email,
     buildEmail({
-      subject: 'Your bank details were changed',
-      preheader: 'If this was not you, stop the change now.',
+      subject: 'Add your payout details',
+      preheader: 'Add them in your PJK account. We never ask for bank details by email.',
       parts: [
         {
           kind: 'paragraph',
-          text: 'Someone signed in to your PJK account and asked to change the bank account we pay you into. We will check the new details before using them; until then, the old ones stay as they are.',
+          text: 'We are ready to pay you for your work. To do that, we need to know which bank account to pay into.',
+        },
+        {
+          kind: 'paragraph',
+          text: 'Please add it in your account. We will email you a code first, to be sure it is you, and before the first payment we send ₹1 to the account and ask you to confirm it arrived.',
+        },
+        {
+          kind: 'link',
+          label: 'Add payout details',
+          url: `${getServerSideURL()}/account/payouts`,
+        },
+        {
+          kind: 'paragraph',
+          text: 'We never ask for bank details by email, and we never send them. Do not reply to this email with them. If an email asking for them seems to come from us, it is not from us: please tell us.',
+        },
+      ],
+      footer: await emailFooter(payload),
+    }),
+  )
+
+/**
+ * After payout details are added or changed. Says only that it happened: never the details.
+ * The link lets the real owner stop it if it was not them.
+ */
+export const sendBankChangeNotice = async (
+  payload: Payload,
+  { member, cancelToken, first }: { member: Member; cancelToken: string; first?: boolean },
+): Promise<boolean> =>
+  send(
+    payload,
+    member.email,
+    buildEmail({
+      subject: first ? 'Payout details added to your account' : 'Your bank details were changed',
+      preheader: first
+        ? 'If this was not you, stop it now.'
+        : 'If this was not you, stop the change now.',
+      parts: [
+        {
+          kind: 'paragraph',
+          text: first
+            ? 'Someone signed in to your PJK account and added the bank account we will pay you into. We will check it, with a ₹1 test payment, before we use it.'
+            : 'Someone signed in to your PJK account and asked to change the bank account we pay you into. We will check the new details before using them; until then, the old ones stay as they are.',
         },
         { kind: 'paragraph', text: 'If this was you, there is nothing to do.' },
         {
@@ -304,7 +346,11 @@ const staffInbox = async (payload: Payload): Promise<string | undefined> => {
 /** Staff are told a change of bank details is waiting, or was stopped; nothing more */
 export const notifyStaffOfBankChange = async (
   payload: Payload,
-  { reference, cancelled }: { reference?: string | null; cancelled?: boolean },
+  {
+    reference,
+    cancelled,
+    first,
+  }: { reference?: string | null; cancelled?: boolean; first?: boolean },
 ): Promise<boolean> => {
   const to = await staffInbox(payload)
   if (!to) return false
@@ -314,7 +360,9 @@ export const notifyStaffOfBankChange = async (
     buildEmail({
       subject: cancelled
         ? `Bank change stopped by the member: ${reference ?? ''}`
-        : `Bank details change waiting: ${reference ?? ''}`,
+        : first
+          ? `Payout details waiting: ${reference ?? ''}`
+          : `Bank details change waiting: ${reference ?? ''}`,
       preheader: cancelled
         ? 'They said it was not them. Their sessions have been ended.'
         : 'Check the new details before approving them.',
@@ -323,7 +371,7 @@ export const notifyStaffOfBankChange = async (
           kind: 'paragraph',
           text: cancelled
             ? `The member behind ${reference ?? 'this account'} said they did not ask to change their bank details. The change has been stopped and every session on the account ended. Please contact them.`
-            : `A member (${reference ?? 'see the admin'}) has asked to change their bank details. Check the new details and the documents, then approve the change in the KYC record.`,
+            : `A member (${reference ?? 'see the admin'}) has ${first ? 'added payout details' : 'asked to change their bank details'}. Send ₹1 to the account and ask them to confirm it arrived, then approve the details in the KYC record.`,
         },
       ],
       footer: await emailFooter(payload),

@@ -35,6 +35,7 @@ export const securityEventTypes = [
   'kyc-bank-change-requested',
   'kyc-bank-change-cancelled',
   'kyc-bank-change-approved',
+  'kyc-payout-details-requested',
   'kyc-consent-withdrawn',
   'kyc-purged',
   'data-request',

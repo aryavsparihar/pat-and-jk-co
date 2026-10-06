@@ -32,7 +32,7 @@ import { createSession } from '@/security/memberSession'
 import { execute } from '@/utilities/sql'
 
 import { openApplicationsForTests } from '../helpers/applicationsOpen'
-import { FAKE, goodKyc, removeKycFor } from '../helpers/kyc'
+import { FAKE, goodBank, goodKyc, removeKycFor } from '../helpers/kyc'
 
 // The made-up test root stands in for India's CCA roots (scripts/fixtures/make-eaadhaar-fixtures.py)
 vi.mock('@/kyc/ccaRoots', async () => {
@@ -86,6 +86,42 @@ const artist = async () => {
   })
   idDocuments.set(cookie, passport.id)
   return { member, application, cookie }
+}
+
+/** Approval issues a member ID; tests set one directly */
+const approve = (member: Member) =>
+  execute(
+    payload,
+    sql`UPDATE members SET artist_id = ${`AT9${String(Math.floor(Math.random() * 1e5)).padStart(5, '0')}`} WHERE id = ${member.id}`,
+  )
+
+/** A fresh step-up code, as the artist would have from their email */
+const stepUp = (member: Member) =>
+  issueChallenge(payload, {
+    email: member.email,
+    ip: '198.51.100.1',
+    audience: 'member',
+    purpose: 'step-up',
+    deliverable: true,
+  })
+
+/**
+ * An approved artist with payout details in force, the only way they can be: added from the
+ * account with a fresh code, then approved by a reviewer after the ₹1 test
+ */
+const withPayoutDetails = async (
+  a: { member: Member; cookie: string },
+  account: string = FAKE.account,
+) => {
+  await approve(a.member)
+  const step = await stepUp(a.member)
+  const added = await call(changeBank, a.cookie, {
+    challengeId: step.id,
+    code: step.code,
+    bank: goodBank(account),
+  })
+  expect(added.status).toBe(200)
+  await approveBankChange(payload, { recordId: (await recordOf(a.member.id)).id, actor: reviewer })
 }
 
 const idDocuments = new Map<string, number>()
@@ -218,19 +254,18 @@ describe('saving the KYC step', () => {
     const response = await call(saveKycStep, cookie, kycFor(cookie))
     expect(response.status).toBe(200)
     const body = (await response.json()) as {
-      kyc: { panMasked: string; bank: { accountMasked: string } }
+      kyc: { panMasked: string; bank: unknown }
       completedSteps: string[]
     }
     expect(body.kyc.panMasked).toBe('ABCxxxxx4F')
-    expect(body.kyc.bank.accountMasked).toBe('XXXXXXXX4821')
+    expect(body.kyc.bank).toBeNull()
     expect(body.completedSteps).toContain('kyc')
-    expect(JSON.stringify(body)).not.toContain(FAKE.account)
     expect(JSON.stringify(body)).not.toContain(FAKE.pan)
 
     // What a stolen database dump would show
     const row = await rawRecord(member.id)
     expect(row).toBeTruthy()
-    for (const secret of [FAKE.pan, FAKE.account, FAKE.ifsc, FAKE.panName]) {
+    for (const secret of [FAKE.pan, FAKE.panName]) {
       expect(row).not.toContain(secret)
     }
 
@@ -245,7 +280,7 @@ describe('saving the KYC step', () => {
         })
       ).docs[0],
     )
-    expect(seen).toContain('XXXXXXXX4821')
+    expect(seen).toContain('ABCxxxxx4F')
     expect(seen).not.toMatch(/Sealed|wrappedKey|panIndex|accountIndex/)
 
     const stored = await payload.findByID({
@@ -254,6 +289,17 @@ describe('saving the KYC step', () => {
       overrideAccess: true,
     })
     expect(stored.completedSteps).toContain('kyc')
+  })
+
+  it('takes no bank details with the application, even if they are sent', async () => {
+    const { member, cookie } = await artist()
+    const response = await call(saveKycStep, cookie, { ...kycFor(cookie), bank: goodBank() })
+    expect(response.status).toBe(200)
+    const record = await recordOf(member.id)
+    expect(record.accountMasked ?? null).toBeNull()
+    const row = await rawRecord(member.id)
+    for (const secret of [FAKE.account, FAKE.ifsc, 'XXXXXXXX4821'])
+      expect(row).not.toContain(secret)
   })
 
   it('refuses a full Aadhaar number and never stores it', async () => {
@@ -419,17 +465,16 @@ describe('saving the KYC step', () => {
     expect(left.totalDocs).toBe(0)
   })
 
-  it('needs consent, matching account numbers and a personal PAN', async () => {
+  it('needs consent and a personal PAN', async () => {
     const { cookie } = await artist()
     const response = await call(saveKycStep, cookie, {
       ...kycFor(cookie),
       consent: false,
       pan: 'ABCCE1234F',
-      bank: { ...goodKyc().bank, accountNumberConfirm: '999900004822' },
     })
     expect(response.status).toBe(422)
     const { errors } = (await response.json()) as { errors: Record<string, string> }
-    expect(Object.keys(errors).sort()).toEqual(['bank.accountNumberConfirm', 'consent', 'pan'])
+    expect(Object.keys(errors).sort()).toEqual(['consent', 'pan'])
   })
 
   it('finds another member with the same PAN without decrypting anything', async () => {
@@ -542,8 +587,10 @@ describe('who can see KYC', () => {
   })
 
   it('a full reveal needs a reviewer and a reason, and is recorded', async () => {
-    const { member, cookie } = await artist()
+    const a = await artist()
+    const { member, cookie } = a
     await call(saveKycStep, cookie, kycFor(cookie))
+    await withPayoutDetails(a)
     const record = await recordOf(member.id)
     const reveal = endpoint('kyc-records', '/:id/reveal')
     const request = (user: unknown, reason: string) =>
@@ -577,23 +624,62 @@ describe('who can see KYC', () => {
   })
 })
 
-describe('changing bank details after approval', () => {
-  it('needs a fresh code, keeps the old details until staff approve, and can be stopped', async () => {
-    const { member, cookie } = await artist()
-    await call(saveKycStep, cookie, kycFor(cookie))
-    // Member IDs are only ever issued on approval, so the test sets one directly
-    await execute(
-      payload,
-      sql`UPDATE members SET artist_id = ${`AT9${String(Math.floor(Math.random() * 1e5)).padStart(5, '0')}`} WHERE id = ${member.id}`,
-    )
-    const newBank = {
-      ...goodKyc().bank,
-      accountNumber: FAKE.newAccount,
-      accountNumberConfirm: FAKE.newAccount,
-    }
+describe('payout details, only when a sale needs them', () => {
+  it('staff ask an approved artist for them by email, which carries none', async () => {
+    const a = await artist()
+    await call(saveKycStep, a.cookie, kycFor(a.cookie))
+    const record = await recordOf(a.member.id)
+    const ask = endpoint('kyc-records', '/:id/request-payout-details')
+    const request = (user: unknown) =>
+      ask({ user, payload, routeParams: { id: String(record.id) } } as never)
 
-    // Without a step-up code: refused, even inside a session
-    expect((await call(changeBank, cookie, { bank: newBank })).status).toBe(401)
+    expect((await request(editor)).status).toBe(403)
+    // Not yet approved
+    expect((await request(reviewer)).status).toBe(409)
+
+    await approve(a.member)
+    const logged = vi.spyOn(payload.logger, 'info')
+    expect((await request(reviewer)).status).toBe(200)
+    // The email, written to the log here: a link to the account, and nothing about any account
+    const email = logged.mock.calls
+      .map((c) => String(c[0]))
+      .find((m) => m.includes('Add your payout details'))
+    logged.mockRestore()
+    expect(email).toContain('/account/payouts')
+    expect(email).toMatch(/never ask for bank details by email/)
+    expect(email).not.toMatch(/\d{9,}/)
+
+    expect((await recordOf(a.member.id)).payoutRequestedAt).toBeTruthy()
+    const events = await payload.find({
+      collection: 'security-events',
+      where: {
+        event: { equals: 'kyc-payout-details-requested' },
+        subject: { equals: record.reference },
+      },
+      overrideAccess: true,
+    })
+    expect(events.docs[0]?.actor).toBeTruthy()
+
+    // Once details are on file, there is nothing to ask for
+    await withPayoutDetails(a)
+    expect((await request(reviewer)).status).toBe(409)
+  })
+
+  it('the first details need a fresh code, are typed twice, and wait for a reviewer', async () => {
+    const a = await artist()
+    const { member, cookie } = a
+    await call(saveKycStep, cookie, kycFor(cookie))
+
+    // Not before approval
+    let step = await stepUp(member)
+    expect(
+      (await call(changeBank, cookie, { challengeId: step.id, code: step.code, bank: goodBank() }))
+        .status,
+    ).toBe(409)
+    await approve(member)
+
+    // Without a step-up code, or with a sign-in code: refused, even inside a session
+    expect((await call(changeBank, cookie, { bank: goodBank() })).status).toBe(401)
     const signIn = await issueChallenge(payload, {
       email: member.email,
       ip: '198.51.100.1',
@@ -602,25 +688,65 @@ describe('changing bank details after approval', () => {
       deliverable: true,
     })
     expect(
-      (await call(changeBank, cookie, { challengeId: signIn.id, code: signIn.code, bank: newBank }))
-        .status,
+      (
+        await call(changeBank, cookie, {
+          challengeId: signIn.id,
+          code: signIn.code,
+          bank: goodBank(),
+        })
+      ).status,
     ).toBe(401)
 
-    const step = await issueChallenge(payload, {
-      email: member.email,
-      ip: '198.51.100.1',
-      audience: 'member',
-      purpose: 'step-up',
-      deliverable: true,
-    })
-    const asked = await call(changeBank, cookie, {
+    // The account number typed twice, and the two must match
+    step = await stepUp(member)
+    const mismatched = await call(changeBank, cookie, {
       challengeId: step.id,
       code: step.code,
-      bank: newBank,
+      bank: { ...goodBank(), accountNumberConfirm: '999900004822' },
     })
-    expect(asked.status).toBe(200)
+    expect(mismatched.status).toBe(422)
+    expect(Object.keys(((await mismatched.json()) as { errors: object }).errors)).toEqual([
+      'accountNumberConfirm',
+    ])
 
-    // The old account is still the one in force
+    step = await stepUp(member)
+    expect(
+      (await call(changeBank, cookie, { challengeId: step.id, code: step.code, bank: goodBank() }))
+        .status,
+    ).toBe(200)
+
+    // Held, masked, until a reviewer approves after the ₹1 test
+    const masked = (await (
+      await readKyc(new Request(`${ORIGIN}/next/members/kyc`, { headers: { cookie } }))
+    ).json()) as { kyc: { bank: unknown; pendingBank: { accountMasked: string } } }
+    expect(masked.kyc.bank).toBeNull()
+    expect(masked.kyc.pendingBank.accountMasked).toBe('XXXXXXXX4821')
+    expect(await rawRecord(member.id)).not.toContain(FAKE.account)
+
+    const record = await recordOf(member.id)
+    await approveBankChange(payload, { recordId: record.id, actor: reviewer })
+    const approved = await recordOf(member.id)
+    expect(approved.accountMasked).toBe('XXXXXXXX4821')
+    expect(approved.nameMismatch).toBe(false)
+    expect(approved.verification?.status).toBe('verified')
+  })
+
+  it('a change keeps the old details in force until a reviewer approves it', async () => {
+    const a = await artist()
+    const { member, cookie } = a
+    await call(saveKycStep, cookie, kycFor(cookie))
+    await withPayoutDetails(a)
+
+    const step = await stepUp(member)
+    expect(
+      (
+        await call(changeBank, cookie, {
+          challengeId: step.id,
+          code: step.code,
+          bank: goodBank(FAKE.newAccount),
+        })
+      ).status,
+    ).toBe(200)
     const masked = (await (
       await readKyc(new Request(`${ORIGIN}/next/members/kyc`, { headers: { cookie } }))
     ).json()) as {
@@ -640,18 +766,15 @@ describe('changing bank details after approval', () => {
     expect(revealed.pendingAccountNumber).toBeUndefined()
   })
 
-  it('“this was not me” stops the change and signs the account out', async () => {
-    const { member, cookie } = await artist()
+  it('“this was not me” stops it and signs the account out', async () => {
+    const a = await artist()
+    const { member, cookie } = a
     await call(saveKycStep, cookie, kycFor(cookie))
+    await withPayoutDetails(a)
     const { requestBankChange } = await import('@/kyc/service')
     const { cancelToken } = await requestBankChange(payload, {
       member: member as Member,
-      bank: {
-        ...goodKyc().bank,
-        accountNumber: FAKE.newAccount,
-        accountNumberConfirm: FAKE.newAccount,
-        accountType: 'savings',
-      },
+      bank: goodBank(FAKE.newAccount),
     })
     expect((await call(cancelBankChange, '', { token: 'not-the-token' })).status).toBe(404)
     expect((await call(cancelBankChange, '', { token: cancelToken })).status).toBe(200)
@@ -759,8 +882,10 @@ describe('retention and keys', () => {
   })
 
   it('rotates the master key without touching the data', async () => {
-    const { member, cookie } = await artist()
+    const a = await artist()
+    const { member, cookie } = a
     await call(saveKycStep, cookie, kycFor(cookie))
+    await withPayoutDetails(a)
     const record = await recordOf(member.id)
 
     process.env.KYC_ENCRYPTION_KEY_PREVIOUS = process.env.KYC_ENCRYPTION_KEY
@@ -887,12 +1012,14 @@ describe('consent and legal hold', () => {
 
 describe('the admin’s API tab for a KYC record', () => {
   it('shows neither plaintext nor ciphertext nor keys, documents included', async () => {
-    const { member, cookie } = await artist()
+    const a = await artist()
+    const { member, cookie } = a
     const pdf = Buffer.from('%PDF-1.7\n% a made-up document\n%%EOF\n')
     const { document } = (await (
       await upload(cookie, 'bank-proof', pdf, 'cheque.pdf', 'application/pdf')
     ).json()) as { document: { id: number } }
     await call(saveKycStep, cookie, kycFor(cookie, { 'bank-proof': document.id }))
+    await withPayoutDetails(a)
     const record = await recordOf(member.id)
 
     // What the API tab fetches: the record through REST, as the signed-in reviewer

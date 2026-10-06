@@ -27,8 +27,6 @@ These need a lawyer or a CA, so start them first.
 
 ## 2. Services
 
-- [ ] **Neon on the Launch plan**, with the restore window set to 7 days (Neon → Settings →
-      Storage / History retention). Done when the plan page says Launch.
 - [ ] **Production database string is pooled.** Vercel → Settings → Environment Variables →
       `DATABASE_URL` (Production): the host contains `-pooler`.
 - [ ] **Previews have their own database.** `DATABASE_URL` for Preview is the Neon `preview`
@@ -53,7 +51,7 @@ These need a lawyer or a CA, so start them first.
 - [ ] **Two-factor authentication** on Vercel, Neon, GitHub, Resend, Cloudflare and GoDaddy.
 - [ ] **Super admin password rotated**, and never typed into a chat, ticket or email.
 - [ ] **Staff accounts.** Everyone who reviews applications has their own account. Only those who
-      must see identity and bank details have the **KYC reviewer** role. They have read "Artists
+      must see identity and payout details have the **KYC reviewer** role. They have read "Artists
       and partners" in [ADMIN_GUIDE.md](ADMIN_GUIDE.md), the checklist before approving above all.
 
 ## 4. Email
@@ -64,7 +62,8 @@ These need a lawyer or a CA, so start them first.
       (shown on the site), `yuvraj@` (the grievance officer), and the privacy address the notice
       gives.
 - [ ] **Notifications.** **Enquiries → Forms**: Contact and Collaborate each email an inbox. New
-      applications, KYC changes and works sent for review reach the staff inbox.
+      applications, payout details waiting for a check, and works sent for review reach the staff
+      inbox.
 
 ## 5. The site
 
@@ -82,8 +81,8 @@ the real email, Blob store, Turnstile keys and KYC encryption together.
 - [ ] **Open applications** (Site settings → Applications → *Applications are open*). The public
       can apply while it is on, so do the rehearsal in one sitting and close it straight after.
 - [ ] **Apply as an artist** at pjk.co.in/collaborate/artists with your own email, PAN, masked
-      e-Aadhaar, bank details and three pictures. Stop halfway, sign in again from another
-      device, and finish.
+      e-Aadhaar and three pictures; it asks for no bank details. Stop halfway, sign in again from
+      another device, and finish.
 - [ ] **Check the emails:** the code, "We have your application", and the staff notification.
 - [ ] **Check the admin:** the application is there. The KYC record shows everything masked.
       **Reveal** and **Download** ask for a reason and appear in the security log. The identity
@@ -103,6 +102,21 @@ the real email, Blob store, Turnstile keys and KYC encryption together.
 - [ ] Turn on **Site settings → Applications → Applications are open**.
 - [ ] Apply's first step works on a phone: the code arrives.
 - [ ] Watch the staff inbox and the security log during the day.
+
+## 8. Before the first payout details are collected
+
+Bank details are asked for only when a sale needs a payout ([KYC.md](KYC.md#payout-details)), so
+these can wait until the first work sells.
+
+- [ ] **Neon on the Launch plan**, with the restore window set to 7 days (Neon → Settings →
+      Storage / History retention). Done when the plan page says Launch. Still recommended before
+      applications open: the applications and identity documents are worth a 7-day restore window
+      too.
+- [ ] **The first payout, end to end.** On the artist's KYC record, press **Request payout
+      details**; the artist adds them in their account; reveal them, send ₹1 and have the artist
+      confirm it arrived; press **Approve the details**. Only then pay.
+- [ ] **Everyone who pays artists knows the rule:** bank details are never accepted by email,
+      WhatsApp or phone, only through the artist's own account ([ADMIN_GUIDE.md](ADMIN_GUIDE.md)).
 
 ## Not before launch, unless you choose
 

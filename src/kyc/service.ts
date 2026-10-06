@@ -22,7 +22,7 @@ import {
 import { checkMaskedAadhaar, type AadhaarCheck } from './aadhaarCheck'
 import { deleteEncrypted, kycPrefix, readEncrypted, storeEncrypted } from './documentStore'
 import { AADHAAR_CHECK_MODE } from './settings'
-import type { KycDocumentKind, KycInput } from './schema'
+import type { BankInput, KycDocumentKind, KycInput } from './schema'
 import { maskAadhaar, maskAccount, maskIfsc, maskPan, namesPlausiblyMatch } from './values'
 
 /**
@@ -99,10 +99,12 @@ const duplicatesOf = async (
   payload: Payload,
   memberId: number,
   panIndex: string | null,
-  accountIndex: string,
+  accountIndex: string | null,
 ) => {
-  const or: Where[] = [{ accountIndex: { equals: accountIndex } }]
+  const or: Where[] = []
+  if (accountIndex) or.push({ accountIndex: { equals: accountIndex } })
   if (panIndex) or.push({ panIndex: { equals: panIndex } })
+  if (or.length === 0) return ''
   const found = await payload.find({
     collection: 'kyc-records',
     where: { and: [{ member: { not_equals: memberId } }, { or }] },
@@ -135,15 +137,14 @@ const ownDocuments = async (
   return ids
 }
 
-/** Encrypts and keeps an artist's KYC details. Replaces any earlier ones in full. */
+/**
+ * Encrypts and keeps an artist's identity details from the application. Replaces the earlier
+ * identity details in full. Bank details are not part of it: an account already on file (given
+ * before bank details moved to payout time, or added since) is left exactly as it is.
+ */
 export const saveKyc = async (
   payload: Payload,
-  {
-    member,
-    input,
-    legalName,
-    reference,
-  }: { member: Member; input: KycInput; legalName?: string | null; reference: string },
+  { member, input, reference }: { member: Member; input: KycInput; reference: string },
 ): Promise<KycRecord> => {
   const existing = await findRecord(payload, member.id)
   const { key, wrapped } = dataKeyFor(existing, member.id)
@@ -151,12 +152,8 @@ export const saveKyc = async (
     value ? sealField(key, value, fieldContext(member.id, field)) : null
 
   const panIndex = input.pan ? blindIndex('pan', input.pan) : null
-  const accountIndex = blindIndex('account', input.bank.accountNumber)
+  const accountIndex = existing?.accountIndex ?? null
   const documents = await ownDocuments(payload, member.id, input.documents)
-
-  const names = [legalName, input.panName].filter((n): n is string => Boolean(n))
-  const nameMismatch =
-    names.length > 0 && !names.some((n) => namesPlausiblyMatch(n, input.bank.holderName))
 
   const data = {
     member: member.id,
@@ -181,15 +178,6 @@ export const saveKyc = async (
       mode: null,
     },
     addressOnIdMatches: input.addressOnIdMatches ?? null,
-    accountNumberSealed: seal('accountNumber', input.bank.accountNumber),
-    ifscSealed: seal('ifsc', input.bank.ifsc),
-    holderNameSealed: seal('holderName', input.bank.holderName),
-    branchNameSealed: seal('branchName', input.bank.branchName),
-    accountMasked: maskAccount(input.bank.accountNumber),
-    ifscMasked: maskIfsc(input.bank.ifsc),
-    bankName: input.bank.bankName,
-    accountType: input.bank.accountType,
-    nameMismatch,
     panIndex,
     accountIndex,
     duplicates: (await duplicatesOf(payload, member.id, panIndex, accountIndex)) || null,
@@ -218,7 +206,7 @@ export const saveKyc = async (
     event: 'kyc-saved',
     email: member.email,
     subject: reference,
-    detail: `pan and ${input.idChoice === 'aadhaar' ? 'masked aadhaar' : (input.otherIdKind ?? 'other id')}${nameMismatch ? ', name differs' : ''}${data.duplicates ? ', possible duplicate' : ''}`,
+    detail: `pan and ${input.idChoice === 'aadhaar' ? 'masked aadhaar' : (input.otherIdKind ?? 'other id')}${data.duplicates ? ', possible duplicate' : ''}`,
   })
   return record
 }
@@ -239,12 +227,16 @@ export const maskedKyc = async (payload: Payload, memberId: number) => {
     idChoice: record.idChoice ?? (record.aadhaarMasked ? 'aadhaar' : null),
     otherIdKind: record.otherIdKind ?? null,
     addressOnIdMatches: record.addressOnIdMatches,
-    bank: {
-      accountMasked: record.accountMasked,
-      ifscMasked: record.ifscMasked,
-      bankName: record.bankName,
-      accountType: record.accountType,
-    },
+    // None until a sale needs a payout and the artist adds them
+    bank: record.accountMasked
+      ? {
+          accountMasked: record.accountMasked,
+          ifscMasked: record.ifscMasked,
+          bankName: record.bankName,
+          accountType: record.accountType,
+        }
+      : null,
+    payoutRequestedAt: record.payoutRequestedAt ?? null,
     nameMismatch: record.nameMismatch,
     documents: documents.docs.map((d) => ({ id: d.id, kind: d.kind })),
     pendingBank: record.pendingBank?.requestedAt
@@ -261,7 +253,7 @@ export const maskedKyc = async (payload: Payload, memberId: number) => {
 /** Whether a member's KYC is complete enough to send an application */
 export const kycProblems = async (payload: Payload, memberId: number): Promise<string[]> => {
   const record = await findRecord(payload, memberId)
-  if (!record) return ['Please add your identity and bank details.']
+  if (!record) return ['Please add your identity details.']
   // Records saved before PAN was required may have only Aadhaar digits
   if (record.idType !== 'pan') return ['Please add your PAN to your identity details.']
   // Records saved before a second ID was asked of everyone
@@ -554,20 +546,23 @@ export const runAadhaarCheck = async (payload: Payload, input: AadhaarCheckInput
   return check
 }
 
-/* ─── Changing bank details after approval ──────────────────────────────── */
+/* ─── Payout details: added, and changed, after approval ──────────────── */
 
 const tokenHash = (token: string) => createHash('sha256').update(token).digest('hex')
 
 /**
- * Records a new set of bank details as pending. The current ones stay in force until staff
- * re-verify the new ones. Returns the one-time token for the "this was not me" link.
+ * Records a set of bank details as pending: the first payout details, or a change to them. Any
+ * current ones stay in force until staff check the new ones (a ₹1 test transfer first) and approve
+ * them. Returns the one-time token for the "this was not me" link, and whether these are the first.
  */
 export const requestBankChange = async (
   payload: Payload,
-  { member, bank }: { member: Member; bank: KycInput['bank'] },
-): Promise<{ record: KycRecord; cancelToken: string }> => {
+  { member, bank }: { member: Member; bank: BankInput },
+): Promise<{ record: KycRecord; cancelToken: string; first: boolean }> => {
   const record = await findRecord(payload, member.id)
-  if (!record) throw new KycError('There are no bank details to change yet.', 404)
+  if (!record)
+    throw new KycError('We do not have your identity details yet. Please write to us.', 404)
+  const first = !record.accountMasked
   const { key } = dataKeyFor(record, member.id)
   const seal = (field: SealedField, value: string) =>
     sealField(key, value, fieldContext(member.id, field))
@@ -597,8 +592,9 @@ export const requestBankChange = async (
     event: 'kyc-bank-change-requested',
     email: member.email,
     subject: record.reference ?? undefined,
+    detail: first ? 'First payout details' : 'Change of payout details',
   })
-  return { record: updated, cancelToken }
+  return { record: updated, cancelToken, first }
 }
 
 const clearPending = {
@@ -669,6 +665,16 @@ export const approveBankChange = async (
     pending.pendingAccountNumberSealed,
     fieldContext(memberId, 'accountNumber'),
   )
+  const accountIndex = blindIndex('account', accountNumber)
+  // Whether the account holder is plausibly the artist: against the name on the PAN, opened in
+  // memory for this comparison only
+  const holderName = pending.pendingHolderNameSealed
+    ? openField(key, pending.pendingHolderNameSealed, fieldContext(memberId, 'holderName'))
+    : null
+  const panName = record.panNameSealed
+    ? openField(key, record.panNameSealed, fieldContext(memberId, 'panName'))
+    : null
+  const nameMismatch = Boolean(holderName && panName && !namesPlausiblyMatch(panName, holderName))
 
   const updated = await payload.update({
     collection: 'kyc-records',
@@ -682,7 +688,10 @@ export const approveBankChange = async (
       ifscMasked: pending.pendingIfscMasked,
       bankName: pending.pendingBankName,
       accountType: pending.pendingAccountType,
-      accountIndex: blindIndex('account', accountNumber),
+      accountIndex,
+      nameMismatch,
+      duplicates:
+        (await duplicatesOf(payload, memberId, record.panIndex ?? null, accountIndex)) || null,
       verification: {
         status: 'verified',
         method: 'manual',
@@ -701,6 +710,54 @@ export const approveBankChange = async (
     detail: `Approved by ${actor.email}`,
   })
   return updated
+}
+
+/**
+ * Staff ask an approved artist for payout details, when a sale needs a payout. Only the request
+ * is recorded here; the artist adds the details themselves in their account (requestBankChange),
+ * and the email that tells them so never asks for bank details and never carries any.
+ */
+export const requestPayoutDetails = async (
+  payload: Payload,
+  { recordId, actor }: { recordId: number; actor: User },
+): Promise<{ record: KycRecord; member: Member }> => {
+  const record = await payload.findByID({
+    collection: 'kyc-records',
+    id: recordId,
+    depth: 0,
+    overrideAccess: true,
+  })
+  const memberId = typeof record.member === 'object' ? record.member.id : record.member
+  const member = await payload.findByID({
+    collection: 'members',
+    id: memberId,
+    depth: 0,
+    overrideAccess: true,
+  })
+  if (!member.artistId)
+    throw new KycError('Payout details are asked for once the artist is approved.', 409)
+  if (record.pendingBank?.requestedAt)
+    throw new KycError('Their payout details are already waiting for your check.', 409)
+  if (record.accountMasked)
+    throw new KycError(
+      'Their payout details are already on file. To change them, the artist does so from their account.',
+      409,
+    )
+
+  const updated = await payload.update({
+    collection: 'kyc-records',
+    id: record.id,
+    data: { payoutRequestedAt: new Date().toISOString() } as never,
+    overrideAccess: true,
+    context: { disableRevalidate: true },
+  })
+  await logSecurityEvent(payload, {
+    event: 'kyc-payout-details-requested',
+    actor: actor.id,
+    subject: record.reference ?? undefined,
+    detail: `Asked by ${actor.email}`,
+  })
+  return { record: updated, member }
 }
 
 /* ─── Deletion ──────────────────────────────────────────────────────────── */

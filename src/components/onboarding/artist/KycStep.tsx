@@ -2,10 +2,8 @@
 
 import React, { useEffect, useRef, useState } from 'react'
 
-import { namesPlausiblyMatch } from '@/kyc/values'
-
 import { api } from '../api'
-import { Check, ErrorSummary, type Errors, fieldClass, TextField } from '../fields'
+import { Check, ErrorSummary, type Errors, TextField } from '../fields'
 
 type Masked = {
   panMasked: string | null
@@ -13,8 +11,6 @@ type Masked = {
   idChoice: 'aadhaar' | 'other' | null
   otherIdKind: OtherIdKind | null
   addressOnIdMatches: boolean | null
-  bank: { accountMasked: string; ifscMasked: string; bankName: string; accountType: string }
-  nameMismatch: boolean
   documents: { id: number; kind: string }[]
 } | null
 
@@ -126,25 +122,23 @@ const Upload: React.FC<{
 }
 
 /**
- * Identity and bank details. Written to reassure: why we ask, how the details are protected, and
- * who can see them, before anything is asked for. Nothing typed here is ever put in browser
- * storage, and what comes back from the server is masked.
+ * Identity details: PAN, and a masked e-Aadhaar or another ID. No bank details: those are asked
+ * for only when a sale needs a payout, in the artist's account. Written to reassure: why we ask,
+ * how the details are protected, and who can see them, before anything is asked for. Nothing typed
+ * here is ever put in browser storage, and what comes back from the server is masked.
  */
 export const KycStep: React.FC<{
-  legalName?: string
   onSaved: (completedSteps: string[]) => void
-}> = ({ legalName, onSaved }) => {
+}> = ({ onSaved }) => {
   const [masked, setMasked] = useState<Masked | undefined>(undefined)
   const [editing, setEditing] = useState(false)
   const [v, setV] = useState<Record<string, string | boolean | undefined>>({
-    accountType: 'savings',
     idChoice: 'aadhaar',
   })
   const [docs, setDocs] = useState<Partial<Record<DocKind, number>>>({})
   const [errors, setErrors] = useState<Errors>({})
   const [message, setMessage] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const [lookup, setLookup] = useState<string | null>(null)
   const loaded = useRef(false)
 
   useEffect(() => {
@@ -159,37 +153,6 @@ export const KycStep: React.FC<{
   const set = (key: string) => (value: string | boolean) =>
     setV((all) => ({ ...all, [key]: value }))
   const s = (key: string) => (v[key] as string | undefined) ?? ''
-
-  const findBranch = async () => {
-    const ifsc = s('ifsc').toUpperCase()
-    if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifsc)) return
-    setLookup('Looking up the branch…')
-    const result = await api<{
-      found: boolean
-      bank?: string
-      branch?: string
-      unavailable?: boolean
-    }>('/next/members/kyc/ifsc', { body: { ifsc } })
-    if (result.data.found) {
-      setV((all) => ({
-        ...all,
-        bankName: result.data.bank ?? all.bankName,
-        branchName: result.data.branch ?? all.branchName,
-      }))
-      setLookup('Bank and branch filled in. Please check them.')
-    } else {
-      setLookup(
-        result.data.unavailable
-          ? 'We could not look that up just now; please type the bank and branch.'
-          : 'We could not find that IFSC. Please check it.',
-      )
-    }
-  }
-
-  const holder = s('holderName')
-  const names = [legalName, s('panName')].filter(Boolean) as string[]
-  const mismatch =
-    holder.length > 2 && names.length > 0 && !names.some((n) => namesPlausiblyMatch(n, holder))
 
   const save = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -208,29 +171,17 @@ export const KycStep: React.FC<{
         otherIdKind: v.idChoice === 'other' ? v.otherIdKind : undefined,
         addressOnIdMatches:
           typeof v.addressOnIdMatches === 'boolean' ? v.addressOnIdMatches : undefined,
-        bank: {
-          holderName: holder,
-          accountNumber: s('accountNumber'),
-          accountNumberConfirm: s('accountNumberConfirm'),
-          ifsc: s('ifsc'),
-          bankName: s('bankName'),
-          branchName: s('branchName'),
-          accountType: v.accountType,
-        },
         documents: docs,
       },
     })
     setBusy(false)
     if (!result.ok) {
-      const flat: Errors = {}
-      for (const [key, value] of Object.entries(result.data.errors ?? {}))
-        flat[key.replace(/^bank\./, '')] = value
-      setErrors(flat)
+      setErrors(result.data.errors ?? {})
       if (!result.data.errors) setMessage(result.data.message ?? 'Your details could not be saved.')
       return
     }
     // Forget what was typed: from here on only the masked view is shown
-    setV({ accountType: 'savings', idChoice: 'aadhaar' })
+    setV({ idChoice: 'aadhaar' })
     setMasked(result.data.kyc)
     setEditing(false)
     onSaved(result.data.completedSteps)
@@ -248,13 +199,14 @@ export const KycStep: React.FC<{
       <Lock />
       <div className="measure grid gap-y-3">
         <p>
-          <strong className="font-medium">Why we ask.</strong> To be sure we are paying the right
-          person, and to keep the records the law asks of us when we pay you.
+          <strong className="font-medium">Why we ask.</strong> To be sure of who you are, and to
+          keep the records the law asks of us when we pay you. We ask for bank details only when one
+          of your works sells, in your account, never by email.
         </p>
         <p>
           <strong className="font-medium">How it is kept.</strong> Your details are encrypted the
           moment they reach us, and documents are encrypted before they are stored. We show them
-          back to you only in part, like the last four digits of your account.
+          back to you only in part, like the last four digits of your Aadhaar.
         </p>
         <p>
           <strong className="font-medium">Who sees them.</strong> Only the few people at PJK who
@@ -283,10 +235,6 @@ export const KycStep: React.FC<{
               <dd>{OTHER_ID_LABEL[masked.otherIdKind]}, to be checked by our team</dd>
             </>
           )}
-          <dt className="label pt-1">Account</dt>
-          <dd className="tracking-wider">
-            {masked.bank.accountMasked}, {masked.bank.bankName}
-          </dd>
           <dt className="label pt-1">Documents</dt>
           <dd>
             {masked.documents.length
@@ -294,12 +242,6 @@ export const KycStep: React.FC<{
               : 'None'}
           </dd>
         </dl>
-        {masked.nameMismatch && (
-          <p className="measure mt-6 text-base italic">
-            The name on the bank account looks different from yours. That is fine if it is a joint
-            account or a shortened name; we will ask you if we need to.
-          </p>
-        )}
         <button
           className="link link-caps mt-8 min-h-11"
           onClick={() => setEditing(true)}
@@ -324,7 +266,7 @@ export const KycStep: React.FC<{
       <Check
         checked={v.consent === true}
         error={errors.consent}
-        label="I agree to PAT and J.K. Co. processing my identity and bank details to verify who I am and to pay me, as the privacy notice describes."
+        label="I agree to PAT and J.K. Co. processing my identity details to verify who I am, as the privacy notice describes."
         name="consent"
         onValue={(c) => set('consent')(c)}
       />
@@ -536,131 +478,6 @@ export const KycStep: React.FC<{
             />
           )}
         </fieldset>
-      </fieldset>
-
-      <fieldset className="mt-14 grid gap-y-8">
-        <legend className="display-sm mb-4">Where we pay you</legend>
-        <TextField
-          autoComplete="off"
-          errors={errors}
-          hint="As the bank has it."
-          label="Account holder’s name"
-          name="holderName"
-          onValue={set('holderName')}
-          value={holder}
-        />
-        {mismatch && (
-          <p className="measure -mt-4 text-base italic" role="status">
-            This name looks different from yours. That is fine for a joint account or a shortened
-            name; otherwise, please check it.
-          </p>
-        )}
-        <div className="grid gap-x-10 gap-y-8 sm:grid-cols-2">
-          <TextField
-            autoComplete="off"
-            errors={errors}
-            inputMode="numeric"
-            label="Account number"
-            name="accountNumber"
-            onValue={(x) => set('accountNumber')(x.replace(/\D/g, ''))}
-            value={s('accountNumber')}
-          />
-          <div>
-            <label className="label mb-1 block" htmlFor="field-accountNumberConfirm">
-              Account number again
-            </label>
-            <p className="muted mb-2 text-base" id="field-accountNumberConfirm-hint">
-              Type it again rather than pasting, to catch a slip.
-            </p>
-            <input
-              aria-describedby={[
-                'field-accountNumberConfirm-hint',
-                errors.accountNumberConfirm && 'field-accountNumberConfirm-error',
-              ]
-                .filter(Boolean)
-                .join(' ')}
-              aria-invalid={errors.accountNumberConfirm ? true : undefined}
-              autoComplete="off"
-              className={fieldClass}
-              id="field-accountNumberConfirm"
-              inputMode="numeric"
-              onChange={(e) => set('accountNumberConfirm')(e.target.value.replace(/\D/g, ''))}
-              onDrop={(e) => e.preventDefault()}
-              onPaste={(e) => e.preventDefault()}
-              value={s('accountNumberConfirm')}
-            />
-            {errors.accountNumberConfirm && (
-              <p
-                className="mt-2 text-base italic text-destructive"
-                id="field-accountNumberConfirm-error"
-              >
-                {errors.accountNumberConfirm}
-              </p>
-            )}
-          </div>
-        </div>
-        <TextField
-          autoCapitalize="characters"
-          autoComplete="off"
-          className="max-w-sm"
-          errors={errors}
-          hint="Eleven characters, on your cheque book or passbook."
-          label="IFSC"
-          maxLength={11}
-          name="ifsc"
-          onBlur={findBranch}
-          onValue={(x) => set('ifsc')(x.toUpperCase())}
-          spellCheck={false}
-          value={s('ifsc')}
-        />
-        {lookup && (
-          <p aria-live="polite" className="muted -mt-4 text-base" role="status">
-            {lookup}
-          </p>
-        )}
-        <div className="grid gap-x-10 gap-y-8 sm:grid-cols-2">
-          <TextField
-            autoComplete="off"
-            errors={errors}
-            label="Bank"
-            name="bankName"
-            onValue={set('bankName')}
-            value={s('bankName')}
-          />
-          <TextField
-            autoComplete="off"
-            errors={errors}
-            label="Branch"
-            name="branchName"
-            onValue={set('branchName')}
-            value={s('branchName')}
-          />
-        </div>
-        <fieldset>
-          <legend className="label mb-2">Account type</legend>
-          {(['savings', 'current'] as const).map((type) => (
-            <label
-              className="mr-8 inline-flex min-h-11 cursor-pointer items-center gap-3"
-              key={type}
-            >
-              <input
-                checked={v.accountType === type}
-                className="size-5 accent-[var(--primary)]"
-                name="accountType"
-                onChange={() => set('accountType')(type)}
-                type="radio"
-              />
-              {type === 'savings' ? 'Savings' : 'Current'}
-            </label>
-          ))}
-        </fieldset>
-        <Upload
-          hint="It helps us check the account quickly."
-          kind="bank-proof"
-          onUploaded={(id) => setDocs((d) => ({ ...d, 'bank-proof': id }))}
-          optional
-          value={docs['bank-proof']}
-        />
       </fieldset>
 
       <div className="mt-14 flex flex-wrap items-center gap-x-8 gap-y-4 border-t border-border pt-8">

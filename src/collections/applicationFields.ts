@@ -193,8 +193,7 @@ export const artistApplicationFields: Field[] = [
       { name: 'accurate', label: 'The information is accurate', type: 'checkbox' },
       {
         name: 'consentProcessing',
-        label:
-          'Consented to identity and bank details being processed for verification and payouts',
+        label: 'Consented to identity details being processed for verification',
         type: 'checkbox',
       },
       { name: 'consentedAt', type: 'date', admin: { date: { pickerAppearance: 'dayAndTime' } } },

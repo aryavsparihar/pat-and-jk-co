@@ -121,7 +121,7 @@ The staff gate now shares this code-checking implementation. Its rules and messa
 but two flaws went with the move: parallel guesses could each be compared before the attempt limit
 applied, and the failure response was a single shared object, which can only be read once.
 
-## Identity and bank details (KYC)
+## Identity and payout details (KYC)
 
 Encrypted field by field under a key kept only in the environment, shown masked, revealed only to
 KYC reviewers with a logged reason, and deleted on a schedule. The whole design, its retention
@@ -165,9 +165,13 @@ Offline Verification Seeking Entity, and that is a decision for the business and
   and every other device is signed out. A pending change is bound to its own code, so a code for
   anything else cannot complete it.
 - A member can see and sign out each of their devices, and only their own.
-- A new bank account is not used until staff approve it. The artist is emailed at once with a
-  **This was not me** link, valid once; it stops the change, signs them out everywhere and tells
-  staff (docs/KYC.md).
+- Bank details are not part of the application. They are asked for only when a sale needs a
+  payout: staff press **Request payout details**, and the email that follows only links to the
+  account, never asks for bank details and never carries any. The artist adds them there after a
+  fresh code; they are never accepted by email.
+- A new bank account is not used until staff approve it, after a ₹1 test transfer. The artist is
+  emailed at once with a **This was not me** link, valid once; it stops it, signs them out
+  everywhere and tells staff (docs/KYC.md#payout-details).
 
 ## Logs
 

@@ -18,9 +18,9 @@ import {
 } from '../helpers/e2e'
 
 /*
- * The member portal in a real browser: an approved artist adds a work, a pending one cannot, a
- * change of bank details is stopped from the email's link, and staff and member sessions share a
- * browser without getting in each other's way.
+ * The member portal in a real browser: an approved artist adds a work, a pending one cannot,
+ * payout details are asked for by staff, added by the artist and stopped from the email's link,
+ * and staff and member sessions share a browser without getting in each other's way.
  */
 
 test.beforeAll(cleanUp)
@@ -72,9 +72,10 @@ test('a pending artist has no portfolio', async ({ page, context }) => {
   expect(api.status()).toBe(403)
 })
 
-test('a bank change waits, and “this was not me” stops it and signs out', async ({
+test('payout details: staff ask, the artist adds them, and “this was not me” stops them', async ({
   page,
   context,
+  browser,
 }) => {
   const p = await payload()
   const { email, member, application } = await artist()
@@ -84,10 +85,10 @@ test('a bank change waits, and “this was not me” stops it and signs out', as
     kind: 'other-id',
     bytes: Buffer.from('%PDF-1.7\n% a made-up passport page\n%%EOF\n'),
   })
-  await saveKyc(p, {
+  // The application's identity details: no bank details there any more
+  const record = await saveKyc(p, {
     member: fresh,
     reference: application.reference,
-    legalName: 'Asha Example',
     input: {
       consent: true,
       pan: 'ABCPE1234F',
@@ -95,32 +96,34 @@ test('a bank change waits, and “this was not me” stops it and signs out', as
       idChoice: 'other',
       otherIdKind: 'passport',
       addressOnIdMatches: true,
-      bank: {
-        holderName: 'Asha Example',
-        accountNumber: '999900004821',
-        accountNumberConfirm: '999900004821',
-        ifsc: 'TEST0000001',
-        bankName: 'Example Bank',
-        branchName: 'Example Branch',
-        accountType: 'savings',
-      },
       documents: { 'other-id': passport.id },
     } as never,
   })
 
+  // A work sells: a reviewer asks for payout details from the KYC record
+  const staff = await browser.newContext()
+  await signInAsStaff(staff)
+  const admin = await staff.newPage()
+  await admin.goto(`/admin/collections/kyc-records/${record.id}`)
+  await admin.getByRole('button', { name: 'Request payout details' }).click()
+  await admin.getByRole('dialog').getByRole('button', { name: 'Send the request' }).click()
+  await expect(admin.getByText(/Sent\. The artist has been asked/)).toBeVisible()
+  await staff.close()
+
+  // The artist adds them in their account, with a fresh code
   await signInAs(context, member.id)
   await page.goto('/account/payouts')
-  await expect(page.getByText('XXXXXXXX4821')).toBeVisible()
-  await page.getByRole('button', { name: 'Change where we pay you' }).click()
+  await expect(page.getByText('We are ready to pay you.', { exact: false })).toBeVisible()
+  await page.getByRole('button', { name: 'Add where we pay you' }).click()
   await page.getByLabel('Code from the email').fill(await knowCode(email, 'step-up'))
   await page.getByLabel('Account holder’s name').fill('Asha Example')
-  await page.getByLabel('Account number', { exact: true }).fill('888800007733')
-  await page.getByLabel('Account number again').pressSequentially('888800007733')
-  await page.getByLabel('IFSC').fill('TEST0000002')
-  await page.getByLabel('Bank', { exact: true }).fill('Other Example Bank')
-  await page.getByLabel('Branch').fill('Main Branch')
-  await page.getByRole('button', { name: 'Send the new details' }).click()
-  await expect(page.getByText(/keep paying into your current account/)).toBeVisible()
+  await page.getByLabel('Account number', { exact: true }).fill('999900004821')
+  await page.getByLabel('Account number again').pressSequentially('999900004821')
+  await page.getByLabel('IFSC').fill('TEST0000001')
+  await page.getByLabel('Bank', { exact: true }).fill('Example Bank')
+  await page.getByLabel('Branch').fill('Example Branch')
+  await page.getByRole('button', { name: 'Send the details' }).click()
+  await expect(page.getByText(/sending ₹1 to it first/)).toBeVisible()
 
   // The email carries a one-time link; the test knows its token by setting it
   const token = 'e2e-made-up-cancel-token-0000000000000000000000'
@@ -134,15 +137,9 @@ test('a bank change waits, and “this was not me” stops it and signs out', as
 
   await page.goto('/account')
   await expect(page).toHaveURL(/\/collaborate\/signin/)
-  const record = (
-    await p.find({
-      collection: 'kyc-records',
-      where: { member: { equals: member.id } },
-      overrideAccess: true,
-    })
-  ).docs[0]!
-  expect(record.pendingBank?.requestedAt ?? null).toBeNull()
-  expect(record.accountMasked).toBe('XXXXXXXX4821')
+  const after = await p.findByID({ collection: 'kyc-records', id: record.id, overrideAccess: true })
+  expect(after.pendingBank?.requestedAt ?? null).toBeNull()
+  expect(after.accountMasked ?? null).toBeNull()
 })
 
 test('a staff session and a member session share a browser', async ({ page, context }) => {
