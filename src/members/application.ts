@@ -97,7 +97,7 @@ export const saveArtistStep = async (
   }
   const name = step as ArtistStep
   if (name === 'kyc') {
-    return { ok: false, status: 400, message: 'Identity and bank details are saved separately.' }
+    return { ok: false, status: 400, message: 'Identity details are saved separately.' }
   }
   const application = await findOwnApplication(payload, member, 'artist', 0)
   if (!application)

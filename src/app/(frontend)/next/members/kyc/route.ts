@@ -24,7 +24,7 @@ import { hitLimit } from '@/security/rateLimit'
 
 export const dynamic = 'force-dynamic'
 
-/** The artist's own identity and bank details, masked: never a full value */
+/** The artist's own identity details (and payout details, once added), masked: never a full value */
 export async function GET(request: Request) {
   const auth = await requireMember(request)
   if (!auth.ok) return auth.response
@@ -109,7 +109,6 @@ export async function POST(request: Request) {
     await saveKyc(payload, {
       member,
       input,
-      legalName: application.about?.legalName,
       reference: application.reference,
     })
   } catch (error) {

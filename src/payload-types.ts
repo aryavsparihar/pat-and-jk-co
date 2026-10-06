@@ -1966,6 +1966,10 @@ export interface KycRecord {
    */
   consentWithdrawnAt?: string | null;
   /**
+   * When the artist was last asked to add payout details, with "Request payout details" above.
+   */
+  payoutRequestedAt?: string | null;
+  /**
    * Kept until this date even if consent is withdrawn, where the law requires it (e.g. records of payments). Changed only with "Legal hold" above, which logs a reason.
    */
   legalHoldUntil?: string | null;
@@ -2052,6 +2056,7 @@ export interface SecurityEvent {
     | 'kyc-bank-change-requested'
     | 'kyc-bank-change-cancelled'
     | 'kyc-bank-change-approved'
+    | 'kyc-payout-details-requested'
     | 'kyc-consent-withdrawn'
     | 'kyc-purged'
     | 'data-request'
@@ -3476,6 +3481,7 @@ export interface KycRecordsSelect<T extends boolean = true> {
       };
   consentedAt?: T;
   consentWithdrawnAt?: T;
+  payoutRequestedAt?: T;
   legalHoldUntil?: T;
   updatedAt?: T;
   createdAt?: T;

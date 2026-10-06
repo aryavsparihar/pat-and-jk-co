@@ -34,6 +34,10 @@ export type KycDocumentKind = (typeof KYC_DOCUMENT_KINDS)[number]
 
 const documentId = z.coerce.number().int().positive().optional()
 
+/**
+ * Where an approved artist is paid. Not part of the application: asked for only when a sale needs
+ * a payout, from the artist's account, after a fresh emailed code (docs/KYC.md#payout-details).
+ */
 export const bankSchema = z
   .object({
     holderName: text(120, 'Please give the name on the account, as the bank has it.'),
@@ -69,6 +73,8 @@ export const bankSchema = z
     { when: () => true },
   )
 
+export type BankInput = z.infer<typeof bankSchema>
+
 /** The identity documents an artist may give instead of Aadhaar, all checked by hand */
 export const OTHER_ID_KINDS = ['passport', 'voter-id', 'driving-licence'] as const
 export type OtherIdKind = (typeof OTHER_ID_KINDS)[number]
@@ -81,11 +87,13 @@ export type OtherIdKind = (typeof OTHER_ID_KINDS)[number]
  *
  * The masked e-Aadhaar's PDF password is optional and travels only with this request: it opens
  * the file in memory for the check (src/kyc/aadhaarCheck.ts) and is never stored or logged.
+ *
+ * No bank details: those are asked for only when a sale needs a payout (bankSchema).
  */
 export const kycSchema = z
   .object({
     consent: z.literal(true, {
-      error: 'We need your consent before we can take your identity and bank details.',
+      error: 'We need your consent before we can take your identity details.',
     }),
     pan: z.string({ error: 'Please give your PAN.' }),
     panName: z.string().optional(),
@@ -96,7 +104,6 @@ export const kycSchema = z
     aadhaarPassword: z.string().max(64).optional(),
     otherIdKind: z.enum(OTHER_ID_KINDS).optional(),
     addressOnIdMatches: z.boolean().optional(),
-    bank: bankSchema,
     documents: z
       .object({
         'pan-card': documentId,

@@ -265,7 +265,7 @@ export const declarationsSchema = z.object({
 })
 
 /**
- * The artist's steps, in order. Identity and bank details (kyc) have their own endpoint and their
+ * The artist's steps, in order. Identity details (kyc) have their own endpoint and their
  * own checks (src/kyc), so the generic step saver refuses that step and its schema here is empty.
  */
 export const ARTIST_STEPS = ['about', 'address', 'practice', 'portfolio', 'kyc', 'review'] as const

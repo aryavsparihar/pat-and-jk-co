@@ -14,7 +14,7 @@ import { hitLimit } from '@/security/rateLimit'
 export const dynamic = 'force-dynamic'
 
 const KINDS = {
-  'withdraw-consent': 'Withdraw consent to process identity and bank details',
+  'withdraw-consent': 'Withdraw consent to process identity and payout details',
   delete: 'Delete my account and my data',
   download: 'Send me a copy of my data',
 } as const

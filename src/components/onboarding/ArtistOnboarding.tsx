@@ -29,7 +29,7 @@ const STEP_TITLES: Record<ArtistStep, { title: string; intro: string }> = {
     intro: 'A small selection of the work you would like us to see.',
   },
   kyc: {
-    title: 'Identity and bank',
+    title: 'Identity',
     intro: 'So that we can be sure of who you are, and pay you.',
   },
   review: { title: 'Review and send', intro: 'Check everything once more, then send it to us.' },
@@ -263,7 +263,6 @@ export const ArtistOnboarding: React.FC<{ formToken: string }> = ({ formToken })
             {header}
             <div className="mt-10">
               <KycStep
-                legalName={values.about?.legalName}
                 onSaved={(done) => {
                   setCompleted(done)
                   go('review')

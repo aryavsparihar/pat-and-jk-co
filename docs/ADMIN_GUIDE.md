@@ -90,28 +90,35 @@ Every decision is recorded under **Administration → Security log**, with your 
 
 **Members → Members** lists everyone who has applied, with their member IDs. To stop someone signing in, set **Standing** to *Suspended*; every device they were signed in on is signed out at once.
 
-### Identity and bank details
+### Identity and payout details
 
-Artists give their PAN, a second ID with their address (a masked e-Aadhaar with its last four digits, or, if they prefer, a passport, voter ID or driving licence) and their bank details as part of their application. You see them under **Members → KYC records**, but only if you are a super admin or have the **KYC reviewer** role (given under **Users**). Editors never see them.
+Artists give their PAN and a second ID with their address (a masked e-Aadhaar with its last four digits, or, if they prefer, a passport, voter ID or driving licence) as part of their application. They do not give bank details then: those are asked for only when a sale needs a payout (below). You see all of these under **Members → KYC records**, but only if you are a super admin or have the **KYC reviewer** role (given under **Users**). Editors never see them.
 
-Everything is shown masked, like `XXXXXXXX4821`. In the record's sidebar:
+Everything is shown masked, like `ABCxxxxx4F`. In the record's sidebar:
 
 - **Reveal full details.** You are asked why. The full values appear for one minute, then disappear. Your name and your reason go in the security log every time, so give a real reason ("Checking the account before the first payment").
 - **Download** a document, again with a reason. It downloads to your computer: delete it when you are done, and never forward it.
 - **Possible duplicates** lists other applications with the same PAN or account. Look before approving.
-- A **name mismatch** means the name on the bank account looks different from the artist's. Often it is a joint account or initials; ask if you are not sure.
+- A **name mismatch** (once payout details are approved) means the name on the bank account looks different from the name on the PAN. Often it is a joint account or initials; ask if you are not sure.
 
-**Before you approve an artist, or mark their details verified**, check each of these:
+**Before you approve an artist**, check each of these:
 
 1. The name on the PAN, and on the masked Aadhaar if given, is the artist's name. Small differences are fine (an initial, a middle name); a different person is not.
-2. The account holder's name matches the artist, or you know why it does not (a joint account, say).
-3. The PAN card, masked Aadhaar and cheque or passbook, if given, show the same details as were typed in.
-4. Nothing under **Possible duplicates**, or you know why.
-5. **The identity document, by hand, whatever the automatic check says.** On the masked e-Aadhaar or the other ID: the name matches the PAN and the application; the date of birth matches "About you"; the photo is of a real person and fits the age; and, for Aadhaar, the last four digits are the ones the artist typed.
-6. **Read the "Identity document" box in the sidebar.** *Verified* means UIDAI's signature and the details all checked out. *Could not verify* gives the reason (a changed file, digits that do not match). *Needs a check by hand* means the check could not finish (a photo or scan, no password); do the checks above with extra care. A passport, voter ID or driving licence is always checked by hand.
-7. **Before the first payout to a new account**, send ₹1 to it and ask the artist to confirm they received it. Do the same after any change of bank account.
+2. The PAN card and masked Aadhaar, if given, show the same details as were typed in.
+3. Nothing under **Possible duplicates**, or you know why.
+4. **The identity document, by hand, whatever the automatic check says.** On the masked e-Aadhaar or the other ID: the name matches the PAN and the application; the date of birth matches "About you"; the photo is of a real person and fits the age; and, for Aadhaar, the last four digits are the ones the artist typed.
+5. **Read the "Identity document" box in the sidebar.** *Verified* means UIDAI's signature and the details all checked out. *Could not verify* gives the reason (a changed file, digits that do not match). *Needs a check by hand* means the check could not finish (a photo or scan, no password); do the checks above with extra care. A passport, voter ID or driving licence is always checked by hand.
 
-**When an artist changes their bank account** after approval, you are emailed. The old account stays in use until you approve the new one: open the record, reveal the details, check them against the documents (a cancelled cheque or passbook helps), and press **Approve the new details**. If the artist says the change was not theirs, they can stop it from their email; you are told, and they are signed out everywhere. Call them before doing anything else.
+**Payout details, when a work sells.** Open the artist's KYC record and press **Request payout details**. The artist is emailed a link to their account, where they add the account themselves after a code we email them; the email never asks for bank details and never contains any. The date you asked shows on the record, and you can ask again if needed. When they have added the details, you are emailed. Then:
+
+1. Reveal the details (reason: "Checking the account before the first payment").
+2. The account holder's name matches the artist, or you know why it does not (a joint account, say).
+3. **Send ₹1 to the account and ask the artist to confirm it arrived.**
+4. Press **Approve the details**. Only now are payments made to this account.
+
+**Never accept bank details by email**, by WhatsApp, on the phone, or in any way but the artist's own account. If someone sends them, do not use them, do not forward them, and delete the message; reply asking them to add the details in their account. Someone asking you to pay into an account by email is the commonest way to steal a payment.
+
+**When an artist changes their bank account** later, it works the same way: you are emailed, the old account stays in use until you approve the new one, and you send ₹1 to the new one first. If the artist says the change was not theirs, they can stop it from their email; you are told, and they are signed out everywhere. Call them before doing anything else.
 
 **Consent and legal hold.** The dates in the sidebar cannot be edited. If an artist withdraws consent by letter or email rather than from their account, press **Record a withdrawal** and say how and when it reached you. If we must keep a record for longer (payment records for tax, say), press **Set a legal hold**, give the date, and say why; the same button changes or lifts it. Both go in the security log with your name and reason.
 

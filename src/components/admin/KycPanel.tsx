@@ -29,8 +29,8 @@ const KIND_LABELS: Record<string, string> = {
 }
 
 /**
- * The KYC record's sidebar: reveal the full values, open the documents, approve a change of bank
- * details. Every reveal and every document asks for a reason, which the server records. Revealed
+ * The KYC record's sidebar: reveal the full values, open the documents, ask an approved artist
+ * for payout details when a sale needs one, and approve payout details once checked. Every reveal and every document asks for a reason, which the server records. Revealed
  * values are held only in this component's memory and wiped after a minute, or when the page is
  * left; nothing is written to storage, and the responses are never cached.
  */
@@ -46,6 +46,12 @@ export const KycPanel: React.FC = () => {
     ([fields]) => fields.consentWithdrawnAt?.value as string | undefined,
   )
   const holdUntil = useFormFields(([fields]) => fields.legalHoldUntil?.value as string | undefined)
+  const accountMasked = useFormFields(
+    ([fields]) => fields.accountMasked?.value as string | undefined,
+  )
+  const payoutAskedAt = useFormFields(
+    ([fields]) => fields.payoutRequestedAt?.value as string | undefined,
+  )
   const idChoice = useFormFields(([fields]) => fields.idChoice?.value as string | undefined)
   const check = useFormFields(([fields]) => ({
     result: fields['aadhaarCheck.result']?.value as string | undefined,
@@ -174,9 +180,9 @@ export const KycPanel: React.FC = () => {
 
   const approve = async () => {
     const answer = await askDialog({
-      title: 'Approve the new bank details?',
+      title: 'Approve these payout details?',
       description:
-        'Check them against the documents first. Payments go to the new account from now on.',
+        'Only after the ₹1 test: send ₹1 to the account and have the artist confirm it arrived. Payments go to this account from now on.',
       confirmLabel: 'Approve',
     })
     if (!answer) return
@@ -191,8 +197,24 @@ export const KycPanel: React.FC = () => {
     setBusy(false)
     if (!response.ok) return setMessage(body.message ?? 'The change could not be approved.')
     hide()
-    setMessage('Approved. The new bank details are now in force.')
+    setMessage('Approved. Payments now go to this account.')
     router.refresh()
+  }
+
+  /** Emails the artist a link to add payout details in their account; never the details */
+  const requestPayout = async () => {
+    const answer = await askDialog({
+      title: 'Ask for payout details?',
+      description:
+        'We email the artist a link to their account, where they add the details after a fresh code. The email never asks for bank details. If anyone sends bank details by email, do not use them: ask them to add the details in their account.',
+      confirmLabel: 'Send the request',
+    })
+    if (!answer) return
+    await act(
+      'request-payout-details',
+      {},
+      'Sent. The artist has been asked to add payout details in their account.',
+    )
   }
 
   /** A logged staff action on the record: POST with a reason, then reload the record */
@@ -353,14 +375,35 @@ export const KycPanel: React.FC = () => {
         </>
       )}
 
+      <p className="field-label" style={{ marginTop: 'var(--base)' }}>
+        Payout details
+      </p>
+      {!pendingSince && !accountMasked && (
+        <>
+          <p>
+            None yet: they are asked for only when a sale needs a payout.
+            {payoutAskedAt &&
+              ` Last asked for on ${new Date(payoutAskedAt).toLocaleDateString('en-IN')}.`}
+          </p>
+          <button
+            className="btn btn--style-secondary btn--size-small"
+            disabled={busy}
+            onClick={requestPayout}
+            type="button"
+          >
+            {payoutAskedAt ? 'Ask again for payout details' : 'Request payout details'}
+          </button>
+        </>
+      )}
+      {!pendingSince && accountMasked && (
+        <p>On file: {accountMasked}. The artist changes them from their account; never by email.</p>
+      )}
       {pendingSince && (
         <>
-          <p className="field-label" style={{ marginTop: 'var(--base)' }}>
-            Change of bank details
-          </p>
           <p>
-            Asked for on {new Date(pendingSince).toLocaleDateString('en-IN')}. Reveal the details to
-            check the new account, then approve.
+            {accountMasked ? 'A change' : 'New details'} sent on{' '}
+            {new Date(pendingSince).toLocaleDateString('en-IN')}. Reveal them, send ₹1 to the
+            account, and approve once the artist confirms it arrived.
           </p>
           <button
             className="btn btn--style-primary btn--size-small"
@@ -368,7 +411,7 @@ export const KycPanel: React.FC = () => {
             onClick={approve}
             type="button"
           >
-            Approve the new details
+            Approve the details
           </button>
         </>
       )}

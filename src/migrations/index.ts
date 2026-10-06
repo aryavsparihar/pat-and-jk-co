@@ -20,6 +20,7 @@ import * as migration_20261003_072617_kyc_identity_choice from './20261003_07261
 import * as migration_20261003_074020_member_portal from './20261003_074020_member_portal';
 import * as migration_20261004_090000_collaborate_ways_in from './20261004_090000_collaborate_ways_in';
 import * as migration_20261004_100000_payload_3_90 from './20261004_100000_payload_3_90';
+import * as migration_20261006_121931_payout_details_on_sale from './20261006_121931_payout_details_on_sale';
 
 export const migrations = [
   {
@@ -120,16 +121,21 @@ export const migrations = [
   {
     up: migration_20261003_074020_member_portal.up,
     down: migration_20261003_074020_member_portal.down,
-    name: '20261003_074020_member_portal'
+    name: '20261003_074020_member_portal',
   },
   {
     up: migration_20261004_090000_collaborate_ways_in.up,
     down: migration_20261004_090000_collaborate_ways_in.down,
-    name: '20261004_090000_collaborate_ways_in'
+    name: '20261004_090000_collaborate_ways_in',
   },
   {
     up: migration_20261004_100000_payload_3_90.up,
     down: migration_20261004_100000_payload_3_90.down,
-    name: '20261004_100000_payload_3_90'
+    name: '20261004_100000_payload_3_90',
+  },
+  {
+    up: migration_20261006_121931_payout_details_on_sale.up,
+    down: migration_20261006_121931_payout_details_on_sale.down,
+    name: '20261006_121931_payout_details_on_sale'
   },
 ];

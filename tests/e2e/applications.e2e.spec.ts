@@ -51,12 +51,8 @@ const fillKycOtherId = async (page: import('@playwright/test').Page) => {
   })
   await expect(page.getByText('Received, and encrypted.')).toBeVisible()
   await page.getByLabel('Yes', { exact: true }).check()
-  await page.getByLabel('Account holder’s name').fill('Asha Example')
-  await page.getByLabel('Account number', { exact: true }).fill('999900004821')
-  await page.getByLabel('Account number again').pressSequentially('999900004821')
-  await page.getByLabel('IFSC').fill('TEST0000001')
-  await page.getByLabel('Bank', { exact: true }).fill('Example Bank')
-  await page.getByLabel('Branch').fill('Example Branch')
+  // No bank details: those are asked for only when a sale needs a payout
+  await expect(page.getByLabel('Account number', { exact: true })).toHaveCount(0)
 }
 
 test('an artist applies step by step, stops halfway, and comes back', async ({ page, context }) => {
@@ -123,8 +119,8 @@ test('an artist applies step by step, stops halfway, and comes back', async ({ p
   }
   await page.getByRole('button', { name: 'Save and continue' }).click()
 
-  // Identity and bank: the other-ID path
-  await expect(page.getByRole('heading', { name: 'Identity and bank' })).toBeVisible()
+  // Identity: the other-ID path
+  await expect(page.getByRole('heading', { name: 'Identity', exact: true })).toBeVisible()
   await fillKycOtherId(page)
   await page.getByRole('button', { name: 'Save and continue' }).click()
 
@@ -133,7 +129,7 @@ test('an artist applies step by step, stops halfway, and comes back', async ({ p
   await expect(page.getByText('ABCxxxxx4F')).toBeVisible()
   await page.getByLabel(/my own original work/).check()
   await page.getByLabel(/information I have given is accurate/).check()
-  await page.getByLabel(/processing my identity and bank details to verify who I/).check()
+  await page.getByLabel(/processing my identity details to verify who I am, and/).check()
   await page.getByRole('button', { name: 'Send my application' }).click()
   await expect(
     page.getByRole('heading', { name: 'Thank you. We have your application.' }),
@@ -159,7 +155,7 @@ test('PAN is required, and a masked e-Aadhaar goes through the check', async ({ 
   await expect(page.getByRole('heading', { name: 'About you' })).toBeVisible()
   await fillEarlySteps(page)
   await page.reload()
-  await expect(page.getByRole('heading', { name: 'Identity and bank' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Identity', exact: true })).toBeVisible()
 
   // Without a PAN, nothing is saved
   await page.getByLabel(/I agree to PAT and J\.K\. Co\. processing/).check()
@@ -181,12 +177,6 @@ test('PAN is required, and a masked e-Aadhaar goes through the check', async ({ 
   await page.getByLabel('Last four digits of your Aadhaar').fill('4821')
   await page.getByLabel('The PDF’s password').fill('ASHA1990')
   await page.getByLabel('Yes', { exact: true }).check()
-  await page.getByLabel('Account holder’s name').fill('Asha Example')
-  await page.getByLabel('Account number', { exact: true }).fill('999900004821')
-  await page.getByLabel('Account number again').pressSequentially('999900004821')
-  await page.getByLabel('IFSC').fill('TEST0000001')
-  await page.getByLabel('Bank', { exact: true }).fill('Example Bank')
-  await page.getByLabel('Branch').fill('Example Branch')
   await page.getByRole('button', { name: 'Save and continue' }).click()
   await expect(page.getByRole('heading', { name: 'Review and send' })).toBeVisible()
   await expect(page.getByText('XXXX XXXX 4821')).toBeVisible()

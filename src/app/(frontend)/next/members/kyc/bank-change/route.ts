@@ -17,9 +17,10 @@ import { logSecurityEvent } from '@/security/events'
 export const dynamic = 'force-dynamic'
 
 /**
- * A change of bank details after approval: the most common target of account takeover, so it
- * needs a fresh code (step-up) even inside a session, is held until staff re-verify it while the
- * old details stay in force, and is announced by email with a way to stop it.
+ * Payout details, added or changed after approval: the most common target of account takeover,
+ * so they need a fresh code (step-up) even inside a session, are held until staff check them (a
+ * ₹1 test transfer) while any old details stay in force, and are announced by email with a way to
+ * stop them. This is the only way bank details reach us: never by email.
  */
 export async function POST(request: Request) {
   if (!fromOurOrigin(request)) return refuseCrossSite()
@@ -30,7 +31,7 @@ export async function POST(request: Request) {
 
   if (!member.artistId) {
     return reply(
-      { message: 'Bank details are changed here once you are an approved artist.' },
+      { message: 'Payout details are added here once you are an approved artist.' },
       { status: 409 },
     )
   }
@@ -63,9 +64,12 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { record, cancelToken } = await requestBankChange(payload, { member, bank: parsed.data })
-    await sendBankChangeNotice(payload, { member, cancelToken })
-    await notifyStaffOfBankChange(payload, { reference: record.reference })
+    const { record, cancelToken, first } = await requestBankChange(payload, {
+      member,
+      bank: parsed.data,
+    })
+    await sendBankChangeNotice(payload, { member, cancelToken, first })
+    await notifyStaffOfBankChange(payload, { reference: record.reference, first })
     return withRefresh(reply({ ok: true }), auth.refresh)
   } catch (error) {
     if (error instanceof KycError)

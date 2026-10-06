@@ -25,16 +25,18 @@ export const goodKyc = (documents: Record<string, number> = {}) => ({
   idChoice: 'other',
   otherIdKind: 'passport',
   addressOnIdMatches: true,
-  bank: {
-    holderName: FAKE.holderName,
-    accountNumber: FAKE.account,
-    accountNumberConfirm: FAKE.account,
-    ifsc: FAKE.ifsc,
-    bankName: 'Example Bank',
-    branchName: 'Example Branch',
-    accountType: 'savings',
-  },
   documents,
+})
+
+/** Payout details, as an approved artist adds them from their account; never with the application */
+export const goodBank = (account: string = FAKE.account) => ({
+  holderName: FAKE.holderName,
+  accountNumber: account,
+  accountNumberConfirm: account,
+  ifsc: FAKE.ifsc,
+  bankName: 'Example Bank',
+  branchName: 'Example Branch',
+  accountType: 'savings' as const,
 })
 
 /** Removes the KYC of every member whose email matches, files included */

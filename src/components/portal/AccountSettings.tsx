@@ -203,9 +203,9 @@ const REQUESTS = [
   },
   {
     kind: 'withdraw-consent',
-    label: 'Withdraw consent to my identity and bank details',
+    label: 'Withdraw consent to my identity and payout details',
     confirm:
-      'Withdraw consent? We stop using your identity and bank details, and delete them unless the law makes us keep them. We cannot pay you without them.',
+      'Withdraw consent? We stop using your identity and payout details, and delete them unless the law makes us keep them. We cannot pay you without them.',
   },
   {
     kind: 'delete',
