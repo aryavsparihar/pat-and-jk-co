@@ -1,6 +1,7 @@
 'use client'
 
-import { useTurnstile } from '@/components/turnstile/useTurnstile'
+import { BotCheckHelp } from '@/components/turnstile/BotCheckHelp'
+import { type BotCheckProblem, useTurnstile } from '@/components/turnstile/useTurnstile'
 import { TURNSTILE_FIELD } from '@/security/turnstile'
 import { HONEYPOT_FIELD } from '@/utilities/honeypot'
 import React, { useEffect, useRef, useState } from 'react'
@@ -48,6 +49,7 @@ export const CodeSignIn: React.FC<{
   const [resendIn, setResendIn] = useState(0)
   const codeRef = useRef<HTMLInputElement>(null)
   const bot = useTurnstile(purpose)
+  const [botProblem, setBotProblem] = useState<BotCheckProblem | null>(null)
 
   useEffect(() => {
     if (resendIn <= 0) return
@@ -59,11 +61,27 @@ export const CodeSignIn: React.FC<{
     event?.preventDefault()
     setBusy(true)
     setError(null)
+    setBotProblem(null)
+    // Without the check nothing is sent: the person is told why and what to do
     const human = await bot.getToken()
-    const result = await api<{ challengeId: number }>('/next/members/request-code', {
-      body: { email, purpose, formToken, [HONEYPOT_FIELD]: honeypot, [TURNSTILE_FIELD]: human },
-    })
+    if (human.problem) {
+      setBusy(false)
+      return setBotProblem(human.problem)
+    }
+    const result = await api<{ challengeId: number; retryCheck?: boolean }>(
+      '/next/members/request-code',
+      {
+        body: {
+          email,
+          purpose,
+          formToken,
+          [HONEYPOT_FIELD]: honeypot,
+          [TURNSTILE_FIELD]: human.token,
+        },
+      },
+    )
     setBusy(false)
+    if (!result.ok && result.data.retryCheck) return setBotProblem('failed')
     if (!result.ok)
       return setError(result.data.message ?? 'Something went wrong. Please try again.')
     setChallengeId(result.data.challengeId ?? null)
@@ -197,6 +215,7 @@ export const CodeSignIn: React.FC<{
   return (
     <>
       {form}
+      {botProblem && <BotCheckHelp problem={botProblem} />}
       {bot.element}
     </>
   )

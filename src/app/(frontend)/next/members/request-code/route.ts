@@ -17,7 +17,12 @@ import {
 } from '@/security/constants'
 import { logSecurityEvent } from '@/security/events'
 import { hitLimits } from '@/security/rateLimit'
-import { TURNSTILE_FIELD, type TurnstileAction, verifyTurnstile } from '@/security/turnstile'
+import {
+  TURNSTILE_FIELD,
+  TURNSTILE_REFUSED,
+  type TurnstileAction,
+  verifyTurnstile,
+} from '@/security/turnstile'
 
 export const dynamic = 'force-dynamic'
 
@@ -69,7 +74,7 @@ export async function POST(request: Request) {
     payload.logger.warn(`Code request refused by the bot check (${purpose}): ${human.reason}`)
     return reply(
       {
-        message: 'We could not confirm this came from a person. Please try again.',
+        message: TURNSTILE_REFUSED,
         retryCheck: true,
       },
       { status: 400 },

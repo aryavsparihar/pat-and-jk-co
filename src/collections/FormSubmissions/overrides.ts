@@ -6,7 +6,7 @@ import { getTenantAccess } from '@payloadcms/plugin-multi-tenant/utilities'
 import { isStaff, isSuperAdmin } from '@/access/roles'
 import { clientIp } from '@/security/constants'
 import { hitLimit } from '@/security/rateLimit'
-import { TURNSTILE_FIELD, verifyTurnstile } from '@/security/turnstile'
+import { TURNSTILE_FIELD, TURNSTILE_REFUSED, verifyTurnstile } from '@/security/turnstile'
 import { HONEYPOT_FIELD } from '@/utilities/honeypot'
 
 const MAX_FIELDS = 30
@@ -38,7 +38,7 @@ export const protectSubmission: CollectionBeforeChangeHook = async ({ data, oper
     const human = await verifyTurnstile(token, 'contact')
     if (!human.ok) {
       req.payload.logger.warn(`Form submission refused by the bot check: ${human.reason}`)
-      throw publicError('We could not confirm this came from a person. Please try again.', 400)
+      throw publicError(TURNSTILE_REFUSED, 400)
     }
     if (human.note) req.payload.logger.warn(`Bot check skipped (form): ${human.note}`)
 
