@@ -67,6 +67,8 @@ The page with the slug **`home`** is the homepage. The **SEO** tab sets the titl
 
 **Opening** (sidebar) is for a venture that has been announced but has not opened yet. Fill in the date and, if you like, the occasion — "in celebration of Diwali" — and the notice appears under the mark, in the ventures index and beside the venture on the homepage. It takes itself down the day after the date, so nobody has to remember to.
 
+**Theme** (sidebar) sets how the venture's row on the ventures index and its own page look. Leave it empty for PJK's own style. **Phulhaar** gives Phulhaar Gallery its cream ground, its garland and its colours on both, and a "For artists" link on its page that leads to the artist application. Other brands can be given their own theme as they grow; ask the developer.
+
 ## People, openings
 
 - **Group → People** — name, role, portrait, bio. Shown by the People grid block.

@@ -2,6 +2,7 @@ import type { CollectionConfig } from 'payload'
 
 import { authenticated } from '../access/authenticated'
 import { authenticatedOrPublished } from '../access/authenticatedOrPublished'
+import { VENTURE_THEME_OPTIONS } from '../brands/themes'
 import { bodyLexical } from '../fields/defaultLexical'
 import { seoTab } from '../fields/seo'
 import { tenantSlugField } from '../fields/slug'
@@ -151,6 +152,18 @@ export const Ventures: CollectionConfig<'ventures'> = {
       admin: {
         position: 'sidebar',
         description: '"Coming soon" ventures appear as teaser cards without their own page.',
+      },
+    },
+    {
+      name: 'theme',
+      label: 'Theme',
+      type: 'select',
+      // No default: empty means PJK's own style, so a new brand's look is always a choice made
+      options: [...VENTURE_THEME_OPTIONS],
+      admin: {
+        position: 'sidebar',
+        description:
+          'How this venture’s row on the ventures index and its own page look. Empty means PJK’s style.',
       },
     },
     {

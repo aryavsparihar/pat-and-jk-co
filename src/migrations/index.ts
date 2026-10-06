@@ -21,6 +21,8 @@ import * as migration_20261003_074020_member_portal from './20261003_074020_memb
 import * as migration_20261004_090000_collaborate_ways_in from './20261004_090000_collaborate_ways_in';
 import * as migration_20261004_100000_payload_3_90 from './20261004_100000_payload_3_90';
 import * as migration_20261006_121931_payout_details_on_sale from './20261006_121931_payout_details_on_sale';
+import * as migration_20261006_153522_venture_theme from './20261006_153522_venture_theme';
+import * as migration_20261006_153600_phulhaar_venture_theme from './20261006_153600_phulhaar_venture_theme';
 
 export const migrations = [
   {
@@ -136,6 +138,16 @@ export const migrations = [
   {
     up: migration_20261006_121931_payout_details_on_sale.up,
     down: migration_20261006_121931_payout_details_on_sale.down,
-    name: '20261006_121931_payout_details_on_sale'
+    name: '20261006_121931_payout_details_on_sale',
+  },
+  {
+    up: migration_20261006_153522_venture_theme.up,
+    down: migration_20261006_153522_venture_theme.down,
+    name: '20261006_153522_venture_theme',
+  },
+  {
+    up: migration_20261006_153600_phulhaar_venture_theme.up,
+    down: migration_20261006_153600_phulhaar_venture_theme.down,
+    name: '20261006_153600_phulhaar_venture_theme',
   },
 ];

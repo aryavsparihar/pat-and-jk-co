@@ -96,7 +96,7 @@
 }
 
 /* Marcellus has no italic: emphasis keeps Cormorant's true italic rather than a faked slant */
-.phulhaar[data-display='marcellus'] :is(.display-lg, .display-md, .display-sm) :is(em, i) {
+.phulhaar[data-display='marcellus'] :is(.display-xl, .display-lg, .display-md, .display-sm) :is(em, i) {
   font-family: var(--font-display);
   letter-spacing: 0;
 }
@@ -115,9 +115,32 @@
 }
 
 /* The optional display face, chosen per page (docs/BRANDS.md#type) */
-.phulhaar[data-display='marcellus'] :is(.display-lg, .display-md, .display-sm) {
+.phulhaar[data-display='marcellus'] :is(.display-xl, .display-lg, .display-md, .display-sm) {
   font-family: var(--font-marcellus), var(--font-display);
   letter-spacing: 0.01em;
+}
+
+/*
+ * A venture in Phulhaar's theme (Ventures → Theme; src/brands/themes.ts). The mark sits on the
+ * cream it is drawn for, never on a darker paper (rule 1); links lean on the monogram's magenta;
+ * the gold rule is the gradient under the wordmark, used as decoration only.
+ */
+.phulhaar .plate-paper {
+  background: var(--background);
+}
+.phulhaar .row-arrow {
+  color: var(--accent);
+}
+.phulhaar .row-link .row-title {
+  text-decoration-color: color-mix(in oklab, var(--accent) 45%, transparent);
+}
+.phulhaar .row-link:hover .row-title,
+.phulhaar .row-link:focus-visible .row-title {
+  text-decoration-color: var(--accent);
+}
+.phulhaar-rule {
+  height: 2px;
+  background: linear-gradient(90deg, #ed9f13, #d68f0b);
 }
 
 /* The garland breathes: a very slight, slow scale and fade, never per petal (docs/BRANDS.md, rule 7) */
