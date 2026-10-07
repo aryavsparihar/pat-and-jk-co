@@ -177,12 +177,19 @@ describe('member IDs and application references', () => {
   })
 
   it('gives applications random references people can read aloud', () => {
-    const refs = new Set(Array.from({ length: 500 }, newApplicationReference))
+    const refs = new Set(
+      Array.from({ length: 500 }, (_, i) => newApplicationReference(i % 2 ? 'artist' : 'partner')),
+    )
     expect(refs.size).toBe(500)
     for (const ref of refs) {
       expect(ref).toMatch(APPLICATION_REFERENCE_PATTERN)
-      expect(ref.slice(4)).not.toMatch(/[01ILOUV]/)
+      expect(ref.split('-')[1]).not.toMatch(/[01ILOUV]/)
     }
+    // The kind is in the reference: A- for an artist, PT- for a partner
+    expect(newApplicationReference('artist')).toMatch(/^A-/)
+    expect(newApplicationReference('partner')).toMatch(/^PT-/)
+    // References given before October 2026 are still valid
+    expect('APP-7K3Q9X').toMatch(APPLICATION_REFERENCE_PATTERN)
   })
 })
 
@@ -687,7 +694,7 @@ describe('approval and member IDs', () => {
       payload.create({
         collection: 'applications',
         data: {
-          reference: newApplicationReference(),
+          reference: newApplicationReference('partner'),
           member: both.id,
           type: 'partner',
           stage: 'draft',

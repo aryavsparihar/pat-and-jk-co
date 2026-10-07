@@ -15,6 +15,7 @@ The code is in `src/kyc/`; nothing else touches a key.
 | A second ID, with an address | **Required.** By default a **masked e-Aadhaar** (the PDF UIDAI issues with the first eight digits hidden) with its last four digits. As an equal choice, with no extra steps: **"I'd rather use another ID"**, a passport, voter ID or driving licence, checked by hand | Aadhaar: last four encrypted, plus `XXXX XXXX 1234`. Either way, the document as an encrypted file. Other ID numbers are not asked for |
 | The masked e-Aadhaar PDF's password | Optional. Opens the PDF once, in memory, for the check below | **Never stored or logged** |
 | Proof of address | Only if the ID shows an address other than the one given | Encrypted file |
+| Identity photo | **Required.** A photo of the artist holding a paper on which they have written their identity code (given on screen, e.g. `K7Q-4MX`) and their full name. Proves a real person is applying, and that it is them | Encrypted file, re-encoded so camera and location data are gone. The code is kept, unencrypted, on the application and the KYC record, so reviewers can compare. **[confirm with counsel: collecting face photographs]** |
 | Account holder's name, account number, IFSC, branch | **Only when a sale needs a payout**, added by the artist in their account ([Payout details](#payout-details)) | Encrypted, plus `XXXXXXXX1234` and `SBIN0xxxxxx` |
 | Bank name, account type | With the payout details | Plain text: neither identifies anyone |
 | Cancelled cheque or passbook | No longer asked for; ones given before are kept as they were | Encrypted file |
@@ -27,6 +28,12 @@ second ID was required may have none; such an application cannot be sent until t
 is added. The full Aadhaar number is never accepted, anywhere: the form asks for four digits, the server
 refuses twelve with a message that does not repeat them, and the logs would redact them anyway.
 Why, in [SECURITY.md](SECURITY.md#aadhaar).
+
+**The identity code** is six characters from the unambiguous alphabet (no 0/O, 1/I/L, U/V), given
+the first time the identity step is opened and never changed, so a photo taken earlier still
+matches (`newIdentityCode` in `src/members/ids.ts`). It is not a secret: it only shows the photo
+was taken for this application. Records saved before the photo was asked for cannot be sent until
+it is added.
 
 Rules the form and the server share (`src/kyc/values.ts`, `src/kyc/schema.ts`): a PAN is
 `^[A-Z]{5}[0-9]{4}[A-Z]$` with **P** as its fourth character (a person; a company's PAN is refused);

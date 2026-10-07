@@ -30,8 +30,13 @@ and to work with you if we approve it.
 **Identity details (artists).** Your PAN and the name on it, which we ask of every artist. A second
 ID showing your address: a masked e-Aadhaar with its last four digits, or, if you would rather, a
 passport, voter ID or driving licence. A proof of address if that address differs from the one you
-gave. To be sure of who you are, and to keep the records the law requires when we pay you. We ask
-for your separate consent to this, and we use these details for nothing else.
+gave. A photo of you holding a paper on which you have written a code we give you and your full
+name, so we know a real person is applying and that it is you. **[confirm with counsel: collecting
+face photographs]** To be sure of who you are, and to keep the records the law requires when we pay
+you. We ask for your separate consent to this, and we use these details for nothing else.
+
+**Your agreement to our terms (artists).** When you send your application we keep a record that you
+agreed to our Terms & Conditions, what you typed to confirm it, when, and which version.
 
 **Payout details (artists we work with).** Your bank account: the account holder's name, the
 account number, the IFSC and the branch. We collect these only when a sale needs a payout, not
@@ -63,6 +68,7 @@ We use these service providers, who process data for us and only on our instruct
 | Neon | The database | Singapore |
 | Resend | Sending email | United States |
 | Cloudflare (Turnstile) | Telling people from automated programs when a form is sent: it sees your IP address and details of your browser and device, not what you type | United States, and wherever their nearest server is |
+| India Post (api.postalpincode.in) | Filling in your town, district and state from your PIN code: it is sent the PIN code only, by our server, never anything else | India |
 
 Some of your data is therefore stored outside India. **[confirm with counsel: any restriction
 notified under section 16 of the DPDP Act]**

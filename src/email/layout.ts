@@ -2,8 +2,9 @@ import type { EmailFooter } from './footer'
 
 /**
  * The look of every member email: the site's letterhead in miniature. Ink on warm ivory, a
- * serif face (Georgia, since mail clients do not load web fonts), the company's name in spaced
- * capitals at the top, the registered office at the foot. Tables and inline styles only, because
+ * serif face (Georgia, since mail clients do not load web fonts), the PJK logo at the top (a PNG:
+ * mail clients do not show SVG; the company's name stands in where images are blocked), the
+ * registered office at the foot. Tables and inline styles only, because
  * that is what email clients reliably render.
  *
  * Every message is built twice, as HTML and as plain text, from the same parts. All text is
@@ -16,6 +17,12 @@ const MUTED = '#5f6660'
 const PAPER = '#f6f3ec'
 const RULE = '#d9d4c7'
 const SERIF = "Georgia,'Times New Roman',serif"
+
+/**
+ * The logo, from the live site rather than a preview (which sits behind a login, so the image
+ * would not load in an inbox). 180 x 87 shown; the file is twice that for sharp screens.
+ */
+const LOGO_URL = `${(process.env.NEXT_PUBLIC_SERVER_URL || 'https://pjk.co.in').replace(/\/$/, '')}/brand/pjk-logo-email.png`
 
 export const escapeHtml = (value: string) =>
   value.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)
@@ -78,7 +85,7 @@ export const buildEmail = ({
 <span style="display:none;max-height:0;overflow:hidden;opacity:0">${escapeHtml(preheader)}</span>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${PAPER}"><tr><td align="center" style="padding:40px 20px">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px">
-<tr><td style="padding:0 0 28px;border-bottom:1px solid ${RULE};font-family:${SERIF};font-size:13px;letter-spacing:0.22em;text-transform:uppercase;color:${GREEN}">${escapeHtml(brand)}</td></tr>
+<tr><td align="left" style="padding:0 0 24px;border-bottom:1px solid ${RULE};font-family:${SERIF};font-size:13px;letter-spacing:0.22em;text-transform:uppercase;color:${GREEN}"><img src="${LOGO_URL}" width="180" height="87" alt="${escapeHtml(brand)}" style="display:block;border:0;outline:none;text-decoration:none;width:180px;height:auto;max-width:100%" /></td></tr>
 <tr><td style="padding:32px 0 0">
 ${parts.map(htmlPart).join('\n')}
 ${footer.html}

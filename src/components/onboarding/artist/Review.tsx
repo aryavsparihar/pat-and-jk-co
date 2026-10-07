@@ -5,7 +5,7 @@ import React, { useEffect, useState } from 'react'
 import { LANGUAGES, MEDIUMS, PRICE_RANGES } from '@/members/forms/schemas'
 
 import { api } from '../api'
-import { Check } from '../fields'
+import { Check, TextField } from '../fields'
 import type { StepProps, Values } from './steps'
 
 type Section = { step: string; title: string; rows: [string, React.ReactNode][] }
@@ -34,8 +34,13 @@ const addressLine = (a: Values | undefined) =>
  * and how to take it back, as the Digital Personal Data Protection Act asks.
  */
 export const ReviewStep: React.FC<
-  StepProps & { all: Record<string, Values>; onEdit: (step: string) => void }
-> = ({ values, set, errors, all, onEdit }) => {
+  StepProps & {
+    all: Record<string, Values>
+    onEdit: (step: string) => void
+    /** The Terms & Conditions to agree to, while they are published in Site settings */
+    terms?: { url: string; filename: string } | null
+  }
+> = ({ values, set, errors, all, onEdit, terms }) => {
   const about = all.about ?? {}
   const address = all.address ?? {}
   const practice = all.practice ?? {}
@@ -179,10 +184,10 @@ export const ReviewStep: React.FC<
             error={errors.consentProcessing}
             label={
               <>
-                I agree to PAT and J.K. Co. processing my identity details to verify who I am, and
-                for nothing else. They are kept encrypted, seen only by the few people at PJK who
-                verify them, and kept no longer than the privacy notice says. I can withdraw this
-                consent at any time by writing to us. Read the{' '}
+                I agree to PAT and J.K. Co. processing my identity details, including a photo of me,
+                to verify who I am, and for nothing else. They are kept encrypted, seen only by the
+                few people at PJK who verify them, and kept no longer than the privacy notice says.
+                I can withdraw this consent at any time by writing to us. Read the{' '}
                 <a className="link" href="/privacy" rel="noopener" target="_blank">
                   privacy notice
                   <span className="sr-only"> (opens in a new tab)</span>
@@ -195,6 +200,42 @@ export const ReviewStep: React.FC<
           />
         </div>
       </fieldset>
+
+      {terms && (
+        <fieldset className="mt-12 border-t border-border pt-10">
+          <legend className="display-sm mb-4">Terms and conditions</legend>
+          <p className="measure">
+            Please read the terms on which we work with artists before you send your application.
+          </p>
+          <p className="mt-4">
+            <a className="link link-caps" href={terms.url} rel="noopener" target="_blank">
+              Read the Terms & Conditions (PDF)
+              <span className="sr-only"> (opens in a new tab)</span>
+            </a>
+          </p>
+          <div className="mt-8 grid gap-y-8">
+            <Check
+              checked={Boolean(values.agreeTerms)}
+              error={errors.agreeTerms}
+              label="I have read the Terms & Conditions and I agree to them."
+              name="agreeTerms"
+              onValue={(v) => set('agreeTerms', v)}
+            />
+            <TextField
+              autoCapitalize="characters"
+              autoComplete="off"
+              className="max-w-xs"
+              errors={errors}
+              hint="Type the words I AGREE, to confirm."
+              label="Type I AGREE"
+              name="agreeTyped"
+              onValue={(v) => set('agreeTyped', v)}
+              spellCheck={false}
+              value={values.agreeTyped}
+            />
+          </div>
+        </fieldset>
+      )}
     </div>
   )
 }

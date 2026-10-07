@@ -6,6 +6,7 @@ import { PhulhaarClosed } from '@/components/phulhaar/PhulhaarClosed'
 import { PhulhaarPage } from '@/components/phulhaar/PhulhaarPage'
 import { phulhaarDisplayFor } from '@/brands/phulhaar'
 import { createFormToken } from '@/members/formToken'
+import { artistTerms } from '@/members/terms'
 import { applicationsOpenness } from '@/members/openness'
 import configPromise from '@payload-config'
 import { getPayload } from 'payload'
@@ -28,7 +29,9 @@ export default async function ArtistApplicationPage({
 }) {
   await headers()
   const display = phulhaarDisplayFor((await searchParams).display)
-  const { open, note } = await applicationsOpenness(await getPayload({ config: configPromise }))
+  const payload = await getPayload({ config: configPromise })
+  const { open, note } = await applicationsOpenness(payload)
+  const terms = open ? await artistTerms(payload) : null
   return (
     <PhulhaarPage
       display={display}
@@ -40,7 +43,14 @@ export default async function ArtistApplicationPage({
       }
       label="Apply as an artist"
     >
-      {open ? <ArtistOnboarding formToken={createFormToken()} /> : <PhulhaarClosed note={note} />}
+      {open ? (
+        <ArtistOnboarding
+          formToken={createFormToken()}
+          terms={terms && { url: terms.url, filename: terms.filename }}
+        />
+      ) : (
+        <PhulhaarClosed note={note} />
+      )}
     </PhulhaarPage>
   )
 }

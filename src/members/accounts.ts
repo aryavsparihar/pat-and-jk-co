@@ -63,7 +63,7 @@ export const ensureApplication = async (
       const createdApplication = !application
       application ??= await payload.create({
         collection: 'applications',
-        data: { reference: newApplicationReference(), member: member.id, type, stage: 'draft' },
+        data: { reference: newApplicationReference(type), member: member.id, type, stage: 'draft' },
         overrideAccess: true,
         req,
         context: { disableRevalidate: true },

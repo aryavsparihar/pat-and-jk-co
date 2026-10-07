@@ -1,4 +1,5 @@
 import type { Payload } from 'payload'
+import { agreedInWords, artistTerms, TERMS_PHRASE } from './terms'
 
 import type { Application, Member } from '@/payload-types'
 import { logSecurityEvent } from '@/security/events'
@@ -53,7 +54,11 @@ export type SaveResult =
   | { ok: false; status: number; message: string; errors?: Record<string, string> }
 
 /** What a step's validated data becomes on the application */
-const toFields = (step: ArtistStep, data: Record<string, unknown>): Partial<Application> => {
+const toFields = (
+  step: ArtistStep,
+  data: Record<string, unknown>,
+  termsDocument?: number,
+): Partial<Application> => {
   switch (step) {
     case 'about':
       return {
@@ -78,6 +83,7 @@ const toFields = (step: ArtistStep, data: Record<string, unknown>): Partial<Appl
       return {
         declarations: {
           ...data,
+          termsDocument: termsDocument ?? null,
           consentedAt: new Date().toISOString(),
           privacyNoticeVersion: PRIVACY_NOTICE_VERSION,
         } as never,
@@ -133,13 +139,30 @@ export const saveArtistStep = async (
     }
   }
 
+  // While terms are published, the last step asks for agreement in so many words, and records
+  // which document was agreed to
+  let termsDocument: number | undefined
+  if (name === 'review') {
+    const terms = await artistTerms(payload)
+    if (terms) {
+      const review = parsed.data as { agreeTerms?: boolean; agreeTyped?: string }
+      const errors: Record<string, string> = {}
+      if (review.agreeTerms !== true) errors.agreeTerms = 'Please tick that you agree to the terms.'
+      if (!agreedInWords(review.agreeTyped))
+        errors.agreeTyped = `Please type ${TERMS_PHRASE} to confirm.`
+      if (Object.keys(errors).length > 0)
+        return { ok: false, status: 422, message: 'A few things need another look.', errors }
+      termsDocument = terms.id
+    }
+  }
+
   const completed = new Set(application.completedSteps ?? [])
   completed.add(name)
   const updated = await payload.update({
     collection: 'applications',
     id: application.id,
     data: {
-      ...toFields(name, parsed.data as Record<string, unknown>),
+      ...toFields(name, parsed.data as Record<string, unknown>, termsDocument),
       completedSteps: [...completed],
     },
     depth: 1,
@@ -203,6 +226,16 @@ export const submitArtistApplication = async (
     return { ok: false, status: 409, message: 'This application has already been sent.' }
   }
   const problems = artistProblems(application)
+  // Terms published since the last step was saved must still be agreed to
+  const terms = await artistTerms(payload)
+  const declarations = application.declarations as
+    { agreeTerms?: boolean | null; agreeTyped?: string | null } | undefined
+  if (terms && !(declarations?.agreeTerms && agreedInWords(declarations.agreeTyped))) {
+    problems.review = {
+      ...problems.review,
+      agreeTerms: 'Please agree to the terms and conditions.',
+    }
+  }
   const kyc = await kycProblems(payload, member.id)
   if (kyc.length > 0) problems.kyc = { _form: kyc[0]! }
   if (Object.keys(problems).length > 0) {

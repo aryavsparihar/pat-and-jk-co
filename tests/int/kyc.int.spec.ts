@@ -32,7 +32,7 @@ import { createSession } from '@/security/memberSession'
 import { execute } from '@/utilities/sql'
 
 import { openApplicationsForTests } from '../helpers/applicationsOpen'
-import { FAKE, goodBank, goodKyc, removeKycFor } from '../helpers/kyc'
+import { FAKE, goodBank, goodKyc, identityPhotoBytes, removeKycFor } from '../helpers/kyc'
 
 // The made-up test root stands in for India's CCA roots (scripts/fixtures/make-eaadhaar-fixtures.py)
 vi.mock('@/kyc/ccaRoots', async () => {
@@ -85,6 +85,13 @@ const artist = async () => {
     bytes: Buffer.from('%PDF-1.7\n% a made-up passport page\n%%EOF\n'),
   })
   idDocuments.set(cookie, passport.id)
+  // And a photo of themselves holding their identity code
+  const photo = await storeKycDocument(payload, {
+    member,
+    kind: 'identity-photo',
+    bytes: await identityPhotoBytes(),
+  })
+  photoDocuments.set(cookie, photo.id)
   return { member, application, cookie }
 }
 
@@ -125,9 +132,16 @@ const withPayoutDetails = async (
 }
 
 const idDocuments = new Map<string, number>()
-/** goodKyc with this artist's own made-up ID attached */
+const photoDocuments = new Map<string, number>()
+/** goodKyc with this artist's own made-up ID and identity photo attached */
 const kycFor = (cookie: string, documents: Record<string, number> = {}) =>
-  goodKyc({ 'other-id': idDocuments.get(cookie)!, ...documents })
+  goodKyc({
+    'other-id': idDocuments.get(cookie)!,
+    'identity-photo': photoDocuments.get(cookie)!,
+    ...documents,
+  })
+/** The artist's identity photo, for tests that build their documents by hand */
+const photoOf = (cookie: string) => ({ 'identity-photo': photoDocuments.get(cookie)! })
 
 const call = (handler: (r: Request) => Promise<Response>, cookie: string, body?: unknown) =>
   handler(
@@ -302,6 +316,29 @@ describe('saving the KYC step', () => {
       expect(row).not.toContain(secret)
   })
 
+  it('needs the photo of the artist holding their code, which is given once and kept', async () => {
+    const { cookie } = await artist()
+    const read = async () =>
+      (
+        (await (
+          await readKyc(new Request(`${ORIGIN}/next/members/kyc`, { headers: { cookie } }))
+        ).json()) as { identityCode: string }
+      ).identityCode
+    const code = await read()
+    expect(code).toMatch(/^[2-9A-Z]{3}-[2-9A-Z]{3}$/)
+    expect(await read()).toBe(code)
+
+    const { 'identity-photo': _photo, ...withoutPhoto } = kycFor(cookie).documents as Record<
+      string,
+      number
+    >
+    const refused = await call(saveKycStep, cookie, { ...kycFor(cookie), documents: withoutPhoto })
+    expect(refused.status).toBe(422)
+    expect(((await refused.json()) as { errors: object }).errors).toHaveProperty(
+      'documents.identity-photo',
+    )
+  })
+
   it('refuses a full Aadhaar number and never stores it', async () => {
     const { member, cookie } = await artist()
     const full = '999988887777'
@@ -329,14 +366,17 @@ describe('saving the KYC step', () => {
   it('asks for the masked e-Aadhaar and its digits, or another ID and which one', async () => {
     const { cookie } = await artist()
     const aadhaar = await call(saveKycStep, cookie, {
-      ...goodKyc(),
+      ...goodKyc(photoOf(cookie)),
       idChoice: 'aadhaar',
     })
     const aadhaarErrors = ((await aadhaar.json()) as { errors: Record<string, string> }).errors
     expect(aadhaarErrors).toHaveProperty(['documents.masked-aadhaar'])
     expect(aadhaarErrors).toHaveProperty(['aadhaarLast4'])
 
-    const other = await call(saveKycStep, cookie, { ...goodKyc(), otherIdKind: undefined })
+    const other = await call(saveKycStep, cookie, {
+      ...goodKyc(photoOf(cookie)),
+      otherIdKind: undefined,
+    })
     const otherErrors = ((await other.json()) as { errors: Record<string, string> }).errors
     expect(otherErrors).toHaveProperty(['documents.other-id'])
     expect(otherErrors).toHaveProperty(['otherIdKind'])
@@ -365,7 +405,7 @@ describe('saving the KYC step', () => {
       )
     ).json()) as { document: { id: number } }
     const saved = await call(saveKycStep, cookie, {
-      ...goodKyc({ 'masked-aadhaar': document.id }),
+      ...goodKyc({ 'masked-aadhaar': document.id, ...photoOf(cookie) }),
       idChoice: 'aadhaar',
       aadhaarLast4: '4821',
       aadhaarPassword: 'ASHA1990',
@@ -401,7 +441,7 @@ describe('saving the KYC step', () => {
       )
     ).json()) as { document: { id: number } }
     const saved = await call(saveKycStep, cookie, {
-      ...goodKyc({ 'masked-aadhaar': document.id }),
+      ...goodKyc({ 'masked-aadhaar': document.id, ...photoOf(cookie) }),
       idChoice: 'aadhaar',
       aadhaarLast4: '1111',
       aadhaarPassword: 'ASHA1990',
@@ -424,7 +464,7 @@ describe('saving the KYC step', () => {
       await upload(cookie, 'masked-aadhaar', photo, 'aadhaar.jpg', 'image/jpeg')
     ).json()) as { document: { id: number } }
     const saved = await call(saveKycStep, cookie, {
-      ...goodKyc({ 'masked-aadhaar': document.id }),
+      ...goodKyc({ 'masked-aadhaar': document.id, ...photoOf(cookie) }),
       idChoice: 'aadhaar',
       aadhaarLast4: '4821',
     })
@@ -446,7 +486,7 @@ describe('saving the KYC step', () => {
       )
     ).json()) as { document: { id: number } }
     await call(saveKycStep, cookie, {
-      ...goodKyc({ 'masked-aadhaar': document.id }),
+      ...goodKyc({ 'masked-aadhaar': document.id, ...photoOf(cookie) }),
       idChoice: 'aadhaar',
       aadhaarLast4: '4821',
       aadhaarPassword: 'ASHA1990',

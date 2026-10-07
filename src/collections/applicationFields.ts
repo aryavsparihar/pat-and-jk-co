@@ -178,6 +178,7 @@ export const artistApplicationFields: Field[] = [
           { name: 'depthCm', label: 'Depth (cm)', type: 'number', admin: { width: '33%' } },
         ],
       },
+      { name: 'priceInr', label: 'Price (₹)', type: 'number', admin: { width: '33%' } },
     ],
   },
   {
@@ -197,6 +198,14 @@ export const artistApplicationFields: Field[] = [
         type: 'checkbox',
       },
       { name: 'consentedAt', type: 'date', admin: { date: { pickerAppearance: 'dayAndTime' } } },
+      { name: 'agreeTerms', label: 'Agreed to the Terms & Conditions', type: 'checkbox' },
+      { name: 'agreeTyped', label: 'What they typed to agree', type: 'text' },
+      {
+        name: 'termsDocument',
+        label: 'The terms they agreed to',
+        type: 'upload',
+        relationTo: 'media',
+      },
       {
         name: 'privacyNoticeVersion',
         type: 'text',

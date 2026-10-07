@@ -144,7 +144,12 @@ const ownDocuments = async (
  */
 export const saveKyc = async (
   payload: Payload,
-  { member, input, reference }: { member: Member; input: KycInput; reference: string },
+  {
+    member,
+    input,
+    reference,
+    identityCode,
+  }: { member: Member; input: KycInput; reference: string; identityCode?: string | null },
 ): Promise<KycRecord> => {
   const existing = await findRecord(payload, member.id)
   const { key, wrapped } = dataKeyFor(existing, member.id)
@@ -178,6 +183,7 @@ export const saveKyc = async (
       mode: null,
     },
     addressOnIdMatches: input.addressOnIdMatches ?? null,
+    identityCode: identityCode ?? null,
     panIndex,
     accountIndex,
     duplicates: (await duplicatesOf(payload, member.id, panIndex, accountIndex)) || null,
@@ -259,6 +265,19 @@ export const kycProblems = async (payload: Payload, memberId: number): Promise<s
   // Records saved before a second ID was asked of everyone
   if (!record.idChoice)
     return ['Please add a masked e-Aadhaar or another ID to your identity details.']
+  // Records saved before the identity photo was asked for
+  const photos = await payload.count({
+    collection: 'kyc-documents',
+    where: {
+      and: [
+        { id: { in: (record.documents ?? []).map((d) => (typeof d === 'object' ? d.id : d)) } },
+        { kind: { equals: 'identity-photo' } },
+      ],
+    },
+    overrideAccess: true,
+  })
+  if (photos.totalDocs === 0)
+    return ['Please add the photo of you holding the code, in your identity details.']
   return record.consentWithdrawnAt
     ? ['Please give your consent again to send your application.']
     : []

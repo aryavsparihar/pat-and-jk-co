@@ -58,7 +58,11 @@ type Phase =
  * finished, so an artist can close the tab and pick up later by signing in again; nothing personal
  * is ever kept in the browser.
  */
-export const ArtistOnboarding: React.FC<{ formToken: string }> = ({ formToken }) => {
+export const ArtistOnboarding: React.FC<{
+  formToken: string
+  /** The artists' Terms & Conditions, while published in Site settings */
+  terms?: { url: string; filename: string } | null
+}> = ({ formToken, terms }) => {
   const [phase, setPhase] = useState<Phase>({ kind: 'loading' })
   const [step, setStep] = useState<ArtistStep>('about')
   const [values, setValues] = useState<Record<string, Values>>({})
@@ -116,6 +120,7 @@ export const ArtistOnboarding: React.FC<{ formToken: string }> = ({ formToken })
 
   const go = (next: ArtistStep) => {
     setStep(next)
+    setSaved(false)
     setErrors({})
     setMessage(null)
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -141,8 +146,12 @@ export const ArtistOnboarding: React.FC<{ formToken: string }> = ({ formToken })
       return false
     }
     setCompleted(result.data.completedSteps)
-    setSaved(true)
     return true
+  }
+
+  /** Saves this step without moving on, and says so: the only time "Saved" is shown */
+  const saveForLater = async () => {
+    if (await save()) setSaved(true)
   }
 
   const next = async (event: React.FormEvent) => {
@@ -281,12 +290,6 @@ export const ArtistOnboarding: React.FC<{ formToken: string }> = ({ formToken })
           <form noValidate onSubmit={step === 'review' ? send : next}>
             {header}
 
-            {saved && (
-              <p className="mt-6 text-base text-primary" role="status">
-                Saved. You can close this page and come back to it by signing in.
-              </p>
-            )}
-
             <div className="mt-10">
               <ErrorSummary errors={errors} />
               {message && (
@@ -305,6 +308,7 @@ export const ArtistOnboarding: React.FC<{ formToken: string }> = ({ formToken })
                   errors={errors}
                   onEdit={(s) => go(s as ArtistStep)}
                   set={set}
+                  terms={terms}
                   values={current}
                 />
               )}
@@ -327,6 +331,16 @@ export const ArtistOnboarding: React.FC<{ formToken: string }> = ({ formToken })
               <button className="btn btn-solid min-h-11" disabled={busy} type="submit">
                 {busy ? 'Saving…' : step === 'review' ? 'Send my application' : 'Save and continue'}
               </button>
+              {step !== 'review' && (
+                <button
+                  className="btn btn-outline min-h-11"
+                  disabled={busy}
+                  onClick={saveForLater}
+                  type="button"
+                >
+                  Save and finish later
+                </button>
+              )}
               {index > 0 && (
                 <button
                   className="link link-caps min-h-11"
@@ -337,6 +351,11 @@ export const ArtistOnboarding: React.FC<{ formToken: string }> = ({ formToken })
                 </button>
               )}
             </div>
+            {saved && (
+              <p className="mt-6 text-base text-primary" role="status">
+                Saved. You can close this page and come back to it by signing in.
+              </p>
+            )}
           </form>
         )}
       </div>

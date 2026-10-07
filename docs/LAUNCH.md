@@ -21,6 +21,11 @@ These need a lawyer or a CA, so start them first.
       request, so consent given under the old text stays recorded against it.
 - [ ] **Aadhaar wording.** The lawyer approves what the application says about Aadhaar: masked
       e-Aadhaar only, never the full number, and another ID as an equal choice.
+- [ ] **The identity photo.** The lawyer approves asking artists for a photo of themselves holding
+      their handwritten code and name, and the wording around it ([KYC.md](KYC.md)).
+- [ ] **Artists' Terms & Conditions.** The lawyer approves the PDF; upload it in **Site settings →
+      Applications → Artists' Terms & Conditions**. Until it is there, artists are not asked to
+      agree to any terms.
 - [ ] **Approved artists' KYC.** A CA confirms how many years after the last payment it must be
       kept. Put the number in [KYC.md](KYC.md) ("Retention") and in the privacy notice. Until a
       reviewer sets a legal hold, nothing about an approved artist is deleted automatically.
