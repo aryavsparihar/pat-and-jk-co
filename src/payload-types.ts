@@ -1422,6 +1422,10 @@ export interface SiteSetting {
    * Shown on /collaborate/artists and /collaborate/partners. Leave empty for: “Applications open soon. Please come back in a little while.”
    */
   applicationsClosedNote?: string | null;
+  /**
+   * Linked on the last step of the artist application. While a document is here, an artist must tick that they agree and type I AGREE before sending, and which document they agreed to is kept with their application. Upload a new one to change the terms; earlier agreements stay linked to the version agreed to.
+   */
+  artistTerms?: (number | null) | Media;
   email?: string | null;
   phone?: string | null;
   /**
@@ -1710,6 +1714,10 @@ export interface Application {
    * What the applicant quotes. Never changes.
    */
   reference: string;
+  /**
+   * The code the artist was asked to write, with their name, in the photo of them holding it. Given once; never changes.
+   */
+  identityCode?: string | null;
   member: number | Member;
   type: 'artist' | 'partner';
   /**
@@ -1790,6 +1798,7 @@ export interface Application {
         widthCm?: number | null;
         heightCm?: number | null;
         depthCm?: number | null;
+        priceInr?: number | null;
         id?: string | null;
       }[]
     | null;
@@ -1798,6 +1807,9 @@ export interface Application {
     accurate?: boolean | null;
     consentProcessing?: boolean | null;
     consentedAt?: string | null;
+    agreeTerms?: boolean | null;
+    agreeTyped?: string | null;
+    termsDocument?: (number | null) | Media;
     /**
      * The privacy notice they agreed to.
      */
@@ -1923,6 +1935,10 @@ export interface KycRecord {
     mode?: string | null;
   };
   addressOnIdMatches?: boolean | null;
+  /**
+   * The code the artist was asked to write, with their full name, on the paper they hold in the identity photo. Check both are there, legible, and match.
+   */
+  identityCode?: string | null;
   accountNumberSealed?: string | null;
   ifscSealed?: string | null;
   holderNameSealed?: string | null;
@@ -1987,7 +2003,7 @@ export interface KycRecord {
 export interface KycDocument {
   id: number;
   member: number | Member;
-  kind: 'pan-card' | 'masked-aadhaar' | 'other-id' | 'address-proof' | 'bank-proof';
+  kind: 'pan-card' | 'masked-aadhaar' | 'other-id' | 'address-proof' | 'bank-proof' | 'identity-photo';
   contentType: string;
   size?: number | null;
   storageKey: string;
@@ -2982,6 +2998,7 @@ export interface SiteSettingsSelect<T extends boolean = true> {
   showVisitorCount?: T;
   applicationsOpen?: T;
   applicationsClosedNote?: T;
+  artistTerms?: T;
   email?: T;
   phone?: T;
   businessEmail?: T;
@@ -3227,6 +3244,7 @@ export interface MembersSelect<T extends boolean = true> {
  */
 export interface ApplicationsSelect<T extends boolean = true> {
   reference?: T;
+  identityCode?: T;
   member?: T;
   type?: T;
   issuedId?: T;
@@ -3303,6 +3321,7 @@ export interface ApplicationsSelect<T extends boolean = true> {
         widthCm?: T;
         heightCm?: T;
         depthCm?: T;
+        priceInr?: T;
         id?: T;
       };
   declarations?:
@@ -3312,6 +3331,9 @@ export interface ApplicationsSelect<T extends boolean = true> {
         accurate?: T;
         consentProcessing?: T;
         consentedAt?: T;
+        agreeTerms?: T;
+        agreeTyped?: T;
+        termsDocument?: T;
         privacyNoticeVersion?: T;
       };
   partner?:
@@ -3448,6 +3470,7 @@ export interface KycRecordsSelect<T extends boolean = true> {
         mode?: T;
       };
   addressOnIdMatches?: T;
+  identityCode?: T;
   accountNumberSealed?: T;
   ifscSealed?: T;
   holderNameSealed?: T;

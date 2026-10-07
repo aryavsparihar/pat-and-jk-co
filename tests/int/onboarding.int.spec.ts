@@ -28,7 +28,7 @@ import type { User } from '@/payload-types'
 import { execute } from '@/utilities/sql'
 
 import { openApplicationsForTests } from '../helpers/applicationsOpen'
-import { goodKyc, removeKycFor } from '../helpers/kyc'
+import { goodKyc, identityPhotoBytes, removeKycFor } from '../helpers/kyc'
 import { storeKycDocument } from '@/kyc/service'
 
 /*
@@ -363,7 +363,20 @@ describe('an artist application', () => {
       kind: 'other-id',
       bytes: Buffer.from('%PDF-1.7\n% a made-up passport page\n%%EOF\n'),
     })
-    expect((await call(saveKycStep, cookie, goodKyc({ 'other-id': passport.id }))).status).toBe(200)
+    const identityPhoto = await storeKycDocument(payload, {
+      member,
+      kind: 'identity-photo',
+      bytes: await identityPhotoBytes(),
+    })
+    expect(
+      (
+        await call(
+          saveKycStep,
+          cookie,
+          goodKyc({ 'other-id': passport.id, 'identity-photo': identityPhoto.id }),
+        )
+      ).status,
+    ).toBe(200)
     expect((await call(saveStep, cookie, { step: 'review', data: goodSteps.review })).status).toBe(
       200,
     )

@@ -165,13 +165,24 @@ export const PortfolioStep: React.FC<StepProps> = ({ values, set, errors }) => {
                 </div>
               </div>
               <div className="grid gap-y-7">
+                <TextField
+                  errors={errors}
+                  label="Title"
+                  name={`works.${i}.title`}
+                  onValue={(v) => set(`works.${i}.title`, v)}
+                  value={work.title}
+                />
+                <p className="label -mb-2 border-t border-border pt-6">Details</p>
                 <div className="grid gap-x-8 gap-y-7 sm:grid-cols-[1fr_8rem]">
                   <TextField
                     errors={errors}
-                    label="Title"
-                    name={`works.${i}.title`}
-                    onValue={(v) => set(`works.${i}.title`, v)}
-                    value={work.title}
+                    hint="Leave it empty if the work is not for sale."
+                    inputMode="numeric"
+                    label="Price (₹)"
+                    name={`works.${i}.priceInr`}
+                    onValue={(v) => set(`works.${i}.priceInr`, v.replace(/[^\d]/g, ''))}
+                    optional
+                    value={work.priceInr}
                   />
                   <TextField
                     errors={errors}

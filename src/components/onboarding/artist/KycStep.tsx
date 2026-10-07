@@ -14,7 +14,8 @@ type Masked = {
   documents: { id: number; kind: string }[]
 } | null
 
-type DocKind = 'pan-card' | 'masked-aadhaar' | 'other-id' | 'address-proof' | 'bank-proof'
+type DocKind =
+  'pan-card' | 'masked-aadhaar' | 'other-id' | 'address-proof' | 'bank-proof' | 'identity-photo'
 type OtherIdKind = 'passport' | 'voter-id' | 'driving-licence'
 
 const OTHER_ID_LABEL: Record<OtherIdKind, string> = {
@@ -29,6 +30,7 @@ const DOC_LABEL: Record<DocKind, string> = {
   'other-id': 'Your ID',
   'address-proof': 'Proof of address',
   'bank-proof': 'Cancelled cheque or passbook',
+  'identity-photo': 'Photo of you holding the code',
 }
 
 const MAX_UPLOAD = 4 * 1024 * 1024
@@ -69,8 +71,10 @@ const Upload: React.FC<{
   optional?: boolean
   value?: number
   error?: string
+  /** A photograph only, not a PDF */
+  photo?: boolean
   onUploaded: (id: number) => void
-}> = ({ kind, hint, optional, value, error, onUploaded }) => {
+}> = ({ kind, hint, optional, value, error, photo, onUploaded }) => {
   const [state, setState] = useState<string | null>(null)
   const id = `field-documents-${kind}`
   const send = async (file: File | undefined) => {
@@ -102,7 +106,11 @@ const Upload: React.FC<{
         {value ? 'Replace the file' : 'Choose a file'}
       </label>
       <input
-        accept="image/jpeg,image/png,image/webp,application/pdf"
+        accept={
+          photo
+            ? 'image/jpeg,image/png,image/webp'
+            : 'image/jpeg,image/png,image/webp,application/pdf'
+        }
         aria-describedby={error ? `${id}-error` : undefined}
         className="sr-only"
         id={id}
@@ -122,7 +130,8 @@ const Upload: React.FC<{
 }
 
 /**
- * Identity details: PAN, and a masked e-Aadhaar or another ID. No bank details: those are asked
+ * Identity details: PAN, a masked e-Aadhaar or another ID, and a photo of the artist holding a
+ * code we give them with their name written on it. No bank details: those are asked
  * for only when a sale needs a payout, in the artist's account. Written to reassure: why we ask,
  * how the details are protected, and who can see them, before anything is asked for. Nothing typed
  * here is ever put in browser storage, and what comes back from the server is masked.
@@ -131,6 +140,7 @@ export const KycStep: React.FC<{
   onSaved: (completedSteps: string[]) => void
 }> = ({ onSaved }) => {
   const [masked, setMasked] = useState<Masked | undefined>(undefined)
+  const [identityCode, setIdentityCode] = useState<string | null>(null)
   const [editing, setEditing] = useState(false)
   const [v, setV] = useState<Record<string, string | boolean | undefined>>({
     idChoice: 'aadhaar',
@@ -144,8 +154,9 @@ export const KycStep: React.FC<{
   useEffect(() => {
     if (loaded.current) return
     loaded.current = true
-    void api<{ kyc: Masked }>('/next/members/kyc').then((r) => {
+    void api<{ kyc: Masked; identityCode: string | null }>('/next/members/kyc').then((r) => {
       setMasked(r.data.kyc ?? null)
+      setIdentityCode(r.data.identityCode ?? null)
       setEditing(!r.data.kyc)
     })
   }, [])
@@ -266,7 +277,7 @@ export const KycStep: React.FC<{
       <Check
         checked={v.consent === true}
         error={errors.consent}
-        label="I agree to PAT and J.K. Co. processing my identity details to verify who I am, as the privacy notice describes."
+        label="I agree to PAT and J.K. Co. processing my identity details, including a photo of me, to verify who I am, as the privacy notice describes."
         name="consent"
         onValue={(c) => set('consent')(c)}
       />
@@ -478,6 +489,38 @@ export const KycStep: React.FC<{
             />
           )}
         </fieldset>
+      </fieldset>
+
+      <fieldset className="mt-14 grid gap-y-6">
+        <legend className="display-sm mb-4">A photo of you</legend>
+        <p className="measure">
+          So we know a real person is applying, and that it is you. On a sheet of paper, write this
+          code and your full name, as it is on your PAN. Then take a photo of yourself holding the
+          paper, with your face and the writing both clear.
+        </p>
+        <div
+          aria-label={identityCode ? `Your code: ${identityCode.split('').join(' ')}` : 'Your code'}
+          className="w-fit select-all border border-border-strong bg-surface px-7 py-5"
+          role="img"
+        >
+          <p className="label">Your code</p>
+          <p className="mt-2 font-display text-[clamp(2rem,6vw,2.75rem)] leading-none tracking-[0.18em] text-primary [font-variant-numeric:lining-nums]">
+            {identityCode ?? '…'}
+          </p>
+        </div>
+        <ul className="measure grid list-disc gap-2 pl-6 text-base">
+          <li>Write it clearly, in capitals, with your name beneath it.</li>
+          <li>Hold the paper beside your face. Good light, no sunglasses or mask.</li>
+          <li>The code stays the same, so you can take the photo now and upload it later.</li>
+        </ul>
+        <Upload
+          error={errors['documents.identity-photo']}
+          hint="A photo, not a scan. It is encrypted and seen only by the people who check identity."
+          kind="identity-photo"
+          onUploaded={(id) => setDocs((d) => ({ ...d, 'identity-photo': id }))}
+          photo
+          value={docs['identity-photo']}
+        />
       </fieldset>
 
       <div className="mt-14 flex flex-wrap items-center gap-x-8 gap-y-4 border-t border-border pt-8">

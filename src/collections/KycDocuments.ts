@@ -45,6 +45,7 @@ export const KycDocuments: CollectionConfig = {
         { label: 'Passport, voter ID or driving licence', value: 'other-id' },
         { label: 'Proof of address', value: 'address-proof' },
         { label: 'Cancelled cheque or passbook', value: 'bank-proof' },
+        { label: 'Photo of the artist holding their code', value: 'identity-photo' },
       ],
       admin: { readOnly: true },
     },

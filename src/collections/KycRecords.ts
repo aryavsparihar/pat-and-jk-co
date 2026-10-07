@@ -175,6 +175,17 @@ export const KycRecords: CollectionConfig = {
       access: { create: nobody, update: nobody },
       admin: { readOnly: true },
     },
+    {
+      name: 'identityCode',
+      label: 'Code on the identity photo',
+      type: 'text',
+      access: { create: nobody, update: nobody },
+      admin: {
+        readOnly: true,
+        description:
+          'The code the artist was asked to write, with their full name, on the paper they hold in the identity photo. Check both are there, legible, and match.',
+      },
+    },
 
     ...bankFields(''),
     {

@@ -78,9 +78,11 @@ The page with the slug **`home`** is the homepage. The **SEO** tab sets the titl
 
 People who want to work with PJK apply on the website, at **/collaborate/artists** or **/collaborate/partners**. They confirm their email with a code (there are no passwords), fill the application in at their own pace, and send it. You are emailed when one arrives.
 
-**Members → Applications** lists them all, newest first. Use **Filters** to narrow the list by type (artist or partner), stage, or date, and the search box to find an application by its reference (e.g. APP-7K3Q9X).
+**Members → Applications** lists them all, newest first. Use **Filters** to narrow the list by type (artist or partner), stage, or date, and the search box to find an application by its reference: A-7K3Q9X for an artist, PT-7K3Q9X for a partner (applications started before October 2026 keep their APP-7K3Q9X). The reference stays with the person for good.
 
 **Opening and closing applications.** **Website → Site settings → Applications → Applications are open.** It is off until you turn it on. While it is off, the two application pages show a short note instead of the form (write your own under *Note while applications are closed*; on the artists' page it is set large, in Phulhaar's style, above a short list of what to have ready), and nothing can be started or sent; people who already have an account can still sign in.
+
+**Terms & Conditions.** **Site settings → Applications → Artists' Terms & Conditions (PDF)**: upload the PDF (in Media). While one is there, the last step of the artist application links to it, and an artist must tick that they agree and type I AGREE before sending; their application records which document they agreed to, under *Declarations*. To change the terms, upload a new PDF and choose it: earlier agreements stay linked to the version agreed to, so never delete an old terms PDF from Media.
 
 Open an application to read it. In the sidebar, under **Decision**:
 
@@ -109,7 +111,8 @@ Everything is shown masked, like `ABCxxxxx4F`. In the record's sidebar:
 2. The PAN card and masked Aadhaar, if given, show the same details as were typed in.
 3. Nothing under **Possible duplicates**, or you know why.
 4. **The identity document, by hand, whatever the automatic check says.** On the masked e-Aadhaar or the other ID: the name matches the PAN and the application; the date of birth matches "About you"; the photo is of a real person and fits the age; and, for Aadhaar, the last four digits are the ones the artist typed.
-5. **Read the "Identity document" box in the sidebar.** *Verified* means UIDAI's signature and the details all checked out. *Could not verify* gives the reason (a changed file, digits that do not match). *Needs a check by hand* means the check could not finish (a photo or scan, no password); do the checks above with extra care. A passport, voter ID or driving licence is always checked by hand.
+5. **The identity photo.** It shows a real person holding a paper with the **Code on the identity photo** (in the record) and their full name, both legible; the face is the face on the ID. If anything is off (a different code, a printed rather than handwritten paper, a photo of a screen), ask for changes and say what to retake.
+6. **Read the "Identity document" box in the sidebar.** *Verified* means UIDAI's signature and the details all checked out. *Could not verify* gives the reason (a changed file, digits that do not match). *Needs a check by hand* means the check could not finish (a photo or scan, no password); do the checks above with extra care. A passport, voter ID or driving licence is always checked by hand.
 
 **Payout details, when a work sells.** Open the artist's KYC record and press **Request payout details**. The artist is emailed a link to their account, where they add the account themselves after a code we email them; the email never asks for bank details and never contains any. The date you asked shows on the record, and you can ask again if needed. When they have added the details, you are emailed. Then:
 

@@ -23,6 +23,7 @@ import * as migration_20261004_100000_payload_3_90 from './20261004_100000_paylo
 import * as migration_20261006_121931_payout_details_on_sale from './20261006_121931_payout_details_on_sale';
 import * as migration_20261006_153522_venture_theme from './20261006_153522_venture_theme';
 import * as migration_20261006_153600_phulhaar_venture_theme from './20261006_153600_phulhaar_venture_theme';
+import * as migration_20261007_153721_founder_feedback from './20261007_153721_founder_feedback';
 
 export const migrations = [
   {
@@ -149,5 +150,10 @@ export const migrations = [
     up: migration_20261006_153600_phulhaar_venture_theme.up,
     down: migration_20261006_153600_phulhaar_venture_theme.down,
     name: '20261006_153600_phulhaar_venture_theme',
+  },
+  {
+    up: migration_20261007_153721_founder_feedback.up,
+    down: migration_20261007_153721_founder_feedback.down,
+    name: '20261007_153721_founder_feedback'
   },
 ];

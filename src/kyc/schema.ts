@@ -29,6 +29,8 @@ export const KYC_DOCUMENT_KINDS = [
   'other-id',
   'address-proof',
   'bank-proof',
+  // A photo of the artist holding a paper with their identity code and full name written on it
+  'identity-photo',
 ] as const
 export type KycDocumentKind = (typeof KYC_DOCUMENT_KINDS)[number]
 
@@ -111,6 +113,7 @@ export const kycSchema = z
         'other-id': documentId,
         'address-proof': documentId,
         'bank-proof': documentId,
+        'identity-photo': documentId,
       })
       .default({}),
   })
@@ -150,6 +153,13 @@ export const kycSchema = z
         if (!documents['other-id']) {
           issue(['documents', 'other-id'], 'Please upload a copy of your ID.')
         }
+      }
+
+      if (!documents['identity-photo']) {
+        issue(
+          ['documents', 'identity-photo'],
+          'Please upload the photo of you holding the code and your name.',
+        )
       }
 
       if (typeof value.addressOnIdMatches !== 'boolean') {

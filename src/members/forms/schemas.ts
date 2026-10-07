@@ -247,6 +247,14 @@ export const portfolioWorkSchema = z.object({
     .max(2000)
     .optional()
     .or(z.literal('').transform(() => undefined)),
+  // What the artist would sell it for; empty if it is not for sale
+  priceInr: z.coerce
+    .number({ error: 'Please give the price in rupees, as a number.' })
+    .int('Please give the price in whole rupees.')
+    .positive('Please give the price in rupees, as a number.')
+    .max(1e9, 'Please check the price.')
+    .optional()
+    .or(z.literal('').transform(() => undefined)),
 })
 
 export const portfolioSchema = z.object({
@@ -262,6 +270,9 @@ export const declarationsSchema = z.object({
   consentProcessing: z.literal(true, {
     error: 'We need your consent to process your details for verification and payouts.',
   }),
+  // Asked for only while terms are published (src/members/terms.ts), and checked there
+  agreeTerms: z.boolean().optional(),
+  agreeTyped: z.string().trim().max(40).optional(),
 })
 
 /**

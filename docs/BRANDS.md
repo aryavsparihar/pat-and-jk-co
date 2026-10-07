@@ -87,13 +87,15 @@ The pack names no typeface, and the wordmark is outlined, so it cannot be set as
    below that the rule and the swash on the R break up.
 6. **Do not add effects:** no shadows, outlines, glows or gradients beyond those in the artwork.
 7. **Motion is allowed only as a slow fade or a very slight scale ("breathing")** and never under
-   `prefers-reduced-motion`. The petals must not be animated separately.
+   `prefers-reduced-motion`. The petals must not be animated separately. Since 7 October 2026 the
+   garland is **still** everywhere (`PHULHAAR_BREATHE` in `src/brands/phulhaar.ts`): the breathing
+   read as a glitch. Arrivals (a gentle fade as a page opens) stay.
 
 ### Where Phulhaar's identity is used
 
 - The venture page on the PJK site (`/ventures/phulhaar-gallery`), in full, through **Theme →
   Phulhaar** on the venture (`src/brands/themes.ts`): the cream ground and palette, Marcellus
-  headings, the mark breathing on its own cream inside the plate's frame, the opening notice under a
+  headings, the mark on its own cream inside the plate's frame, the opening notice under a
   gold rule with its occasion in magenta, and a "For artists" card leading to the application.
   Everything arrives gently and stays still under `prefers-reduced-motion`.
 - Its row on the ventures index, through the same Theme: the cream ground under a gold rule, the

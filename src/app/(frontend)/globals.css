@@ -183,6 +183,15 @@
 }
 
 @layer base {
+  /* A button that can be pressed shows the pointer; one waiting (a countdown, a save) shows that
+     it cannot be pressed yet, never the text cursor over its label */
+  button:not(:disabled) {
+    cursor: pointer;
+  }
+  button:disabled {
+    cursor: not-allowed;
+  }
+
   *,
   ::before,
   ::after {

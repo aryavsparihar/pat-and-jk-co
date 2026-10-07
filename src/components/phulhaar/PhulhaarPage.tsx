@@ -1,6 +1,8 @@
 import React from 'react'
 
+import { PHULHAAR_BREATHE } from '@/brands/phulhaar'
 import { Heading } from '@/components/Typography'
+import { cn } from '@/utilities/ui'
 
 export type PhulhaarDisplay = 'cormorant' | 'marcellus'
 
@@ -29,7 +31,10 @@ export const PhulhaarPage: React.FC<{
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               alt=""
-              className="garland-breathe h-auto w-[7.5rem] lg:w-56 xl:w-64"
+              className={cn(
+                PHULHAAR_BREATHE && 'garland-breathe',
+                'h-auto w-[7.5rem] lg:w-56 xl:w-64',
+              )}
               height={1200}
               src="/brand/ventures/phulhaar-garland.webp"
               width={795}

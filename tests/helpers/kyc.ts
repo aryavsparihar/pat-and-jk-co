@@ -3,6 +3,7 @@ import type { Payload } from 'payload'
 
 import { deleteEncrypted } from '@/kyc/documentStore'
 import { execute } from '@/utilities/sql'
+import sharp from 'sharp'
 
 /*
  * KYC details for tests. Every value is made up: the PAN, IFSC and account number have the right
@@ -38,6 +39,14 @@ export const goodBank = (account: string = FAKE.account) => ({
   branchName: 'Example Branch',
   accountType: 'savings' as const,
 })
+
+/** A made-up "photo of me holding the code": a plain image, as the upload re-encodes pictures */
+export const identityPhotoBytes = () =>
+  sharp({
+    create: { width: 400, height: 300, channels: 3, background: { r: 200, g: 180, b: 150 } },
+  })
+    .jpeg()
+    .toBuffer()
 
 /** Removes the KYC of every member whose email matches, files included */
 export const removeKycFor = async (payload: Payload, emailLike: string) => {

@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { useRef, useState } from 'react'
 
 import { STATES_AND_TERRITORIES } from '@/members/forms/india'
 import {
@@ -11,6 +11,7 @@ import {
   RECOGNITION_KINDS,
 } from '@/members/forms/schemas'
 
+import { api } from '../api'
 import { Check, CheckGroup, type Errors, SelectField, TextArea, TextField } from '../fields'
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- step values are free-form until the schema checks them */
@@ -93,6 +94,45 @@ const AddressFields: React.FC<StepProps & { prefix: string; legend: string }> = 
   const address = values[prefix] ?? {}
   const india = /^(india|bharat)$/i.test(address.country ?? 'India')
   const at = (key: string) => `${prefix}.${key}`
+
+  // A full PIN code fills in the town, district and state. Only fields that are empty, or still
+  // hold what the last lookup put there, are filled: nothing the person typed is overwritten, and
+  // everything stays editable
+  const [lookup, setLookup] = useState<string | null>(null)
+  const filled = useRef<Record<string, string>>({})
+  const asked = useRef('')
+  const lookUp = async (pin: string) => {
+    if (!india || !/^[1-9]\d{5}$/.test(pin) || pin === asked.current) return
+    asked.current = pin
+    setLookup('Looking up your PIN code…')
+    const result = await api<{
+      found?: boolean
+      unavailable?: boolean
+      city?: string
+      district?: string
+      state?: string
+    }>('/next/members/pincode', { body: { pin } })
+    // A newer PIN code was typed meanwhile: its own lookup speaks for it
+    if (asked.current !== pin) return
+    if (!result.data.found) {
+      setLookup(
+        result.data.unavailable || !result.ok
+          ? 'We could not look up your PIN code just now; please type the town and district.'
+          : 'We could not find that PIN code. Please check it.',
+      )
+      return
+    }
+    for (const key of ['city', 'district', 'state'] as const) {
+      const next = result.data[key]
+      const now = String(address[key] ?? '').trim()
+      if (next && (!now || now === filled.current[key])) {
+        set(at(key), next)
+        filled.current[key] = next
+      }
+    }
+    setLookup('Filled in from your PIN code. Please check them.')
+  }
+
   return (
     <fieldset className="grid gap-y-9">
       <legend className="display-sm mb-6">{legend}</legend>
@@ -122,6 +162,29 @@ const AddressFields: React.FC<StepProps & { prefix: string; legend: string }> = 
         optional
         value={address.landmark}
       />
+      <div>
+        <TextField
+          autoComplete="postal-code"
+          className="max-w-xs"
+          errors={errors}
+          hint={india ? 'We fill in the town, district and state from it.' : undefined}
+          inputMode={india ? 'numeric' : 'text'}
+          label={india ? 'PIN code' : 'Postal code'}
+          maxLength={india ? 6 : 12}
+          name={at('postalCode')}
+          onValue={(v) => {
+            const value = india ? v.replace(/\D/g, '') : v
+            set(at('postalCode'), value)
+            void lookUp(value)
+          }}
+          value={address.postalCode}
+        />
+        {india && lookup && (
+          <p aria-live="polite" className="muted mt-2 text-base" role="status">
+            {lookup}
+          </p>
+        )}
+      </div>
       <div className="grid gap-x-10 gap-y-9 sm:grid-cols-2">
         <TextField
           autoComplete="address-level2"
@@ -159,16 +222,6 @@ const AddressFields: React.FC<StepProps & { prefix: string; legend: string }> = 
             value={address.state}
           />
         )}
-        <TextField
-          autoComplete="postal-code"
-          errors={errors}
-          inputMode={india ? 'numeric' : 'text'}
-          label={india ? 'PIN code' : 'Postal code'}
-          maxLength={india ? 6 : 12}
-          name={at('postalCode')}
-          onValue={(v) => set(at('postalCode'), india ? v.replace(/\D/g, '') : v)}
-          value={address.postalCode}
-        />
       </div>
       <TextField
         autoComplete="country-name"

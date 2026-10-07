@@ -1,4 +1,4 @@
-import { PHULHAAR_DISPLAY } from './phulhaar'
+import { PHULHAAR_BREATHE, PHULHAAR_DISPLAY } from './phulhaar'
 
 /**
  * How a venture's own pages look: its row on the ventures index and its venture page. Chosen per
@@ -44,7 +44,7 @@ const THEMES: Record<Exclude<VentureThemeName, 'pjk'>, VentureTheme> = {
     ruleClassName: 'phulhaar-rule',
     display: PHULHAAR_DISPLAY,
     emblem: { src: '/brand/ventures/phulhaar-garland.webp', width: 795, height: 1200 },
-    breathe: true,
+    breathe: PHULHAAR_BREATHE,
     invite: {
       label: 'For artists',
       heading: 'Show your work with Phulhaar',

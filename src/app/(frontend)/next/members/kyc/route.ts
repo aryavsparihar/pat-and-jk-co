@@ -21,14 +21,43 @@ import {
 import { AADHAAR_CHECK_MODE } from '@/kyc/settings'
 import { after } from 'next/server'
 import { hitLimit } from '@/security/rateLimit'
+import { newIdentityCode } from '@/members/ids'
+import type { Application, Member } from '@/payload-types'
+import type { Payload } from 'payload'
 
 export const dynamic = 'force-dynamic'
+
+/**
+ * The code an artist writes in their identity photo: given once, the first time it is asked for,
+ * and kept with the application for good, so a photo taken earlier still matches
+ */
+const identityCodeFor = async (payload: Payload, member: Member): Promise<string | null> => {
+  const application = (await findOwnApplication(payload, member, 'artist', 0)) as
+    (Application & { identityCode?: string | null }) | null
+  if (!application) return null
+  if (application.identityCode) return application.identityCode
+  const code = newIdentityCode()
+  await payload.update({
+    collection: 'applications',
+    id: application.id,
+    data: { identityCode: code } as never,
+    overrideAccess: true,
+    context: { disableRevalidate: true },
+  })
+  return code
+}
 
 /** The artist's own identity details (and payout details, once added), masked: never a full value */
 export async function GET(request: Request) {
   const auth = await requireMember(request)
   if (!auth.ok) return auth.response
-  return withRefresh(reply({ kyc: await maskedKyc(auth.payload, auth.member.id) }), auth.refresh)
+  return withRefresh(
+    reply({
+      kyc: await maskedKyc(auth.payload, auth.member.id),
+      identityCode: await identityCodeFor(auth.payload, auth.member),
+    }),
+    auth.refresh,
+  )
 }
 
 /**
@@ -110,6 +139,7 @@ export async function POST(request: Request) {
       member,
       input,
       reference: application.reference,
+      identityCode: (application as { identityCode?: string | null }).identityCode,
     })
   } catch (error) {
     if (error instanceof KycError)

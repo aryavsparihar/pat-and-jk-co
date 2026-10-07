@@ -248,6 +248,17 @@ export const SiteSettings: CollectionConfig = {
                   'Shown on /collaborate/artists and /collaborate/partners. Leave empty for: “Applications open soon. Please come back in a little while.”',
               },
             },
+            {
+              name: 'artistTerms',
+              label: 'Artists’ Terms & Conditions (PDF)',
+              type: 'upload',
+              relationTo: 'media',
+              filterOptions: { mimeType: { equals: 'application/pdf' } },
+              admin: {
+                description:
+                  'Linked on the last step of the artist application. While a document is here, an artist must tick that they agree and type I AGREE before sending, and which document they agreed to is kept with their application. Upload a new one to change the terms; earlier agreements stay linked to the version agreed to.',
+              },
+            },
           ],
         },
         {

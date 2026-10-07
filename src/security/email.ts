@@ -1,6 +1,7 @@
 import type { Payload } from 'payload'
 
 import { emailFooter } from '@/email/footer'
+import { buildEmail } from '@/email/layout'
 
 import { OTP_TTL_MINUTES } from './constants'
 
@@ -21,12 +22,6 @@ export const sendSignInCode = async (
   { email, code }: { email: string; code: string },
 ): Promise<boolean> => {
   const subject = 'Your PJK admin sign-in code'
-  const text = [
-    `Your sign-in code is ${code}`,
-    '',
-    `It expires in ${OTP_TTL_MINUTES} minutes and can be used once.`,
-    'If you did not try to sign in to the PAT and J.K. Co. admin panel, ignore this email and tell the team.',
-  ].join('\n')
 
   if (!canSendEmail(payload)) {
     if (isProduction) {
@@ -38,16 +33,21 @@ export const sendSignInCode = async (
   }
 
   try {
-    const footer = await emailFooter(payload)
-    await payload.sendEmail({
-      to: email,
+    // The same letterhead as every member email, logo included
+    const email_ = buildEmail({
       subject,
-      text: text + footer.text,
-      html: `<p style="font-family:Georgia,serif;font-size:16px">Your sign-in code is</p>
-             <p style="font-family:Georgia,serif;font-size:32px;letter-spacing:.2em;margin:8px 0">${code}</p>
-             <p style="font-family:Georgia,serif;color:#555">It expires in ${OTP_TTL_MINUTES} minutes and can be used once.<br/>
-             If you did not try to sign in to the PAT and J.K. Co. admin panel, ignore this email and tell the team.</p>${footer.html}`,
+      preheader: `It expires in ${OTP_TTL_MINUTES} minutes.`,
+      parts: [
+        { kind: 'paragraph', text: 'Your sign-in code is' },
+        { kind: 'code', code },
+        {
+          kind: 'paragraph',
+          text: `It expires in ${OTP_TTL_MINUTES} minutes and can be used once. If you did not try to sign in to the PAT and J.K. Co. admin panel, ignore this email and tell the team.`,
+        },
+      ],
+      footer: await emailFooter(payload),
     })
+    await payload.sendEmail({ to: email, subject, text: email_.text, html: email_.html })
     return true
   } catch (error) {
     payload.logger.error({ err: error, msg: 'Could not send the sign-in code' })

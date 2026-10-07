@@ -40,7 +40,7 @@ const nobody: FieldAccess = () => false
  * One application per member per kind: how someone asks to work with PJK as an artist, or as a
  * partner. The same person may hold one of each, under one sign-in. It exists from the moment
  * an applicant verifies their email (as a draft), carries a reference they can quote
- * (APP-7K3Q9X), and moves through its stages:
+ * (A-7K3Q9X for an artist, PT-7K3Q9X for a partner), and moves through its stages:
  *
  *   draft → submitted → under review → approved
  *                                    → changes requested → submitted again
@@ -77,6 +77,18 @@ export const Applications: CollectionConfig = {
       index: true,
       access: { update: nobody },
       admin: { readOnly: true, description: 'What the applicant quotes. Never changes.' },
+    },
+    {
+      name: 'identityCode',
+      label: 'Identity photo code',
+      type: 'text',
+      access: { update: nobody },
+      admin: {
+        readOnly: true,
+        position: 'sidebar',
+        description:
+          'The code the artist was asked to write, with their name, in the photo of them holding it. Given once; never changes.',
+      },
     },
     {
       name: 'member',

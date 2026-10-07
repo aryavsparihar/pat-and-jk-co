@@ -38,6 +38,17 @@ const picture = (i: number) =>
     .jpeg()
     .toBuffer()
 
+/** The photo of the applicant holding their code: any picture will do in a test */
+const uploadIdentityPhoto = async (page: import('@playwright/test').Page) => {
+  await expect(page.getByText(/^[2-9A-Z]{3}-[2-9A-Z]{3}$/)).toBeVisible()
+  await page.locator('#field-documents-identity-photo').setInputFiles({
+    name: 'me-holding-the-code.jpg',
+    mimeType: 'image/jpeg',
+    buffer: await picture(4),
+  })
+  await expect(page.getByText('Received, and encrypted.')).toHaveCount(2)
+}
+
 const fillKycOtherId = async (page: import('@playwright/test').Page) => {
   await page.getByLabel(/I agree to PAT and J\.K\. Co\. processing/).check()
   await page.getByLabel('PAN', { exact: true }).fill('ABCPE1234F')
@@ -50,6 +61,7 @@ const fillKycOtherId = async (page: import('@playwright/test').Page) => {
     buffer: Buffer.from('%PDF-1.7\n% a made-up passport page\n%%EOF\n'),
   })
   await expect(page.getByText('Received, and encrypted.')).toBeVisible()
+  await uploadIdentityPhoto(page)
   await page.getByLabel('Yes', { exact: true }).check()
   // No bank details: those are asked for only when a sale needs a payout
   await expect(page.getByLabel('Account number', { exact: true })).toHaveCount(0)
@@ -129,7 +141,9 @@ test('an artist applies step by step, stops halfway, and comes back', async ({ p
   await expect(page.getByText('ABCxxxxx4F')).toBeVisible()
   await page.getByLabel(/my own original work/).check()
   await page.getByLabel(/information I have given is accurate/).check()
-  await page.getByLabel(/processing my identity details to verify who I am, and/).check()
+  await page
+    .getByLabel(/processing my identity details, including a photo of me, to verify who I am, and/)
+    .check()
   await page.getByRole('button', { name: 'Send my application' }).click()
   await expect(
     page.getByRole('heading', { name: 'Thank you. We have your application.' }),
@@ -174,6 +188,7 @@ test('PAN is required, and a masked e-Aadhaar goes through the check', async ({ 
       ),
     )
   await expect(page.getByText('Received, and encrypted.')).toBeVisible()
+  await uploadIdentityPhoto(page)
   await page.getByLabel('Last four digits of your Aadhaar').fill('4821')
   await page.getByLabel('The PDF’s password').fill('ASHA1990')
   await page.getByLabel('Yes', { exact: true }).check()
@@ -239,6 +254,8 @@ test('a member signs in again with a code, and a wrong code is refused', async (
   await page.goto('/collaborate/artists')
   await signInWithCode(page, email)
   await expect(page.getByRole('heading', { name: 'About you' })).toBeVisible()
+  // Signing in on the application page, without a page load, updates the header too
+  await expect(page.getByRole('button', { name: 'Sign out' }).first()).toBeVisible()
   await page.context().clearCookies()
 
   await page.goto('/collaborate/signin')
@@ -254,6 +271,9 @@ test('a member signs in again with a code, and a wrong code is refused', async (
   await page.getByRole('button', { name: 'Continue' }).click()
   await expect(page).toHaveURL(/\/account/)
   await expect(page.getByText(`Signed in as ${email}.`)).toBeVisible()
+  // The header knows: Sign out in place of Sign in
+  await expect(page.getByRole('button', { name: 'Sign out' }).first()).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Sign in' })).toHaveCount(0)
 })
 
 test('a save that cannot reach the server says so, and the button comes back', async ({ page }) => {
