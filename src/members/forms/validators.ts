@@ -67,6 +67,22 @@ export const instagramUrl = (value: string): string | null => {
   return /^[A-Za-z0-9._]{1,30}$/.test(handle) ? `https://www.instagram.com/${handle}` : null
 }
 
+/** Turns a Facebook page or profile link, or a username, into the page's https URL */
+export const facebookUrl = (value: string): string | null => {
+  const raw = value.trim()
+  if (!raw) return null
+  if (/^(?:https?:\/\/)?(?:www\.|m\.)?(?:facebook|fb)\.com\//i.test(raw)) {
+    try {
+      const url = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`)
+      return url.pathname.length > 1 ? `https://www.facebook.com${url.pathname}${url.search}` : null
+    } catch {
+      return null
+    }
+  }
+  const name = raw.replace(/^@/, '')
+  return /^[A-Za-z0-9.]{5,50}$/.test(name) ? `https://www.facebook.com/${name}` : null
+}
+
 /**
  * Today's date as it is in India, in the UTC fields of a Date. Ages are counted by the Indian
  * calendar day, so someone turning 18 can apply from midnight in India, not 5½ hours later.

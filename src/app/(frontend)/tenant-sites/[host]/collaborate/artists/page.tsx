@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { headers } from 'next/headers'
 
 import { ArtistOnboarding } from '@/components/onboarding/ArtistOnboarding'
+import { PrivacyText } from '@/components/onboarding/PrivacyText'
 import { PhulhaarClosed } from '@/components/phulhaar/PhulhaarClosed'
 import { PhulhaarPage } from '@/components/phulhaar/PhulhaarPage'
 import { phulhaarDisplayFor } from '@/brands/phulhaar'
@@ -10,6 +11,9 @@ import { artistTerms } from '@/members/terms'
 import { applicationsOpenness } from '@/members/openness'
 import configPromise from '@payload-config'
 import { getPayload } from 'payload'
+import { notFound } from 'next/navigation'
+
+import { getTenantContext } from '@/utilities/tenant'
 
 const ABOUT =
   'Phulhaar Gallery by PJK shows fine and contemporary art, chosen with care and placed with people who will live with it.'
@@ -23,11 +27,15 @@ export const metadata: Metadata = {
 }
 
 export default async function ArtistApplicationPage({
+  params,
   searchParams,
 }: {
+  params: Promise<{ host: string }>
   searchParams: Promise<{ display?: string }>
 }) {
   await headers()
+  const ctx = await getTenantContext((await params).host)
+  if (!ctx) notFound()
   const display = phulhaarDisplayFor((await searchParams).display)
   const payload = await getPayload({ config: configPromise })
   const { open, note } = await applicationsOpenness(payload)
@@ -46,6 +54,7 @@ export default async function ArtistApplicationPage({
       {open ? (
         <ArtistOnboarding
           formToken={createFormToken()}
+          privacy={<PrivacyText tenantId={ctx.tenant.id} />}
           terms={terms && { url: terms.url, filename: terms.filename }}
         />
       ) : (

@@ -1423,6 +1423,10 @@ export interface SiteSetting {
    */
   applicationsClosedNote?: string | null;
   /**
+   * Counted from the decision, and given in the email that tells them. 0 lets them apply again at once. Staff can end the wait early for one person from their application.
+   */
+  reapplyAfterMonths?: number | null;
+  /**
    * Linked on the last step of the artist application. While a document is here, an artist must tick that they agree and type I AGREE before sending, and which document they agreed to is kept with their application. Upload a new one to change the terms; earlier agreements stay linked to the version agreed to.
    */
   artistTerms?: (number | null) | Media;
@@ -1465,6 +1469,14 @@ export interface SiteSetting {
    * Only used while the registered office above is empty. Safe to clear once that is filled in.
    */
   address?: string | null;
+  /**
+   * Full links, starting https://. Shown on Phulhaar's venture page and at the foot of the email that tells an artist their application was declined. An empty one is left out.
+   */
+  phulhaarSocial?: {
+    instagram?: string | null;
+    facebook?: string | null;
+    pinterest?: string | null;
+  };
   socials?:
     | {
         platform: 'instagram' | 'linkedin' | 'facebook' | 'x' | 'youtube' | 'pinterest' | 'behance' | 'other';
@@ -1592,6 +1604,8 @@ export interface Member {
     state?: string | null;
     postalCode?: string | null;
     country?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
   };
   profileReview?: {
     state?: ('none' | 'pending' | 'approved' | 'changes-requested') | null;
@@ -1618,13 +1632,28 @@ export interface Member {
     mediums?:
       | (
           | 'painting'
+          | 'miniature-painting'
           | 'drawing'
+          | 'illustration'
+          | 'calligraphy'
           | 'printmaking'
-          | 'sculpture'
           | 'photography'
+          | 'sculpture'
+          | 'ceramics'
+          | 'wood'
+          | 'metal'
+          | 'glass'
+          | 'papier-mache'
           | 'textile'
-          | 'mixed-media'
+          | 'embroidery'
+          | 'folk-tribal'
+          | 'murals'
+          | 'installation'
+          | 'performance'
+          | 'video'
           | 'digital'
+          | 'collage'
+          | 'mixed-media'
           | 'other'
         )[]
       | null;
@@ -1715,9 +1744,12 @@ export interface Application {
    */
   reference: string;
   /**
-   * The code the artist was asked to write, with their name, in the photo of them holding it. Given once; never changes.
+   * The code an earlier application was given for its identity photo. Codes are now given for ten minutes at a time and kept only as a hash.
    */
   identityCode?: string | null;
+  identityCodeHash?: string | null;
+  identityCodeIssuedAt?: string | null;
+  identityCodeExpiresAt?: string | null;
   member: number | Member;
   type: 'artist' | 'partner';
   /**
@@ -1743,6 +1775,8 @@ export interface Application {
       state?: string | null;
       postalCode?: string | null;
       country?: string | null;
+      latitude?: number | null;
+      longitude?: number | null;
     };
     correspondenceSame?: boolean | null;
     correspondence?: {
@@ -1754,19 +1788,36 @@ export interface Application {
       state?: string | null;
       postalCode?: string | null;
       country?: string | null;
+      latitude?: number | null;
+      longitude?: number | null;
     };
   };
   practice?: {
     mediums?:
       | (
           | 'painting'
+          | 'miniature-painting'
           | 'drawing'
+          | 'illustration'
+          | 'calligraphy'
           | 'printmaking'
-          | 'sculpture'
           | 'photography'
+          | 'sculpture'
+          | 'ceramics'
+          | 'wood'
+          | 'metal'
+          | 'glass'
+          | 'papier-mache'
           | 'textile'
-          | 'mixed-media'
+          | 'embroidery'
+          | 'folk-tribal'
+          | 'murals'
+          | 'installation'
+          | 'performance'
+          | 'video'
           | 'digital'
+          | 'collage'
+          | 'mixed-media'
           | 'other'
         )[]
       | null;
@@ -1778,6 +1829,14 @@ export interface Application {
     statement?: string | null;
     website?: string | null;
     instagram?: string | null;
+    facebook?: string | null;
+    otherSocials?:
+      | {
+          platform?: string | null;
+          handle?: string | null;
+          id?: string | null;
+        }[]
+      | null;
     priceRange?: ('under-25k' | '25k-1l' | '1l-5l' | 'over-5l' | 'not-sure') | null;
     recognition?:
       | {
@@ -1785,9 +1844,11 @@ export interface Application {
           title?: string | null;
           venue?: string | null;
           year?: number | null;
+          details?: string | null;
           id?: string | null;
         }[]
       | null;
+    recognitionNone?: boolean | null;
   };
   portfolio?:
     | {
@@ -1795,6 +1856,10 @@ export interface Application {
         title?: string | null;
         year?: number | null;
         medium?: string | null;
+        width?: number | null;
+        height?: number | null;
+        depth?: number | null;
+        unit?: ('cm' | 'in' | 'm') | null;
         widthCm?: number | null;
         heightCm?: number | null;
         depthCm?: number | null;
@@ -1839,6 +1904,22 @@ export interface Application {
   staffNotes?: string | null;
   submittedAt?: string | null;
   decidedAt?: string | null;
+  /**
+   * Set when the application is declined, from the wait in Site settings → Applications. "Allow them to apply again now" ends it early.
+   */
+  reapplyFrom?: string | null;
+  /**
+   * Each earlier decision, kept when the applicant applied again.
+   */
+  rounds?:
+    | {
+        decision?: string | null;
+        submittedAt?: string | null;
+        decidedAt?: string | null;
+        note?: string | null;
+        id?: string | null;
+      }[]
+    | null;
   decidedBy?: (number | null) | User;
   updatedAt: string;
   createdAt: string;
@@ -1936,9 +2017,11 @@ export interface KycRecord {
   };
   addressOnIdMatches?: boolean | null;
   /**
-   * The code the artist was asked to write, with their full name, on the paper they hold in the identity photo. Check both are there, legible, and match.
+   * The code the artist was given, which they wrote with their full name and date of birth on the paper they hold in the identity photo. Check all three are there, legible, and match.
    */
   identityCode?: string | null;
+  identityCodeIssuedAt?: string | null;
+  identityCodeExpiresAt?: string | null;
   accountNumberSealed?: string | null;
   ifscSealed?: string | null;
   holderNameSealed?: string | null;
@@ -1981,6 +2064,8 @@ export interface KycRecord {
    * When the artist gave consent. A record: it cannot be changed.
    */
   consentedAt?: string | null;
+  consentNoticeVersion?: string | null;
+  consentConfirmation?: string | null;
   /**
    * Set when the artist withdraws consent. For a withdrawal received by letter or email, use "Record a withdrawal" above.
    */
@@ -2009,6 +2094,11 @@ export interface KycDocument {
   storageKey: string;
   keyId: string;
   wrappedKey: string;
+  identityCodeSealed?: string | null;
+  identityFingerprint?: string | null;
+  identityCodeIssuedAt?: string | null;
+  identityCodeExpiresAt?: string | null;
+  capturedWith?: ('camera' | 'upload') | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -2070,6 +2160,8 @@ export interface SecurityEvent {
     | 'application-approved'
     | 'application-rejected'
     | 'application-changes-requested'
+    | 'application-reopened'
+    | 'application-reapply-allowed'
     | 'kyc-saved'
     | 'kyc-revealed'
     | 'kyc-document-opened'
@@ -2998,6 +3090,7 @@ export interface SiteSettingsSelect<T extends boolean = true> {
   showVisitorCount?: T;
   applicationsOpen?: T;
   applicationsClosedNote?: T;
+  reapplyAfterMonths?: T;
   artistTerms?: T;
   email?: T;
   phone?: T;
@@ -3016,6 +3109,13 @@ export interface SiteSettingsSelect<T extends boolean = true> {
       };
   mapUrl?: T;
   address?: T;
+  phulhaarSocial?:
+    | T
+    | {
+        instagram?: T;
+        facebook?: T;
+        pinterest?: T;
+      };
   socials?:
     | T
     | {
@@ -3192,6 +3292,8 @@ export interface MembersSelect<T extends boolean = true> {
         state?: T;
         postalCode?: T;
         country?: T;
+        latitude?: T;
+        longitude?: T;
       };
   profileReview?:
     | T
@@ -3245,6 +3347,9 @@ export interface MembersSelect<T extends boolean = true> {
 export interface ApplicationsSelect<T extends boolean = true> {
   reference?: T;
   identityCode?: T;
+  identityCodeHash?: T;
+  identityCodeIssuedAt?: T;
+  identityCodeExpiresAt?: T;
   member?: T;
   type?: T;
   issuedId?: T;
@@ -3273,6 +3378,8 @@ export interface ApplicationsSelect<T extends boolean = true> {
               state?: T;
               postalCode?: T;
               country?: T;
+              latitude?: T;
+              longitude?: T;
             };
         correspondenceSame?: T;
         correspondence?:
@@ -3286,6 +3393,8 @@ export interface ApplicationsSelect<T extends boolean = true> {
               state?: T;
               postalCode?: T;
               country?: T;
+              latitude?: T;
+              longitude?: T;
             };
       };
   practice?:
@@ -3300,6 +3409,14 @@ export interface ApplicationsSelect<T extends boolean = true> {
         statement?: T;
         website?: T;
         instagram?: T;
+        facebook?: T;
+        otherSocials?:
+          | T
+          | {
+              platform?: T;
+              handle?: T;
+              id?: T;
+            };
         priceRange?: T;
         recognition?:
           | T
@@ -3308,8 +3425,10 @@ export interface ApplicationsSelect<T extends boolean = true> {
               title?: T;
               venue?: T;
               year?: T;
+              details?: T;
               id?: T;
             };
+        recognitionNone?: T;
       };
   portfolio?:
     | T
@@ -3318,6 +3437,10 @@ export interface ApplicationsSelect<T extends boolean = true> {
         title?: T;
         year?: T;
         medium?: T;
+        width?: T;
+        height?: T;
+        depth?: T;
+        unit?: T;
         widthCm?: T;
         heightCm?: T;
         depthCm?: T;
@@ -3356,6 +3479,16 @@ export interface ApplicationsSelect<T extends boolean = true> {
   staffNotes?: T;
   submittedAt?: T;
   decidedAt?: T;
+  reapplyFrom?: T;
+  rounds?:
+    | T
+    | {
+        decision?: T;
+        submittedAt?: T;
+        decidedAt?: T;
+        note?: T;
+        id?: T;
+      };
   decidedBy?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -3471,6 +3604,8 @@ export interface KycRecordsSelect<T extends boolean = true> {
       };
   addressOnIdMatches?: T;
   identityCode?: T;
+  identityCodeIssuedAt?: T;
+  identityCodeExpiresAt?: T;
   accountNumberSealed?: T;
   ifscSealed?: T;
   holderNameSealed?: T;
@@ -3508,6 +3643,8 @@ export interface KycRecordsSelect<T extends boolean = true> {
         cancelTokenHash?: T;
       };
   consentedAt?: T;
+  consentNoticeVersion?: T;
+  consentConfirmation?: T;
   consentWithdrawnAt?: T;
   payoutRequestedAt?: T;
   legalHoldUntil?: T;
@@ -3526,6 +3663,11 @@ export interface KycDocumentsSelect<T extends boolean = true> {
   storageKey?: T;
   keyId?: T;
   wrappedKey?: T;
+  identityCodeSealed?: T;
+  identityFingerprint?: T;
+  identityCodeIssuedAt?: T;
+  identityCodeExpiresAt?: T;
+  capturedWith?: T;
   updatedAt?: T;
   createdAt?: T;
 }

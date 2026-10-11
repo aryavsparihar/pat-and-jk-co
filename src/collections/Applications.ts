@@ -86,8 +86,42 @@ export const Applications: CollectionConfig = {
       admin: {
         readOnly: true,
         position: 'sidebar',
+        // Applications started before codes expired kept theirs here; new codes are only hashed
+        condition: (data) => Boolean(data?.identityCode),
         description:
-          'The code the artist was asked to write, with their name, in the photo of them holding it. Given once; never changes.',
+          'The code an earlier application was given for its identity photo. Codes are now given for ten minutes at a time and kept only as a hash.',
+      },
+    },
+    {
+      // HMAC of the code the artist has now, under KYC_BLIND_INDEX_KEY: enough to check a photo
+      // against, useless to anyone reading the database. A new code replaces it
+      name: 'identityCodeHash',
+      type: 'text',
+      access: { read: nobody, create: nobody, update: nobody },
+      admin: { hidden: true },
+    },
+    {
+      name: 'identityCodeIssuedAt',
+      label: 'Identity code given',
+      type: 'date',
+      access: { update: nobody },
+      admin: {
+        readOnly: true,
+        position: 'sidebar',
+        date: { pickerAppearance: 'dayAndTime' },
+        condition: (data) => Boolean(data?.identityCodeIssuedAt),
+      },
+    },
+    {
+      name: 'identityCodeExpiresAt',
+      label: 'Identity code valid until',
+      type: 'date',
+      access: { update: nobody },
+      admin: {
+        readOnly: true,
+        position: 'sidebar',
+        date: { pickerAppearance: 'dayAndTime' },
+        condition: (data) => Boolean(data?.identityCodeExpiresAt),
       },
     },
     {
@@ -189,6 +223,35 @@ export const Applications: CollectionConfig = {
       admin: { position: 'sidebar', readOnly: true },
     },
     {
+      name: 'reapplyFrom',
+      label: 'May apply again from',
+      type: 'date',
+      access: { update: nobody },
+      admin: {
+        position: 'sidebar',
+        readOnly: true,
+        description:
+          'Set when the application is declined, from the wait in Site settings → Applications. "Allow them to apply again now" ends it early.',
+      },
+    },
+    {
+      name: 'rounds',
+      label: 'Earlier rounds',
+      type: 'array',
+      access: { read: staffOnlyField, update: nobody },
+      admin: {
+        readOnly: true,
+        initCollapsed: true,
+        description: 'Each earlier decision, kept when the applicant applied again.',
+      },
+      fields: [
+        { name: 'decision', type: 'text' },
+        { name: 'submittedAt', type: 'date' },
+        { name: 'decidedAt', type: 'date' },
+        { name: 'note', type: 'textarea' },
+      ],
+    },
+    {
       name: 'decidedBy',
       type: 'relationship',
       relationTo: 'users',
@@ -209,6 +272,28 @@ export const Applications: CollectionConfig = {
   // One artist application and one partner application per person, at most
   indexes: [{ fields: ['member', 'type'], unique: true }],
   endpoints: [
+    {
+      // POST /api/applications/:id/allow-reapply. Staff only; logged
+      path: '/:id/allow-reapply',
+      method: 'post',
+      handler: async (req) => {
+        if (!isStaff(req.user)) return Response.json({ message: 'Not allowed.' }, { status: 403 })
+        const { allowReapplyNow } = await import('../members/reapply')
+        try {
+          await allowReapplyNow(req.payload, {
+            applicationId: Number(req.routeParams?.id),
+            actor: req.user,
+          })
+          return Response.json({ ok: true })
+        } catch (error) {
+          const status = error instanceof APIError ? error.status : 500
+          return Response.json(
+            { message: error instanceof APIError ? error.message : 'That could not be done.' },
+            { status },
+          )
+        }
+      },
+    },
     {
       // POST /api/applications/:id/decide  { decision, note }. Staff only
       path: '/:id/decide',

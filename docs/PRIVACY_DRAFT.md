@@ -24,16 +24,25 @@ yuvraj@pjk.co.in.
 **When you write to us** through a form: your name, email, and what you tell us. To answer you.
 
 **When you apply as an artist or partner:** your email, name, date of birth, phone number,
-address, and what you tell us about your work, with pictures of it. To consider your application
-and to work with you if we approve it.
+address, and what you tell us about your work, with pictures of it. If you choose to, a pin on a
+map showing where you live; the map is OpenStreetMap's, and it loads only if you open it, at which
+point OpenStreetMap's servers see your internet address. To consider your application and to work
+with you if we approve it.
 
 **Identity details (artists).** Your PAN and the name on it, which we ask of every artist. A second
 ID showing your address: a masked e-Aadhaar with its last four digits, or, if you would rather, a
 passport, voter ID or driving licence. A proof of address if that address differs from the one you
-gave. A photo of you holding a paper on which you have written a code we give you and your full
-name, so we know a real person is applying and that it is you. **[confirm with counsel: collecting
-face photographs]** To be sure of who you are, and to keep the records the law requires when we pay
-you. We ask for your separate consent to this, and we use these details for nothing else.
+gave. A photo of your PAN card, on which your face must be clearly visible. A photo of your face,
+taken in the page with your camera or uploaded by you, holding a paper on which you have written a
+code we give you, your full name and your date of birth, so we know a real person is applying and
+that it is you. We compare the face in it with the photograph on your PAN card and your ID; we do
+not use it for anything else, and we do not use automated face recognition. The code lasts ten
+minutes; we keep it only as a one-way hash until the photo is taken, and then, encrypted, with the
+photo. **[confirm with counsel: collecting face photographs for identity checks]** To be sure of
+who you are, and to keep the records the law requires when we pay you. We ask for your separate
+consent to this, after you have read this policy to its end, and we record when you consented, to
+which version of this policy, and that you typed I AGREE to confirm it. We use these details for
+nothing else.
 
 **Your agreement to our terms (artists).** When you send your application we keep a record that you
 agreed to our Terms & Conditions, what you typed to confirm it, when, and which version.

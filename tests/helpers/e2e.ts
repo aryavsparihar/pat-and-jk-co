@@ -197,13 +197,15 @@ export const fillEarlySteps = async (page: Page) => {
           step: 'practice',
           data: {
             mediums: ['painting'],
-            stylesThemes: 'Landscapes of the foothills.',
+            stylesThemes:
+              'Landscapes of the Shivalik foothills, painted outdoors in every season, in oil and watercolour.',
             yearsPractising: 6,
             bio: 'A painter working in oils and watercolour, mostly outdoors, across the seasons. '.repeat(
-              2,
+              4,
             ),
             priceRange: '25k-1l',
             recognition: [],
+            recognitionNone: true,
           },
         })
       ).status,
@@ -225,8 +227,9 @@ export const fillEarlySteps = async (page: Page) => {
         title: `Work ${i}`,
         year: 2024,
         medium: 'Oil on canvas',
-        widthCm: 60,
-        heightCm: 90,
+        width: 60,
+        height: 90,
+        unit: 'cm',
       })
     }
     out.push(

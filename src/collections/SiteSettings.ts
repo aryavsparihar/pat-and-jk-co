@@ -29,6 +29,12 @@ const colourField = (name: string, label: string, defaultValue: string, descript
  * One settings document per brand (the multi-tenant plugin makes it behave like a global):
  * name, logo, colours, navigation, footer, contact details and social links.
  */
+/** Empty, or a full https:// link */
+const httpsLink = (value: unknown) =>
+  !value ||
+  (typeof value === 'string' && /^https:\/\/\S+$/i.test(value.trim())) ||
+  'Use the full link, starting https://'
+
 export const SiteSettings: CollectionConfig = {
   slug: 'site-settings',
   labels: {
@@ -249,6 +255,18 @@ export const SiteSettings: CollectionConfig = {
               },
             },
             {
+              name: 'reapplyAfterMonths',
+              label: 'Months before someone declined may apply again',
+              type: 'number',
+              min: 0,
+              max: 36,
+              defaultValue: 6,
+              admin: {
+                description:
+                  'Counted from the decision, and given in the email that tells them. 0 lets them apply again at once. Staff can end the wait early for one person from their application.',
+              },
+            },
+            {
               name: 'artistTerms',
               label: 'Artists’ Terms & Conditions (PDF)',
               type: 'upload',
@@ -368,6 +386,43 @@ export const SiteSettings: CollectionConfig = {
                 description:
                   'Only used while the registered office above is empty. Safe to clear once that is filled in.',
               },
+            },
+            {
+              name: 'phulhaarSocial',
+              label: "Phulhaar's social accounts",
+              type: 'group',
+              admin: {
+                description:
+                  "Full links, starting https://. Shown on Phulhaar's venture page and at the foot of the email that tells an artist their application was declined. An empty one is left out.",
+              },
+              fields: [
+                {
+                  type: 'row',
+                  fields: [
+                    {
+                      name: 'instagram',
+                      label: 'Instagram',
+                      type: 'text',
+                      validate: httpsLink,
+                      admin: { width: '33%' },
+                    },
+                    {
+                      name: 'facebook',
+                      label: 'Facebook',
+                      type: 'text',
+                      validate: httpsLink,
+                      admin: { width: '33%' },
+                    },
+                    {
+                      name: 'pinterest',
+                      label: 'Pinterest',
+                      type: 'text',
+                      validate: httpsLink,
+                      admin: { width: '33%' },
+                    },
+                  ],
+                },
+              ],
             },
             {
               name: 'socials',

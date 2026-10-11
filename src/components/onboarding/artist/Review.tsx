@@ -86,6 +86,7 @@ export const ReviewStep: React.FC<
             ? addressLine(address.correspondence)
             : 'The same address',
         ],
+        ['Map pin', typeof address.residence?.latitude === 'number' ? 'Placed' : 'None'],
       ],
     },
     {
@@ -96,13 +97,36 @@ export const ReviewStep: React.FC<
           'Mediums',
           (practice.mediums ?? []).map((m: string) => labelOf(MEDIUMS, m)).join(', ') || '—',
         ],
-        ['Years practising', practice.yearsPractising ?? '—'],
+        [
+          'Years practising',
+          practice.yearsPractising === 0 ? 'Less than one' : (practice.yearsPractising ?? '—'),
+        ],
         ['Price range', labelOf(PRICE_RANGES, practice.priceRange) || '—'],
         [
           'Biography',
           practice.bio
             ? `${String(practice.bio).slice(0, 160)}${String(practice.bio).length > 160 ? '…' : ''}`
             : '—',
+        ],
+        [
+          'Exhibitions and awards',
+          practice.recognitionNone
+            ? 'None yet'
+            : (practice.recognition ?? [])
+                .map((r: Values) => r.title)
+                .filter(Boolean)
+                .join(', ') || '—',
+        ],
+        [
+          'Online',
+          [
+            practice.website && 'Website',
+            practice.instagram && 'Instagram',
+            practice.facebook && 'Facebook',
+            ...(practice.otherSocials ?? []).map((o: Values) => o.platform),
+          ]
+            .filter(Boolean)
+            .join(', ') || '—',
         ],
       ],
     },

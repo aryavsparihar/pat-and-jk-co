@@ -23,6 +23,8 @@ export const DecisionPanel: React.FC = () => {
   const decidable =
     stage === 'submitted' || stage === 'under-review' || stage === 'changes-requested'
 
+  if (stage === 'rejected') return <Declined id={id} />
+
   if (!decidable) {
     const words: Record<string, string> = {
       draft: 'Still being filled in by the applicant. Nothing to decide yet.',
@@ -119,6 +121,62 @@ export const DecisionPanel: React.FC = () => {
           Decline
         </button>
       </div>
+      {message && (
+        <p role="status" style={{ marginTop: 'var(--base)' }}>
+          {message}
+        </p>
+      )}
+    </div>
+  )
+}
+
+/** A declined application: when they may apply again, and a way to let them now */
+const Declined: React.FC<{ id: number | string }> = ({ id }) => {
+  const reapplyFrom = useFormFields(([fields]) => fields.reapplyFrom?.value as string | undefined)
+  const router = useRouter()
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState<string | null>(null)
+  const from = reapplyFrom ? new Date(reapplyFrom) : null
+  // eslint-disable-next-line react-hooks/purity -- read once per render, to say whether the wait is over
+  const waiting = from ? from.getTime() > Date.now() : false
+
+  const allow = async () => {
+    if (!window.confirm('Let this applicant apply again now? Their wait ends today.')) return
+    setBusy(true)
+    setMessage(null)
+    const response = await fetch(`/api/applications/${id}/allow-reapply`, {
+      method: 'POST',
+      credentials: 'include',
+    })
+    const body = (await response.json().catch(() => ({}))) as { message?: string }
+    setBusy(false)
+    if (!response.ok) return setMessage(body.message ?? 'That could not be done.')
+    setMessage('Done. They can apply again when they next sign in.')
+    router.refresh()
+  }
+
+  return (
+    <div style={{ marginBottom: 'var(--base)' }}>
+      <p className="field-label">Decision</p>
+      <p>Declined. The applicant has been told.</p>
+      {from && (
+        <p style={{ marginTop: '0.5rem' }}>
+          {waiting
+            ? `They may apply again from ${from.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}.`
+            : 'They may apply again now.'}
+        </p>
+      )}
+      {(waiting || !from) && (
+        <button
+          className="btn btn--style-secondary btn--size-small"
+          disabled={busy}
+          onClick={() => void allow()}
+          style={{ marginTop: 'var(--base)' }}
+          type="button"
+        >
+          Allow them to apply again now
+        </button>
+      )}
       {message && (
         <p role="status" style={{ marginTop: 'var(--base)' }}>
           {message}

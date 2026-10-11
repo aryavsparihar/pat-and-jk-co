@@ -26,6 +26,7 @@ const KIND_LABELS: Record<string, string> = {
   'other-id': 'Passport, voter ID or driving licence',
   'address-proof': 'Proof of address',
   'bank-proof': 'Cheque or passbook',
+  'identity-photo': 'Identity photo',
 }
 
 /**
@@ -46,6 +47,13 @@ export const KycPanel: React.FC = () => {
     ([fields]) => fields.consentWithdrawnAt?.value as string | undefined,
   )
   const holdUntil = useFormFields(([fields]) => fields.legalHoldUntil?.value as string | undefined)
+  const identityCode = useFormFields(([fields]) => fields.identityCode?.value as string | undefined)
+  const codeIssuedAt = useFormFields(
+    ([fields]) => fields.identityCodeIssuedAt?.value as string | undefined,
+  )
+  const codeExpiresAt = useFormFields(
+    ([fields]) => fields.identityCodeExpiresAt?.value as string | undefined,
+  )
   const accountMasked = useFormFields(
     ([fields]) => fields.accountMasked?.value as string | undefined,
   )
@@ -369,6 +377,17 @@ export const KycPanel: React.FC = () => {
                 >
                   Download {KIND_LABELS[kinds[documentId] ?? ''] ?? `document ${documentId}`}
                 </button>
+                {kinds[documentId] === 'identity-photo' && identityCode && (
+                  // Beside the photo, so the reviewer can compare it with what is written
+                  <p style={{ margin: '0.4rem 0 0.8rem' }}>
+                    Code given: <strong style={{ letterSpacing: '0.12em' }}>{identityCode}</strong>
+                    {codeIssuedAt &&
+                      `, ${new Date(codeIssuedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}`}
+                    {codeExpiresAt &&
+                      ` to ${new Date(codeExpiresAt).toLocaleTimeString('en-IN', { timeStyle: 'short' })}`}
+                    . The paper should show this code, the name on the PAN and the date of birth.
+                  </p>
+                )}
               </li>
             ))}
           </ul>

@@ -2,7 +2,13 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 import { GATE_COOKIE, GATE_PATH } from './security/constants'
 import { readGateToken } from './security/gateToken'
-import { createNonce, MEMBER_PAGE, memberPagePolicy } from './security/memberPagePolicy'
+import {
+  CAMERA_PAGE,
+  CAMERA_PERMISSIONS,
+  createNonce,
+  MEMBER_PAGE,
+  memberPagePolicy,
+} from './security/memberPagePolicy'
 import { normalizeHost, TENANT_SITES_PREFIX } from './utilities/host'
 
 /**
@@ -76,6 +82,7 @@ export function proxy(request: NextRequest) {
     requestHeaders.set('x-nonce', nonce)
     const response = NextResponse.rewrite(url, { request: { headers: requestHeaders } })
     response.headers.set('Content-Security-Policy', policy)
+    if (CAMERA_PAGE.test(pathname)) response.headers.set('Permissions-Policy', CAMERA_PERMISSIONS)
     return response
   }
 

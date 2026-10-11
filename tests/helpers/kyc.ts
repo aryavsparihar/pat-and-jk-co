@@ -2,6 +2,10 @@ import { sql } from '@payloadcms/db-postgres'
 import type { Payload } from 'payload'
 
 import { deleteEncrypted } from '@/kyc/documentStore'
+import { identityFingerprint } from '@/kyc/identityCode'
+import { storeKycDocument } from '@/kyc/service'
+import { PRIVACY_NOTICE_VERSION } from '@/members/application'
+import type { Member } from '@/payload-types'
 import { execute } from '@/utilities/sql'
 import sharp from 'sharp'
 
@@ -20,6 +24,10 @@ export const FAKE = {
 
 export const goodKyc = (documents: Record<string, number> = {}) => ({
   consent: true,
+  // The privacy notice read to its end, then I AGREE typed out
+  consentReadToEnd: true,
+  consentTyped: 'I AGREE',
+  noticeVersion: PRIVACY_NOTICE_VERSION,
   pan: FAKE.pan,
   panName: FAKE.panName,
   // The other-ID path by default; tests of the e-Aadhaar path set idChoice themselves
@@ -63,4 +71,37 @@ export const removeKycFor = async (payload: Payload, emailLike: string) => {
     payload,
     sql`DELETE FROM kyc_documents WHERE member_id IN (SELECT id FROM members WHERE email LIKE ${emailLike})`,
   )
+}
+
+/** A made-up code, as the server would have given it ten minutes before it ran out */
+export const FAKE_CODE = 'K7Q-4MX'
+
+/**
+ * The photos every artist's identity step needs: their PAN card, and the photo of them holding the
+ * paper, taken with a code for the name on their PAN and their date of birth
+ */
+export const identityPhotos = async (
+  payload: Payload,
+  member: Member,
+  { dateOfBirth, name = FAKE.panName }: { dateOfBirth: string; name?: string },
+) => {
+  const panCard = await storeKycDocument(payload, {
+    member,
+    kind: 'pan-card',
+    bytes: await identityPhotoBytes(),
+  })
+  const now = Date.now()
+  const photo = await storeKycDocument(payload, {
+    member,
+    kind: 'identity-photo',
+    bytes: await identityPhotoBytes(),
+    identity: {
+      code: FAKE_CODE,
+      issuedAt: new Date(now - 60_000).toISOString(),
+      expiresAt: new Date(now + 9 * 60_000).toISOString(),
+      capturedWith: 'camera',
+      fingerprint: identityFingerprint(name, dateOfBirth),
+    },
+  })
+  return { 'pan-card': panCard.id, 'identity-photo': photo.id }
 }

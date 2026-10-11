@@ -6,9 +6,23 @@ import type { Application, Member } from '@/payload-types'
 import { canSendEmail } from '@/security/email'
 import { OTP_TTL_MINUTES } from '@/security/constants'
 import type { Purpose } from '@/security/challenges'
+import { phulhaarSocialLinks } from '@/brands/socialIcons'
 import { getServerSideURL } from '@/utilities/getURL'
 
 import type { Decision } from './decide'
+import { defaultSiteSettings } from './openness'
+
+/** Where questions about an application go */
+export const APPLICATIONS_CONTACT = 'hello@pjk.co.in'
+
+/** "11 April 2027", as the emails write dates */
+export const longDate = (iso: string) =>
+  new Date(iso).toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'Asia/Kolkata',
+  })
 
 /**
  * What members are told, and when. In the site's voice: short, plain, no exclamation marks.
@@ -158,6 +172,9 @@ export const decisionEmail = async (
     })
   }
 
+  const settings = await defaultSiteSettings(payload).catch(() => null)
+  const socials = kind === 'artist' ? phulhaarSocialLinks(settings?.phulhaarSocial) : []
+  const reapplyFrom = (application as { reapplyFrom?: string | null }).reapplyFrom
   return buildEmail({
     subject: 'Your application to PAT and J.K. Co.',
     preheader: `About your application ${application.reference}.`,
@@ -166,8 +183,24 @@ export const decisionEmail = async (
         kind: 'paragraph',
         text: 'Thank you for applying, and for the time you gave it. We are not able to take your application further at present.',
       },
-      { kind: 'paragraph', text: note },
+      ...(note ? [{ kind: 'paragraph' as const, text: note }] : []),
+      ...(reapplyFrom
+        ? [
+            {
+              kind: 'paragraph' as const,
+              text: `You are welcome to apply again from ${longDate(reapplyFrom)}. Sign in with this email address, and what you told us about yourself and your practice will be there to review.`,
+            },
+          ]
+        : []),
       { kind: 'reference', label: 'Application reference', value: application.reference },
+      {
+        kind: 'mailto',
+        text: 'For any further questions, contact us at',
+        email: APPLICATIONS_CONTACT,
+      },
+      ...(socials.length
+        ? [{ kind: 'socials' as const, heading: 'Follow Phulhaar', links: socials }]
+        : []),
     ],
     footer,
   })

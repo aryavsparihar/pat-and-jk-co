@@ -97,6 +97,14 @@ export const kycSchema = z
     consent: z.literal(true, {
       error: 'We need your consent before we can take your identity details.',
     }),
+    // How the consent was given: the privacy notice read to its end, then I AGREE typed out
+    consentReadToEnd: z.literal(true, {
+      error: 'Please read the privacy notice to the end, then confirm.',
+    }),
+    consentTyped: z.literal('I AGREE', {
+      error: 'Please type I AGREE, in capitals, to confirm.',
+    }),
+    noticeVersion: z.string().max(40).optional(),
     pan: z.string({ error: 'Please give your PAN.' }),
     panName: z.string().optional(),
     idChoice: z.enum(['aadhaar', 'other'], {
@@ -155,10 +163,16 @@ export const kycSchema = z
         }
       }
 
+      if (!documents['pan-card']) {
+        issue(
+          ['documents', 'pan-card'],
+          'Please add a photo of your PAN card, with your face on it clearly visible.',
+        )
+      }
       if (!documents['identity-photo']) {
         issue(
           ['documents', 'identity-photo'],
-          'Please upload the photo of you holding the code and your name.',
+          'Please add the photo of you holding the paper with your code, name and date of birth.',
         )
       }
 

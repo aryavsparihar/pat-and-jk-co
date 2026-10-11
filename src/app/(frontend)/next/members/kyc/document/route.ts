@@ -1,7 +1,13 @@
 import { EDITABLE, findOwnApplication } from '@/members/application'
 import { fromOurOrigin, refuseCrossSite, reply, requireMember, withRefresh } from '@/members/http'
 import { KYC_DOCUMENT_KINDS, type KycDocumentKind } from '@/kyc/schema'
-import { KYC_DOCUMENT_MAX_BYTES, KycError, storeKycDocument } from '@/kyc/service'
+import { CODE_PROBLEM, checkIdentityCode, identityFingerprint } from '@/kyc/identityCode'
+import {
+  type IdentityPhotoFacts,
+  KYC_DOCUMENT_MAX_BYTES,
+  KycError,
+  storeKycDocument,
+} from '@/kyc/service'
 import { hitLimit } from '@/security/rateLimit'
 
 export const dynamic = 'force-dynamic'
@@ -49,11 +55,54 @@ export async function POST(request: Request) {
   if (file.size > KYC_DOCUMENT_MAX_BYTES)
     return reply({ message: 'That file is larger than 4 MB.' }, { status: 413 })
 
+  // The identity photo must be taken with the artist's current code, while it holds, and for
+  // the name and date of birth they have given; the code is kept with it for reviewers
+  let identity: IdentityPhotoFacts | undefined
+  if (kind === 'identity-photo') {
+    if (!application || !open) {
+      return reply(
+        { message: 'The photo can only be added while your application is open.' },
+        { status: 409 },
+      )
+    }
+    const held = (await payload.findByID({
+      collection: 'applications',
+      id: application.id,
+      depth: 0,
+      overrideAccess: true,
+      showHiddenFields: true,
+    })) as typeof application & {
+      identityCodeHash?: string | null
+      identityCodeIssuedAt?: string | null
+      identityCodeExpiresAt?: string | null
+    }
+    const code = String(form.get('identityCode') ?? '')
+    const check = checkIdentityCode(held, code)
+    if (check !== 'ok') {
+      return reply({ message: CODE_PROBLEM[check], codeProblem: check }, { status: 422 })
+    }
+    const name = String(form.get('panName') ?? '').trim()
+    if (!name) {
+      return reply(
+        { message: 'Please give your name as on your PAN before adding the photo.' },
+        { status: 422 },
+      )
+    }
+    identity = {
+      code: code.toUpperCase(),
+      issuedAt: held.identityCodeIssuedAt!,
+      expiresAt: held.identityCodeExpiresAt!,
+      capturedWith: form.get('capturedWith') === 'camera' ? 'camera' : 'upload',
+      fingerprint: identityFingerprint(name, held.about?.dateOfBirth),
+    }
+  }
+
   try {
     const document = await storeKycDocument(payload, {
       member,
       kind,
       bytes: Buffer.from(await file.arrayBuffer()),
+      identity,
     })
     return withRefresh(
       reply({ document: { id: document.id, kind: document.kind } }, { status: 201 }),

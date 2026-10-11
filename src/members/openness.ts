@@ -1,5 +1,7 @@
 import type { Payload } from 'payload'
 
+import type { SiteSetting } from '@/payload-types'
+
 /**
  * Whether applications are open: Site settings → Applications, on the default brand. Off by
  * default, so a new deploy never opens applications by itself. While closed, the application
@@ -11,15 +13,20 @@ export const DEFAULT_CLOSED_NOTE = 'Applications open soon. Please come back in 
 
 export type Openness = { open: boolean; note: string }
 
+/** The default brand's Site settings, where the application settings live */
+export const defaultSiteSettings = async (payload: Payload): Promise<SiteSetting | null> =>
+  (
+    await payload.find({
+      collection: 'site-settings',
+      where: { 'tenant.slug': { equals: process.env.DEFAULT_TENANT_SLUG || 'pjk' } },
+      limit: 1,
+      depth: 0,
+      overrideAccess: true,
+    })
+  ).docs[0] ?? null
+
 export const applicationsOpenness = async (payload: Payload): Promise<Openness> => {
-  const found = await payload.find({
-    collection: 'site-settings',
-    where: { 'tenant.slug': { equals: process.env.DEFAULT_TENANT_SLUG || 'pjk' } },
-    limit: 1,
-    depth: 0,
-    overrideAccess: true,
-  })
-  const settings = found.docs[0]
+  const settings = await defaultSiteSettings(payload)
   // On a developer's machine only, DEV_APPLICATIONS_OPEN=1 opens applications without touching
   // the shared database's switch. Ignored in any production build, previews included
   const devOpen =

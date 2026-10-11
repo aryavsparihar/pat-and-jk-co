@@ -2,25 +2,26 @@
 
 import { SESSION_CHANGED } from '@/components/SiteHeader/AccountControl'
 import { BotCheckHelp } from '@/components/turnstile/BotCheckHelp'
-import { type BotCheckProblem, useTurnstile } from '@/components/turnstile/useTurnstile'
+import { useVisibleTurnstile } from '@/components/turnstile/useTurnstile'
 import { TURNSTILE_FIELD } from '@/security/turnstile'
 import { HONEYPOT_FIELD } from '@/utilities/honeypot'
 import React, { useEffect, useRef, useState } from 'react'
 
 import { api } from './api'
 import { fieldClass } from './fields'
+import { Sending } from './Sending'
 
 type Purpose = 'signin' | 'apply-artist' | 'apply-partner'
 
 const COPY: Record<Purpose, { intro: string; button: string }> = {
   signin: {
     intro:
-      'Enter the email address you applied with. We will send you a code to sign in. There is no password.',
+      'Enter the email address you applied with, and we will send you a code to sign in. There is no password.',
     button: 'Email me a code',
   },
   'apply-artist': {
     intro:
-      'Start with your email address. We will send you a code to confirm it, and you can come back to your application at any time by signing in the same way.',
+      'Start with your email address. We will send you a code to confirm it. You can come back to your application at any time by signing in the same way.',
     button: 'Email me a code',
   },
   'apply-partner': {
@@ -29,9 +30,16 @@ const COPY: Record<Purpose, { intro: string; button: string }> = {
   },
 }
 
+const looksLikeEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value.trim())
+
 /**
  * Email, then the six-digit code sent to it. Used to sign in, and as the first step of both
  * applications. Carries the hidden honeypot field and the signed form-start token.
+ *
+ * The check ("Verify you are human") sits directly under the email field, and the button appears
+ * below it only once the address looks right and the check has passed; until then nothing stands
+ * in its place, except the help when the check cannot run. The check keeps one place in the form
+ * through both stages, so it is there again, freshly passed, for "Send a new code".
  */
 export const CodeSignIn: React.FC<{
   purpose: Purpose
@@ -48,9 +56,9 @@ export const CodeSignIn: React.FC<{
   const [busy, setBusy] = useState(false)
   const [honeypot, setHoneypot] = useState('')
   const [resendIn, setResendIn] = useState(0)
+  const [refused, setRefused] = useState(false)
   const codeRef = useRef<HTMLInputElement>(null)
-  const bot = useTurnstile(purpose)
-  const [botProblem, setBotProblem] = useState<BotCheckProblem | null>(null)
+  const bot = useVisibleTurnstile(purpose)
 
   useEffect(() => {
     if (resendIn <= 0) return
@@ -58,17 +66,15 @@ export const CodeSignIn: React.FC<{
     return () => clearTimeout(timer)
   }, [resendIn])
 
-  const requestCode = async (event?: React.FormEvent) => {
-    event?.preventDefault()
+  // Passed, or switched off (a developer's machine, the tests)
+  const humanReady = !bot.enabled || Boolean(bot.token)
+  const problem = bot.problem ?? (refused ? 'failed' : null)
+  const canSend = looksLikeEmail(email) && humanReady
+
+  const requestCode = async () => {
     setBusy(true)
     setError(null)
-    setBotProblem(null)
-    // Without the check nothing is sent: the person is told why and what to do
-    const human = await bot.getToken()
-    if (human.problem) {
-      setBusy(false)
-      return setBotProblem(human.problem)
-    }
+    setRefused(false)
     const result = await api<{ challengeId: number; retryCheck?: boolean }>(
       '/next/members/request-code',
       {
@@ -77,12 +83,14 @@ export const CodeSignIn: React.FC<{
           purpose,
           formToken,
           [HONEYPOT_FIELD]: honeypot,
-          [TURNSTILE_FIELD]: human.token,
+          [TURNSTILE_FIELD]: bot.token,
         },
       },
     )
+    // A token is good for one request: the check runs again for the next
+    bot.reset()
     setBusy(false)
-    if (!result.ok && result.data.retryCheck) return setBotProblem('failed')
+    if (!result.ok && result.data.retryCheck) return setRefused(true)
     if (!result.ok)
       return setError(result.data.message ?? 'Something went wrong. Please try again.')
     setChallengeId(result.data.challengeId ?? null)
@@ -93,8 +101,7 @@ export const CodeSignIn: React.FC<{
     setTimeout(() => codeRef.current?.focus(), 0)
   }
 
-  const verify = async (event: React.FormEvent) => {
-    event.preventDefault()
+  const verify = async () => {
     setBusy(true)
     setError(null)
     const result = await api('/next/members/verify-code', { body: { challengeId, code } })
@@ -105,11 +112,18 @@ export const CodeSignIn: React.FC<{
     onSignedIn()
   }
 
-  const form =
+  const submit = (event: React.FormEvent) => {
+    event.preventDefault()
+    if (stage === 'code') return void verify()
+    if (canSend) void requestCode()
+  }
+
+  // Three places, always in this order, so the check between them is never remounted
+  const top =
     stage === 'code' ? (
-      <form noValidate onSubmit={verify}>
+      <>
         <p aria-live="polite" className="measure">
-          {message} It may take a minute to arrive; check your spam folder if it does not.
+          {message} It may take a minute to arrive. If it does not, look in your spam folder.
         </p>
         <div className="mt-8 max-w-xs">
           <label className="label mb-1 block" htmlFor="member-code">
@@ -149,8 +163,8 @@ export const CodeSignIn: React.FC<{
           </button>
           <button
             className="link link-caps min-h-11"
-            disabled={busy || resendIn > 0}
-            onClick={() => requestCode()}
+            disabled={busy || resendIn > 0 || !humanReady}
+            onClick={() => void requestCode()}
             type="button"
           >
             {resendIn > 0 ? `Send a new code in ${resendIn}s` : 'Send a new code'}
@@ -163,9 +177,9 @@ export const CodeSignIn: React.FC<{
             Use another address
           </button>
         </div>
-      </form>
+      </>
     ) : (
-      <form noValidate onSubmit={requestCode}>
+      <>
         <p className="measure">{COPY[purpose].intro}</p>
         <div className="mt-8 max-w-md">
           <label className="label mb-1 block" htmlFor="member-email">
@@ -204,22 +218,32 @@ export const CodeSignIn: React.FC<{
             value={honeypot}
           />
         </div>
-        <button
-          className="btn btn-solid mt-9 min-h-11"
-          disabled={busy || !email.includes('@')}
-          type="submit"
-        >
-          {busy ? 'Sending…' : COPY[purpose].button}
-        </button>
-      </form>
+      </>
     )
 
-  // Outside both stages, so the check is still there for "send a new code"
+  const bottom =
+    stage === 'email' ? (
+      <>
+        {problem && <BotCheckHelp problem={problem} />}
+        {canSend && (
+          <button className="btn btn-solid step-in mt-8 min-h-11" disabled={busy} type="submit">
+            {busy ? <Sending /> : COPY[purpose].button}
+          </button>
+        )}
+        {/* Says, for a screen reader, that the button has appeared */}
+        <p aria-live="polite" className="sr-only">
+          {canSend ? 'You can send your code now.' : ''}
+        </p>
+      </>
+    ) : problem ? (
+      <BotCheckHelp problem={problem} />
+    ) : null
+
   return (
-    <>
-      {form}
-      {botProblem && <BotCheckHelp problem={botProblem} />}
-      {bot.element}
-    </>
+    <form noValidate onSubmit={submit}>
+      {top}
+      <div className="max-w-md">{bot.element}</div>
+      {bottom}
+    </form>
   )
 }
