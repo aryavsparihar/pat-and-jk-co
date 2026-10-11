@@ -38,33 +38,73 @@ const picture = (i: number) =>
     .jpeg()
     .toBuffer()
 
-/** The photo of the applicant holding their code: any picture will do in a test */
-const uploadIdentityPhoto = async (page: import('@playwright/test').Page) => {
+type Page = import('@playwright/test').Page
+
+/** A photo of the PAN card: any picture will do in a test */
+const uploadPanCard = async (page: Page) => {
+  await page.locator('#field-documents-pan-card').setInputFiles({
+    name: 'pan-card.jpg',
+    mimeType: 'image/jpeg',
+    buffer: await picture(3),
+  })
+  await expect(page.getByRole('img', { name: 'Preview: PAN card' })).toBeVisible()
+}
+
+/**
+ * The photo of the applicant holding their code, name and date of birth: the code is given for
+ * ten minutes; a browser in a test has no camera, so the photo is uploaded
+ */
+const uploadIdentityPhoto = async (page: Page) => {
+  await page.getByRole('button', { name: 'Show my code' }).click()
   await expect(page.getByText(/^[2-9A-Z]{3}-[2-9A-Z]{3}$/)).toBeVisible()
-  await page.locator('#field-documents-identity-photo').setInputFiles({
+  await expect(page.getByText(/^Valid for \d:\d\d$/)).toBeVisible()
+  await page.locator('#identity-photo-file').setInputFiles({
     name: 'me-holding-the-code.jpg',
     mimeType: 'image/jpeg',
     buffer: await picture(4),
   })
-  await expect(page.getByText('Received, and encrypted.')).toHaveCount(2)
+  await expect(page.getByRole('img', { name: 'Preview: the photo of you' })).toBeVisible()
 }
 
-const fillKycOtherId = async (page: import('@playwright/test').Page) => {
-  await page.getByLabel(/I agree to PAT and J\.K\. Co\. processing/).check()
+/** Consent: the policy opens in a dialog, is read to the end, confirmed, and I AGREE typed */
+const agreeToPrivacy = async (page: Page) => {
+  await expect(page.getByRole('button', { name: 'Save and continue' })).toBeDisabled()
+  // Ticking opens the policy; the box is ticked only once they have agreed
+  await page.getByLabel(/I agree to PAT and J\.K\. Co\. processing/).click()
+  const dialog = page.getByRole('dialog', { name: 'Privacy policy' })
+  await expect(dialog).toBeVisible()
+  await expect(dialog.getByRole('button', { name: 'Agree' })).toBeDisabled()
+  await dialog
+    .getByRole('region', { name: 'The privacy policy' })
+    .evaluate((el) => el.scrollTo({ top: el.scrollHeight }))
+  await dialog.getByLabel('I have read the privacy policy to the end.').check()
+  await dialog.getByLabel('Type I AGREE to confirm').fill('i agree')
+  await expect(dialog.getByRole('button', { name: 'Agree' })).toBeDisabled()
+  await dialog.getByLabel('Type I AGREE to confirm').fill('I AGREE')
+  await dialog.getByRole('button', { name: 'Agree' }).click()
+  await expect(dialog).toBeHidden()
+  await expect(page.getByLabel(/I agree to PAT and J\.K\. Co\. processing/)).toBeChecked()
+}
+
+const fillKycOtherId = async (page: Page) => {
   await page.getByLabel('PAN', { exact: true }).fill('ABCPE1234F')
   await page.getByLabel('Name as on your PAN').fill('Asha Example')
+  await uploadPanCard(page)
   await page.getByLabel('I’d rather use another ID').check()
   await page.getByRole('radio', { name: 'Passport', exact: true }).check()
-  await page.locator('#field-documents-other-id').setInputFiles({
-    name: 'passport.pdf',
-    mimeType: 'application/pdf',
-    buffer: Buffer.from('%PDF-1.7\n% a made-up passport page\n%%EOF\n'),
-  })
-  await expect(page.getByText('Received, and encrypted.')).toBeVisible()
-  await uploadIdentityPhoto(page)
+  // A one-page PDF with made-up text, so its first page can be previewed in the browser
+  await page
+    .locator('#field-documents-other-id')
+    .setInputFiles(
+      path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../fixtures/sample-passport.pdf'),
+    )
+  await expect(page.getByRole('img', { name: /Preview of the first page: Your ID/ })).toBeVisible()
   await page.getByLabel('Yes', { exact: true }).check()
+  await uploadIdentityPhoto(page)
+  await expect(page.getByText('Received, and encrypted.')).toHaveCount(3)
   // No bank details: those are asked for only when a sale needs a payout
   await expect(page.getByLabel('Account number', { exact: true })).toHaveCount(0)
+  await agreeToPrivacy(page)
 }
 
 test('an artist applies step by step, stops halfway, and comes back', async ({ page, context }) => {
@@ -99,15 +139,44 @@ test('an artist applies step by step, stops halfway, and comes back', async ({ p
   await expect(page.getByRole('button', { name: /Step 1: About you, saved/ })).toBeVisible()
 
   // Your practice
-  await page.getByLabel('Painting').check()
-  await page.getByLabel('Styles and themes').fill('Landscapes of the foothills.')
-  await page.getByLabel('Years practising').fill('6')
+  await page.getByLabel('Painting', { exact: true }).check()
+  await page.getByLabel('Papier-mâché').check()
+  await page
+    .getByLabel('Styles and themes')
+    .fill('Landscapes of the Shivalik foothills, painted outdoors in every season.')
+  // Short of the minimum, the count says how far there is to go
+  await expect(page.getByText(/of at least 80/)).toBeVisible()
+  await page
+    .getByLabel('Styles and themes')
+    .fill('Landscapes of the Shivalik foothills, painted outdoors in every season, in oils.')
+  const years = page.getByRole('listbox', { name: 'How long you have been practising' })
+  await years.focus()
+  await page.keyboard.press('ArrowDown')
+  await expect(years.getByRole('option', { name: 'Less than one' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  )
+  await years.getByRole('option', { name: '6 years', exact: true }).click()
+  await expect(years.getByRole('option', { name: '6 years', exact: true })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  )
   await page
     .getByLabel('A short biography')
     .fill(
-      'A painter working in oils and watercolour, mostly outdoors, across the seasons. '.repeat(2),
+      'A painter working in oils and watercolour, mostly outdoors, across the seasons. '.repeat(4),
     )
+  await page.getByLabel('Instagram').fill('@asha.example')
+  await page.getByRole('button', { name: 'Add another platform' }).click()
+  await page.getByLabel('Platform').fill('Behance')
+  await page.getByLabel('Link or ID').fill('asha-example')
   await page.getByLabel('Typical price range').selectOption({ index: 2 })
+  // The section is required, with a plain way to say there is nothing yet
+  await page.getByRole('button', { name: 'Save and continue' }).click()
+  await expect(
+    page.getByText('Please add at least one, or choose "None yet".').first(),
+  ).toBeVisible()
+  await page.getByLabel('None yet').check()
   await page.getByRole('button', { name: 'Save and continue' }).click()
 
   // Your work: three pictures, each described
@@ -124,11 +193,17 @@ test('an artist applies step by step, stops halfway, and comes back', async ({ p
   await expect(page.getByText('3 of 10 works added.')).toBeVisible({ timeout: 60_000 })
   for (const [i, title] of ['Dusk', 'River', 'Hills'].entries()) {
     await page.getByLabel('Title', { exact: true }).nth(i).fill(title)
-    await page.getByLabel('Year', { exact: true }).nth(i).fill('2024')
+    await page
+      .getByRole('listbox', { name: 'Year made' })
+      .nth(i)
+      .getByRole('option', { name: '2024', exact: true })
+      .click()
     await page.getByLabel('Medium', { exact: true }).nth(i).fill('Oil on canvas')
-    await page.getByLabel('Width (cm)').nth(i).fill('60')
-    await page.getByLabel('Height (cm)').nth(i).fill('90')
+    await page.getByLabel('Width', { exact: true }).nth(i).fill('60,5')
+    await page.getByLabel('Height', { exact: true }).nth(i).fill('90')
   }
+  // Inches for the last one: kept as given, and in centimetres
+  await page.getByLabel('Unit', { exact: true }).nth(2).selectOption('in')
   await page.getByRole('button', { name: 'Save and continue' }).click()
 
   // Identity: the other-ID path
@@ -160,6 +235,21 @@ test('an artist applies step by step, stops halfway, and comes back', async ({ p
     })
   ).docs[0]!
   expect(application.stage).toBe('submitted')
+  expect(application.practice?.yearsPractising).toBe(6)
+  expect(application.practice?.recognitionNone).toBe(true)
+  expect(application.portfolio?.[0]).toMatchObject({ year: 2024, width: 60.5, widthCm: 60.5 })
+  expect(application.portfolio?.[2]).toMatchObject({ unit: 'in', width: 60.5, widthCm: 153.67 })
+  const record = (
+    await (
+      await payload()
+    ).find({
+      collection: 'kyc-records',
+      where: { member: { equals: member.id } },
+      overrideAccess: true,
+    })
+  ).docs[0]!
+  expect(record.identityCode).toMatch(/^[2-9A-Z]{3}-[2-9A-Z]{3}$/)
+  expect(record.consentConfirmation).toMatch(/I AGREE/)
 })
 
 test('PAN is required, and a masked e-Aadhaar goes through the check', async ({ page }) => {
@@ -172,13 +262,14 @@ test('PAN is required, and a masked e-Aadhaar goes through the check', async ({ 
   await expect(page.getByRole('heading', { name: 'Identity', exact: true })).toBeVisible()
 
   // Without a PAN, nothing is saved
-  await page.getByLabel(/I agree to PAT and J\.K\. Co\. processing/).check()
+  await agreeToPrivacy(page)
   await page.getByRole('button', { name: 'Save and continue' }).click()
   await expect(page.getByText('A PAN is ten characters', { exact: false }).first()).toBeVisible()
 
   // The masked e-Aadhaar path, with a made-up signed PDF and its password
   await page.getByLabel('PAN', { exact: true }).fill('ABCPE1234F')
   await page.getByLabel('Name as on your PAN').fill('Asha Example')
+  await uploadPanCard(page)
   await page
     .locator('#field-documents-masked-aadhaar')
     .setInputFiles(
@@ -187,10 +278,15 @@ test('PAN is required, and a masked e-Aadhaar goes through the check', async ({ 
         '../fixtures/eaadhaar/masked-signed.pdf',
       ),
     )
-  await expect(page.getByText('Received, and encrypted.')).toBeVisible()
-  await uploadIdentityPhoto(page)
+  // The PDF has a password: no preview until it is typed
+  await expect(
+    page
+      .getByText(/This PDF has a password/)
+      .or(page.getByRole('img', { name: /Preview of the first page: Masked e-Aadhaar/ })),
+  ).toBeVisible()
   await page.getByLabel('Last four digits of your Aadhaar').fill('4821')
   await page.getByLabel('The PDF’s password').fill('ASHA1990')
+  await uploadIdentityPhoto(page)
   await page.getByLabel('Yes', { exact: true }).check()
   await page.getByRole('button', { name: 'Save and continue' }).click()
   await expect(page.getByRole('heading', { name: 'Review and send' })).toBeVisible()
@@ -259,7 +355,12 @@ test('a member signs in again with a code, and a wrong code is refused', async (
   await page.context().clearCookies()
 
   await page.goto('/collaborate/signin')
+  // The button appears only once the address looks right (the human check is off in tests)
+  await expect(page.getByRole('button', { name: 'Email me a code' })).toHaveCount(0)
+  await page.getByLabel('Email address').fill('not-an-address')
+  await expect(page.getByRole('button', { name: 'Email me a code' })).toHaveCount(0)
   await page.getByLabel('Email address').fill(email)
+  await expect(page.getByRole('button', { name: 'Email me a code' })).toBeVisible()
   await page.waitForTimeout(2200)
   await page.getByRole('button', { name: 'Email me a code' }).click()
   await page.getByLabel('Six-digit code').waitFor()

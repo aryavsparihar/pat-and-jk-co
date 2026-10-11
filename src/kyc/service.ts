@@ -149,7 +149,16 @@ export const saveKyc = async (
     input,
     reference,
     identityCode,
-  }: { member: Member; input: KycInput; reference: string; identityCode?: string | null },
+    consent,
+  }: {
+    member: Member
+    input: KycInput
+    reference: string
+    /** The code in the identity photo, for reviewers to check against what is written */
+    identityCode?: { code: string; issuedAt: string; expiresAt: string } | null
+    /** Which privacy notice was agreed to, and how */
+    consent: { noticeVersion: string; confirmation: string }
+  },
 ): Promise<KycRecord> => {
   const existing = await findRecord(payload, member.id)
   const { key, wrapped } = dataKeyFor(existing, member.id)
@@ -183,13 +192,17 @@ export const saveKyc = async (
       mode: null,
     },
     addressOnIdMatches: input.addressOnIdMatches ?? null,
-    identityCode: identityCode ?? null,
+    identityCode: identityCode?.code ?? null,
+    identityCodeIssuedAt: identityCode?.issuedAt || null,
+    identityCodeExpiresAt: identityCode?.expiresAt || null,
     panIndex,
     accountIndex,
     duplicates: (await duplicatesOf(payload, member.id, panIndex, accountIndex)) || null,
     documents,
     verification: { status: 'unverified' as const },
     consentedAt: new Date().toISOString(),
+    consentNoticeVersion: consent.noticeVersion,
+    consentConfirmation: consent.confirmation,
     consentWithdrawnAt: null,
   }
 
@@ -318,10 +331,33 @@ const cleanDocument = async (
 const documentContext = (memberId: number, storageName: string) =>
   `member:${memberId}:document:${storageName}`
 
+/** What an identity photo was taken with: its code, the code's times, and who it shows */
+export type IdentityPhotoFacts = {
+  code: string
+  issuedAt: string
+  expiresAt: string
+  capturedWith: 'camera' | 'upload'
+  fingerprint: string
+}
+
+const codeContext = (memberId: number, storageName: string) =>
+  `${documentContext(memberId, storageName)}:identity-code`
+
 /** Encrypts a document with a key of its own and keeps it in the private store */
 export const storeKycDocument = async (
   payload: Payload,
-  { member, kind, bytes }: { member: Member; kind: KycDocumentKind; bytes: Buffer },
+  {
+    member,
+    kind,
+    bytes,
+    identity,
+  }: {
+    member: Member
+    kind: KycDocumentKind
+    bytes: Buffer
+    /** For an identity photo: the code it was taken with, sealed with the document's own key */
+    identity?: IdentityPhotoFacts
+  },
 ): Promise<KycDocument> => {
   const existing = await payload.count({
     collection: 'kyc-documents',
@@ -349,10 +385,58 @@ export const storeKycDocument = async (
       size: data.length,
       storageKey,
       ...wrapped,
+      ...(identity
+        ? {
+            identityCodeSealed: sealField(key, identity.code, codeContext(member.id, storageName)),
+            identityCodeIssuedAt: identity.issuedAt,
+            identityCodeExpiresAt: identity.expiresAt,
+            capturedWith: identity.capturedWith,
+            identityFingerprint: identity.fingerprint,
+          }
+        : {}),
     } as never,
     overrideAccess: true,
     context: { disableRevalidate: true },
   })
+}
+
+/** The facts kept with a member's identity photo, the code decrypted; null if it is not theirs */
+export const identityPhotoFacts = async (
+  payload: Payload,
+  { memberId, documentId }: { memberId: number; documentId: number },
+): Promise<Omit<IdentityPhotoFacts, 'capturedWith'> | null> => {
+  const document = (await payload
+    .findByID({
+      collection: 'kyc-documents',
+      id: documentId,
+      depth: 0,
+      overrideAccess: true,
+      showHiddenFields: true,
+    })
+    .catch(() => null)) as
+    | (KycDocument & {
+        storageKey: string
+        keyId: string
+        wrappedKey: string
+        identityCodeSealed?: string | null
+        identityFingerprint?: string | null
+      })
+    | null
+  const owner =
+    document && (typeof document.member === 'object' ? document.member.id : document.member)
+  if (!document || owner !== memberId || document.kind !== 'identity-photo') return null
+  if (!document.identityCodeSealed || !document.identityFingerprint) return null
+  const storageName = storageNameOf(document.storageKey)
+  const key = unwrapDataKey(
+    { keyId: document.keyId, wrappedKey: document.wrappedKey },
+    documentContext(memberId, storageName),
+  )
+  return {
+    code: openField(key, document.identityCodeSealed, codeContext(memberId, storageName)),
+    issuedAt: document.identityCodeIssuedAt ?? '',
+    expiresAt: document.identityCodeExpiresAt ?? '',
+    fingerprint: document.identityFingerprint,
+  }
 }
 
 const storageNameOf = (storageKey: string) => storageKey.replace(/^(?:[a-z]+\/)?kyc\//, '')

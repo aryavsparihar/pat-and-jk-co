@@ -30,6 +30,7 @@ const ONCE_ONLY = [
   '/next/members/application/start',
   '/next/members/application/submit',
   '/next/members/application/partner',
+  '/next/members/application/reapply',
   '/next/members/kyc/bank-change',
   '/next/members/portal/email',
   '/next/members/data-request',
@@ -84,3 +85,37 @@ export const api = async <T = Record<string, unknown>>(
     }
   }
 }
+
+/**
+ * Sends a file as a form, telling `onProgress` how much has gone (0 to 1). fetch cannot report
+ * upload progress, so this uses XMLHttpRequest; like `api`, it never throws and never waits for
+ * ever, and it is never retried: a second attempt could add the picture twice.
+ */
+export const uploadWithProgress = <T = Record<string, unknown>>(
+  url: string,
+  form: FormData,
+  onProgress: (fraction: number) => void,
+): Promise<ApiResult<T>> =>
+  new Promise((resolve) => {
+    const xhr = new XMLHttpRequest()
+    xhr.open('POST', url)
+    xhr.withCredentials = true
+    xhr.timeout = UPLOAD_TIMEOUT_MS
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable && event.total > 0) onProgress(event.loaded / event.total)
+    }
+    const fail = (message: string) =>
+      resolve({ ok: false, status: 0, data: { message } as ApiResult<T>['data'] })
+    xhr.onerror = () => fail(OFFLINE_MESSAGE)
+    xhr.ontimeout = () => fail(TIMEOUT_MESSAGE)
+    xhr.onload = () => {
+      let data = {} as ApiResult<T>['data']
+      try {
+        data = JSON.parse(xhr.responseText)
+      } catch {
+        // Not JSON: the status speaks for itself
+      }
+      resolve({ ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status, data })
+    }
+    xhr.send(form)
+  })

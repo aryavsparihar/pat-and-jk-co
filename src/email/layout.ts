@@ -22,7 +22,11 @@ const SERIF = "Georgia,'Times New Roman',serif"
  * The logo, from the live site rather than a preview (which sits behind a login, so the image
  * would not load in an inbox). 180 x 87 shown; the file is twice that for sharp screens.
  */
-const LOGO_URL = `${(process.env.NEXT_PUBLIC_SERVER_URL || 'https://pjk.co.in').replace(/\/$/, '')}/brand/pjk-logo-email.png`
+const SITE = (process.env.NEXT_PUBLIC_SERVER_URL || 'https://pjk.co.in').replace(/\/$/, '')
+const LOGO_URL = `${SITE}/brand/pjk-logo-email.png`
+
+/** The platform marks, drawn by `pnpm social:icons`; 24 x 24 shown */
+const socialIconUrl = (platform: string) => `${SITE}/brand/social/${platform}.png`
 
 export const escapeHtml = (value: string) =>
   value.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)
@@ -33,6 +37,10 @@ export type EmailPart =
   | { kind: 'reference'; label: string; value: string }
   | { kind: 'link'; label: string; url: string }
   | { kind: 'note'; text: string }
+  /** A sentence ending in an email address, which becomes a mailto link */
+  | { kind: 'mailto'; text: string; email: string }
+  /** A brand's social links, each with its platform's mark */
+  | { kind: 'socials'; heading: string; links: { platform: string; label: string; url: string }[] }
 
 export type BuiltEmail = { subject: string; text: string; html: string }
 
@@ -48,6 +56,17 @@ const htmlPart = (part: EmailPart): string => {
       return `<p style="margin:0 0 22px;font-family:${SERIF};font-size:15px;line-height:1.5;color:${MUTED}">${escapeHtml(part.label)}<br /><span style="font-size:22px;letter-spacing:0.08em;color:${GREEN}">${escapeHtml(part.value)}</span></p>`
     case 'link':
       return `<p style="margin:4px 0 24px"><a href="${escapeHtml(part.url)}" style="display:inline-block;padding:12px 22px;background:${GREEN};color:${PAPER};font-family:${SERIF};font-size:15px;letter-spacing:0.08em;text-decoration:none">${escapeHtml(part.label)}</a></p>`
+    case 'mailto':
+      return `<p style="margin:0 0 18px;font-family:${SERIF};font-size:17px;line-height:1.6;color:${INK}">${escapeHtml(part.text)} <a href="mailto:${escapeHtml(part.email)}" style="color:${GREEN};text-decoration:underline">${escapeHtml(part.email)}</a>.</p>`
+    case 'socials':
+      if (!part.links.length) return ''
+      return `<p style="margin:8px 0 10px;font-family:${SERIF};font-size:13px;letter-spacing:0.18em;text-transform:uppercase;color:${MUTED}">${escapeHtml(part.heading)}</p>
+<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 24px"><tr>${part.links
+        .map(
+          (link) =>
+            `<td style="padding:0 22px 0 0"><a href="${escapeHtml(link.url)}" style="font-family:${SERIF};font-size:15px;color:${GREEN};text-decoration:none"><img src="${socialIconUrl(escapeHtml(link.platform))}" width="24" height="24" alt="" style="display:inline-block;border:0;vertical-align:middle;width:24px;height:24px" />&nbsp;&nbsp;<span style="vertical-align:middle">${escapeHtml(link.label)}</span></a></td>`,
+        )
+        .join('')}</tr></table>`
   }
 }
 
@@ -62,6 +81,12 @@ const textPart = (part: EmailPart): string => {
       return `${part.label}: ${part.value}`
     case 'link':
       return `${part.label}: ${part.url}`
+    case 'mailto':
+      return `${part.text} ${part.email}.`
+    case 'socials':
+      return part.links.length
+        ? [part.heading, ...part.links.map((link) => `${link.label}: ${link.url}`)].join('\n')
+        : ''
   }
 }
 

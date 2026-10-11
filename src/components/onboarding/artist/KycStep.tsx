@@ -3,7 +3,12 @@
 import React, { useEffect, useRef, useState } from 'react'
 
 import { api } from '../api'
-import { Check, ErrorSummary, type Errors, TextField } from '../fields'
+import { ErrorSummary, type Errors, TextField } from '../fields'
+import { Sending } from '../Sending'
+import { CameraCapture, type CameraProblem } from './identity/CameraCapture'
+import { FilePreview } from './identity/FilePreview'
+import { type Code, IdentityCode } from './identity/IdentityCode'
+import { AGREE_PHRASE, PrivacyConsent } from './identity/PrivacyConsent'
 
 type Masked = {
   panMasked: string | null
@@ -30,13 +35,13 @@ const DOC_LABEL: Record<DocKind, string> = {
   'other-id': 'Your ID',
   'address-proof': 'Proof of address',
   'bank-proof': 'Cancelled cheque or passbook',
-  'identity-photo': 'Photo of you holding the code',
+  'identity-photo': 'Photo of you holding the paper',
 }
 
 const MAX_UPLOAD = 4 * 1024 * 1024
 
 /** Photos are made smaller in the browser so they stay under the upload limit; PDFs go as they are */
-const shrink = async (file: File): Promise<Blob> => {
+const shrink = async (file: Blob): Promise<Blob> => {
   if (!file.type.startsWith('image/') || file.size <= 3 * 1024 * 1024) return file
   const bitmap = await createImageBitmap(file)
   const scale = Math.min(1, 2400 / Math.max(bitmap.width, bitmap.height))
@@ -73,22 +78,32 @@ const Upload: React.FC<{
   error?: string
   /** A photograph only, not a PDF */
   photo?: boolean
+  /** For a protected PDF's preview: the password the artist has typed */
+  password?: string
   onUploaded: (id: number) => void
-}> = ({ kind, hint, optional, value, error, photo, onUploaded }) => {
+}> = ({ kind, hint, optional, value, error, photo, password, onUploaded }) => {
   const [state, setState] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  // The chosen file, kept in this page only, to preview
+  const [file, setFile] = useState<File | null>(null)
   const id = `field-documents-${kind}`
-  const send = async (file: File | undefined) => {
-    if (!file) return
-    setState('Sending…')
-    const body = await shrink(file)
-    if (body.size > MAX_UPLOAD)
+  const send = async (chosen: File | undefined) => {
+    if (!chosen) return
+    setFile(chosen)
+    setBusy(true)
+    setState(null)
+    const body = await shrink(chosen)
+    if (body.size > MAX_UPLOAD) {
+      setBusy(false)
       return setState('That file is larger than 4 MB. Please send a smaller copy or a photo.')
+    }
     const form = new FormData()
     form.append('kind', kind)
-    form.append('file', body, file.name)
+    form.append('file', body, chosen.name)
     const result = await api<{ document: { id: number } }>('/next/members/kyc/document', {
       body: form,
     })
+    setBusy(false)
     if (!result.ok) return setState(result.data.message ?? 'That file could not be sent.')
     onUploaded(result.data.document.id)
     setState('Received, and encrypted.')
@@ -101,9 +116,9 @@ const Upload: React.FC<{
           <span className="ml-2 normal-case tracking-normal text-muted-foreground">(optional)</span>
         )}
       </p>
-      {hint && <p className="muted mb-2 text-base">{hint}</p>}
+      {hint && <p className="muted measure mb-2 text-base">{hint}</p>}
       <label className="btn btn-outline mt-1 min-h-11 cursor-pointer" htmlFor={id}>
-        {value ? 'Replace the file' : 'Choose a file'}
+        {value || file ? 'Choose another file' : 'Choose a file'}
       </label>
       <input
         accept={
@@ -113,12 +128,14 @@ const Upload: React.FC<{
         }
         aria-describedby={error ? `${id}-error` : undefined}
         className="sr-only"
+        disabled={busy}
         id={id}
         onChange={(e) => send(e.target.files?.[0])}
         type="file"
       />
+      <FilePreview file={file} label={DOC_LABEL[kind]} password={password} />
       <p aria-live="polite" className="mt-2 text-base" role="status">
-        {state ?? (value ? 'Received, and encrypted.' : '')}
+        {busy ? <Sending /> : (state ?? (value ? 'Received, and encrypted.' : ''))}
       </p>
       {error && (
         <p className="text-base italic text-destructive" id={`${id}-error`}>
@@ -129,19 +146,44 @@ const Upload: React.FC<{
   )
 }
 
+const longDate = (iso: string | undefined) =>
+  iso
+    ? new Date(`${iso.slice(0, 10)}T00:00:00Z`).toLocaleDateString('en-IN', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        timeZone: 'UTC',
+      })
+    : null
+
 /**
- * Identity details: PAN, a masked e-Aadhaar or another ID, and a photo of the artist holding a
- * code we give them with their name written on it. No bank details: those are asked
+ * Identity details: PAN and a photo of the card, a masked e-Aadhaar or another ID, and a photo of
+ * the artist holding a paper with a ten-minute code, their name and their date of birth. Consent
+ * comes last, after the privacy policy has been read to the end. No bank details: those are asked
  * for only when a sale needs a payout, in the artist's account. Written to reassure: why we ask,
  * how the details are protected, and who can see them, before anything is asked for. Nothing typed
  * here is ever put in browser storage, and what comes back from the server is masked.
  */
 export const KycStep: React.FC<{
   onSaved: (completedSteps: string[]) => void
-}> = ({ onSaved }) => {
+  /** The privacy policy, rendered on the server, for the consent dialog */
+  privacy: React.ReactNode
+  /** From About you: written on the paper in the photo */
+  dateOfBirth?: string
+}> = ({ onSaved, privacy, dateOfBirth }) => {
   const [masked, setMasked] = useState<Masked | undefined>(undefined)
-  const [identityCode, setIdentityCode] = useState<string | null>(null)
+  const [noticeVersion, setNoticeVersion] = useState<string | undefined>(undefined)
   const [editing, setEditing] = useState(false)
+  const [code, setCode] = useState<Code | null>(null)
+  const [codeBusy, setCodeBusy] = useState(false)
+  const [camera, setCamera] = useState(false)
+  const [cameraProblem, setCameraProblem] = useState<CameraProblem | null>(null)
+  // The photo, shown from this page's own copy, and the name it was taken for
+  const [photo, setPhoto] = useState<Blob | null>(null)
+  const [photoFor, setPhotoFor] = useState<string | null>(null)
+  const [photoBusy, setPhotoBusy] = useState(false)
+  const [photoNote, setPhotoNote] = useState<string | null>(null)
+  const [agreed, setAgreed] = useState(false)
   const [v, setV] = useState<Record<string, string | boolean | undefined>>({
     idChoice: 'aadhaar',
   })
@@ -154,9 +196,9 @@ export const KycStep: React.FC<{
   useEffect(() => {
     if (loaded.current) return
     loaded.current = true
-    void api<{ kyc: Masked; identityCode: string | null }>('/next/members/kyc').then((r) => {
+    void api<{ kyc: Masked; noticeVersion?: string }>('/next/members/kyc').then((r) => {
       setMasked(r.data.kyc ?? null)
-      setIdentityCode(r.data.identityCode ?? null)
+      setNoticeVersion(r.data.noticeVersion)
       setEditing(!r.data.kyc)
     })
   }, [])
@@ -165,6 +207,66 @@ export const KycStep: React.FC<{
     setV((all) => ({ ...all, [key]: value }))
   const s = (key: string) => (v[key] as string | undefined) ?? ''
 
+  const clearPhoto = (note: string | null) => {
+    setDocs(({ 'identity-photo': _photo, ...rest }) => rest)
+    setPhoto(null)
+    setPhotoFor(null)
+    setCode(null)
+    setPhotoNote(note)
+  }
+
+  // The name is written on the paper: a different name means a new photo, with a new code
+  const setPanName = (value: string) => {
+    set('panName')(value)
+    if (photoFor !== null && value.trim() !== photoFor) {
+      clearPhoto(
+        'Your name has changed, so we have cleared the photo and its code. Please get a new code and take the photo again.',
+      )
+    }
+  }
+
+  const newCode = async () => {
+    setCodeBusy(true)
+    const result = await api<Code>('/next/members/kyc/identity-code', { body: {} })
+    setCodeBusy(false)
+    if (!result.ok)
+      return setPhotoNote(result.data.message ?? 'A code could not be given just now.')
+    setCode({ code: result.data.code, expiresAt: result.data.expiresAt })
+    setPhotoNote(null)
+  }
+
+  const sendPhoto = async (blob: Blob, capturedWith: 'camera' | 'upload') => {
+    setCamera(false)
+    if (!code || new Date(code.expiresAt).getTime() <= Date.now()) {
+      return setPhotoNote(
+        'Your code ran out before the photo was taken. Please get a new code and take it again.',
+      )
+    }
+    const name = s('panName').trim()
+    setPhoto(blob)
+    setPhotoBusy(true)
+    setPhotoNote(null)
+    const body = await shrink(blob)
+    const form = new FormData()
+    form.append('kind', 'identity-photo')
+    form.append('file', body, 'identity-photo.jpg')
+    form.append('identityCode', code.code)
+    form.append('panName', name)
+    form.append('capturedWith', capturedWith)
+    const result = await api<{ document: { id: number }; codeProblem?: string }>(
+      '/next/members/kyc/document',
+      { body: form },
+    )
+    setPhotoBusy(false)
+    if (!result.ok) {
+      setPhoto(null)
+      return setPhotoNote(result.data.message ?? 'The photo could not be sent.')
+    }
+    setDocs((d) => ({ ...d, 'identity-photo': result.data.document.id }))
+    setPhotoFor(name)
+    setPhotoNote('Received, and encrypted.')
+  }
+
   const save = async (event: React.FormEvent) => {
     event.preventDefault()
     setBusy(true)
@@ -172,7 +274,10 @@ export const KycStep: React.FC<{
     setMessage(null)
     const result = await api<{ kyc: Masked; completedSteps: string[] }>('/next/members/kyc', {
       body: {
-        consent: v.consent === true,
+        consent: agreed,
+        consentReadToEnd: agreed,
+        consentTyped: agreed ? AGREE_PHRASE : '',
+        noticeVersion,
         pan: s('pan'),
         panName: s('panName'),
         idChoice: v.idChoice,
@@ -193,6 +298,8 @@ export const KycStep: React.FC<{
     }
     // Forget what was typed: from here on only the masked view is shown
     setV({ idChoice: 'aadhaar' })
+    clearPhoto(null)
+    setAgreed(false)
     setMasked(result.data.kyc)
     setEditing(false)
     onSaved(result.data.completedSteps)
@@ -274,15 +381,7 @@ export const KycStep: React.FC<{
         </p>
       )}
 
-      <Check
-        checked={v.consent === true}
-        error={errors.consent}
-        label="I agree to PAT and J.K. Co. processing my identity details, including a photo of me, to verify who I am, as the privacy notice describes."
-        name="consent"
-        onValue={(c) => set('consent')(c)}
-      />
-
-      <fieldset className="mt-12 grid gap-y-8">
+      <fieldset className="grid gap-y-8">
         <legend className="display-sm mb-4">Your identity</legend>
         <TextField
           autoCapitalize="characters"
@@ -302,13 +401,14 @@ export const KycStep: React.FC<{
           hint="Exactly as it is printed on the card."
           label="Name as on your PAN"
           name="panName"
-          onValue={set('panName')}
+          onValue={setPanName}
           value={s('panName')}
         />
         <Upload
+          error={errors['documents.pan-card']}
+          hint="A clear photo of the front of your PAN card, or your e-PAN. Your face in the card's photograph must be easy to see, and so must your name and number. We compare the face with the photo of you below."
           kind="pan-card"
           onUploaded={(id) => setDocs((d) => ({ ...d, 'pan-card': id }))}
-          optional
           value={docs['pan-card']}
         />
 
@@ -371,6 +471,7 @@ export const KycStep: React.FC<{
                 error={errors['documents.masked-aadhaar']}
                 kind="masked-aadhaar"
                 onUploaded={(id) => setDocs((d) => ({ ...d, 'masked-aadhaar': id }))}
+                password={s('aadhaarPassword')}
                 value={docs['masked-aadhaar']}
               />
               <TextField
@@ -491,40 +592,109 @@ export const KycStep: React.FC<{
         </fieldset>
       </fieldset>
 
-      <fieldset className="mt-14 grid gap-y-6">
+      <fieldset className="mt-14 grid gap-y-6" id="field-documents-identity-photo">
         <legend className="display-sm mb-4">A photo of you</legend>
         <p className="measure">
-          So we know a real person is applying, and that it is you. On a sheet of paper, write this
-          code and your full name, as it is on your PAN. Then take a photo of yourself holding the
-          paper, with your face and the writing both clear.
+          So we know a real person is applying, and that it is you. We give you a code that lasts
+          ten minutes. On a sheet of paper, write the code, your full name as it is on your PAN, and
+          your date of birth. Then take a photo of yourself holding the paper beside your face.
         </p>
-        <div
-          aria-label={identityCode ? `Your code: ${identityCode.split('').join(' ')}` : 'Your code'}
-          className="w-fit select-all border border-border-strong bg-surface px-7 py-5"
-          role="img"
-        >
-          <p className="label">Your code</p>
-          <p className="mt-2 font-display text-[clamp(2rem,6vw,2.75rem)] leading-none tracking-[0.18em] text-primary [font-variant-numeric:lining-nums]">
-            {identityCode ?? '…'}
-          </p>
-        </div>
         <ul className="measure grid list-disc gap-2 pl-6 text-base">
-          <li>Write it clearly, in capitals, with your name beneath it.</li>
-          <li>Hold the paper beside your face. Good light, no sunglasses or mask.</li>
-          <li>The code stays the same, so you can take the photo now and upload it later.</li>
+          <li>Write clearly, in capitals, large enough to read in the photo.</li>
+          <li>
+            Your date of birth
+            {longDate(dateOfBirth) ? `, as you gave it: ${longDate(dateOfBirth)}` : ''}.
+          </li>
+          <li>Good light on your face. No sunglasses, cap or mask.</li>
+          <li>Only the code is timed. Take as long as you need over the rest of this step.</li>
         </ul>
-        <Upload
-          error={errors['documents.identity-photo']}
-          hint="A photo, not a scan. It is encrypted and seen only by the people who check identity."
-          kind="identity-photo"
-          onUploaded={(id) => setDocs((d) => ({ ...d, 'identity-photo': id }))}
-          photo
-          value={docs['identity-photo']}
-        />
+
+        {!s('panName').trim() ? (
+          <p className="muted measure text-base">
+            First, give your name as it is on your PAN, above. It is what you will write on the
+            paper.
+          </p>
+        ) : (
+          <>
+            <IdentityCode busy={codeBusy} code={code} onNew={() => void newCode()}>
+              {!camera && (
+                <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
+                  {cameraProblem === null && (
+                    <button
+                      className="btn btn-solid min-h-11"
+                      disabled={photoBusy}
+                      onClick={() => setCamera(true)}
+                      type="button"
+                    >
+                      Take a photo now
+                    </button>
+                  )}
+                  <label
+                    className={`min-h-11 cursor-pointer ${cameraProblem === null ? 'link link-caps inline-flex items-center' : 'btn btn-solid'}`}
+                    htmlFor="identity-photo-file"
+                  >
+                    {cameraProblem === null ? 'Upload a photo instead' : 'Upload the photo'}
+                  </label>
+                  <input
+                    accept="image/jpeg,image/png,image/webp"
+                    className="sr-only"
+                    disabled={photoBusy}
+                    id="identity-photo-file"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      e.target.value = ''
+                      if (file) void sendPhoto(file, 'upload')
+                    }}
+                    type="file"
+                  />
+                </div>
+              )}
+            </IdentityCode>
+            {cameraProblem && (
+              <p className="measure text-base" role="status">
+                {cameraProblem === 'declined'
+                  ? 'The camera was not allowed, which is fine. Take the photo with your camera app and upload it here instead.'
+                  : 'We could not open a camera on this device. Take the photo another way and upload it here instead.'}
+              </p>
+            )}
+            {camera && (
+              <CameraCapture
+                onCapture={(blob) => void sendPhoto(blob, 'camera')}
+                onClose={() => setCamera(false)}
+                onProblem={(problem) => {
+                  setCamera(false)
+                  setCameraProblem(problem)
+                }}
+              />
+            )}
+          </>
+        )}
+
+        <FilePreview file={photo} label="the photo of you" />
+        <p aria-live="polite" className="text-base" role="status">
+          {photoBusy ? <Sending /> : photoNote}
+        </p>
+        {errors['documents.identity-photo'] && (
+          <p
+            className="text-base italic text-destructive"
+            id="field-documents-identity-photo-error"
+          >
+            {errors['documents.identity-photo']}
+          </p>
+        )}
       </fieldset>
 
-      <div className="mt-14 flex flex-wrap items-center gap-x-8 gap-y-4 border-t border-border pt-8">
-        <button className="btn btn-solid min-h-11" disabled={busy} type="submit">
+      <div className="mt-14">
+        <PrivacyConsent
+          agreed={agreed}
+          error={errors.consent ?? errors.consentReadToEnd ?? errors.consentTyped}
+          onAgreed={setAgreed}
+          privacy={privacy}
+        />
+      </div>
+
+      <div className="mt-10 flex flex-wrap items-center gap-x-8 gap-y-4 border-t border-border pt-8">
+        <button className="btn btn-solid min-h-11" disabled={busy || !agreed} type="submit">
           {busy ? 'Saving…' : 'Save and continue'}
         </button>
         {masked && (

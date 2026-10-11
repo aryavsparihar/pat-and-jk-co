@@ -7,6 +7,7 @@ import config from '@/payload.config'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { POST as savePartner } from '@/app/(frontend)/next/members/application/partner/route'
+import { POST as reapply } from '@/app/(frontend)/next/members/application/reapply/route'
 import { GET as getApplication } from '@/app/(frontend)/next/members/application/route'
 import { POST as saveStep } from '@/app/(frontend)/next/members/application/step/route'
 import { POST as submitArtist } from '@/app/(frontend)/next/members/application/submit/route'
@@ -15,6 +16,8 @@ import { POST as uploadPicture } from '@/app/(frontend)/next/members/portfolio/r
 import { POST as requestCode } from '@/app/(frontend)/next/members/request-code/route'
 import { ensureApplication } from '@/members/accounts'
 import { decideApplication } from '@/members/decide'
+import { decisionEmail } from '@/members/emails'
+import { allowReapplyNow } from '@/members/reapply'
 import { checkFormToken, createFormToken } from '@/members/formToken'
 import {
   cleanImage,
@@ -28,7 +31,7 @@ import type { User } from '@/payload-types'
 import { execute } from '@/utilities/sql'
 
 import { openApplicationsForTests } from '../helpers/applicationsOpen'
-import { goodKyc, identityPhotoBytes, removeKycFor } from '../helpers/kyc'
+import { goodKyc, identityPhotos, removeKycFor } from '../helpers/kyc'
 import { storeKycDocument } from '@/kyc/service'
 
 /*
@@ -105,13 +108,22 @@ const goodSteps = {
   },
   practice: {
     mediums: ['painting'],
-    stylesThemes: 'Landscapes of the Shivalik foothills.',
+    stylesThemes:
+      'Landscapes of the Shivalik foothills, painted outdoors in every season, in oil and watercolour.',
     yearsPractising: 6,
     bio: 'A painter working in oils and watercolour, mostly outdoors, across the seasons. '.repeat(
-      2,
+      4,
     ),
     priceRange: '25k-1l',
-    recognition: [{ kind: 'exhibition', title: 'Foothills', venue: 'A town hall', year: 2024 }],
+    recognition: [
+      {
+        kind: 'exhibition',
+        title: 'Foothills',
+        venue: 'A town hall',
+        year: 2024,
+        details: 'A group show of painters from the district, with four of my landscapes on paper.',
+      },
+    ],
   },
   review: { originalWork: true, accurate: true, consentProcessing: true },
 }
@@ -277,8 +289,9 @@ describe('pictures of the work', () => {
       title: 'Theirs',
       year: 2024,
       medium: 'Oil',
-      widthCm: 30,
-      heightCm: 40,
+      width: 30,
+      height: 40,
+      unit: 'cm',
     }
     const stolen = await call(saveStep, b.cookie, {
       step: 'portfolio',
@@ -350,8 +363,9 @@ describe('an artist application', () => {
       title: `Work ${i + 1}`,
       year: 2024,
       medium: 'Oil on canvas',
-      widthCm: 60,
-      heightCm: 90,
+      width: 60,
+      height: 90,
+      unit: 'cm',
     }))
     expect((await call(saveStep, cookie, { step: 'portfolio', data: { works } })).status).toBe(200)
     // Identity and bank details go through their own endpoint, encrypted (tests/int/kyc.int.spec.ts)
@@ -363,19 +377,11 @@ describe('an artist application', () => {
       kind: 'other-id',
       bytes: Buffer.from('%PDF-1.7\n% a made-up passport page\n%%EOF\n'),
     })
-    const identityPhoto = await storeKycDocument(payload, {
-      member,
-      kind: 'identity-photo',
-      bytes: await identityPhotoBytes(),
+    const photos = await identityPhotos(payload, member, {
+      dateOfBirth: String(goodSteps.about.dateOfBirth),
     })
     expect(
-      (
-        await call(
-          saveKycStep,
-          cookie,
-          goodKyc({ 'other-id': passport.id, 'identity-photo': identityPhoto.id }),
-        )
-      ).status,
+      (await call(saveKycStep, cookie, goodKyc({ 'other-id': passport.id, ...photos }))).status,
     ).toBe(200)
     expect((await call(saveStep, cookie, { step: 'review', data: goodSteps.review })).status).toBe(
       200,
@@ -439,6 +445,75 @@ describe('an artist application', () => {
     expect((await call(saveStep, cookie, { step: 'about', data: goodSteps.about })).status).toBe(
       200,
     )
+  })
+})
+
+describe('applying again after a decline', () => {
+  it('waits, unless staff end the wait, then reopens the same application', async () => {
+    const { member, cookie, application } = await applicant('artist')
+    for (const step of ['about', 'address', 'practice'] as const) {
+      expect((await call(saveStep, cookie, { step, data: goodSteps[step] })).status).toBe(200)
+    }
+    const photos = await identityPhotos(payload, member, {
+      dateOfBirth: goodSteps.about.dateOfBirth,
+    })
+    await payload.update({
+      collection: 'applications',
+      id: application.id,
+      data: { stage: 'submitted' },
+      overrideAccess: true,
+    })
+    const { application: declined } = await decideApplication(payload, {
+      applicationId: application.id,
+      decision: 'reject',
+      note: 'Thank you. We would like to see more of your recent work.',
+      actor: staff,
+    })
+
+    // Six months by default, given in the email with where to write
+    const from = new Date(declined.reapplyFrom!)
+    const months =
+      (from.getFullYear() - new Date().getFullYear()) * 12 + from.getMonth() - new Date().getMonth()
+    expect(months).toBe(6)
+    const email = await decisionEmail(payload, { decision: 'reject', application: declined })
+    expect(email.text).toMatch(/apply again from \d{1,2} \w+ \d{4}/)
+    expect(email.text).toContain('For any further questions, contact us at hello@pjk.co.in.')
+    expect(email.html).toContain('href="mailto:hello@pjk.co.in"')
+
+    expect((await call(reapply, cookie, { type: 'artist' })).status).toBe(409)
+    await allowReapplyNow(payload, { applicationId: application.id, actor: staff })
+    expect((await call(reapply, cookie, { type: 'artist' })).status).toBe(200)
+
+    const reopened = await payload.findByID({
+      collection: 'applications',
+      id: application.id,
+      overrideAccess: true,
+    })
+    expect(reopened.reference).toBe(application.reference)
+    expect(reopened.stage).toBe('draft')
+    expect([...(reopened.completedSteps ?? [])].sort()).toEqual(['about', 'address', 'practice'])
+    expect(reopened.about?.legalName).toBe(goodSteps.about.legalName)
+    expect(reopened.portfolio ?? []).toEqual([])
+    expect(reopened.rounds?.[0]).toMatchObject({ decision: 'rejected' })
+    // The old identity details are gone
+    const left = await payload.count({
+      collection: 'kyc-documents',
+      where: { id: { in: Object.values(photos) } },
+      overrideAccess: true,
+    })
+    expect(left.totalDocs).toBe(0)
+    for (const event of ['application-reapply-allowed', 'application-reopened']) {
+      const logged = await payload.count({
+        collection: 'security-events',
+        where: {
+          and: [{ event: { equals: event } }, { subject: { equals: application.reference } }],
+        },
+        overrideAccess: true,
+      })
+      expect(logged.totalDocs).toBe(1)
+    }
+    // Only a declined application can be reopened
+    expect((await call(reapply, cookie, { type: 'artist' })).status).toBe(409)
   })
 })
 

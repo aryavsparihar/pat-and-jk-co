@@ -32,7 +32,16 @@ import { createSession } from '@/security/memberSession'
 import { execute } from '@/utilities/sql'
 
 import { openApplicationsForTests } from '../helpers/applicationsOpen'
-import { FAKE, goodBank, goodKyc, identityPhotoBytes, removeKycFor } from '../helpers/kyc'
+import {
+  FAKE,
+  FAKE_CODE,
+  goodBank,
+  goodKyc,
+  identityPhotoBytes,
+  identityPhotos,
+  removeKycFor,
+} from '../helpers/kyc'
+import { POST as issueCode } from '@/app/(frontend)/next/members/kyc/identity-code/route'
 
 // The made-up test root stands in for India's CCA roots (scripts/fixtures/make-eaadhaar-fixtures.py)
 vi.mock('@/kyc/ccaRoots', async () => {
@@ -85,13 +94,8 @@ const artist = async () => {
     bytes: Buffer.from('%PDF-1.7\n% a made-up passport page\n%%EOF\n'),
   })
   idDocuments.set(cookie, passport.id)
-  // And a photo of themselves holding their identity code
-  const photo = await storeKycDocument(payload, {
-    member,
-    kind: 'identity-photo',
-    bytes: await identityPhotoBytes(),
-  })
-  photoDocuments.set(cookie, photo.id)
+  // And a photo of their PAN card, and of themselves holding their code, name and date of birth
+  photoDocuments.set(cookie, await identityPhotos(payload, member, { dateOfBirth: '1990-04-12' }))
   return { member, application, cookie }
 }
 
@@ -132,16 +136,16 @@ const withPayoutDetails = async (
 }
 
 const idDocuments = new Map<string, number>()
-const photoDocuments = new Map<string, number>()
-/** goodKyc with this artist's own made-up ID and identity photo attached */
+const photoDocuments = new Map<string, Record<string, number>>()
+/** goodKyc with this artist's own made-up ID, PAN card and identity photo attached */
 const kycFor = (cookie: string, documents: Record<string, number> = {}) =>
   goodKyc({
     'other-id': idDocuments.get(cookie)!,
-    'identity-photo': photoDocuments.get(cookie)!,
+    ...photoDocuments.get(cookie)!,
     ...documents,
   })
-/** The artist's identity photo, for tests that build their documents by hand */
-const photoOf = (cookie: string) => ({ 'identity-photo': photoDocuments.get(cookie)! })
+/** The artist's PAN card and identity photo, for tests that build their documents by hand */
+const photoOf = (cookie: string) => photoDocuments.get(cookie)!
 
 const call = (handler: (r: Request) => Promise<Response>, cookie: string, body?: unknown) =>
   handler(
@@ -316,27 +320,114 @@ describe('saving the KYC step', () => {
       expect(row).not.toContain(secret)
   })
 
-  it('needs the photo of the artist holding their code, which is given once and kept', async () => {
+  it('needs a PAN card photo and the photo of the artist, and consent given in full', async () => {
     const { cookie } = await artist()
-    const read = async () =>
-      (
-        (await (
-          await readKyc(new Request(`${ORIGIN}/next/members/kyc`, { headers: { cookie } }))
-        ).json()) as { identityCode: string }
-      ).identityCode
-    const code = await read()
-    expect(code).toMatch(/^[2-9A-Z]{3}-[2-9A-Z]{3}$/)
-    expect(await read()).toBe(code)
+    const without = (kind: string) => {
+      const { [kind]: _left, ...rest } = kycFor(cookie).documents as Record<string, number>
+      return rest
+    }
+    for (const kind of ['identity-photo', 'pan-card']) {
+      const refused = await call(saveKycStep, cookie, {
+        ...kycFor(cookie),
+        documents: without(kind),
+      })
+      expect(refused.status).toBe(422)
+      expect(((await refused.json()) as { errors: object }).errors).toHaveProperty(
+        `documents.${kind}`,
+      )
+    }
+    // Consent must come with the policy read to its end and I AGREE typed out, in capitals
+    for (const change of [{ consentTyped: 'i agree' }, { consentReadToEnd: false }]) {
+      const refused = await call(saveKycStep, cookie, { ...kycFor(cookie), ...change })
+      expect(refused.status).toBe(422)
+    }
+    // Against the privacy notice in force: an older one is read again
+    const stale = await call(saveKycStep, cookie, { ...kycFor(cookie), noticeVersion: '2020-01' })
+    expect(stale.status).toBe(409)
+  })
 
-    const { 'identity-photo': _photo, ...withoutPhoto } = kycFor(cookie).documents as Record<
-      string,
-      number
-    >
-    const refused = await call(saveKycStep, cookie, { ...kycFor(cookie), documents: withoutPhoto })
-    expect(refused.status).toBe(422)
-    expect(((await refused.json()) as { errors: object }).errors).toHaveProperty(
+  it('gives a ten-minute code, kept only as a hash, that the photo must be taken with', async () => {
+    const { member, application, cookie } = await artist()
+    // Nothing is given until asked for
+    const read = (await (
+      await readKyc(new Request(`${ORIGIN}/next/members/kyc`, { headers: { cookie } }))
+    ).json()) as Record<string, unknown>
+    expect(read).not.toHaveProperty('identityCode')
+
+    const issued = (await (await call(issueCode, cookie, {})).json()) as {
+      code: string
+      issuedAt: string
+      expiresAt: string
+    }
+    expect(issued.code).toMatch(/^[2-9A-Z]{3}-[2-9A-Z]{3}$/)
+    expect(Date.parse(issued.expiresAt) - Date.parse(issued.issuedAt)).toBe(10 * 60_000)
+    const row = (
+      await execute<{ row: string }>(
+        payload,
+        sql`SELECT row_to_json(a)::text AS row FROM applications a WHERE id = ${application.id}`,
+      )
+    )[0]!.row
+    expect(row).not.toContain(issued.code)
+    expect(row).not.toContain(issued.code.replace('-', ''))
+
+    const photo = async (code: string, name = FAKE.panName) => {
+      const form = new FormData()
+      form.append('kind', 'identity-photo')
+      form.append(
+        'file',
+        new File([new Uint8Array(await identityPhotoBytes())], 'me.jpg', { type: 'image/jpeg' }),
+      )
+      form.append('identityCode', code)
+      form.append('panName', name)
+      form.append('capturedWith', 'camera')
+      return call(uploadDocument, cookie, form)
+    }
+    expect(((await (await photo('ABC-DEF')).json()) as { codeProblem: string }).codeProblem).toBe(
+      'wrong',
+    )
+    const taken = await photo(issued.code)
+    expect(taken.status).toBe(201)
+    const photoId = ((await taken.json()) as { document: { id: number } }).document.id
+
+    // A new code ends the old one at once
+    const next = (await (await call(issueCode, cookie, {})).json()) as { code: string }
+    expect(((await (await photo(issued.code)).json()) as { codeProblem: string }).codeProblem).toBe(
+      'wrong',
+    )
+    // And a code that has run out is refused, after a short grace for the upload
+    await execute(
+      payload,
+      sql`UPDATE applications SET identity_code_expires_at = now() - interval '3 minutes' WHERE id = ${application.id}`,
+    )
+    expect(((await (await photo(next.code)).json()) as { codeProblem: string }).codeProblem).toBe(
+      'expired',
+    )
+
+    // The photo matches the name it was taken for: a different name means a new photo
+    const documents = { ...kycFor(cookie).documents, 'identity-photo': photoId }
+    const renamed = await call(saveKycStep, cookie, {
+      ...kycFor(cookie),
+      panName: 'Asha Other',
+      documents,
+    })
+    expect(renamed.status).toBe(422)
+    expect(((await renamed.json()) as { errors: object }).errors).toHaveProperty(
       'documents.identity-photo',
     )
+
+    // Saved, the code the photo was taken with is on the record for reviewers, with its times
+    expect((await call(saveKycStep, cookie, { ...kycFor(cookie), documents })).status).toBe(200)
+    const record = await recordOf(member.id)
+    expect(record.identityCode).toBe(issued.code)
+    expect(record.identityCodeExpiresAt).toBeTruthy()
+    expect(record.consentNoticeVersion).toBeTruthy()
+    expect(record.consentConfirmation).toMatch(/I AGREE/)
+  })
+
+  it('keeps the code of the default photo for reviewers', async () => {
+    const { member, cookie } = await artist()
+    expect((await call(saveKycStep, cookie, kycFor(cookie))).status).toBe(200)
+    expect((await recordOf(member.id)).identityCode).toBe(FAKE_CODE)
   })
 
   it('refuses a full Aadhaar number and never stores it', async () => {

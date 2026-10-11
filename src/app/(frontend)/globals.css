@@ -96,7 +96,9 @@
 }
 
 /* Marcellus has no italic: emphasis keeps Cormorant's true italic rather than a faked slant */
-.phulhaar[data-display='marcellus'] :is(.display-xl, .display-lg, .display-md, .display-sm) :is(em, i) {
+.phulhaar[data-display='marcellus']
+  :is(.display-xl, .display-lg, .display-md, .display-sm)
+  :is(em, i) {
   font-family: var(--font-display);
   letter-spacing: 0;
 }
@@ -138,9 +140,76 @@
 .phulhaar .row-link:focus-visible .row-title {
   text-decoration-color: var(--accent);
 }
+/* The way in for artists (InviteCard): a soft gradient in cream, gold and magenta that slides on
+   hover, on focus and while pressed, and the action's underline that warms from gold to magenta.
+   Kept pale, so every word on it keeps its contrast */
+.phulhaar-invite {
+  background-image: linear-gradient(
+    115deg,
+    var(--background) 0%,
+    var(--background) 45%,
+    color-mix(in oklab, var(--gold) 9%, var(--background)) 72%,
+    color-mix(in oklab, var(--accent) 6%, var(--background)) 100%
+  );
+  background-size: 240% 100%;
+  background-position: 0% 0;
+  transition: background-position 0.7s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+.phulhaar-invite:hover,
+.phulhaar-invite:focus-visible,
+.phulhaar-invite[data-pressed] {
+  background-position: 100% 0;
+}
+.phulhaar-invite-action {
+  background-image: linear-gradient(90deg, var(--gold), var(--accent));
+  background-size: 0% 1px;
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  padding-bottom: 0.2em;
+  transition: background-size 0.5s ease;
+}
+.phulhaar-invite:hover .phulhaar-invite-action,
+.phulhaar-invite:focus-visible .phulhaar-invite-action,
+.phulhaar-invite[data-pressed] .phulhaar-invite-action {
+  background-size: 100% 1px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .phulhaar-invite,
+  .phulhaar-invite-action {
+    transition: none;
+  }
+}
+
 .phulhaar-rule {
   height: 2px;
   background: linear-gradient(90deg, #ed9f13, #d68f0b);
+}
+
+/* "Sending..." at work: the three dots rise and fall one after another; still under reduced motion */
+@keyframes sending-wave {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+  }
+  30% {
+    transform: translateY(-0.28em);
+  }
+}
+.sending-dots > span {
+  display: inline-block;
+  animation: sending-wave 1.2s ease-in-out infinite;
+}
+.sending-dots > span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.sending-dots > span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sending-dots > span {
+    animation: none;
+  }
 }
 
 /* The garland breathes: a very slight, slow scale and fade, never per petal (docs/BRANDS.md, rule 7) */
@@ -400,6 +469,16 @@
   .btn-outline {
     background: transparent;
     color: var(--ink);
+  }
+
+  /* A button that cannot be pressed yet says so: faded, and no hover */
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .btn-solid:disabled:hover {
+    background: var(--ink);
+    border-color: var(--ink);
   }
 
   .btn-outline:hover {
@@ -730,5 +809,83 @@
   .nav-link:hover,
   .nav-link[aria-current='page'] {
     text-decoration-color: currentColor;
+  }
+}
+
+/* The roller (src/components/onboarding/Roller.tsx): rows fade towards the edges, no scrollbar */
+.roller {
+  scrollbar-width: none;
+  mask-image: linear-gradient(to bottom, transparent, #000 35%, #000 65%, transparent);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 35%, #000 65%, transparent);
+}
+.roller::-webkit-scrollbar {
+  display: none;
+}
+
+/* The map pin (src/components/onboarding/artist/LocationPin.tsx) */
+.location-pin {
+  background: none;
+  border: 0;
+}
+.location-pin:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.location-map .leaflet-control-attribution {
+  font-size: 0.75rem;
+}
+
+/* Pictures being added (src/components/onboarding/artist/Portfolio.tsx): the bar fills smoothly,
+   breathes while the server checks the picture, and the finished work settles into place */
+.upload-bar {
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.upload-bar-checking {
+  animation: upload-checking 1.4s ease-in-out infinite;
+}
+@keyframes upload-checking {
+  50% {
+    opacity: 0.55;
+  }
+}
+.work-arrive {
+  animation: work-arrive 0.35s ease-out both;
+}
+@keyframes work-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+.work-settle {
+  animation: work-settle 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes work-settle {
+  from {
+    opacity: 0.6;
+    transform: scale(0.985);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .upload-bar {
+    transition: none;
+  }
+  .upload-bar-checking,
+  .work-arrive,
+  .work-settle {
+    animation: none;
+  }
+}
+
+/* The privacy policy dialog in the Identity step, and document previews appearing */
+.privacy-dialog::backdrop {
+  background: color-mix(in srgb, var(--text) 45%, transparent);
+}
+.preview-in {
+  animation: work-arrive 0.35s ease-out both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .preview-in {
+    animation: none;
   }
 }

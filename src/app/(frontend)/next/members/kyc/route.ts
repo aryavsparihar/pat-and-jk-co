@@ -12,6 +12,7 @@ import { fieldErrors } from '@/members/forms/schemas'
 import { kycSchema } from '@/kyc/schema'
 import {
   checkStoredAadhaar,
+  identityPhotoFacts,
   KycError,
   maskedKyc,
   recordAadhaarCheck,
@@ -21,31 +22,10 @@ import {
 import { AADHAAR_CHECK_MODE } from '@/kyc/settings'
 import { after } from 'next/server'
 import { hitLimit } from '@/security/rateLimit'
-import { newIdentityCode } from '@/members/ids'
-import type { Application, Member } from '@/payload-types'
-import type { Payload } from 'payload'
+import { identityFingerprint } from '@/kyc/identityCode'
+import { PRIVACY_NOTICE_VERSION } from '@/members/application'
 
 export const dynamic = 'force-dynamic'
-
-/**
- * The code an artist writes in their identity photo: given once, the first time it is asked for,
- * and kept with the application for good, so a photo taken earlier still matches
- */
-const identityCodeFor = async (payload: Payload, member: Member): Promise<string | null> => {
-  const application = (await findOwnApplication(payload, member, 'artist', 0)) as
-    (Application & { identityCode?: string | null }) | null
-  if (!application) return null
-  if (application.identityCode) return application.identityCode
-  const code = newIdentityCode()
-  await payload.update({
-    collection: 'applications',
-    id: application.id,
-    data: { identityCode: code } as never,
-    overrideAccess: true,
-    context: { disableRevalidate: true },
-  })
-  return code
-}
 
 /** The artist's own identity details (and payout details, once added), masked: never a full value */
 export async function GET(request: Request) {
@@ -54,7 +34,7 @@ export async function GET(request: Request) {
   return withRefresh(
     reply({
       kyc: await maskedKyc(auth.payload, auth.member.id),
-      identityCode: await identityCodeFor(auth.payload, auth.member),
+      noticeVersion: PRIVACY_NOTICE_VERSION,
     }),
     auth.refresh,
   )
@@ -99,6 +79,37 @@ export async function POST(request: Request) {
   }
 
   const input = parsed.data
+  if (input.noticeVersion !== PRIVACY_NOTICE_VERSION) {
+    return reply(
+      {
+        message:
+          'The privacy notice has changed since you read it. Please read it again and confirm.',
+        errors: { consent: 'Please read the privacy notice again, then confirm.' },
+      },
+      { status: 409 },
+    )
+  }
+
+  // The photo must show the name and date of birth given now, and its code is kept for reviewers
+  const photo = await identityPhotoFacts(payload, {
+    memberId: member.id,
+    documentId: input.documents['identity-photo']!,
+  })
+  if (
+    !photo ||
+    photo.fingerprint !== identityFingerprint(input.panName, application.about?.dateOfBirth)
+  ) {
+    return reply(
+      {
+        message: 'Please take the photo of you again.',
+        errors: {
+          'documents.identity-photo':
+            'Your name or date of birth has changed since this photo was taken. Please get a new code and take it again.',
+        },
+      },
+      { status: 422 },
+    )
+  }
   const aadhaarDocument =
     input.idChoice === 'aadhaar' ? input.documents['masked-aadhaar'] : undefined
   const checkInput = aadhaarDocument
@@ -139,7 +150,11 @@ export async function POST(request: Request) {
       member,
       input,
       reference: application.reference,
-      identityCode: (application as { identityCode?: string | null }).identityCode,
+      identityCode: photo,
+      consent: {
+        noticeVersion: PRIVACY_NOTICE_VERSION,
+        confirmation: 'Read the privacy notice to the end, confirmed, and typed I AGREE',
+      },
     })
   } catch (error) {
     if (error instanceof KycError)

@@ -14,7 +14,7 @@ export type Errors = Record<string, string>
 export const fieldClass =
   'w-full min-h-11 rounded-none border-0 border-b border-input bg-transparent px-0 py-2 text-[1.15rem] text-[var(--text)] transition-colors placeholder:text-muted-foreground/70 hover:border-primary focus:border-primary focus:outline-none focus:shadow-[0_1px_0_0_var(--primary)] aria-invalid:border-destructive'
 
-const idFor = (name: string) => `field-${name.replace(/[^a-zA-Z0-9_-]/g, '-')}`
+export const idFor = (name: string) => `field-${name.replace(/[^a-zA-Z0-9_-]/g, '-')}`
 
 type FieldProps = {
   name: string
@@ -111,7 +111,12 @@ export const TextField: React.FC<InputProps> = ({
   </Field>
 )
 
-type AreaProps = Omit<InputProps, 'type'> & { rows?: number; limit?: number }
+type AreaProps = Omit<InputProps, 'type'> & {
+  rows?: number
+  limit?: number
+  /** The shortest it may be; the count below says how close they are */
+  min?: number
+}
 
 export const TextArea: React.FC<AreaProps> = ({
   name,
@@ -123,9 +128,12 @@ export const TextArea: React.FC<AreaProps> = ({
   onValue,
   rows = 4,
   limit,
+  min,
   className,
 }) => {
-  const length = String(value ?? '').length
+  // Counted as the server counts: without the spaces at either end
+  const length = String(value ?? '').trim().length
+  const short = min !== undefined && length < min
   return (
     <Field
       className={className}
@@ -149,15 +157,20 @@ export const TextArea: React.FC<AreaProps> = ({
           />
           {limit && (
             <p
-              aria-live="polite"
+              aria-hidden
               className={cn(
-                'muted mt-1 text-right text-sm',
-                length > limit * 0.9 && 'text-primary',
+                'muted mt-1 text-right text-sm tabular-nums transition-colors',
+                (length > limit * 0.9 || (min !== undefined && !short)) && 'text-primary',
               )}
             >
-              {length} of {limit}
+              {short ? `${length} of at least ${min}` : `${length} of ${limit}`}
             </p>
           )}
+          {/* Said once, when it changes, not on every key */}
+          <p aria-live="polite" className="sr-only">
+            {min !== undefined && !short ? 'That is long enough.' : ''}
+            {limit && length > limit * 0.9 ? ` ${limit - length} characters left.` : ''}
+          </p>
         </>
       )}
     </Field>

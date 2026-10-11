@@ -37,12 +37,26 @@ export const memberPagePolicy = (nonce: string, { dev = false } = {}): string =>
       .join(' '),
     // Next.js and next/font set inline styles; styles cannot run code
     "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob:",
+    // OpenStreetMap's tiles, for the optional map pin on the address step
+    "img-src 'self' data: blob: https://tile.openstreetmap.org",
     "font-src 'self'",
     // Pictures go from the browser straight to Vercel Blob in production
     `connect-src 'self' https://vercel.com https://*.public.blob.vercel-storage.com${dev ? ' ws: wss:' : ''}`,
     "worker-src 'self' blob:",
     // Turnstile's challenge, the only frame these pages may show
     'frame-src https://challenges.cloudflare.com',
-    'upgrade-insecure-requests',
-  ].join('; ')
+    // Not on a developer's machine: Safari (WebKit) applies it to http://localhost too, and the
+    // page's own styles and scripts would then be asked for over https, which is not there
+    !dev && 'upgrade-insecure-requests',
+  ]
+    .filter(Boolean)
+    .join('; ')
+
+/**
+ * The artist application may use the camera: the identity photo is taken in the page. Every other
+ * page keeps the site-wide Permissions-Policy, which turns the camera off (next.config.ts).
+ */
+export const CAMERA_PAGE = /^\/collaborate\/artists\/?$/
+
+export const CAMERA_PERMISSIONS =
+  'camera=(self), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()'

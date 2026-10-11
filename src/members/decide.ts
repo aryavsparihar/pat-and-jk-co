@@ -13,6 +13,7 @@ import type { Application, Member, User } from '@/payload-types'
 import { logSecurityEvent } from '@/security/events'
 
 import { sendDecisionEmail } from './emails'
+import { reapplyFrom, reapplyMonths } from './reapply'
 import { formatMemberId, MEMBER_ID_SEQUENCE, type MemberKind } from './ids'
 
 /**
@@ -153,6 +154,10 @@ export const decideApplication = async (
         stage: STAGE_AFTER[decision],
         decisionNote: cleanNote,
         decidedAt: new Date().toISOString(),
+        // A decline says when they may apply again
+        ...(decision === 'reject'
+          ? { reapplyFrom: reapplyFrom(await reapplyMonths(payload)) }
+          : {}),
         decidedBy: actor.id,
         ...(earned ? { issuedId: earned } : {}),
       },

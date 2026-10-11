@@ -11,11 +11,11 @@ The code is in `src/kyc/`; nothing else touches a key.
 | | Required | Kept as |
 | --- | --- | --- |
 | PAN, and the name on it | **Required from every artist**: we need it to pay and for tax | Encrypted, plus a masked copy (`ABCxxxxx4F`) |
-| PAN card | Optional | Encrypted file |
+| PAN card | **Required.** A photo of the front of the card, or the e-PAN, with the face in its photograph clearly visible: reviewers compare it with the identity photo | Encrypted file |
 | A second ID, with an address | **Required.** By default a **masked e-Aadhaar** (the PDF UIDAI issues with the first eight digits hidden) with its last four digits. As an equal choice, with no extra steps: **"I'd rather use another ID"**, a passport, voter ID or driving licence, checked by hand | Aadhaar: last four encrypted, plus `XXXX XXXX 1234`. Either way, the document as an encrypted file. Other ID numbers are not asked for |
 | The masked e-Aadhaar PDF's password | Optional. Opens the PDF once, in memory, for the check below | **Never stored or logged** |
 | Proof of address | Only if the ID shows an address other than the one given | Encrypted file |
-| Identity photo | **Required.** A photo of the artist holding a paper on which they have written their identity code (given on screen, e.g. `K7Q-4MX`) and their full name. Proves a real person is applying, and that it is them | Encrypted file, re-encoded so camera and location data are gone. The code is kept, unencrypted, on the application and the KYC record, so reviewers can compare. **[confirm with counsel: collecting face photographs]** |
+| Identity photo | **Required.** A photo of the artist's face, holding a paper on which they have written their identity code (given on screen, e.g. `K7Q-4MX`), their full name as on the PAN, and their date of birth. Taken in the page with the front camera, or uploaded if there is no camera or they decline it. Proves a real person is applying, now, and that it is them | Encrypted file, re-encoded so camera and location data are gone, like every other document. The code it was taken with is sealed with the photo's own key, with when it was given and until when it held, and copied to the KYC record when the step is saved, so reviewers can compare. **[confirm with counsel: collecting face photographs for identity checks]** |
 | Account holder's name, account number, IFSC, branch | **Only when a sale needs a payout**, added by the artist in their account ([Payout details](#payout-details)) | Encrypted, plus `XXXXXXXX1234` and `SBIN0xxxxxx` |
 | Bank name, account type | With the payout details | Plain text: neither identifies anyone |
 | Cancelled cheque or passbook | No longer asked for; ones given before are kept as they were | Encrypted file |
@@ -29,11 +29,28 @@ is added. The full Aadhaar number is never accepted, anywhere: the form asks for
 refuses twelve with a message that does not repeat them, and the logs would redact them anyway.
 Why, in [SECURITY.md](SECURITY.md#aadhaar).
 
-**The identity code** is six characters from the unambiguous alphabet (no 0/O, 1/I/L, U/V), given
-the first time the identity step is opened and never changed, so a photo taken earlier still
-matches (`newIdentityCode` in `src/members/ids.ts`). It is not a secret: it only shows the photo
-was taken for this application. Records saved before the photo was asked for cannot be sent until
-it is added.
+**The identity code** is six characters from the unambiguous alphabet (no 0/O, 1/I/L, U/V)
+(`newIdentityCode` in `src/members/ids.ts`), given when the artist presses **Show my code** and good
+for **ten minutes** (`src/kyc/identityCode.ts`). The application keeps only an HMAC of it under
+`KYC_BLIND_INDEX_KEY` (`identityCodeHash`), with when it was given and when it runs out; the code
+itself reaches the artist once, in the reply. **Get a new code** replaces the hash, so the old code
+stops working at once. A photo is accepted only with the current code, and only if it arrives
+before the code ran out, with two minutes' grace for a slow upload; the code is then sealed with
+the photo. Nothing else in the step is timed.
+
+The photo is tied to the name and date of birth written on the paper: the server keeps an HMAC of
+the two with it. If the artist changes the name on their PAN in the step, the page clears the photo
+and the code; if they change their date of birth in "About you", Identity is marked as not done,
+and saving it again refuses the old photo. Either way they take a new one with a new code.
+
+Applications started before codes expired kept a permanent code on the application
+(`identityCode`, shown in the admin only where it is set). Records saved before the photo was asked
+for cannot be sent until it is added.
+
+**Consent** comes last in the step. Ticking it opens the privacy policy in a dialog; the artist
+reads it to the end, confirms, and types I AGREE. Only then can the step be saved. The KYC record
+keeps *Consented At*, the policy version (`PRIVACY_NOTICE_VERSION`, refused if the page held an
+older one) and how consent was given.
 
 Rules the form and the server share (`src/kyc/values.ts`, `src/kyc/schema.ts`): a PAN is
 `^[A-Z]{5}[0-9]{4}[A-Z]$` with **P** as its fourth character (a person; a company's PAN is refused);
@@ -162,6 +179,8 @@ The artist does all of this from **Payouts** in their account (`/account/payouts
 | KYC of an application never sent | 180 days after it was last touched |
 | KYC after consent is withdrawn | At the next purge, unless a legal hold applies |
 | An uploaded document never saved with the step | After 7 days |
+| Identity details of a declined artist who applies again | At once, when they press **Apply again**: the new round starts without them |
+| The identity code | Its hash is replaced by the next code; the code itself is kept only with the photo, and goes with it |
 | KYC of an approved artist | **[confirm with CA]** Kept while they work with us, then for **[N] years** after the last payment, as the Income Tax Act and GST rules require for payment records. Not deleted automatically until this is settled; a reviewer sets a legal hold on the record with **Set a legal hold** |
 
 **Weekly purge.** Every Monday at 02:00 UTC, Vercel Cron calls `/next/cron/kyc-purge` (in

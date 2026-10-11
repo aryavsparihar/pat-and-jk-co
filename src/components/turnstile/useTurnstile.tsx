@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useCallback, useEffect, useRef } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 
 import type { TurnstileAction } from '@/security/turnstile'
 
@@ -156,4 +156,70 @@ export const useTurnstile = (action: TurnstileAction) => {
   const element = <div className="mt-6 empty:hidden" ref={container} />
 
   return { element, getToken }
+}
+
+/**
+ * The visible check, for the email step: "Verify you are human" sits under the email field and
+ * runs as soon as it appears, so the button can wait until it has passed. The token it earns is
+ * held here; reset() spends it and runs the check again, for "Send a new code". A passed check
+ * lasts five minutes; when it lapses Cloudflare runs it again by itself, and the token goes until
+ * then. If the script cannot load in time, or the check fails, problem says which.
+ */
+export const useVisibleTurnstile = (action: TurnstileAction) => {
+  const container = useRef<HTMLDivElement>(null)
+  const widget = useRef<string | null>(null)
+  const [token, setToken] = useState<string | null>(null)
+  const [problem, setProblem] = useState<BotCheckProblem | null>(null)
+
+  useEffect(() => {
+    if (!SITE_KEY) return
+    let cancelled = false
+    const timer = setTimeout(() => {
+      if (!cancelled && !widget.current) setProblem('blocked')
+    }, LOAD_TIMEOUT_MS)
+    load()
+      .then((turnstile) => {
+        if (cancelled || !container.current || widget.current) return
+        clearTimeout(timer)
+        widget.current = turnstile.render(container.current, {
+          sitekey: SITE_KEY,
+          action,
+          appearance: 'always',
+          theme: 'light',
+          size: 'flexible',
+          'refresh-expired': 'auto',
+          callback: (earned: string) => {
+            setToken(earned)
+            setProblem(null)
+          },
+          'expired-callback': () => setToken(null),
+          'error-callback': () => {
+            setToken(null)
+            setProblem('failed')
+            return true
+          },
+          'unsupported-callback': () => setProblem('failed'),
+        })
+      })
+      .catch(() => {
+        if (!cancelled) setProblem('blocked')
+      })
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+      if (widget.current) window.turnstile?.remove(widget.current)
+      widget.current = null
+    }
+  }, [action])
+
+  /** Spends the token and runs the check again, for the next request */
+  const reset = useCallback(() => {
+    setToken(null)
+    if (widget.current) window.turnstile?.reset(widget.current)
+  }, [])
+
+  // Room is kept for the widget, so nothing below it jumps when it appears
+  const element = SITE_KEY ? <div className="mt-6 min-h-[65px]" ref={container} /> : null
+
+  return { element, token, problem, enabled: Boolean(SITE_KEY), reset }
 }

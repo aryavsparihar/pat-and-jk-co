@@ -183,8 +183,22 @@ export const KycRecords: CollectionConfig = {
       admin: {
         readOnly: true,
         description:
-          'The code the artist was asked to write, with their full name, on the paper they hold in the identity photo. Check both are there, legible, and match.',
+          'The code the artist was given, which they wrote with their full name and date of birth on the paper they hold in the identity photo. Check all three are there, legible, and match.',
       },
+    },
+    {
+      name: 'identityCodeIssuedAt',
+      label: 'Code given',
+      type: 'date',
+      access: { create: nobody, update: nobody },
+      admin: { readOnly: true, date: { pickerAppearance: 'dayAndTime' } },
+    },
+    {
+      name: 'identityCodeExpiresAt',
+      label: 'Code valid until',
+      type: 'date',
+      access: { create: nobody, update: nobody },
+      admin: { readOnly: true, date: { pickerAppearance: 'dayAndTime' } },
     },
 
     ...bankFields(''),
@@ -279,6 +293,20 @@ export const KycRecords: CollectionConfig = {
         position: 'sidebar',
         description: 'When the artist gave consent. A record: it cannot be changed.',
       },
+    },
+    {
+      name: 'consentNoticeVersion',
+      label: 'Privacy notice consented to',
+      type: 'text',
+      access: { create: nobody, update: nobody },
+      admin: { readOnly: true, position: 'sidebar' },
+    },
+    {
+      name: 'consentConfirmation',
+      label: 'How consent was given',
+      type: 'text',
+      access: { create: nobody, update: nobody },
+      admin: { readOnly: true, position: 'sidebar' },
     },
     {
       // Set by the artist's own request, or by "Record a withdrawal" with a logged reason

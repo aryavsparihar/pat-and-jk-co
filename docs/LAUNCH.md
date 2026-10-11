@@ -21,8 +21,11 @@ These need a lawyer or a CA, so start them first.
       request, so consent given under the old text stays recorded against it.
 - [ ] **Aadhaar wording.** The lawyer approves what the application says about Aadhaar: masked
       e-Aadhaar only, never the full number, and another ID as an equal choice.
-- [ ] **The identity photo.** The lawyer approves asking artists for a photo of themselves holding
-      their handwritten code and name, and the wording around it ([KYC.md](KYC.md)).
+- [ ] **The identity photo.** The lawyer approves asking artists for a photo of their face holding
+      a handwritten code, their name and date of birth, taken in the page or uploaded, and a PAN
+      card photo with the face visible, and the wording around both ([KYC.md](KYC.md)).
+- [ ] **The map pin.** The lawyer approves the privacy notice's note that opening the optional map
+      lets OpenStreetMap's servers see the artist's internet address.
 - [ ] **Artists' Terms & Conditions.** The lawyer approves the PDF; upload it in **Site settings →
       Applications → Artists' Terms & Conditions**. Until it is there, artists are not asked to
       agree to any terms.
@@ -78,6 +81,12 @@ These need a lawyer or a CA, so start them first.
 - [ ] **The closed note.** Site settings → Applications → *Note while applications are closed*
       says what you want visitors to read until 8 November.
 
+- [ ] **Phulhaar's social accounts.** Site settings → Contact & social → *Phulhaar's social
+      accounts*: the Instagram, Facebook and Pinterest links. Until they are there, the venture page
+      and the decline email leave them out.
+- [ ] **The wait before applying again.** Site settings → Applications → *Months before someone
+      declined may apply again* is what you want (6 by default).
+
 ## 6. Dress rehearsal (week of 26 October)
 
 One full application in production, with your own details, then deleted. It is the only test of
@@ -85,9 +94,10 @@ the real email, Blob store, Turnstile keys and KYC encryption together.
 
 - [ ] **Open applications** (Site settings → Applications → *Applications are open*). The public
       can apply while it is on, so do the rehearsal in one sitting and close it straight after.
-- [ ] **Apply as an artist** at pjk.co.in/collaborate/artists with your own email, PAN, masked
-      e-Aadhaar and three pictures; it asks for no bank details. Stop halfway, sign in again from
-      another device, and finish.
+- [ ] **Apply as an artist** at pjk.co.in/collaborate/artists with your own email, PAN and PAN
+      card photo, masked e-Aadhaar and three pictures; it asks for no bank details. Take the
+      identity photo with the camera in the page, on an iPad or iPhone in Safari. Stop halfway,
+      sign in again from another device, and finish.
 - [ ] **Check the emails:** the code, "We have your application", and the staff notification.
 - [ ] **Check the admin:** the application is there. The KYC record shows everything masked.
       **Reveal** and **Download** ask for a reason and appear in the security log. The identity

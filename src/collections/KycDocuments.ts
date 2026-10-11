@@ -72,6 +72,53 @@ export const KycDocuments: CollectionConfig = {
       access: { read: nobody, create: nobody, update: nobody },
       admin: { hidden: true },
     },
+
+    // The identity photo only: the code it was taken with, and how
+    {
+      // Encrypted with this document's own key; shown to reviewers on the KYC record
+      name: 'identityCodeSealed',
+      type: 'text',
+      access: { read: nobody, create: nobody, update: nobody },
+      admin: { hidden: true },
+    },
+    {
+      // HMAC of the name and date of birth the photo was taken for: if either changes, the photo
+      // no longer matches and a new one is asked for
+      name: 'identityFingerprint',
+      type: 'text',
+      access: { read: nobody, create: nobody, update: nobody },
+      admin: { hidden: true },
+    },
+    {
+      name: 'identityCodeIssuedAt',
+      label: 'Code given',
+      type: 'date',
+      admin: {
+        readOnly: true,
+        date: { pickerAppearance: 'dayAndTime' },
+        condition: (data) => data?.kind === 'identity-photo',
+      },
+    },
+    {
+      name: 'identityCodeExpiresAt',
+      label: 'Code valid until',
+      type: 'date',
+      admin: {
+        readOnly: true,
+        date: { pickerAppearance: 'dayAndTime' },
+        condition: (data) => data?.kind === 'identity-photo',
+      },
+    },
+    {
+      name: 'capturedWith',
+      label: 'Taken with',
+      type: 'select',
+      options: [
+        { label: 'The camera, on the page', value: 'camera' },
+        { label: 'An uploaded photo', value: 'upload' },
+      ],
+      admin: { readOnly: true, condition: (data) => data?.kind === 'identity-photo' },
+    },
   ],
   endpoints: [
     {

@@ -47,8 +47,12 @@ const contentSecurityPolicy = ({ admin }: { admin: boolean }) =>
     "worker-src 'self' blob:",
     admin ? "connect-src 'self' https:" : `connect-src 'self'${isDev ? ' ws: wss:' : ''}`,
     admin ? "frame-src 'self'" : `frame-src 'self' ${TURNSTILE}`,
-    'upgrade-insecure-requests',
-  ].join('; ')
+    // Not in development: Safari (WebKit) applies it to http://localhost, and would ask for the
+    // page's own files over https, which a developer's machine does not serve
+    !isDev && 'upgrade-insecure-requests',
+  ]
+    .filter(Boolean)
+    .join('; ')
 
 const securityHeaders = [
   { key: 'X-Content-Type-Options', value: 'nosniff' },
@@ -127,6 +131,18 @@ const nextConfig: NextConfig = {
       },
       // Where several rules set the same header, the later one wins: the admin panel gets its
       // looser policy, and uploads get the sandbox instead of either
+      // The identity photo is taken in the artist application, so the camera is allowed there
+      // and nowhere else (src/security/memberPagePolicy.ts)
+      {
+        source: '/collaborate/artists',
+        headers: [
+          {
+            key: 'Permissions-Policy',
+            value:
+              'camera=(self), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()',
+          },
+        ],
+      },
       { source: '/admin', headers: adminHeaders },
       { source: '/admin/:path*', headers: adminHeaders },
       { source: '/api/media/file/:path*', headers: uploadHeaders },

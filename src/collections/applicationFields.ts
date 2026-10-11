@@ -1,6 +1,12 @@
 import type { Field } from 'payload'
 
-import { LANGUAGES, MEDIUMS, PRICE_RANGES, RECOGNITION_KINDS } from '../members/forms/schemas'
+import {
+  DIMENSION_UNITS,
+  LANGUAGES,
+  MEDIUMS,
+  PRICE_RANGES,
+  RECOGNITION_KINDS,
+} from '../members/forms/schemas'
 
 /**
  * What an application holds, step by step. The shapes are checked by the step schemas in
@@ -35,6 +41,14 @@ export const addressFields = (): Field[] => [
     fields: [
       { name: 'postalCode', label: 'PIN code', type: 'text', admin: { width: '50%' } },
       { name: 'country', type: 'text', admin: { width: '50%' } },
+    ],
+  },
+  {
+    type: 'row',
+    fields: [
+      // Where they pinned their home on the map, if they chose to
+      { name: 'latitude', label: 'Map pin: latitude', type: 'number', admin: { width: '50%' } },
+      { name: 'longitude', label: 'Map pin: longitude', type: 'number', admin: { width: '50%' } },
     ],
   },
 ]
@@ -121,8 +135,23 @@ export const artistApplicationFields: Field[] = [
       {
         type: 'row',
         fields: [
-          { name: 'website', type: 'text', admin: { width: '50%' } },
-          { name: 'instagram', type: 'text', admin: { width: '50%' } },
+          { name: 'website', type: 'text', admin: { width: '33%' } },
+          { name: 'instagram', type: 'text', admin: { width: '33%' } },
+          { name: 'facebook', type: 'text', admin: { width: '33%' } },
+        ],
+      },
+      {
+        name: 'otherSocials',
+        label: 'Other platforms',
+        type: 'array',
+        fields: [
+          {
+            type: 'row',
+            fields: [
+              { name: 'platform', type: 'text', admin: { width: '40%' } },
+              { name: 'handle', label: 'Link or ID', type: 'text', admin: { width: '60%' } },
+            ],
+          },
         ],
       },
       {
@@ -150,7 +179,13 @@ export const artistApplicationFields: Field[] = [
               { name: 'year', type: 'number', admin: { width: '15%' } },
             ],
           },
+          { name: 'details', type: 'textarea' },
         ],
+      },
+      {
+        name: 'recognitionNone',
+        label: 'No exhibitions or awards yet',
+        type: 'checkbox',
       },
     ],
   },
@@ -168,6 +203,21 @@ export const artistApplicationFields: Field[] = [
           { name: 'title', type: 'text', admin: { width: '40%' } },
           { name: 'year', type: 'number', admin: { width: '20%' } },
           { name: 'medium', type: 'text', admin: { width: '40%' } },
+        ],
+      },
+      {
+        type: 'row',
+        fields: [
+          // As the artist gave them, in their unit
+          { name: 'width', label: 'Width (as given)', type: 'number', admin: { width: '25%' } },
+          { name: 'height', label: 'Height (as given)', type: 'number', admin: { width: '25%' } },
+          { name: 'depth', label: 'Depth (as given)', type: 'number', admin: { width: '25%' } },
+          {
+            name: 'unit',
+            type: 'select',
+            options: DIMENSION_UNITS.map(({ value, label }) => ({ value, label })),
+            admin: { width: '25%' },
+          },
         ],
       },
       {

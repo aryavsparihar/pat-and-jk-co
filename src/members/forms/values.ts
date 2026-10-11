@@ -41,10 +41,29 @@ export const stepValues = (
           app.address?.correspondenceSame === false ? app.address?.correspondence : undefined,
       }) as Record<string, unknown>
     case 'practice':
-      return tidy({ mediums: [], recognition: [], ...app.practice }) as Record<string, unknown>
+      return tidy({
+        mediums: [],
+        recognition: [],
+        otherSocials: [],
+        recognitionNone: false,
+        ...app.practice,
+      }) as Record<string, unknown>
     case 'portfolio':
       return {
-        works: (app.portfolio ?? []).map((work) => tidy({ ...work, image: idOf(work.image) })),
+        works: (app.portfolio ?? []).map((work) =>
+          tidy({
+            ...work,
+            image: idOf(work.image),
+            // Works saved before units were asked for were in centimetres
+            unit: work.unit ?? 'cm',
+            width: work.width ?? work.widthCm,
+            height: work.height ?? work.heightCm,
+            depth: work.depth ?? work.depthCm,
+            widthCm: undefined,
+            heightCm: undefined,
+            depthCm: undefined,
+          }),
+        ),
       }
     case 'kyc':
       // Never returned to the browser: the KYC step shows masked values from its own endpoint

@@ -8,14 +8,16 @@ import React from 'react'
 import configPromise from '@payload-config'
 import { getPayload } from 'payload'
 
+import { phulhaarSocialLinks } from '@/brands/socialIcons'
 import { ventureTheme } from '@/brands/themes'
+import { BrandSocialLinks } from '@/components/BrandSocialLinks'
 import { ventureStageLabel } from '@/components/cards/VentureCard'
 import { LivePreviewListener } from '@/components/LivePreviewListener'
 import { Media } from '@/components/Media'
 import { OpeningNotice } from '@/components/OpeningNotice'
 import { PayloadRedirects } from '@/components/PayloadRedirects'
 import { Plate } from '@/components/Plate'
-import { RowArrow } from '@/components/RowArrow'
+import { InviteCard } from '@/components/phulhaar/InviteCard'
 import RichText from '@/components/RichText'
 import { Section } from '@/components/Typography'
 import { docPath } from '@/utilities/docHref'
@@ -54,6 +56,9 @@ export default async function VenturePage({ params }: Args) {
   const open = invite
     ? (await applicationsOpenness(await getPayload({ config: configPromise }))).open
     : false
+  // The brand's own accounts (Site settings → Contact & social)
+  const socials =
+    theme?.name === 'phulhaar' ? phulhaarSocialLinks(ctx.settings?.phulhaarSocial) : []
   const facts = [
     { label: 'Stage', value: ventureStageLabel[venture.stage] },
     ...(venture.sector ? [{ label: 'Field', value: venture.sector }] : []),
@@ -131,20 +136,13 @@ export default async function VenturePage({ params }: Args) {
         // The way in for the people this brand works with. Works whether or not applications
         // are open: the page it leads to says which, and what to have ready
         <div className="container pb-[clamp(3rem,6vw,5rem)]">
-          <Link
-            className="row-link intro-line mx-auto block max-w-[46rem] border border-[color-mix(in_oklab,var(--gold,var(--primary))_35%,transparent)] border-t-2 border-t-[var(--gold,var(--primary))] bg-[var(--background)] p-7 [--intro-delay:1.4s] sm:p-10"
+          <InviteCard
+            action={open ? invite.action.open : invite.action.closed}
+            heading={invite.heading}
             href={invite.href}
-          >
-            <span className="label block text-[var(--gold-text,var(--primary))]">
-              {invite.label}
-            </span>
-            <span className="display-md row-title mt-3 block">{invite.heading}</span>
-            <span className="measure mt-4 block">{open ? invite.open : invite.closed}</span>
-            <span className="link-caps mt-8 flex items-center gap-4">
-              {open ? invite.action.open : invite.action.closed}
-              <RowArrow />
-            </span>
-          </Link>
+            label={invite.label}
+            text={open ? invite.open : invite.closed}
+          />
         </div>
       )}
 
@@ -163,6 +161,7 @@ export default async function VenturePage({ params }: Args) {
                 </div>
               ))}
             </dl>
+            <BrandSocialLinks className="mt-8" heading={`Follow ${venture.name}`} links={socials} />
             {venture.website && (
               <a
                 className="btn btn-solid mt-8"

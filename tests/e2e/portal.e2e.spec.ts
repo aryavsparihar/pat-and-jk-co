@@ -89,6 +89,7 @@ test('payout details: staff ask, the artist adds them, and “this was not me”
   const record = await saveKyc(p, {
     member: fresh,
     reference: application.reference,
+    consent: { noticeVersion: 'test', confirmation: 'test' },
     input: {
       consent: true,
       pan: 'ABCPE1234F',

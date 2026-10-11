@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 import { PARTNER_CATEGORIES } from '../categories'
 import { STATES_AND_TERRITORIES } from './india'
-import { ageOn, instagramUrl, isGstin, isPin, isWebUrl, toE164 } from './validators'
+import { ageOn, facebookUrl, instagramUrl, isGstin, isPin, isWebUrl, toE164 } from './validators'
 
 /**
  * What each step of the onboarding accepts. The browser uses these for gentle inline hints; the
@@ -15,6 +15,18 @@ const text = (max: number, message = 'Please fill this in.') =>
     .string({ error: message })
     .trim()
     .min(1, message)
+    .max(max, `Please keep this under ${max} characters.`)
+
+/**
+ * A description someone must write: at least `min` characters, so there is something to read. The
+ * form shows the count and the minimum as they type; this message is for anyone who sends it short.
+ */
+const description = (min: number, max: number, message: string) =>
+  z
+    .string({ error: message })
+    .trim()
+    .min(1, message)
+    .min(min, `A little more, please: at least ${min} characters.`)
     .max(max, `Please keep this under ${max} characters.`)
 
 const optionalText = (max: number) =>
@@ -49,6 +61,22 @@ const optionalUrl = z
   .transform((v) => (v ? v : undefined))
 
 const thisYear = new Date().getUTCFullYear()
+
+/** The years a work or an exhibition can be from: this year and the 99 before it */
+export const YEARS_BACK = 99
+export const yearChoices = (now = new Date().getFullYear()) =>
+  Array.from({ length: YEARS_BACK + 1 }, (_, i) => now - i)
+
+/** Optional map pin, dragged into place by the person (no geolocation) */
+const coordinate = (min: number, max: number) =>
+  z.coerce
+    .number()
+    .min(min)
+    .max(max)
+    .transform((v) => Math.round(v * 1e6) / 1e6)
+    .optional()
+    .or(z.literal('').transform(() => undefined))
+    .or(z.null().transform(() => undefined))
 
 /* ─── Artist ─────────────────────────────────────────────────────────────── */
 
@@ -88,6 +116,8 @@ export const addressSchema = z
     state: text(80, 'Please choose your state.'),
     postalCode: text(12, 'Please add your PIN code.'),
     country: text(60).default('India'),
+    latitude: coordinate(-90, 90),
+    longitude: coordinate(-180, 180),
   })
   .superRefine((value, ctx) => {
     const india = /^(india|bharat)$/i.test(value.country)
@@ -97,6 +127,9 @@ export const addressSchema = z
         path: ['state'],
         message: 'Please choose your state from the list.',
       })
+    }
+    if ((value.latitude === undefined) !== (value.longitude === undefined)) {
+      ctx.addIssue({ code: 'custom', path: ['latitude'], message: 'Please place the pin again.' })
     }
     if (india && !isPin(value.postalCode)) {
       ctx.addIssue({
@@ -125,15 +158,31 @@ export const addressStepSchema = z
     return { ...value, correspondence: parsed.data }
   })
 
+/** Stored values never change once used; labels may */
 export const MEDIUMS = [
   { value: 'painting', label: 'Painting' },
+  { value: 'miniature-painting', label: 'Miniature painting' },
   { value: 'drawing', label: 'Drawing' },
+  { value: 'illustration', label: 'Illustration' },
+  { value: 'calligraphy', label: 'Calligraphy' },
   { value: 'printmaking', label: 'Printmaking' },
-  { value: 'sculpture', label: 'Sculpture' },
   { value: 'photography', label: 'Photography' },
-  { value: 'textile', label: 'Textile' },
+  { value: 'sculpture', label: 'Sculpture' },
+  { value: 'ceramics', label: 'Ceramics and pottery' },
+  { value: 'wood', label: 'Wood carving' },
+  { value: 'metal', label: 'Metalwork' },
+  { value: 'glass', label: 'Glass' },
+  { value: 'papier-mache', label: 'Papier-mâché' },
+  { value: 'textile', label: 'Textile and fibre art' },
+  { value: 'embroidery', label: 'Embroidery' },
+  { value: 'folk-tribal', label: 'Folk and tribal art' },
+  { value: 'murals', label: 'Murals and public art' },
+  { value: 'installation', label: 'Installation' },
+  { value: 'performance', label: 'Performance' },
+  { value: 'video', label: 'Video and film' },
+  { value: 'digital', label: 'Digital and new media' },
+  { value: 'collage', label: 'Collage' },
   { value: 'mixed-media', label: 'Mixed media' },
-  { value: 'digital', label: 'Digital' },
   { value: 'other', label: 'Other' },
 ] as const
 
@@ -157,96 +206,171 @@ const values = <T extends readonly { value: string }[]>(list: T) =>
 
 export const BIO_LIMIT = 1200
 
-export const practiceSchema = z
-  .object({
-    mediums: z
-      .array(z.enum(values(MEDIUMS)))
-      .min(1, 'Please choose at least one medium.')
-      .max(9),
-    mediumOther: optionalText(80),
-    stylesThemes: text(500, 'A few words about the styles and themes you work with.'),
-    yearsPractising: z.coerce
-      .number({ error: 'Please give a number of years.' })
-      .int('Whole years, please.')
-      .min(0, 'Please give a number of years.')
-      .max(80, 'Please check the number of years.'),
-    training: optionalText(1000),
-    bio: z
-      .string({ error: 'Please write a short biography.' })
-      .trim()
-      .min(80, 'A few sentences, please: at least 80 characters.')
-      .max(BIO_LIMIT, `Please keep your biography under ${BIO_LIMIT} characters.`),
-    statement: optionalText(2000),
-    website: optionalUrl,
-    instagram: z
-      .string()
-      .trim()
-      .optional()
-      .transform((v, ctx) => {
-        if (!v) return undefined
-        const url = instagramUrl(v)
-        if (!url) {
-          ctx.addIssue({
-            code: 'custom',
-            message: 'Please give your Instagram handle, e.g. @yourname.',
-          })
-          return z.NEVER
-        }
-        return url
-      }),
-    priceRange: z.enum(values(PRICE_RANGES), { error: 'Please choose a price range.' }),
-    recognition: z
-      .array(
-        z.object({
-          kind: z.enum(values(RECOGNITION_KINDS)),
-          title: text(160, 'Please name the exhibition or award.'),
-          venue: optionalText(160),
-          year: z.coerce
-            .number({ error: 'Please give a year.' })
-            .int()
-            .min(1950, 'Please check the year.')
-            .max(thisYear + 1, 'Please check the year.'),
+/** The shortest a required description can be, shown as the person types */
+export const MIN_LENGTH = { general: 80, bio: 250 } as const
+export const DETAILS_LIMIT = 600
+
+/** "Less than one" is stored as 0 */
+export const YEARS_PRACTISING_MAX = 120
+export const OTHER_SOCIALS_MAX = 10
+
+// "None yet" wins over any half-filled entries left behind: they are dropped before checking,
+// so hidden fields never hold the step up
+const noneYet = (value: unknown) =>
+  value &&
+  typeof value === 'object' &&
+  (value as { recognitionNone?: unknown }).recognitionNone === true
+    ? { ...value, recognition: [] }
+    : value
+
+export const practiceSchema = z.preprocess(
+  noneYet,
+  z
+    .object({
+      mediums: z
+        .array(z.enum(values(MEDIUMS)))
+        .min(1, 'Please choose at least one.')
+        .max(MEDIUMS.length),
+      mediumOther: optionalText(80),
+      stylesThemes: description(
+        MIN_LENGTH.general,
+        500,
+        'Please tell us a little about the styles and themes in your work.',
+      ),
+      yearsPractising: z.coerce
+        .number({ error: 'Please choose how many years.' })
+        .int('Please choose how many years.')
+        .min(0, 'Please choose how many years.')
+        .max(YEARS_PRACTISING_MAX, 'Please choose how many years.'),
+      training: optionalText(1000),
+      bio: description(MIN_LENGTH.bio, BIO_LIMIT, 'Please write a short biography.'),
+      statement: optionalText(2000),
+      website: optionalUrl,
+      instagram: z
+        .string()
+        .trim()
+        .optional()
+        .transform((v, ctx) => {
+          if (!v) return undefined
+          const url = instagramUrl(v)
+          if (!url) {
+            ctx.addIssue({
+              code: 'custom',
+              message: 'Please give your Instagram handle, e.g. @yourname.',
+            })
+            return z.NEVER
+          }
+          return url
         }),
-      )
-      .max(20, 'Twenty is plenty: please choose the ones that matter most.')
-      .default([]),
-  })
-  .superRefine((value, ctx) => {
-    if (value.mediums.includes('other') && !value.mediumOther) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['mediumOther'],
-        message: 'Please say which other medium.',
-      })
-    }
-  })
+      facebook: z
+        .string()
+        .trim()
+        .optional()
+        .transform((v, ctx) => {
+          if (!v) return undefined
+          const url = facebookUrl(v)
+          if (!url) {
+            ctx.addIssue({
+              code: 'custom',
+              message: 'Please give the link to your Facebook page, or your username.',
+            })
+            return z.NEVER
+          }
+          return url
+        }),
+      otherSocials: z
+        .array(
+          z.object({
+            platform: text(60, 'Please name the platform.'),
+            handle: text(200, 'Please add your link or ID.'),
+          }),
+        )
+        .max(OTHER_SOCIALS_MAX, `Up to ${OTHER_SOCIALS_MAX}, please.`)
+        .default([]),
+      priceRange: z.enum(values(PRICE_RANGES), { error: 'Please choose a price range.' }),
+      recognition: z
+        .array(
+          z.object({
+            kind: z.enum(values(RECOGNITION_KINDS)),
+            title: text(160, 'Please give its name.'),
+            venue: text(160, 'Please say where it was.'),
+            year: z.coerce
+              .number({ error: 'Please choose the year.' })
+              .int('Please choose the year.')
+              .min(thisYear - YEARS_BACK, 'Please choose the year.')
+              .max(thisYear + 1, 'Please choose the year.'),
+            details: description(
+              MIN_LENGTH.general,
+              DETAILS_LIMIT,
+              'Please say a little about it, and what you showed or won.',
+            ),
+          }),
+        )
+        .max(20, 'Twenty is plenty: please choose the ones that matter most.')
+        .default([]),
+      // Said plainly instead of leaving the section empty
+      recognitionNone: z.boolean().default(false),
+    })
+    .superRefine((value, ctx) => {
+      if (!value.recognitionNone && value.recognition.length === 0) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['recognition'],
+          message: 'Please add at least one, or choose "None yet".',
+        })
+      }
+      if (value.mediums.includes('other') && !value.mediumOther) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['mediumOther'],
+          message: 'Please say which other medium.',
+        })
+      }
+    }),
+)
 
 export const PORTFOLIO_MIN = 3
 export const PORTFOLIO_MAX = 10
 
-export const portfolioWorkSchema = z.object({
+export const DIMENSION_UNITS = [
+  { value: 'cm', label: 'cm', cm: 1 },
+  { value: 'in', label: 'inches', cm: 2.54 },
+  { value: 'm', label: 'metres', cm: 100 },
+] as const
+
+/** A measurement as typed: decimals welcome, with a comma or a point */
+const size = (message: string) =>
+  z.preprocess(
+    (v) => (typeof v === 'string' ? v.trim().replace(',', '.') : v),
+    z.coerce
+      .number({ error: message })
+      .positive(message)
+      .max(100_000, 'Please check this measurement.'),
+  )
+
+export const toCm = (value: number, unit: (typeof DIMENSION_UNITS)[number]['value']) =>
+  Math.round(value * DIMENSION_UNITS.find((u) => u.value === unit)!.cm * 100) / 100
+
+/** Twenty metres either way is the largest work we can take */
+const MAX_CM = 2000
+
+const portfolioWorkFields = z.object({
   image: z.coerce.number({ error: 'Please add a picture of this work.' }).int().positive(),
   title: text(160, 'Please give the work a title.'),
   year: z.coerce
-    .number({ error: 'Please give the year.' })
-    .int()
-    .min(1900, 'Please check the year.')
-    .max(thisYear, 'Please check the year.'),
+    .number({ error: 'Please choose the year.' })
+    .int('Please choose the year.')
+    .min(thisYear - YEARS_BACK, 'Please choose the year.')
+    .max(thisYear, 'Please choose the year.'),
   medium: text(120, 'Please give the medium, e.g. oil on canvas.'),
-  widthCm: z.coerce
-    .number({ error: 'Width in centimetres.' })
-    .positive('Width in centimetres.')
-    .max(2000),
-  heightCm: z.coerce
-    .number({ error: 'Height in centimetres.' })
-    .positive('Height in centimetres.')
-    .max(2000),
-  depthCm: z.coerce
-    .number()
-    .positive()
-    .max(2000)
+  // As the artist gave them, in their unit; the centimetre values are worked out below
+  unit: z.enum(values(DIMENSION_UNITS), { error: 'Please choose a unit.' }).default('cm'),
+  width: size('Please give the width.'),
+  height: size('Please give the height.'),
+  depth: size('Please give the depth.')
     .optional()
-    .or(z.literal('').transform(() => undefined)),
+    .or(z.literal('').transform(() => undefined))
+    .or(z.null().transform(() => undefined)),
   // What the artist would sell it for; empty if it is not for sale
   priceInr: z.coerce
     .number({ error: 'Please give the price in rupees, as a number.' })
@@ -256,6 +380,22 @@ export const portfolioWorkSchema = z.object({
     .optional()
     .or(z.literal('').transform(() => undefined)),
 })
+
+export const portfolioWorkSchema = portfolioWorkFields
+  .transform((work) => ({
+    ...work,
+    widthCm: toCm(work.width, work.unit),
+    heightCm: toCm(work.height, work.unit),
+    depthCm: work.depth === undefined ? undefined : toCm(work.depth, work.unit),
+  }))
+  .superRefine((work, ctx) => {
+    for (const key of ['width', 'height', 'depth'] as const) {
+      const cm = work[`${key}Cm`]
+      if (cm !== undefined && cm > MAX_CM) {
+        ctx.addIssue({ code: 'custom', path: [key], message: 'Please check this measurement.' })
+      }
+    }
+  })
 
 export const portfolioSchema = z.object({
   works: z

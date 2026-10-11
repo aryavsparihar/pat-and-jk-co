@@ -158,6 +158,13 @@ export const saveArtistStep = async (
 
   const completed = new Set(application.completedSteps ?? [])
   completed.add(name)
+  // The identity photo shows the date of birth: a new one means a new photo, so Identity is to do
+  // again (its save checks the photo against the details given now)
+  if (name === 'about') {
+    const before = application.about?.dateOfBirth?.slice(0, 10)
+    const after = String((parsed.data as { dateOfBirth?: string }).dateOfBirth ?? '')
+    if (before && before !== after) completed.delete('kyc')
+  }
   const updated = await payload.update({
     collection: 'applications',
     id: application.id,
@@ -238,6 +245,11 @@ export const submitArtistApplication = async (
   }
   const kyc = await kycProblems(payload, member.id)
   if (kyc.length > 0) problems.kyc = { _form: kyc[0]! }
+  else if (!(application.completedSteps ?? []).includes('kyc'))
+    // Reopened when the date of birth changed after the identity photo was taken
+    problems.kyc = {
+      _form: 'Your date of birth has changed. Please take the photo of you again, in Identity.',
+    }
   if (Object.keys(problems).length > 0) {
     const errors = Object.fromEntries(
       Object.entries(problems).flatMap(([step, fields]) =>

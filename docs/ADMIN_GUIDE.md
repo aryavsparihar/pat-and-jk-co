@@ -88,7 +88,8 @@ Open an application to read it. In the sidebar, under **Decision**:
 
 - **Approve.** The person is given a member ID (AT000001 for artists, PT000001 for partners) and an email welcoming them. The ID never changes. Someone can be both an artist and a partner, with one ID of each.
 - **Ask for changes.** Write a note saying what you need; they are emailed it and can edit their application and send it again.
-- **Decline.** Write a short, kind note; they are emailed it.
+- **Decline.** Write a short, kind note; they are emailed it, with the date they may apply again, hello@pjk.co.in for questions, and Phulhaar's social accounts (**Site settings → Contact & social**).
+- **Applying again.** A declined applicant may apply again after the wait in **Site settings → Applications** (6 months unless changed). **Allow them to apply again now** on a declined application ends the wait early, and is logged. Applying again reopens the same application with the same reference: "About you", "Where you live" and "Your practice" come back filled in, to review; the work and identity details start fresh (the old identity details are deleted). The earlier decision is kept under **Earlier rounds**.
 
 Every decision is recorded under **Administration → Security log**, with your name against it. Applications themselves cannot be edited here: they are the applicant's words. Use **Notes for staff** for anything the team should know; the applicant never sees it.
 
@@ -108,10 +109,10 @@ Everything is shown masked, like `ABCxxxxx4F`. In the record's sidebar:
 **Before you approve an artist**, check each of these:
 
 1. The name on the PAN, and on the masked Aadhaar if given, is the artist's name. Small differences are fine (an initial, a middle name); a different person is not.
-2. The PAN card and masked Aadhaar, if given, show the same details as were typed in.
+2. The PAN card and masked Aadhaar, if given, show the same details as were typed in. The face in the PAN card's photograph can be seen clearly.
 3. Nothing under **Possible duplicates**, or you know why.
 4. **The identity document, by hand, whatever the automatic check says.** On the masked e-Aadhaar or the other ID: the name matches the PAN and the application; the date of birth matches "About you"; the photo is of a real person and fits the age; and, for Aadhaar, the last four digits are the ones the artist typed.
-5. **The identity photo.** It shows a real person holding a paper with the **Code on the identity photo** (in the record) and their full name, both legible; the face is the face on the ID. If anything is off (a different code, a printed rather than handwritten paper, a photo of a screen), ask for changes and say what to retake.
+5. **The identity photo.** It shows a real person's face, holding a handwritten paper with the code given (shown beside the photo in the sidebar, with when it was given), their full name as on the PAN, and their date of birth as in "About you", all legible. The face is the face on the PAN card and the ID. *Taken with* says whether it came from the camera in the page or was uploaded; an upload deserves a closer look. If anything is off (a different code, a missing name or date, a printed rather than handwritten paper, a photo of a screen), ask for changes and say what to retake.
 6. **Read the "Identity document" box in the sidebar.** *Verified* means UIDAI's signature and the details all checked out. *Could not verify* gives the reason (a changed file, digits that do not match). *Needs a check by hand* means the check could not finish (a photo or scan, no password); do the checks above with extra care. A passport, voter ID or driving licence is always checked by hand.
 
 **Payout details, when a work sells.** Open the artist's KYC record and press **Request payout details**. The artist is emailed a link to their account, where they add the account themselves after a code we email them; the email never asks for bank details and never contains any. The date you asked shows on the record, and you can ask again if needed. When they have added the details, you are emailed. Then:
