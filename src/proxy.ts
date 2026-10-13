@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server'
 
 import { GATE_COOKIE, GATE_PATH } from './security/constants'
-import { readGateToken } from './security/gateToken'
+import { readGateToken, touchGateToken } from './security/gateToken'
 import {
   CAMERA_PAGE,
   CAMERA_PERMISSIONS,
@@ -38,7 +38,21 @@ export function proxy(request: NextRequest) {
 
   if (isGuarded(pathname)) {
     const gate = readGateToken(request.cookies.get(GATE_COOKIE)?.value)
-    if (gate) return NextResponse.next()
+    if (gate) {
+      const response = NextResponse.next()
+      // Admin activity keeps the gate open for another 30 minutes, renewed at most once a minute
+      const nowSeconds = Math.floor(Date.now() / 1000)
+      if (nowSeconds - (gate.seen ?? 0) > 60) {
+        response.cookies.set(GATE_COOKIE, touchGateToken(gate), {
+          httpOnly: true,
+          sameSite: 'strict',
+          secure: process.env.NODE_ENV === 'production',
+          path: '/',
+          maxAge: Math.max(0, gate.exp - nowSeconds),
+        })
+      }
+      return response
+    }
 
     // API callers get a plain refusal; people get sent to the gate
     if (pathname.startsWith('/api/')) {

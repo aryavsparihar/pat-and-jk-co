@@ -1,10 +1,11 @@
+import { createHmac } from 'node:crypto'
 import { getPayload, type Payload } from 'payload'
 import config from '@/payload.config'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { isCompanyEmail, normaliseEmail } from '@/security/constants'
-import { createGateToken, readGateToken } from '@/security/gateToken'
+import { createGateToken, readGateToken, touchGateToken } from '@/security/gateToken'
 import { createOtp, hashOtp, otpMatches, passwordProblem } from '@/security/otp'
 
 const EMAIL = 'security-test@pjk.co.in'
@@ -53,6 +54,34 @@ describe('admin gate token', () => {
     const { token } = createGateToken(EMAIL)
     const signature = token.split('.')[1]
     expect(readGateToken(`${expired}.${signature}`)).toBeNull()
+  })
+})
+
+describe('admin gate token, idle limit', () => {
+  const signed = (payload: object) => {
+    // Re-sign a body the way the module does, for tokens from the past
+    const body = Buffer.from(JSON.stringify(payload)).toString('base64url')
+    const signature = createHmac('sha256', process.env.PAYLOAD_SECRET!)
+      .update(body)
+      .digest('base64url')
+    return `${body}.${signature}`
+  }
+  const now = () => Math.floor(Date.now() / 1000)
+
+  it('ends after 30 minutes without activity, even inside its 12 hours', () => {
+    const idle = signed({ email: EMAIL, exp: now() + 3600, jti: 'x', seen: now() - 31 * 60 })
+    expect(readGateToken(idle)).toBeNull()
+    const active = signed({ email: EMAIL, exp: now() + 3600, jti: 'x', seen: now() - 29 * 60 })
+    expect(readGateToken(active)?.email).toBe(EMAIL)
+  })
+
+  it('is renewed by activity without moving its 12-hour end', () => {
+    const old = readGateToken(
+      signed({ email: EMAIL, exp: now() + 600, jti: 'x', seen: now() - 20 * 60 }),
+    )!
+    const renewed = readGateToken(touchGateToken(old))!
+    expect(renewed.exp).toBe(old.exp)
+    expect(renewed.seen).toBeGreaterThanOrEqual(now() - 1)
   })
 })
 

@@ -16,6 +16,9 @@ export const GATE_COOKIE = 'pjk_admin_gate'
 /** How long that proof lasts before a new code is needed. */
 export const GATE_TTL_SECONDS = 60 * 60 * 12
 
+/** The gate also ends after this long without admin activity */
+export const GATE_IDLE_SECONDS = 30 * 60
+
 /** Where people are sent to get a code. */
 export const GATE_PATH = '/admin-access'
 
