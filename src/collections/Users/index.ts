@@ -12,6 +12,7 @@ import {
 import { emailFooter } from '../../email/footer'
 import { readGateToken } from '../../security/gateToken'
 import { getServerSideURL } from '../../utilities/getURL'
+import { BREACHED_MESSAGE, isBreachedPassword } from '../../security/breachedPassword'
 import { passwordProblem } from '../../security/otp'
 
 /** Reads the admin-gate cookie off an incoming request. */
@@ -24,6 +25,24 @@ const gateEmail = (req: { headers?: Headers }): string | null => {
     .find((part) => part.startsWith(`${GATE_COOKIE}=`))
   if (!cookie) return null
   return readGateToken(decodeURIComponent(cookie.slice(GATE_COOKIE.length + 1)))?.email ?? null
+}
+
+/**
+ * The staff password rules, then the breach check. Used when a password is set (create, update)
+ * and when it is reset from an emailed link.
+ */
+const checkStaffPassword = async (
+  password: string,
+  email: string | undefined,
+  logger: { warn: (o: object) => void },
+) => {
+  const problem = passwordProblem(password, email)
+  if (problem) throw publicError(`Password too weak: ${problem}`, 400)
+  const breached = await isBreachedPassword(password)
+  if (breached) throw publicError(BREACHED_MESSAGE, 400)
+  if (breached === null) {
+    logger.warn({ msg: 'Breached-password check skipped: the service could not be reached' })
+  }
 }
 
 export const Users: CollectionConfig = {
@@ -138,13 +157,12 @@ export const Users: CollectionConfig = {
                 req,
               })) as { email?: string } | null)
             : null
-        const problem = passwordProblem(password, owner?.email)
-        if (problem) throw publicError(`Password too weak: ${problem}`, 400)
+        await checkStaffPassword(password, owner?.email, req.payload.logger)
         return args
       },
     ],
     beforeValidate: [
-      ({ data, req }) => {
+      async ({ data, req }) => {
         if (!data) return data
 
         if (data.email !== undefined) {
@@ -160,8 +178,7 @@ export const Users: CollectionConfig = {
 
         // Password rules are enforced here so they apply to every route into the app
         if (typeof data.password === 'string' && data.password.length > 0) {
-          const problem = passwordProblem(data.password, data.email ?? req.user?.email)
-          if (problem) throw publicError(`Password too weak: ${problem}`, 400)
+          await checkStaffPassword(data.password, data.email ?? req.user?.email, req.payload.logger)
         }
 
         return data
