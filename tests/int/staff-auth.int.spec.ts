@@ -9,6 +9,8 @@ import { REST_POST } from '@payloadcms/next/routes'
 import { isBreachedPassword, sha1Hex } from '@/security/breachedPassword'
 import { GATE_COOKIE } from '@/security/constants'
 import { createGateToken } from '@/security/gateToken'
+import { execute } from '@/utilities/sql'
+import { sql } from '@payloadcms/db-postgres'
 
 /*
  * Staff passwords: the breach check, and the reset flow from request to new password. Accounts
@@ -62,6 +64,7 @@ describe('staff accounts', () => {
 
   async function cleanup() {
     await payload.delete({ collection: 'users', where: { email: { equals: EMAIL } }, context })
+    await execute(payload, sql`DELETE FROM rate_limits WHERE key LIKE 'staff-reset-%'`)
   }
 
   /** Have I Been Pwned, answering as though `password` had been in a breach */
@@ -248,5 +251,32 @@ describe('staff accounts', () => {
     const minutes = (new Date(locked.lockUntil).getTime() - Date.now()) / 60_000
     expect(minutes).toBeGreaterThan(14)
     expect(minutes).toBeLessThanOrEqual(15)
+  })
+
+  it('limits reset requests per address, answering an unknown address the same way', async () => {
+    const post = REST_POST(config)
+    const { token } = createGateToken(EMAIL)
+    const ask = (email: string, ip: string) =>
+      post(
+        new Request('http://localhost:3000/api/users/forgot-password', {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            cookie: `${GATE_COOKIE}=${encodeURIComponent(token)}`,
+            'x-forwarded-for': ip,
+          },
+          body: JSON.stringify({ email }),
+        }),
+        { params: Promise.resolve({ slug: ['users', 'forgot-password'] }) },
+      )
+    const unknown = `nobody-${Date.now()}@pjk.co.in`
+    const replies = []
+    for (let i = 0; i < 4; i++) replies.push(await ask(unknown, `198.51.100.${120 + i}`))
+    expect(replies.slice(0, 3).map((r) => r.status)).toEqual([200, 200, 200])
+    expect(replies[3]!.status).toBe(429)
+    const known = await ask(EMAIL, '198.51.100.130')
+    const missing = await ask(`other-${Date.now()}@pjk.co.in`, '198.51.100.131')
+    expect(known.status).toBe(200)
+    expect(await known.json()).toEqual(await missing.json())
   })
 })

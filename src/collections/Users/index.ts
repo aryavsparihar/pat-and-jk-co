@@ -14,6 +14,7 @@ import { emailFooter } from '../../email/footer'
 import { notifyStaffLockout } from '../../security/email'
 import { logSecurityEvent } from '../../security/events'
 import { readGateToken } from '../../security/gateToken'
+import { hitLimit } from '../../security/rateLimit'
 import { getServerSideURL } from '../../utilities/getURL'
 import { BREACHED_MESSAGE, isBreachedPassword } from '../../security/breachedPassword'
 import { passwordProblem } from '../../security/otp'
@@ -158,6 +159,24 @@ export const Users: CollectionConfig = {
     // hands the hooks the stored record), so the rules are checked here, on the password itself
     beforeOperation: [
       async ({ args, operation, req }) => {
+        // Reset emails: a few an hour for each address and each IP, on top of Payload's 15 seconds
+        // between requests for one account. Counted whether or not the address has an account, and
+        // refused with the same words either way, so the limit reveals nothing
+        if (operation === 'forgotPassword' && req.payloadAPI !== 'local') {
+          const email = normaliseEmail(
+            String((args as { data?: { email?: unknown } }).data?.email ?? ''),
+          )
+          for (const limit of [
+            { scope: 'staff-reset-address', subject: email, max: 3 },
+            { scope: 'staff-reset-ip', subject: clientIp(req.headers), max: 10 },
+          ]) {
+            const result = await hitLimit(req.payload, { ...limit, windowSeconds: 3600 })
+            if (!result.allowed) {
+              throw publicError('Too many reset requests. Please try again in an hour.', 429)
+            }
+          }
+          return args
+        }
         if (operation !== 'resetPassword') return args
         const password = (args as { data?: { password?: unknown; token?: unknown } }).data?.password
         if (typeof password !== 'string') return args
