@@ -294,3 +294,34 @@ export const submitPartnerApplication = async (
   })
   return { ok: true, application: await submit(payload, member, saved, ip) }
 }
+
+const idOf = (v: unknown) => (v && typeof v === 'object' ? (v as { id: number }).id : v)
+
+/**
+ * What a member's own application endpoint returns: what the application pages use, and nothing
+ * else. Not the member record, not the identity code's times, not who decided it or when; the
+ * staff note only where it was written for them.
+ */
+export const memberApplicationView = (a: Application) => ({
+  reference: a.reference,
+  type: a.type,
+  stage: a.stage,
+  completedSteps: a.completedSteps ?? [],
+  decisionNote:
+    a.stage === 'changes-requested' || a.stage === 'rejected' ? (a.decisionNote ?? null) : null,
+  reapplyFrom: (a as { reapplyFrom?: string | null }).reapplyFrom ?? null,
+  partnerCategory: a.partnerCategory ?? null,
+  about: a.about,
+  address: a.address,
+  practice: a.practice,
+  portfolio: (a.portfolio ?? []).map((work) => ({ ...work, image: idOf(work.image) })),
+  declarations: a.declarations
+    ? {
+        originalWork: a.declarations.originalWork ?? null,
+        accurate: a.declarations.accurate ?? null,
+        consentProcessing: a.declarations.consentProcessing ?? null,
+        agreeTerms: a.declarations.agreeTerms ?? null,
+      }
+    : null,
+  partner: a.partner,
+})

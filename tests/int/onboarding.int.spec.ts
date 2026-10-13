@@ -442,6 +442,16 @@ describe('an artist application', () => {
     expect(body.application.stage).toBe('changes-requested')
     expect(body.application.decisionNote).toBe('Please add one more work.')
     expect(body.application).not.toHaveProperty('staffNotes')
+    // Only what the pages use: not the member record, nor who decided, nor the identity code
+    for (const field of [
+      'member',
+      'decidedBy',
+      'decidedAt',
+      'identityCodeIssuedAt',
+      'rounds',
+      'id',
+    ])
+      expect(body.application).not.toHaveProperty(field)
     expect((await call(saveStep, cookie, { step: 'about', data: goodSteps.about })).status).toBe(
       200,
     )
