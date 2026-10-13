@@ -2,6 +2,8 @@ import configPromise from '@payload-config'
 import { sql } from '@payloadcms/db-postgres'
 import { getPayload, type Payload } from 'payload'
 
+import { fromOurOrigin } from '@/members/http'
+import { hitLimit } from '@/security/rateLimit'
 import { clientIp } from '@/security/constants'
 import { execute } from '@/utilities/sql'
 import { getTenantByHost } from '@/utilities/tenant'
@@ -25,18 +27,6 @@ export const dynamic = 'force-dynamic'
 
 const REPEAT_WINDOW_MS = 20 * 60 * 1000
 const BOT = /bot|crawl|spider|slurp|preview|monitor|curl|wget|headless|lighthouse|python-requests/i
-
-// Per-instance and short-lived. A baseline against a single address counting itself repeatedly,
-// not a guarantee — several serverless instances each keep their own.
-const lastSeen = new Map<string, number>()
-
-const countedRecently = (ip: string): boolean => {
-  const now = Date.now()
-  if (lastSeen.size > 5000) lastSeen.clear()
-  const previous = lastSeen.get(ip)
-  lastSeen.set(ip, now)
-  return previous !== undefined && now - previous < REPEAT_WINDOW_MS
-}
 
 const totalFor = async (payload: Payload, tenantId: number): Promise<number> => {
   const found = await payload.find({
@@ -63,9 +53,21 @@ export async function POST(request: Request) {
   const tenant = await getTenantByHost(request.headers.get('host') ?? '')
   if (!tenant) return Response.json({ total: 0 })
 
+  // Counted once per address in 20 minutes, across every server instance (the count is kept in
+  // Postgres, under a keyed hash of the address), and only from the site's own pages
   const agent = request.headers.get('user-agent') ?? ''
-  const skip = !agent || BOT.test(agent) || countedRecently(clientIp(request.headers))
-  if (skip) return Response.json({ total: await totalFor(payload, tenant.id) })
+  const robot = !agent || BOT.test(agent) || !fromOurOrigin(request)
+  const repeat =
+    robot ||
+    !(
+      await hitLimit(payload, {
+        scope: 'visit',
+        subject: `${tenant.id}:${clientIp(request.headers)}`,
+        max: 1,
+        windowSeconds: REPEAT_WINDOW_MS / 1000,
+      })
+    ).allowed
+  if (repeat) return Response.json({ total: await totalFor(payload, tenant.id) })
 
   // One statement, so a visit at the same moment as another cannot overwrite it
   const [row] = await execute<{ total: number | string }>(
