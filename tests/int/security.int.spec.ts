@@ -175,3 +175,14 @@ describe('user accounts', () => {
     ).rejects.toThrow(/not active/i)
   })
 })
+
+describe('secrets from the environment', () => {
+  it('match only the exact value, and an unset secret matches nothing', async () => {
+    const { matchesSecret } = await import('@/security/secrets')
+    expect(matchesSecret('s3cret-value', 's3cret-value')).toBe(true)
+    expect(matchesSecret('s3cret-valuE', 's3cret-value')).toBe(false)
+    expect(matchesSecret('', undefined)).toBe(false)
+    expect(matchesSecret('', '')).toBe(false)
+    expect(matchesSecret(null, '')).toBe(false)
+  })
+})
