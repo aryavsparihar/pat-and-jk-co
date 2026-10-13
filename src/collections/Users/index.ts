@@ -4,12 +4,15 @@ import { publicError } from '@/utilities/publicError'
 import { authenticated } from '../../access/authenticated'
 import { superAdminOnly, superAdminOnlyField, superAdminOrSelf } from '../../access/roles'
 import {
+  clientIp,
   COMPANY_EMAIL_DOMAIN,
   GATE_COOKIE,
   isCompanyEmail,
   normaliseEmail,
 } from '../../security/constants'
 import { emailFooter } from '../../email/footer'
+import { notifyStaffLockout } from '../../security/email'
+import { logSecurityEvent } from '../../security/events'
 import { readGateToken } from '../../security/gateToken'
 import { getServerSideURL } from '../../utilities/getURL'
 import { BREACHED_MESSAGE, isBreachedPassword } from '../../security/breachedPassword'
@@ -44,6 +47,16 @@ const checkStaffPassword = async (
     logger.warn({ msg: 'Breached-password check skipped: the service could not be reached' })
   }
 }
+
+const MAX_LOGIN_ATTEMPTS = 5
+const LOCK_MINUTES = 15
+
+/** A request to Payload's sign-in endpoint, and the address it was for */
+const loginAttempt = (req: { url?: string; data?: unknown }) =>
+  /\/users\/login(?:\?|$)/.test(req.url ?? '') &&
+  typeof (req.data as { email?: unknown })?.email === 'string'
+    ? normaliseEmail((req.data as { email: string }).email)
+    : null
 
 export const Users: CollectionConfig = {
   slug: 'users',
@@ -86,8 +99,8 @@ export const Users: CollectionConfig = {
       },
     },
     // Payload locks an account after repeated wrong passwords
-    maxLoginAttempts: 5,
-    lockTime: 15 * 60 * 1000,
+    maxLoginAttempts: MAX_LOGIN_ATTEMPTS,
+    lockTime: LOCK_MINUTES * 60 * 1000,
   },
   fields: [
     {
@@ -182,6 +195,66 @@ export const Users: CollectionConfig = {
         }
 
         return data
+      },
+    ],
+    afterLogin: [
+      async ({ req, user }) => {
+        if (req.payloadAPI === 'local') return user
+        // Within the sign-in's own transaction, which still holds the account's row
+        await logSecurityEvent(req.payload, {
+          event: 'staff-signed-in',
+          email: user.email,
+          ip: clientIp(req.headers),
+          actor: user.id,
+          req,
+        })
+        return user
+      },
+    ],
+    // Wrong passwords and locked accounts reach here as errors from the sign-in endpoint. A lock
+    // is logged and the account holder emailed once per lock, however many tries follow it
+    afterError: [
+      async ({ error, req }) => {
+        const email = loginAttempt(req)
+        if (!email) return
+        const ip = clientIp(req.headers)
+        const name = (error as { name?: string })?.name
+        if (name === 'AuthenticationError') {
+          await logSecurityEvent(req.payload, { event: 'staff-sign-in-failed', email, ip })
+        }
+        if (name !== 'LockedAuth' && name !== 'AuthenticationError') return
+        const user = (
+          await req.payload.find({
+            collection: 'users',
+            where: { email: { equals: email } },
+            limit: 1,
+            depth: 0,
+            overrideAccess: true,
+            showHiddenFields: true,
+          })
+        ).docs[0] as { id: number; email: string; lockUntil?: string | null } | undefined
+        const lockUntil = user?.lockUntil ? new Date(user.lockUntil).getTime() : 0
+        if (!user || lockUntil <= Date.now()) return
+        const lockedSince = new Date(lockUntil - LOCK_MINUTES * 60 * 1000).toISOString()
+        const told = await req.payload.count({
+          collection: 'security-events',
+          where: {
+            and: [
+              { event: { equals: 'staff-locked' } },
+              { email: { equals: user.email } },
+              { createdAt: { greater_than_equal: lockedSince } },
+            ],
+          },
+          overrideAccess: true,
+        })
+        if (told.totalDocs > 0) return
+        await logSecurityEvent(req.payload, {
+          event: 'staff-locked',
+          email: user.email,
+          ip,
+          detail: `${MAX_LOGIN_ATTEMPTS} wrong passwords; locked for ${LOCK_MINUTES} minutes`,
+        })
+        await notifyStaffLockout(req.payload, { email: user.email, minutes: LOCK_MINUTES })
       },
     ],
     beforeLogin: [

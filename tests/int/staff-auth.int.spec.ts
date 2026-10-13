@@ -4,7 +4,11 @@ import config from '@/payload.config'
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
+import { REST_POST } from '@payloadcms/next/routes'
+
 import { isBreachedPassword, sha1Hex } from '@/security/breachedPassword'
+import { GATE_COOKIE } from '@/security/constants'
+import { createGateToken } from '@/security/gateToken'
 
 /*
  * Staff passwords: the breach check, and the reset flow from request to new password. Accounts
@@ -172,5 +176,77 @@ describe('staff accounts', () => {
         disableEmail: true,
       }),
     ).resolves.toBeNull()
+  })
+
+  it('ends the other sessions when a password is changed from the account', async () => {
+    const user = (
+      await payload.find({ collection: 'users', where: { email: { equals: EMAIL } }, context })
+    ).docs[0]!
+    const current = (await payload.findByID({ collection: 'users', id: user.id })) as {
+      sessions?: { id: string }[]
+    }
+    await payload.update({
+      collection: 'users',
+      id: user.id,
+      data: { password: 'Wd3-violet-Garden-2026&' } as never,
+      context,
+    })
+    const after = (await payload.findByID({ collection: 'users', id: user.id })) as {
+      sessions?: { id: string }[]
+    }
+    // Changed with no session of its own (here, a script): every session ends
+    expect(current.sessions?.length ?? 0).toBeGreaterThan(0)
+    expect(after.sessions ?? []).toHaveLength(0)
+  })
+
+  it('locks after five wrong passwords, logs it once, and tells the account holder', async () => {
+    const post = REST_POST(config)
+    const { token } = createGateToken(EMAIL)
+    const attempt = (password: string) =>
+      post(
+        new Request('http://localhost:3000/api/users/login', {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            cookie: `${GATE_COOKIE}=${encodeURIComponent(token)}`,
+            'x-forwarded-for': '198.51.100.77',
+          },
+          body: JSON.stringify({ email: EMAIL, password }),
+        }),
+        { params: Promise.resolve({ slug: ['users', 'login'] }) },
+      )
+    const since = new Date().toISOString()
+    const info = vi.spyOn(payload.logger, 'info')
+    for (let i = 0; i < 5; i++) expect((await attempt('Not-the-password-1!')).status).toBe(401)
+    // Locked: even the right password is refused for now
+    expect((await attempt('Wd3-violet-Garden-2026&')).status).toBe(401)
+    expect((await attempt('Not-the-password-1!')).status).toBe(401)
+
+    const events = async (event: string) =>
+      (
+        await payload.count({
+          collection: 'security-events',
+          where: {
+            and: [
+              { event: { equals: event } },
+              { email: { equals: EMAIL } },
+              { createdAt: { greater_than_equal: since } },
+            ],
+          },
+        })
+      ).totalDocs
+    expect(await events('staff-sign-in-failed')).toBeGreaterThanOrEqual(5)
+    expect(await events('staff-locked')).toBe(1)
+    expect(
+      info.mock.calls.some((c) => String(c[0]).includes('Your PJK admin account was locked')),
+    ).toBe(true)
+    info.mockRestore()
+    const locked = (await payload.db.findOne({
+      collection: 'users',
+      where: { email: { equals: EMAIL } },
+    })) as unknown as { lockUntil: string }
+    const minutes = (new Date(locked.lockUntil).getTime() - Date.now()) / 60_000
+    expect(minutes).toBeGreaterThan(14)
+    expect(minutes).toBeLessThanOrEqual(15)
   })
 })

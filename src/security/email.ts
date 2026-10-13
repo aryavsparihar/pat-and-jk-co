@@ -87,3 +87,40 @@ export const notifyAccessRequest = async (
     payload.logger.error({ err: error, msg: 'Could not notify admins of an access request' })
   }
 }
+
+/**
+ * Tells a member of staff that their account has been locked after too many wrong passwords, so a
+ * guessing attempt does not go unnoticed. Never says what was tried.
+ */
+export const notifyStaffLockout = async (
+  payload: Payload,
+  { email, minutes }: { email: string; minutes: number },
+): Promise<void> => {
+  const subject = 'Your PJK admin account was locked'
+  const text = `Your PAT and J.K. Co. admin account has been locked for ${minutes} minutes, after five wrong passwords in a row.`
+  if (!canSendEmail(payload)) {
+    payload.logger.info(`[dev] Email "${subject}" to ${email}`)
+    return
+  }
+  try {
+    const built = buildEmail({
+      subject,
+      preheader: `Locked for ${minutes} minutes after five wrong passwords.`,
+      parts: [
+        { kind: 'paragraph', text },
+        {
+          kind: 'paragraph',
+          text: 'If that was you, wait and try again, or choose a new password with "Forgot password" after the sign-in code.',
+        },
+        {
+          kind: 'note',
+          text: 'If it was not you, someone may be guessing your password. Tell tech@pjk.co.in, and change your password once the lock ends.',
+        },
+      ],
+      footer: await emailFooter(payload),
+    })
+    await payload.sendEmail({ to: email, subject, text: built.text, html: built.html })
+  } catch (error) {
+    payload.logger.error({ err: error, msg: 'Could not send the account-locked email' })
+  }
+}
