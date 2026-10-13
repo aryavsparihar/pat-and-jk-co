@@ -12,11 +12,17 @@ export type DialogRequest = {
   reason?: { label: string; hint?: string }
   /** Ask for a date (YYYY-MM-DD); empty is allowed when optional */
   date?: { label: string; initial?: string; optional?: boolean; hint?: string }
+  /** Ask for an email address */
+  email?: { label: string; hint?: string }
+  /** A box that must be ticked before going ahead, e.g. that a check has been done */
+  attest?: { label: string }
   /** A red button, for something hard to undo */
   danger?: boolean
 }
 
-export type DialogAnswer = { reason: string; date: string }
+export type DialogAnswer = { reason: string; date: string; email: string }
+
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 
 const MIN_REASON = 10
 
@@ -61,7 +67,16 @@ const ActionDialog: React.FC<{
   const returnFocus = useRef<Element | null>(null)
   const [reason, setReason] = useState('')
   const [date, setDate] = useState(request.date?.initial ?? '')
-  const ids = { title: useId(), description: useId(), reason: useId(), date: useId() }
+  const [email, setEmail] = useState('')
+  const [attested, setAttested] = useState(false)
+  const ids = {
+    title: useId(),
+    description: useId(),
+    reason: useId(),
+    date: useId(),
+    email: useId(),
+    attest: useId(),
+  }
 
   useEffect(() => {
     returnFocus.current = document.activeElement
@@ -77,12 +92,13 @@ const ActionDialog: React.FC<{
     !request.date ||
     (request.date.optional && date.trim() === '') ||
     /^\d{4}-\d{2}-\d{2}$/.test(date.trim())
-  const ready = reasonOk && dateOk
+  const emailOk = !request.email || EMAIL.test(email.trim())
+  const ready = reasonOk && dateOk && emailOk && (!request.attest || attested)
 
   // Not a <form>: Payload renders the sidebar inside its own document form, and forms cannot nest
   const submit = () => {
     if (!ready) return
-    onFinish({ reason: reason.trim(), date: date.trim() })
+    onFinish({ reason: reason.trim(), date: date.trim(), email: email.trim() })
   }
 
   return (
@@ -136,6 +152,28 @@ const ActionDialog: React.FC<{
           </div>
         )}
 
+        {request.email && (
+          <div className="field-type email" style={{ marginBottom: '1rem' }}>
+            <label className="field-label" htmlFor={ids.email}>
+              {request.email.label}
+              <span className="required">*</span>
+            </label>
+            <input
+              aria-describedby={request.email.hint ? `${ids.email}-hint` : undefined}
+              autoFocus={!request.date}
+              id={ids.email}
+              onChange={(e) => setEmail(e.target.value)}
+              type="email"
+              value={email}
+            />
+            {request.email.hint && (
+              <p id={`${ids.email}-hint`} style={{ opacity: 0.7, marginTop: '0.25rem' }}>
+                {request.email.hint}
+              </p>
+            )}
+          </div>
+        )}
+
         {request.reason && (
           <div className="field-type textarea" style={{ marginBottom: '1rem' }}>
             <label className="field-label" htmlFor={ids.reason}>
@@ -145,7 +183,7 @@ const ActionDialog: React.FC<{
             <textarea
               aria-describedby={`${ids.reason}-hint`}
               aria-required
-              autoFocus={!request.date}
+              autoFocus={!request.date && !request.email}
               id={ids.reason}
               onChange={(e) => setReason(e.target.value)}
               rows={3}
@@ -159,6 +197,27 @@ const ActionDialog: React.FC<{
           </div>
         )}
 
+        {request.attest && (
+          <label
+            htmlFor={ids.attest}
+            style={{
+              display: 'flex',
+              gap: '0.6rem',
+              alignItems: 'flex-start',
+              marginBottom: '1rem',
+            }}
+          >
+            <input
+              checked={attested}
+              id={ids.attest}
+              onChange={(e) => setAttested(e.target.checked)}
+              style={{ marginTop: '0.3rem' }}
+              type="checkbox"
+            />
+            <span>{request.attest.label}</span>
+          </label>
+        )}
+
         <div
           style={{
             display: 'flex',
@@ -168,7 +227,7 @@ const ActionDialog: React.FC<{
           }}
         >
           <button
-            autoFocus={!request.reason && !request.date}
+            autoFocus={!request.reason && !request.date && !request.email}
             className="btn btn--style-secondary btn--size-medium"
             onClick={() => onFinish(null)}
             type="button"

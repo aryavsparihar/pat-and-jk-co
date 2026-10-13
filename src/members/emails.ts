@@ -464,6 +464,57 @@ export const sendEmailChangedNotice = async (
     }),
   )
 
+/**
+ * Both addresses hear when our team changes the address on an account, at the member's request
+ * after an identity check: the old one so a change they did not ask for is noticed, the new one
+ * so they know it worked
+ */
+export const sendStaffEmailChangeNotices = async (
+  payload: Payload,
+  { oldEmail, newEmail }: { oldEmail: string; newEmail: string },
+): Promise<void> => {
+  const footer = await emailFooter(payload)
+  await send(
+    payload,
+    oldEmail,
+    buildEmail({
+      subject: 'The email address on your PJK account has changed',
+      preheader: 'Our team changed it at your request.',
+      parts: [
+        {
+          kind: 'paragraph',
+          text: 'Our team has changed the email address on your PAT and J.K. Co. account, after checking your identity, because you told us you could no longer use this one. Codes to sign in will go to the new address from now on, and every device signed in to your account has been signed out.',
+        },
+        {
+          kind: 'note',
+          text: 'If you did not ask for this, write to us at hello@pjk.co.in straight away, and we will put it right.',
+        },
+      ],
+      footer,
+    }),
+  )
+  await send(
+    payload,
+    newEmail,
+    buildEmail({
+      subject: 'Your PJK account now uses this email address',
+      preheader: 'Sign in with a code sent here.',
+      parts: [
+        {
+          kind: 'paragraph',
+          text: 'At your request, and after checking your identity, our team has made this the email address for your PAT and J.K. Co. account. Sign in with a code sent here.',
+        },
+        { kind: 'link', label: 'Sign in', url: `${getServerSideURL()}/collaborate/signin` },
+        {
+          kind: 'note',
+          text: 'If you did not ask for this, write to us at hello@pjk.co.in.',
+        },
+      ],
+      footer,
+    }),
+  )
+}
+
 /** The member hears what staff decided about a work or their profile */
 export const sendReviewDecision = async (
   payload: Payload,

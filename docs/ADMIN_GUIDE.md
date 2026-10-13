@@ -130,6 +130,31 @@ Everything is shown masked, like `ABCxxxxx4F`. In the record's sidebar:
 
 If an artist asks for a copy of their data, or for it to be deleted, you are emailed. Tell the developer, who runs the deletion (see docs/KYC.md).
 
+### When an artist has lost access to their email
+
+Members sign in with a code to their email, so someone who can no longer read that inbox cannot
+sign in or change the address themselves. Only a **KYC reviewer** can change it for them, and only
+for a member with identity details on file to check against. Nobody, including a super admin, can
+type a new address into the member's record: the field is read-only, because changing it would
+hand the account to whoever typed it.
+
+1. **Check who they are, against the KYC record, before anything else.** Ask them for their full
+   name, date of birth and the last four characters of their PAN, and compare with the record
+   (**Reveal full details**, giving the reason "Identity check for an email change"). Then speak to
+   them on the phone number in their application, or by video call if you can, and compare their
+   face with the identity photo. If anything does not match, or you are unsure, stop and ask a super
+   admin.
+2. Open the member under **Members**, press **Change the email address** in the sidebar, give the
+   new address, say how you checked (for example: "Phoned the number on file; name, date of birth
+   and PAN match the KYC record"), and tick that you checked against the KYC record.
+3. The address changes at once. Every device they were signed in on is signed out, both the old
+   and the new address are emailed, and the change goes to the security log with your name and
+   reason. They sign in with a code to the new address.
+
+Never change an address on the strength of an email from the new address alone: that is exactly
+what someone taking over an account would send. A partner has no identity details on file, so the
+action refuses; a super admin decides what to do.
+
 ### Approved artists' works and profiles
 
 Once approved, an artist has a portal at /account: their profile, their works, where we pay them, and their account. Nothing they write there is shown to the public until you approve it.

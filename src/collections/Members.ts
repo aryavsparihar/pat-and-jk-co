@@ -1,7 +1,7 @@
 import type { Access, CollectionConfig, Field, FieldAccess } from 'payload'
 import { publicError } from '@/utilities/publicError'
 
-import { isMember, isStaff, superAdminOnly } from '../access/roles'
+import { isKycReviewer, isMember, isStaff, superAdminOnly } from '../access/roles'
 import { PARTNER_CATEGORIES } from '../members/categories'
 import { MEDIUMS } from '../members/forms/schemas'
 import { publishedFields, reviewGroup } from '../members/reviewFields'
@@ -74,7 +74,19 @@ export const Members: CollectionConfig = {
       required: true,
       unique: true,
       index: true,
-      access: { update: staffOnlyField },
+      // Never edited by hand: the member changes it with a code to the new address, or a KYC
+      // reviewer changes it after an identity check with "Change the email address" (logged, and
+      // both addresses told). A plain edit here would hand the account to whoever typed it
+      access: { update: () => false },
+      admin: { readOnly: true },
+    },
+    {
+      name: 'emailRecovery',
+      type: 'ui',
+      admin: {
+        position: 'sidebar',
+        components: { Field: '@/components/admin/EmailRecoveryPanel#EmailRecoveryPanel' },
+      },
     },
     {
       type: 'row',
@@ -257,6 +269,33 @@ export const Members: CollectionConfig = {
     ],
   },
   endpoints: [
+    {
+      // POST /api/members/:id/change-email  { email, reason }. KYC reviewers only; logged
+      path: '/:id/change-email',
+      method: 'post',
+      handler: async (req) => {
+        if (!isKycReviewer(req.user)) {
+          return Response.json({ message: 'Only a KYC reviewer can do this.' }, { status: 403 })
+        }
+        const body = (await req.json?.().catch(() => ({}))) as { email?: string; reason?: string }
+        const { changeEmailByStaff } = await import('../members/account')
+        const { PortalError } = await import('../members/artworks')
+        try {
+          const result = await changeEmailByStaff(req.payload, {
+            memberId: Number(req.routeParams?.id),
+            email: body?.email,
+            reason: body?.reason,
+            actor: req.user,
+          })
+          return Response.json({ ok: true, ...result })
+        } catch (error) {
+          if (error instanceof PortalError)
+            return Response.json({ message: error.message }, { status: error.status })
+          req.payload.logger.error({ err: error, msg: 'Staff email change failed' })
+          return Response.json({ message: 'The address could not be changed.' }, { status: 500 })
+        }
+      },
+    },
     {
       // POST /api/{collection}/:id/profile-review  { decision: 'approve' | 'request-changes', note }. Staff only
       path: '/:id/profile-review',
