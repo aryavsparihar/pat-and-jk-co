@@ -7,6 +7,7 @@ import {
   clientIp,
   COMPANY_EMAIL_DOMAIN,
   GATE_COOKIE,
+  GATE_TTL_SECONDS,
   isCompanyEmail,
   normaliseEmail,
 } from '../../security/constants'
@@ -49,6 +50,10 @@ const checkStaffPassword = async (
   }
 }
 
+/** Staff sessions: 30 minutes without activity, 12 hours at most */
+const STAFF_IDLE_SECONDS = 30 * 60
+const STAFF_ABSOLUTE_SECONDS = GATE_TTL_SECONDS
+
 const MAX_LOGIN_ATTEMPTS = 5
 const LOCK_MINUTES = 15
 
@@ -75,13 +80,15 @@ export const Users: CollectionConfig = {
     useAsTitle: 'name',
   },
   auth: {
-    // An admin session lasts a working day; after that, sign in again
-    tokenExpiration: 60 * 60 * 8,
+    // A session ends after 30 minutes without activity (the admin refreshes it while in use),
+    // and never lasts more than 12 hours, the gate's own limit (beforeOperation, below)
+    tokenExpiration: STAFF_IDLE_SECONDS,
     // Payload leaves Secure off by default. Over HTTPS (production) the session cookie is never
     // to be sent in the clear; browsers treat localhost as secure, so `pnpm start` still works.
+    // Strict: no other site can make a browser send it, not even by a link
     cookies: {
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'Lax',
+      sameSite: 'Strict',
     },
     // The "choose your password" email sent on approval and by "Forgot password": Payload's
     // wording, in the site's voice, signed off with the registered office
@@ -159,6 +166,20 @@ export const Users: CollectionConfig = {
     // hands the hooks the stored record), so the rules are checked here, on the password itself
     beforeOperation: [
       async ({ args, operation, req }) => {
+        // A refresh extends a session by STAFF_IDLE_SECONDS; none is given once that would carry
+        // it past STAFF_ABSOLUTE_SECONDS from sign-in
+        if (operation === 'refresh') {
+          const user = req.user as { _sid?: string; sessions?: { id: string; createdAt: string }[] }
+          const session = user?.sessions?.find((s) => s.id === user._sid)
+          const age = session ? Date.now() - new Date(session.createdAt).getTime() : 0
+          if (age > (STAFF_ABSOLUTE_SECONDS - STAFF_IDLE_SECONDS) * 1000) {
+            throw publicError(
+              'Your session has reached its 12-hour limit. Please sign in again.',
+              401,
+            )
+          }
+          return args
+        }
         // Reset emails: a few an hour for each address and each IP, on top of Payload's 15 seconds
         // between requests for one account. Counted whether or not the address has an account, and
         // refused with the same words either way, so the limit reveals nothing

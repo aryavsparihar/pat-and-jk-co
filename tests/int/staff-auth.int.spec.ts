@@ -279,4 +279,66 @@ describe('staff accounts', () => {
     expect(known.status).toBe(200)
     expect(await known.json()).toEqual(await missing.json())
   })
+
+  it('sets a Strict, HttpOnly session cookie that lasts 30 minutes, and stops refreshing at 12 hours', async () => {
+    // A fresh account, as the lock test above has locked the shared one
+    const email = 'staff-auth-session@pjk.co.in'
+    const password = 'Hb6-cobalt-River-2026%'
+    await payload.delete({ collection: 'users', where: { email: { equals: email } }, context })
+    const user = await payload.create({
+      collection: 'users',
+      context,
+      data: { email, name: 'Session', password, roles: ['editor'] } as never,
+    })
+    const post = REST_POST(config)
+    const gate = `${GATE_COOKIE}=${encodeURIComponent(createGateToken(email).token)}`
+    const login = await post(
+      new Request('http://localhost:3000/api/users/login', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', cookie: gate },
+        body: JSON.stringify({ email, password }),
+      }),
+      { params: Promise.resolve({ slug: ['users', 'login'] }) },
+    )
+    expect(login.status).toBe(200)
+    const cookie = login.headers.get('set-cookie') ?? ''
+    expect(cookie).toMatch(/payload-token=/)
+    expect(cookie).toMatch(/HttpOnly/i)
+    expect(cookie).toMatch(/SameSite=Strict/i)
+    const { exp } = (await login.json()) as { exp: number }
+    expect(exp - Math.floor(Date.now() / 1000)).toBeLessThanOrEqual(30 * 60)
+    const token = /payload-token=([^;]+)/.exec(cookie)![1]!
+
+    const refresh = () =>
+      post(
+        new Request('http://localhost:3000/api/users/refresh-token', {
+          method: 'POST',
+          // From the site itself: Payload trusts the cookie only from a trusted origin
+          headers: {
+            cookie: `${gate}; payload-token=${token}`,
+            origin: process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000',
+          },
+        }),
+        { params: Promise.resolve({ slug: ['users', 'refresh-token'] }) },
+      )
+    expect((await refresh()).status).toBe(200)
+    // Signed in nearly 12 hours ago: no more refreshes
+    const stored = (await payload.db.findOne({
+      collection: 'users',
+      where: { id: { equals: user.id } },
+    })) as unknown as { sessions: { id: string; createdAt: string; expiresAt: string }[] }
+    await payload.db.updateOne({
+      collection: 'users',
+      id: user.id,
+      data: {
+        sessions: stored.sessions.map((s) => ({
+          ...s,
+          createdAt: new Date(Date.now() - 11.75 * 3600_000).toISOString(),
+        })),
+      },
+      returning: false,
+    })
+    expect((await refresh()).status).toBe(401)
+    await payload.delete({ collection: 'users', where: { email: { equals: email } }, context })
+  })
 })
