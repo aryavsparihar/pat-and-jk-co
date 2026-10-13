@@ -122,6 +122,27 @@ export const Users: CollectionConfig = {
     },
   ],
   hooks: {
+    // A reset sets the password without passing it to beforeValidate (Payload hashes it first and
+    // hands the hooks the stored record), so the rules are checked here, on the password itself
+    beforeOperation: [
+      async ({ args, operation, req }) => {
+        if (operation !== 'resetPassword') return args
+        const password = (args as { data?: { password?: unknown; token?: unknown } }).data?.password
+        if (typeof password !== 'string') return args
+        const token = (args as { data?: { token?: unknown } }).data?.token
+        const owner =
+          typeof token === 'string' && token
+            ? ((await req.payload.db.findOne({
+                collection: 'users',
+                where: { resetPasswordToken: { equals: token } },
+                req,
+              })) as { email?: string } | null)
+            : null
+        const problem = passwordProblem(password, owner?.email)
+        if (problem) throw publicError(`Password too weak: ${problem}`, 400)
+        return args
+      },
+    ],
     beforeValidate: [
       ({ data, req }) => {
         if (!data) return data
