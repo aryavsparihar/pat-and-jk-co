@@ -20,7 +20,7 @@ import {
  *              refused before the database is touched
  *
  * The row stores only a keyed hash of the secret, so a copy of the database cannot be turned
- * into a working cookie. A session lasts a week from its last use and never more than thirty days
+ * into a working cookie. A session lasts a day from its last use and never more than thirty days
  * from sign-in. Signing out deletes nothing: the row is marked revoked, which keeps the history
  * and lets "sign out everywhere" end every session at once.
  */

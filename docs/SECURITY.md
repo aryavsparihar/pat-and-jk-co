@@ -108,7 +108,7 @@ The endpoints live under `/next/members/`.
 | Code requests | 5 per address and 20 per IP per hour, counted in Postgres |
 | Verification | 30 per IP per hour; an address with 10 wrong codes in an hour is **locked** for the rest of the hour, even against the right code, and the lockout is logged |
 | Enumeration | A sign-in request gets the same reply whether or not the address is registered; an application request always sends a code, so it reveals nothing either |
-| Sessions | `pjk_member` cookie: httpOnly, SameSite=Lax, Secure in production, signed with `MEMBER_SESSION_SECRET`. A week from last use, never more than 30 days. A new session on every sign-in (the old one is ended). The database holds only a keyed hash of the session secret, and no IP address |
+| Sessions | `pjk_member` cookie: httpOnly, SameSite=Lax, Secure in production, signed with `MEMBER_SESSION_SECRET`. A day from last use, never more than 30 days. A new session on every sign-in (the old one is ended). The database holds only a keyed hash of the session secret, and no IP address |
 | Sign out everywhere | Ends every session of the member at once. Suspending a member does the same |
 | Origin | Every state-changing member endpoint refuses requests whose `Origin` is not the site's own |
 | Admin | Members can never reach `/admin`: their collection refuses admin access, the member guard refuses it again, and the staff gate stands in front of it |

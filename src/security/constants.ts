@@ -58,12 +58,15 @@ export const clientIp = (headers: Headers): string =>
 /** The member session cookie. httpOnly, SameSite=Lax, Secure in production. */
 export const MEMBER_COOKIE = 'pjk_member'
 
-/** A session lasts a week from the last time it was used… */
-export const MEMBER_SESSION_IDLE_SECONDS = 60 * 60 * 24 * 7
+/** A session lasts a day from the last time it was used… */
+export const MEMBER_SESSION_IDLE_SECONDS = 60 * 60 * 24
 /** …and never more than thirty days from sign-in, however often it is used */
 export const MEMBER_SESSION_ABSOLUTE_SECONDS = 60 * 60 * 24 * 30
-/** How stale "last used" may get before it is written again (saves a write per request) */
-export const MEMBER_SESSION_TOUCH_SECONDS = 60 * 60 * 24
+/**
+ * How stale "last used" may get before it is written again (saves a write per request). Well
+ * under the idle limit, so a session in use never runs out between writes
+ */
+export const MEMBER_SESSION_TOUCH_SECONDS = 60 * 10
 
 /** Flood protection for member codes, counted in Postgres (src/security/rateLimit.ts) */
 export const MEMBER_CODES_PER_EMAIL_PER_HOUR = 5
