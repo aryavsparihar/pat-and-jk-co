@@ -386,6 +386,10 @@ test('each collection is read only by those it is meant for, and a member sees o
         }
       }
       if (rule === 'self' && who === 'editor') expect(docs.length, label).toBeLessThanOrEqual(1)
+      // A public picture does not name the member behind it
+      if (slug === 'portfolio-images' && (who === 'anonymous' || who === 'expired')) {
+        for (const doc of docs) expect(doc, label).not.toHaveProperty('owner')
+      }
     }
   }
 })
