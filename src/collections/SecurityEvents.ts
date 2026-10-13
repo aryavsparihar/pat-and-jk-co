@@ -24,6 +24,7 @@ export const securityEventTypes = [
   'member-blocked',
   'member-created',
   'member-signed-in',
+  'member-confirmed',
   'member-signed-out',
   'member-signed-out-everywhere',
   'member-id-issued',

@@ -1,3 +1,4 @@
+import { recentlyConfirmed, requireRecentSignIn } from '@/members/recent'
 import { EDITABLE, findOwnApplication } from '@/members/application'
 import {
   fromOurOrigin,
@@ -31,9 +32,14 @@ export const dynamic = 'force-dynamic'
 export async function GET(request: Request) {
   const auth = await requireMember(request)
   if (!auth.ok) return auth.response
+  const kyc = await maskedKyc(auth.payload, auth.member.id)
+  // Payout details, even masked, are shown only after a sign-in within the last 30 minutes
+  const payoutsLocked =
+    Boolean(kyc && (kyc.bank || kyc.pendingBank)) && !recentlyConfirmed(auth.session)
   return withRefresh(
     reply({
-      kyc: await maskedKyc(auth.payload, auth.member.id),
+      kyc: kyc && payoutsLocked ? { ...kyc, bank: null, pendingBank: null } : kyc,
+      payoutsLocked,
       noticeVersion: PRIVACY_NOTICE_VERSION,
     }),
     auth.refresh,
@@ -49,6 +55,9 @@ export async function POST(request: Request) {
   const auth = await requireMember(request)
   if (!auth.ok) return auth.response
   const { payload, member } = auth
+  // Identity details, documents and data requests: a sign-in within the last 30 minutes
+  const stale = requireRecentSignIn(auth.session)
+  if (stale) return stale
 
   const { open, note } = await applicationsOpenness(payload)
   if (!open) return closedReply(note)

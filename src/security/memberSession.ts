@@ -140,6 +140,7 @@ export const createSession = async (
       lastSeenAt: new Date(now).toISOString(),
       expiresAt: expiresAt.toISOString(),
       absoluteExpiresAt: absolute.toISOString(),
+      confirmedAt: new Date(now).toISOString(),
     },
     overrideAccess: true,
     context: { disableRevalidate: true },

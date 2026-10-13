@@ -1,3 +1,4 @@
+import { requireRecentSignIn } from '@/members/recent'
 import {
   fromOurOrigin,
   readJson,
@@ -29,6 +30,9 @@ export async function POST(request: Request) {
   const auth = await requireMember(request)
   if (!auth.ok) return auth.response
   const { payload, member } = auth
+  // Identity details, documents and data requests: a sign-in within the last 30 minutes
+  const stale = requireRecentSignIn(auth.session)
+  if (stale) return stale
 
   const limit = await hitLimit(payload, {
     scope: 'data-request',

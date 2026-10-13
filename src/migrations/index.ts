@@ -26,6 +26,7 @@ import * as migration_20261006_153600_phulhaar_venture_theme from './20261006_15
 import * as migration_20261007_153721_founder_feedback from './20261007_153721_founder_feedback';
 import * as migration_20261011_073719_ipad_feedback from './20261011_073719_ipad_feedback';
 import * as migration_20261013_170910_staff_sign_in_events from './20261013_170910_staff_sign_in_events';
+import * as migration_20261013_171821_member_recent_sign_in from './20261013_171821_member_recent_sign_in';
 
 export const migrations = [
   {
@@ -166,6 +167,11 @@ export const migrations = [
   {
     up: migration_20261013_170910_staff_sign_in_events.up,
     down: migration_20261013_170910_staff_sign_in_events.down,
-    name: '20261013_170910_staff_sign_in_events'
+    name: '20261013_170910_staff_sign_in_events',
+  },
+  {
+    up: migration_20261013_171821_member_recent_sign_in.up,
+    down: migration_20261013_171821_member_recent_sign_in.down,
+    name: '20261013_171821_member_recent_sign_in'
   },
 ];

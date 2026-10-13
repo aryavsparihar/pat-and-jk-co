@@ -1,9 +1,11 @@
 'use client'
 
+import { useRouter } from 'next/navigation'
 import React, { useState } from 'react'
 
 import { api } from '../onboarding/api'
 import { ErrorSummary, type Errors, TextField } from '../onboarding/fields'
+import { useStepUp } from '../onboarding/StepUp'
 import { BankFields, type BankValues, emptyBank } from './BankFields'
 
 export type MaskedKyc = {
@@ -21,7 +23,9 @@ export type MaskedKyc = {
  * details, which our team checks with a ₹1 test transfer before using them. Any old account stays
  * in use until then, and the artist is emailed a way to stop it. Never by email.
  */
-export const PayoutsView: React.FC<{ kyc: MaskedKyc }> = ({ kyc }) => {
+export const PayoutsView: React.FC<{ kyc: MaskedKyc; locked?: boolean }> = ({ kyc, locked }) => {
+  const { confirm } = useStepUp()
+  const router = useRouter()
   const [stage, setStage] = useState<'view' | 'details' | 'sent'>('view')
   const [challengeId, setChallengeId] = useState<number | null>(null)
   const [code, setCode] = useState('')
@@ -39,6 +43,27 @@ export const PayoutsView: React.FC<{ kyc: MaskedKyc }> = ({ kyc }) => {
     )
   }
   const first = !kyc.bank
+
+  // Signed in more than half an hour ago: the account is hidden until they confirm it is them
+  if (locked) {
+    return (
+      <div>
+        <p className="measure">
+          Your payout details are hidden until you confirm it is you, as you signed in more than
+          half an hour ago.
+        </p>
+        <button
+          className="btn btn-solid mt-6 min-h-11"
+          onClick={async () => {
+            if (await confirm()) router.refresh()
+          }}
+          type="button"
+        >
+          Show my payout details
+        </button>
+      </div>
+    )
+  }
 
   const askForCode = async () => {
     setBusy(true)

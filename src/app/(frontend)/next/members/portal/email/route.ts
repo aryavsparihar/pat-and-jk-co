@@ -17,5 +17,5 @@ export const POST = portalHandler(
     })
     return { challengeId, message: 'A code is on its way to the new address.' }
   },
-  { limit: 5 },
+  { limit: 5, recent: true },
 )

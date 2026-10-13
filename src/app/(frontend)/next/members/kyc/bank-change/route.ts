@@ -1,3 +1,4 @@
+import { confirmSession } from '@/members/recent'
 import { notifyStaffOfBankChange, sendBankChangeNotice } from '@/members/emails'
 import {
   fromOurOrigin,
@@ -54,6 +55,9 @@ export async function POST(request: Request) {
       { status: 401 },
     )
   }
+
+  // The code just entered also counts as a fresh sign-in for the next 30 minutes
+  await confirmSession(payload, auth.session)
 
   const parsed = bankSchema.safeParse(body?.bank)
   if (!parsed.success) {

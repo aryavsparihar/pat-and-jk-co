@@ -2156,6 +2156,7 @@ export interface SecurityEvent {
     | 'member-blocked'
     | 'member-created'
     | 'member-signed-in'
+    | 'member-confirmed'
     | 'member-signed-out'
     | 'member-signed-out-everywhere'
     | 'member-id-issued'
@@ -2230,6 +2231,7 @@ export interface MemberSession {
   lastSeenAt: string;
   expiresAt: string;
   absoluteExpiresAt: string;
+  confirmedAt?: string | null;
   revokedAt?: string | null;
   revokedReason?: string | null;
   updatedAt: string;
@@ -3742,6 +3744,7 @@ export interface MemberSessionsSelect<T extends boolean = true> {
   lastSeenAt?: T;
   expiresAt?: T;
   absoluteExpiresAt?: T;
+  confirmedAt?: T;
   revokedAt?: T;
   revokedReason?: T;
   updatedAt?: T;
