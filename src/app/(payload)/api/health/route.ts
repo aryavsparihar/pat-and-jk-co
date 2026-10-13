@@ -1,3 +1,4 @@
+import { redactString } from '@/observability/redact'
 import configPromise from '@payload-config'
 import { sql } from '@payloadcms/db-postgres'
 import { getPayload } from 'payload'
@@ -37,7 +38,8 @@ const check = async () => {
       JSON.stringify({
         level: 'error',
         msg: 'health check failed',
-        reason: error instanceof Error ? error.message.slice(0, 200) : 'unknown',
+        // A database error can name the host or the user; the logger's redaction removes them
+        reason: error instanceof Error ? redactString(error.message).slice(0, 200) : 'unknown',
       }),
     )
   }

@@ -124,3 +124,26 @@ describe('the logger', () => {
     expect(line.err.stack).toContain('TypeError')
   })
 })
+
+describe('credentials in log lines', () => {
+  it('are removed from connection strings, headers, tokens and keys', async () => {
+    const { redactString } = await import('@/observability/redact')
+    const line = [
+      'connect failed: postgres://neondb_owner:pw-Example-123@ep-made-up.neon.tech/neondb',
+      'Authorization: Bearer abc.def-123456789',
+      'token eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJtYWRlLXVwIn0.c2lnbmF0dXJlLWZha2U',
+      'key re_FAKEFAKEFAKEFAKEFAKE1234 and vercel_blob_rw_FAKEFAKEFAKEFAKE1234',
+    ].join(' | ')
+    const out = redactString(line)
+    for (const secret of [
+      'pw-Example-123',
+      'neondb_owner',
+      'abc.def-123456789',
+      'eyJhbGciOiJIUzI1NiJ9',
+      're_FAKEFAKE',
+      'vercel_blob_rw_FAKE',
+    ])
+      expect(out).not.toContain(secret)
+    expect(out).toContain('postgres://[credentials]@ep-made-up.neon.tech/neondb')
+  })
+})
