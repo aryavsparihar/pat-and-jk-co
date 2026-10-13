@@ -289,3 +289,25 @@ describe('step schemas', () => {
     expect(partnerSchema.safeParse({ ...partner, subType: 'Gallery' }).success).toBe(false)
   })
 })
+
+describe('identity details', () => {
+  it('accept names in any script, and cap every free-text field', async () => {
+    const { kycSchema } = await import('@/kyc/schema')
+    const base = {
+      consent: true,
+      consentReadToEnd: true,
+      consentTyped: 'I AGREE',
+      pan: 'ABCPE1234F',
+      idChoice: 'other',
+      otherIdKind: 'passport',
+      addressOnIdMatches: true,
+      documents: { 'other-id': 1, 'pan-card': 2, 'identity-photo': 3 },
+    }
+    for (const panName of ["Asha D'Souza-Rao", 'आशा राव', 'عاشہ راؤ'])
+      expect(kycSchema.safeParse({ ...base, panName }).success).toBe(true)
+    expect(kycSchema.safeParse({ ...base, panName: 'x'.repeat(121) }).success).toBe(false)
+    expect(kycSchema.safeParse({ ...base, panName: 'Asha', pan: 'A'.repeat(5000) }).success).toBe(
+      false,
+    )
+  })
+})

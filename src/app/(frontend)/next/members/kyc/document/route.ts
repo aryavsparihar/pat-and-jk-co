@@ -86,7 +86,7 @@ export async function POST(request: Request) {
       return reply({ message: CODE_PROBLEM[check], codeProblem: check }, { status: 422 })
     }
     const name = String(form.get('panName') ?? '').trim()
-    if (!name) {
+    if (!name || name.length > 120) {
       return reply(
         { message: 'Please give your name as on your PAN before adding the photo.' },
         { status: 422 },
