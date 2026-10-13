@@ -78,6 +78,8 @@ export const ArtistOnboarding: React.FC<{
   const [saved, setSaved] = useState(false)
   const [busy, setBusy] = useState(false)
   const [honeypot, setHoneypot] = useState('')
+  // The session ran out mid-step: sign in again here, keeping what was typed
+  const [signedOut, setSignedOut] = useState(false)
   const heading = useRef<HTMLHeadingElement>(null)
 
   /** Who is signed in, and their artist application: fetched, then applied, so state is set in a callback */
@@ -146,6 +148,10 @@ export const ArtistOnboarding: React.FC<{
       body: { step, data: values[step] },
     })
     setBusy(false)
+    if (result.status === 401) {
+      setSignedOut(true)
+      return false
+    }
     if (!result.ok) {
       setErrors(result.data.errors ?? {})
       setMessage(result.data.errors ? null : (result.data.message ?? 'That could not be saved.'))
@@ -298,76 +304,104 @@ export const ArtistOnboarding: React.FC<{
             </button>
           </div>
         ) : (
-          <form noValidate onSubmit={step === 'review' ? send : next}>
-            {header}
-
-            <div className="mt-10">
-              <ErrorSummary errors={errors} />
-              {message && (
-                <p className="mb-8 text-base italic text-destructive" role="alert">
-                  {message}
+          <>
+            {/* Outside the step's form: the sign-in form cannot sit inside another form */}
+            {signedOut && (
+              <div
+                className="mb-10 border-l-2 border-primary bg-surface py-6 pl-6 pr-4"
+                role="alert"
+              >
+                <p className="measure mb-6">
+                  You have been signed out, so this step was not saved. Sign in again here: what you
+                  have typed stays on the page.
                 </p>
-              )}
-
-              {step === 'about' && <AboutStep errors={errors} set={set} values={current} />}
-              {step === 'address' && <AddressStep errors={errors} set={set} values={current} />}
-              {step === 'practice' && <PracticeStep errors={errors} set={set} values={current} />}
-              {step === 'portfolio' && <PortfolioStep errors={errors} set={set} values={current} />}
-              {step === 'review' && (
-                <ReviewStep
-                  all={values}
-                  errors={errors}
-                  onEdit={(s) => go(s as ArtistStep)}
-                  set={set}
-                  terms={terms}
-                  values={current}
-                />
-              )}
-            </div>
-
-            {step === 'review' && (
-              <div aria-hidden className="absolute -left-[9999px] h-0 w-0 overflow-hidden">
-                <label htmlFor={`${HONEYPOT_FIELD}-send`}>Company website</label>
-                <input
-                  autoComplete="off"
-                  id={`${HONEYPOT_FIELD}-send`}
-                  onChange={(e) => setHoneypot(e.target.value)}
-                  tabIndex={-1}
-                  value={honeypot}
+                <CodeSignIn
+                  formToken={formToken}
+                  onSignedIn={() => {
+                    setSignedOut(false)
+                    setMessage(null)
+                  }}
+                  purpose="signin"
                 />
               </div>
             )}
+            <form noValidate onSubmit={step === 'review' ? send : next}>
+              {header}
 
-            <div className="mt-14 flex flex-wrap items-center gap-x-8 gap-y-4 border-t border-border pt-8">
-              <button className="btn btn-solid min-h-11" disabled={busy} type="submit">
-                {busy ? 'Saving…' : step === 'review' ? 'Send my application' : 'Save and continue'}
-              </button>
-              {step !== 'review' && (
-                <button
-                  className="btn btn-outline min-h-11"
-                  disabled={busy}
-                  onClick={saveForLater}
-                  type="button"
-                >
-                  Save and finish later
-                </button>
+              <div className="mt-10">
+                <ErrorSummary errors={errors} />
+                {message && (
+                  <p className="mb-8 text-base italic text-destructive" role="alert">
+                    {message}
+                  </p>
+                )}
+
+                {step === 'about' && <AboutStep errors={errors} set={set} values={current} />}
+                {step === 'address' && <AddressStep errors={errors} set={set} values={current} />}
+                {step === 'practice' && <PracticeStep errors={errors} set={set} values={current} />}
+                {step === 'portfolio' && (
+                  <PortfolioStep errors={errors} set={set} values={current} />
+                )}
+                {step === 'review' && (
+                  <ReviewStep
+                    all={values}
+                    errors={errors}
+                    onEdit={(s) => go(s as ArtistStep)}
+                    set={set}
+                    terms={terms}
+                    values={current}
+                  />
+                )}
+              </div>
+
+              {step === 'review' && (
+                <div aria-hidden className="absolute -left-[9999px] h-0 w-0 overflow-hidden">
+                  <label htmlFor={`${HONEYPOT_FIELD}-send`}>Company website</label>
+                  <input
+                    autoComplete="off"
+                    id={`${HONEYPOT_FIELD}-send`}
+                    onChange={(e) => setHoneypot(e.target.value)}
+                    tabIndex={-1}
+                    value={honeypot}
+                  />
+                </div>
               )}
-              {index > 0 && (
-                <button
-                  className="link link-caps min-h-11"
-                  onClick={() => go(ARTIST_STEPS[index - 1]!)}
-                  type="button"
-                >
-                  Back
+
+              <div className="mt-14 flex flex-wrap items-center gap-x-8 gap-y-4 border-t border-border pt-8">
+                <button className="btn btn-solid min-h-11" disabled={busy} type="submit">
+                  {busy
+                    ? 'Saving…'
+                    : step === 'review'
+                      ? 'Send my application'
+                      : 'Save and continue'}
                 </button>
+                {step !== 'review' && (
+                  <button
+                    className="btn btn-outline min-h-11"
+                    disabled={busy}
+                    onClick={saveForLater}
+                    type="button"
+                  >
+                    Save and finish later
+                  </button>
+                )}
+                {index > 0 && (
+                  <button
+                    className="link link-caps min-h-11"
+                    onClick={() => go(ARTIST_STEPS[index - 1]!)}
+                    type="button"
+                  >
+                    Back
+                  </button>
+                )}
+              </div>
+              {saved && (
+                <p className="mt-6 text-base text-primary" role="status">
+                  Saved. You can close this page and come back to it by signing in.
+                </p>
               )}
-            </div>
-            {saved && (
-              <p className="mt-6 text-base text-primary" role="status">
-                Saved. You can close this page and come back to it by signing in.
-              </p>
-            )}
-          </form>
+            </form>
+          </>
         )}
       </div>
     </div>
