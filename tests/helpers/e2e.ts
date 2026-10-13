@@ -91,20 +91,47 @@ const STAFF_EMAIL = 'e2e-staff@pjk.co.in'
  * makes one and the admin gate's cookie, so no password or email code is involved.
  */
 export const signInAsStaff = async (context: BrowserContext) => {
+  const { user, token, gate } = await staffSession({ email: STAFF_EMAIL, roles: ['super-admin'] })
+  await context.addCookies([
+    { name: `${(await payload()).config.cookiePrefix}-token`, value: token, url: BASE },
+    { name: GATE_COOKIE, value: gate, url: BASE },
+  ])
+  return user
+}
+
+/**
+ * A staff session made the way Payload's sign-in makes one, with the admin gate's cookie, for an
+ * account with the given roles. `seconds` below zero gives a session that has already expired.
+ */
+export const staffSession = async ({
+  email,
+  roles,
+  seconds = 3600,
+}: {
+  email: string
+  roles: string[]
+  seconds?: number
+}) => {
   const p = await payload()
   let staff = (
+    await p.find({ collection: 'users', where: { email: { equals: email } }, overrideAccess: true })
+  ).docs[0]
+  // An editor works on assigned brands only: give them the default one, as a real editor has
+  const brand = (
     await p.find({
-      collection: 'users',
-      where: { email: { equals: STAFF_EMAIL } },
+      collection: 'tenants',
+      where: { slug: { equals: process.env.DEFAULT_TENANT_SLUG || 'pjk' } },
+      limit: 1,
       overrideAccess: true,
     })
   ).docs[0]
   staff ??= await p.create({
     collection: 'users',
     data: {
-      email: STAFF_EMAIL,
+      email,
       name: 'E2E staff',
-      roles: ['super-admin'],
+      roles,
+      ...(brand && !roles.includes('super-admin') ? { tenants: [{ tenant: brand.id }] } : {}),
       status: 'active',
       // Never used to sign in; it only has to meet the password rules
       password: `${randomBytes(18).toString('base64url')}-Aa1!`,
@@ -121,10 +148,17 @@ export const signInAsStaff = async (context: BrowserContext) => {
   await p.db.updateOne({
     collection: 'users',
     id: staff.id,
+    // The whole record, as Payload's own sign-in writes it: a partial write empties the arrays it
+    // leaves out (the account's brands among them)
     data: {
+      ...current,
       sessions: [
         ...(current?.sessions ?? []),
-        { id: sid, createdAt: now, expiresAt: new Date(now.getTime() + 3_600_000) },
+        {
+          id: sid,
+          createdAt: now,
+          expiresAt: new Date(now.getTime() + Math.max(seconds, 1) * 1000),
+        },
       ],
     },
     returning: false,
@@ -132,18 +166,35 @@ export const signInAsStaff = async (context: BrowserContext) => {
   const { token } = await jwtSign({
     fieldsToSign: getFieldsToSign({
       collectionConfig,
-      email: STAFF_EMAIL,
+      email,
       sid,
       user: { ...staff, collection: 'users' } as never,
     }),
     secret: p.secret,
-    tokenExpiration: 3600,
+    tokenExpiration: seconds > 0 ? seconds : 1,
   })
-  await context.addCookies([
-    { name: `${p.config.cookiePrefix}-token`, value: token, url: BASE },
-    { name: GATE_COOKIE, value: createGateToken(STAFF_EMAIL).token, url: BASE },
-  ])
-  return staff
+  // An expired session: the token's own expiry has passed
+  if (seconds <= 0) await new Promise((r) => setTimeout(r, 2100))
+  return { user: staff, token, gate: createGateToken(email).token }
+}
+
+/** The Cookie header for a staff session */
+export const staffCookie = async (args: Parameters<typeof staffSession>[0]) => {
+  const { token, gate } = await staffSession(args)
+  return `${(await payload()).config.cookiePrefix}-token=${token}; ${GATE_COOKIE}=${encodeURIComponent(gate)}`
+}
+
+/** The Cookie header for a member session; `expired` gives one that has run out */
+export const memberCookie = async (memberId: number, { expired = false } = {}) => {
+  const p = await payload()
+  const { value, sid } = await createSession(p, { memberId })
+  if (expired) {
+    await execute(
+      p,
+      sql`UPDATE member_sessions SET expires_at = now() - interval '1 second' WHERE sid = ${sid}`,
+    )
+  }
+  return `${MEMBER_COOKIE}=${encodeURIComponent(value)}`
 }
 
 /** Fills the first four artist steps through the app's own endpoints, with made-up details */
