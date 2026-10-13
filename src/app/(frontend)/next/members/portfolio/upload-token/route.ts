@@ -20,12 +20,12 @@ export const dynamic = 'force-dynamic'
  */
 export async function POST(request: Request) {
   if (!fromOurOrigin(request)) return refuseCrossSite()
-  if (!blobUploadsAvailable())
-    return reply({ message: 'Direct uploads are not set up here.' }, { status: 404 })
-
+  // Who is asking comes first, so the reply says nothing about the set-up to someone signed out
   const auth = await requireMember(request)
   if (!auth.ok) return auth.response
   const { payload, member } = auth
+  if (!blobUploadsAvailable())
+    return reply({ message: 'Direct uploads are not set up here.' }, { status: 404 })
 
   const application = await findOwnApplication(payload, member, 'artist', 0)
   if (!canAddPictures(member, application)) {
