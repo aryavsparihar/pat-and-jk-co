@@ -87,6 +87,8 @@ Key: **R** required, **O** optional, **—** not used, *auto* set by Vercel.
 | `CONTACT_INBOX`, `BUSINESS_INBOX`, `TECHNICAL_INBOX` | Where enquiries go; shown on the site | no | O | O | O |
 | `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Cloudflare Turnstile, in the browser | no | R (real key) | R (test key) | — |
 | `TURNSTILE_SECRET_KEY` | Cloudflare Turnstile, on the server | yes | R (real key) | R (test key) | — |
+| `NEXT_PUBLIC_GOOGLE_MAPS_KEY` | Google's map and address search on the artist application; OpenStreetMap without it | no (public, restricted by Google) | O | O | — |
+| `NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID` | Google's map style ID, which the draggable pin needs | no | O | O | — |
 | `BLOB_READ_WRITE_TOKEN` | The public media store | yes | auto, R | auto | — |
 | `BLOB_STORE_ID` | The public media store's ID, read only to keep KYC out of it | no | auto | auto | — |
 | `KYC_ENCRYPTION_KEY` | Encrypts identity and bank details | yes | R | R (its own) | O (derived locally) |
@@ -97,7 +99,9 @@ Key: **R** required, **O** optional, **—** not used, *auto* set by Vercel.
 | `DEV_APPLICATIONS_OPEN` | Opens applications on a developer's machine only; ignored in production builds | no | — | — | O |
 | `VERCEL_*`, `NODE_ENV`, `NEXT_*`, `CI` | Set by the platform | no | auto | auto | — |
 
-Vercel also sets `BLOB_WEBHOOK_PUBLIC_KEY` and `KYC_WEBHOOK_PUBLIC_KEY`; nothing reads them.
+Vercel also sets `BLOB_WEBHOOK_PUBLIC_KEY` and `KYC_WEBHOOK_PUBLIC_KEY`, as part of each Blob store
+connection. Nothing reads them, and they cannot be deleted without disconnecting the stores, so
+leave them: they are public keys, and neither the boot check nor CI looks at them.
 
 Only command-line scripts and tests read `ADMIN_EMAIL`, `ADMIN_NAME`, `ADMIN_PASSWORD`
 (`pnpm create-admin`), `SEED_RESET`, `APP_DATABASE_URL` (`pnpm check:database`), `E2E_BASE_URL` and
@@ -150,6 +154,83 @@ never breaks along the way.
 RLS on every table, no policy for any other role, and `pjk_app_access` holding no more than
 listed. A migration that adds a table must also enable RLS on it and add the policy, as
 `app_role_and_rls` does, or CI fails.
+
+## Google Maps
+
+Optional. With a key, the map on the artist application's address step is Google's, with address
+search and "Use my location". Without one it is OpenStreetMap's, as before, still with "Use my
+location". Nothing breaks either way, and if Google refuses the key the page falls back on its own.
+
+The key is public by design (it is in the page). What keeps it safe is where Google lets it be
+used, which APIs it may call, and the daily caps below, which stop the map before any charge
+rather than after.
+
+**What we call, and Google's free allowance** (Google Maps Platform pricing, checked
+14 October 2026; each is per calendar month, per billing account):
+
+| What the page does | Google's name for it | Free each month |
+| --- | --- | --- |
+| Opens the map | Maps JavaScript API, Dynamic Maps | 10,000 loads |
+| Suggests addresses as the artist types | Places API (New), Autocomplete | 10,000 requests; free entirely when the search ends with a chosen address (a "session") |
+| Finds where the chosen address is | Places API (New), Place Details Essentials (location only) | 10,000 |
+| Starts the map at the address already typed | Geocoding API | 10,000 |
+
+At launch volumes (a few hundred artists) this is a few hundred of each a month.
+
+**1. Two keys, in two Google Cloud projects.** Google cannot restrict a key to just this project's
+preview addresses, only to all of `*.vercel.app`. So:
+
+- `pjk-maps`: the production key, for pjk.co.in only.
+- `pjk-maps-dev`: a second key for previews and your own machine. Anyone's Vercel app could use
+  it, which is why it gets tiny caps of its own; being a separate project, using it up can never
+  stop the live map.
+
+For each project:
+
+1. [console.cloud.google.com](https://console.cloud.google.com) → the project picker → **New
+   project** → name it (above) → **Create**.
+2. **Billing**: Google needs a billing account with a card even for the free allowance. Link the
+   project to one (Billing → Link a billing account). The caps in step 4 mean nothing is ever
+   charged.
+3. **APIs & Services → Library**: enable **Maps JavaScript API**, **Places API (New)** and
+   **Geocoding API**. Nothing else.
+4. **Caps** (the part that makes it free for certain): **APIs & Services → each of the three APIs
+   → Quotas & System Limits**. Find the per-day request quota, then **Edit** and enter the cap:
+   - Production (`pjk-maps`): **300 a day** each. 300 × 31 = 9,300, under every 10,000 allowance.
+   - Dev (`pjk-maps-dev`): **50 a day** each.
+
+   When a cap is reached the map stops for the rest of the day (Pacific time); the address fields
+   still work and nothing is charged.
+5. **Billing → Budgets & alerts → Create budget**: amount ₹100, alerts at 50% and 100%, emailed
+   to tech@pjk.co.in. A budget only warns; the caps are what stop spending, so set both.
+6. **APIs & Services → Credentials → Create credentials → API key**, then **Edit** it:
+   - **Application restrictions → Websites**:
+     - production: `https://pjk.co.in/*` and `https://www.pjk.co.in/*`;
+     - dev: `http://localhost:3000/*` and `https://*.vercel.app/*`.
+   - **API restrictions → Restrict key**: tick Maps JavaScript API, Places API (New) and Geocoding
+     API only.
+   - Save. Restrictions take up to five minutes to apply.
+7. **Map ID** (the draggable pin needs one): **Google Maps Platform → Map management → Create map
+   ID**, type **JavaScript**, **Vector**, any name. Free.
+
+**2. Vercel → Settings → Environment Variables**:
+
+- `NEXT_PUBLIC_GOOGLE_MAPS_KEY`: the production key for **Production**, the dev key for
+  **Preview**.
+- `NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID`: each project's map ID, the same way.
+
+Redeploy; the key is built into the page. For your own machine, put the dev key and map ID in
+`.env`.
+
+**To check:**
+
+- On a preview, open the artist application → Where you live → **Open the map**: Google's map
+  loads, the search suggests Indian addresses, and the pin drags.
+- In the browser's console there is no "RefererNotAllowedMapError". If there is, the website
+  restriction does not match the address.
+
+**To switch it off:** delete `NEXT_PUBLIC_GOOGLE_MAPS_KEY` in Vercel and redeploy. The map goes
+back to OpenStreetMap's.
 
 ## 4. Load the starter content
 

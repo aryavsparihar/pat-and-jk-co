@@ -907,6 +907,69 @@ export const purgeKyc = async (
 }
 
 /**
+ * Someone applying again gives their identity documents and their identity photo afresh, so those
+ * go now, with the identity code and every check that was made on them. What they typed (the PAN,
+ * the name on it, the last four digits, which ID they chose) stays on the record for the new
+ * application, if the weekly purge has not already removed it. Logged like a purge.
+ */
+export const clearIdentityEvidence = async (
+  payload: Payload,
+  { memberId, reason }: { memberId: number; reason: string },
+): Promise<number> => {
+  const documents = await payload.find({
+    collection: 'kyc-documents',
+    where: { member: { equals: memberId } },
+    limit: 100,
+    depth: 0,
+    overrideAccess: true,
+    showHiddenFields: true,
+  })
+  for (const document of documents.docs as (KycDocument & { storageKey: string })[]) {
+    await removeFile(document.storageKey)
+    await payload.delete({
+      collection: 'kyc-documents',
+      id: document.id,
+      overrideAccess: true,
+      context: { disableRevalidate: true },
+    })
+  }
+  const record = await findRecord(payload, memberId)
+  if (record) {
+    await payload.update({
+      collection: 'kyc-records',
+      id: record.id,
+      data: {
+        documents: [],
+        aadhaarCheck: {
+          result: null,
+          reasons: null,
+          signer: null,
+          signedOn: null,
+          checkedAt: null,
+        },
+        identityCode: null,
+        identityCodeIssuedAt: null,
+        identityCodeExpiresAt: null,
+        nameMismatch: null,
+        verification: { status: 'unverified', method: null, verifiedAt: null, verifiedBy: null },
+        consentedAt: null,
+        consentConfirmation: null,
+      } as never,
+      overrideAccess: true,
+      context: { disableRevalidate: true },
+    })
+  }
+  if (record || documents.docs.length) {
+    await logSecurityEvent(payload, {
+      event: 'kyc-purged',
+      subject: record?.reference ?? `member ${memberId}`,
+      detail: `${reason}; ${documents.docs.length} document(s); typed details kept`,
+    })
+  }
+  return documents.docs.length
+}
+
+/**
  * Deletes a document's file before its row. A file in another environment's folder (a row copied
  * into a preview database from production) is left alone and only the copied row goes. Any other
  * failure stops here, so the row survives and the next purge tries again: a row is never deleted
@@ -1075,9 +1138,35 @@ export const kycPurgeCandidates = async (
         depth: 0,
         overrideAccess: true,
       })
+  // Only a person's current application counts: an old declined one says nothing about the new
+  // application they have since started
+  const latest = new Map<number, number>()
+  if (stale.docs.length) {
+    const theirs = await payload.find({
+      collection: 'applications',
+      where: {
+        and: [
+          { type: { equals: 'artist' } },
+          {
+            member: {
+              in: stale.docs.map((a) => (typeof a.member === 'object' ? a.member.id : a.member)),
+            },
+          },
+        ],
+      },
+      sort: 'createdAt',
+      limit: 0,
+      pagination: false,
+      depth: 0,
+      overrideAccess: true,
+    })
+    for (const a of theirs.docs)
+      latest.set(typeof a.member === 'object' ? a.member.id : a.member, a.id)
+  }
   for (const application of stale.docs) {
     const memberId =
       typeof application.member === 'object' ? application.member.id : application.member
+    if (latest.get(memberId) !== application.id) continue
     const record = byMember.get(memberId)
     if (!record || held(record) || due.has(memberId)) continue
     due.set(

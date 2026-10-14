@@ -185,3 +185,124 @@ describe('where it is checked', () => {
     ).rejects.toThrow(/Missing form/)
   })
 })
+
+/**
+ * A stand-in for Cloudflare's siteverify that behaves as Cloudflare documents it: a token is
+ * genuine only if Cloudflare issued it, it carries the action and hostname it was earned with, it is
+ * spent the first time it is verified, and it expires after five minutes.
+ */
+const fakeCloudflare = () => {
+  const issued = new Map<string, { action: string; hostname: string; at: number }>()
+  const spent = new Set<string>()
+  let now = Date.now()
+  const fetchImpl = vi.fn(async (url: string | URL, init?: RequestInit) => {
+    expect(String(url)).toBe('https://challenges.cloudflare.com/turnstile/v0/siteverify')
+    const token = (init?.body as URLSearchParams).get('response') ?? ''
+    const known = issued.get(token)
+    const answer = (body: object) => new Response(JSON.stringify(body), { status: 200 })
+    if (!known) return answer({ success: false, 'error-codes': ['invalid-input-response'] })
+    if (spent.has(token) || now - known.at > 300_000)
+      return answer({ success: false, 'error-codes': ['timeout-or-duplicate'] })
+    spent.add(token)
+    return answer({ success: true, action: known.action, hostname: known.hostname })
+  }) as unknown as typeof fetch
+  return {
+    fetchImpl,
+    /** What the widget hands the browser, earned on a form and a site */
+    earn: (action: string, hostname = 'localhost') => {
+      const token = `token-${Math.random().toString(36).slice(2)}`
+      issued.set(token, { action, hostname, at: now })
+      return token
+    },
+    later: (ms: number) => {
+      now += ms
+    },
+  }
+}
+
+describe('a token is real, single-use and short-lived', () => {
+  // A production-shaped secret, so the action and hostname are compared as in production
+  const env = withRealKey
+
+  it('is verified with Cloudflare, and accepted once on its own form and site', async () => {
+    const cf = fakeCloudflare()
+    const token = cf.earn('signin', 'pjk.co.in')
+    const check = () =>
+      verifyTurnstile(token, 'signin', { env, fetchImpl: cf.fetchImpl, hostname: 'pjk.co.in' })
+    expect(await check()).toEqual({ ok: true, checked: true })
+    expect(await check()).toEqual({ ok: false, reason: 'timeout-or-duplicate' })
+    expect(cf.fetchImpl).toHaveBeenCalledTimes(2)
+  })
+
+  it('refuses a token that has expired', async () => {
+    const cf = fakeCloudflare()
+    const token = cf.earn('contact')
+    cf.later(301_000)
+    expect(
+      await verifyTurnstile(token, 'contact', {
+        env,
+        fetchImpl: cf.fetchImpl,
+        hostname: 'localhost',
+      }),
+    ).toEqual({ ok: false, reason: 'timeout-or-duplicate' })
+  })
+
+  it('refuses a forged token, one from another form, and one from another site', async () => {
+    const cf = fakeCloudflare()
+    const verify = (token: string, action: 'signin' | 'contact', hostname = 'pjk.co.in') =>
+      verifyTurnstile(token, action, { env, fetchImpl: cf.fetchImpl, hostname })
+    expect(await verify('made-up-token', 'signin')).toEqual({
+      ok: false,
+      reason: 'invalid-input-response',
+    })
+    expect(await verify(cf.earn('contact', 'pjk.co.in'), 'signin')).toEqual({
+      ok: false,
+      reason: 'wrong-form',
+    })
+    expect(await verify(cf.earn('signin', 'elsewhere.example'), 'signin')).toEqual({
+      ok: false,
+      reason: 'wrong-site',
+    })
+  })
+
+  it('the code request sends nothing without a fresh token from this site', async () => {
+    process.env.TURNSTILE_SECRET_KEY = env.TURNSTILE_SECRET_KEY
+    const cf = fakeCloudflare()
+    vi.stubGlobal('fetch', cf.fetchImpl)
+    const host = new URL(ORIGIN).hostname
+    const ask = (token: string | undefined, email: string) =>
+      requestCode(
+        new Request(`${ORIGIN}/next/members/request-code`, {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            origin: ORIGIN,
+            'x-forwarded-for': '198.51.100.203',
+          },
+          body: JSON.stringify({
+            purpose: 'signin',
+            email,
+            formToken: createFormToken(Date.now() - 10_000),
+            ...(token ? { [TURNSTILE_FIELD]: token } : {}),
+          }),
+        }),
+      )
+
+    expect((await ask(undefined, `none${DOMAIN}`)).status).toBe(400)
+    expect((await ask('forged', `forged${DOMAIN}`)).status).toBe(400)
+    expect((await ask(cf.earn('signin', 'elsewhere.example'), `other${DOMAIN}`)).status).toBe(400)
+    const token = cf.earn('signin', host)
+    expect((await ask(token, `first${DOMAIN}`)).status).toBe(200)
+    expect((await ask(token, `again${DOMAIN}`)).status).toBe(400)
+
+    const reached = await payload.find({
+      collection: 'login-challenges',
+      where: {
+        email: { in: ['none', 'forged', 'other', 'first', 'again'].map((n) => `${n}${DOMAIN}`) },
+      },
+      overrideAccess: true,
+    })
+    // Only the one genuine, fresh, same-site request got as far as a challenge
+    expect(reached.docs.map((d) => d.email)).toEqual([`first${DOMAIN}`])
+  })
+})

@@ -94,16 +94,19 @@ export const api = async <T = Record<string, unknown>>(
 export const uploadWithProgress = <T = Record<string, unknown>>(
   url: string,
   form: FormData,
-  onProgress: (fraction: number) => void,
+  onProgress: (fraction: number | null) => void,
+  /** Every byte has gone; the server is now working on it, until the reply */
+  onSent?: () => void,
 ): Promise<ApiResult<T>> =>
   new Promise((resolve) => {
     const xhr = new XMLHttpRequest()
     xhr.open('POST', url)
     xhr.withCredentials = true
     xhr.timeout = UPLOAD_TIMEOUT_MS
-    xhr.upload.onprogress = (event) => {
-      if (event.lengthComputable && event.total > 0) onProgress(event.loaded / event.total)
-    }
+    // A fraction only when the browser knows the total; otherwise null, and no number is shown
+    xhr.upload.onprogress = (event) =>
+      onProgress(event.lengthComputable && event.total > 0 ? event.loaded / event.total : null)
+    xhr.upload.onload = () => onSent?.()
     const fail = (message: string) =>
       resolve({ ok: false, status: 0, data: { message } as ApiResult<T>['data'] })
     xhr.onerror = () => fail(OFFLINE_MESSAGE)

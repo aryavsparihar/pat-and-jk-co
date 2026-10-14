@@ -4,6 +4,7 @@ import React, { useRef, useState } from 'react'
 
 import { api } from '../onboarding/api'
 import { ErrorSummary, type Errors, SelectField, TextArea, TextField } from '../onboarding/fields'
+import { UploadProgress } from '../onboarding/UploadProgress'
 import { usePictures } from '../onboarding/usePictures'
 
 export type WorkValues = {
@@ -59,7 +60,7 @@ export const WorkForm: React.FC<{ initial?: WorkValues }> = ({ initial }) => {
   const [errors, setErrors] = useState<Errors>({})
   const [message, setMessage] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
-  const { pictures, send, busy, problem } = usePictures()
+  const { pictures, send, busy, problem, uploading } = usePictures()
   const input = useRef<HTMLInputElement>(null)
 
   const set = <K extends keyof WorkValues>(key: K, value: WorkValues[K]) =>
@@ -315,6 +316,9 @@ export const WorkForm: React.FC<{ initial?: WorkValues }> = ({ initial }) => {
           <p aria-live="polite" className="mt-3 text-base" role="status">
             {busy ?? ''}
           </p>
+          {uploading && (
+            <UploadProgress className="mt-2" name={uploading.name} state={uploading.state} />
+          )}
           {problem && <p className="text-base italic text-destructive">{problem}</p>}
         </fieldset>
       </div>

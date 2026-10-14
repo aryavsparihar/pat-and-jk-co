@@ -79,6 +79,7 @@ const ROUTES: Record<string, 'public' | 'member' | 'staff' | 'secret' | 'token'>
   '/next/members/application/start': 'member',
   '/next/members/application/step': 'member',
   '/next/members/application/submit': 'member',
+  '/next/members/application/withdraw': 'member',
   '/next/members/data-request': 'member',
   '/next/members/kyc': 'member',
   '/next/members/kyc/bank-change': 'member',

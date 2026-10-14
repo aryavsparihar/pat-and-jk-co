@@ -6,9 +6,10 @@ import { PrivacyText } from '@/components/onboarding/PrivacyText'
 import { PhulhaarClosed } from '@/components/phulhaar/PhulhaarClosed'
 import { PhulhaarPage } from '@/components/phulhaar/PhulhaarPage'
 import { phulhaarDisplayFor } from '@/brands/phulhaar'
+import { phulhaarSocialLinks } from '@/brands/socialIcons'
 import { createFormToken } from '@/members/formToken'
 import { artistTerms } from '@/members/terms'
-import { applicationsOpenness } from '@/members/openness'
+import { applicationsOpenness, defaultSiteSettings } from '@/members/openness'
 import configPromise from '@payload-config'
 import { getPayload } from 'payload'
 import { notFound } from 'next/navigation'
@@ -39,6 +40,7 @@ export default async function ArtistApplicationPage({
   const display = phulhaarDisplayFor((await searchParams).display)
   const payload = await getPayload({ config: configPromise })
   const { open, note } = await applicationsOpenness(payload)
+  const socials = phulhaarSocialLinks((await defaultSiteSettings(payload))?.phulhaarSocial)
   const terms = open ? await artistTerms(payload) : null
   return (
     <PhulhaarPage
@@ -55,6 +57,7 @@ export default async function ArtistApplicationPage({
         <ArtistOnboarding
           formToken={createFormToken()}
           privacy={<PrivacyText tenantId={ctx.tenant.id} />}
+          socials={socials}
           terms={terms && { url: terms.url, filename: terms.filename }}
         />
       ) : (

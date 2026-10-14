@@ -243,6 +243,16 @@ const AddressFields: React.FC<
         <LocationPin
           latitude={address.latitude}
           longitude={address.longitude}
+          address={[
+            address.line1,
+            address.line2,
+            address.city,
+            address.district,
+            address.state,
+            address.postalCode,
+          ]
+            .filter((part) => typeof part === 'string' && part.trim())
+            .join(', ')}
           onValue={(latitude, longitude) => {
             set(at('latitude'), latitude)
             set(at('longitude'), longitude)
