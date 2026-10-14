@@ -50,6 +50,9 @@ These need a lawyer or a CA, so start them first.
 - [ ] **The weekly KYC purge runs.** Vercel → Crons shows `/next/cron/kyc-purge` succeeding on
       Mondays at 02:00 UTC.
 - [ ] **Payload is current.** The upgrade to 3.90.2 (a security release) is merged.
+- [ ] **Google Maps (optional).** Two keys, restricted and capped, as in
+      [SETUP.md](SETUP.md#google-maps). Until they are in Vercel the map is OpenStreetMap's.
+      Done when a preview's address step shows Google's map with address search.
 - [ ] **The site runs as its own database role.** After the security pull request is deployed,
       follow [SETUP.md](SETUP.md#database-roles): create `pjk_app` in Neon on `main` and on
       `preview`, set `DATABASE_URL_MIGRATE` (owner) and `DATABASE_URL` (`pjk_app`, pooled) in
@@ -107,8 +110,8 @@ These need a lawyer or a CA, so start them first.
       `https://pjk.co.in/api/health?deep=1`: under `content` it says `"ok":true`, or lists what is
       missing.
       (Or, from a terminal, `DATABASE_URL='<production string>' pnpm check:content`.)
-- [ ] **The wait before applying again.** Site settings → Applications → *Months before someone
-      declined may apply again* is what you want (6 by default).
+- [ ] **The wait before applying again.** Site settings → Applications → *Days before someone
+      declined may apply again* is what you want (90 by default).
 
 ## 6. Dress rehearsal (week of 26 October)
 

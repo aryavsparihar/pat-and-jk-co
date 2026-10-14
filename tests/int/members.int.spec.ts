@@ -685,7 +685,8 @@ describe('approval and member IDs', () => {
     expect(both.artistId).toBe(asArtist.artistId)
     expect(both.partnerId).toMatch(/^PT\d{6}$/)
 
-    // A second artist application for the same person is the same application, not a new one
+    // A second application of a kind is never made beside the current one: ensureApplication
+    // returns it, and the database refuses a second however it is created
     const again = await ensureApplication(payload, { email, type: 'artist' })
     expect(again.createdApplication).toBe(false)
     await expect(

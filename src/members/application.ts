@@ -39,9 +39,11 @@ export const findOwnApplication = async (
   type: MemberKind,
   depth = 1,
 ): Promise<Application | null> => {
+  // The newest is the current one; earlier ones are history
   const found = await payload.find({
     collection: 'applications',
     where: { and: [{ member: { equals: member.id } }, { type: { equals: type } }] },
+    sort: '-createdAt',
     limit: 1,
     depth,
     ...asMember(member),

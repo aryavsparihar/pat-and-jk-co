@@ -1,44 +1,58 @@
-import type { Payload } from 'payload'
+import {
+  commitTransaction,
+  createLocalReq,
+  initTransaction,
+  killTransaction,
+  type Payload,
+} from 'payload'
 
 import type { Application, Member, User } from '@/payload-types'
 import { logSecurityEvent } from '@/security/events'
 import { publicError } from '@/utilities/publicError'
 
-import type { MemberKind } from './ids'
+import { currentSlot } from './accounts'
+import { newApplicationReference, type MemberKind } from './ids'
 import { defaultSiteSettings } from './openness'
 
 /**
- * Applying again after a decline. The same application reopens, with the same reference: the
- * first three steps come back filled in, to review; the work and identity start fresh (identity
- * details are deleted, as they would be 90 days after a decline anyway). The earlier decision is
- * kept in the application's history. A wait, six months unless Site settings says otherwise,
- * runs from the decision; staff can end it early.
+ * Applying again, after a decline (once the wait is over) or a withdrawal (at any time). Each
+ * attempt is an application of its own, with its own reference and record, pointing back to the
+ * one before; the earlier one is left exactly as it was decided, and staff see the whole history.
+ *
+ * The new application starts with the person's earlier answers filled in, to review: about them,
+ * where they live, their practice and their works (for an artist), or everything they wrote (for a
+ * partner). Their identity documents and identity photo are given again; what they typed about
+ * their identity stays if it is still held (src/kyc/service.ts, clearIdentityEvidence).
+ *
+ * The wait after a decline is set in Site settings (90 days unless changed) and runs from the
+ * decision; staff can end it early.
  */
 
-export const DEFAULT_REAPPLY_MONTHS = 6
+export const DEFAULT_REAPPLY_DAYS = 90
 
-/** The steps that come back filled in */
-const KEPT_STEPS = ['about', 'address', 'practice']
+const DAY = 86_400_000
 
-export const reapplyMonths = async (payload: Payload): Promise<number> => {
-  const months = (await defaultSiteSettings(payload))?.reapplyAfterMonths
-  return typeof months === 'number' && months >= 0 ? months : DEFAULT_REAPPLY_MONTHS
+/** The steps of an artist application that come back filled in */
+const KEPT_STEPS = ['about', 'address', 'practice', 'portfolio']
+
+export const reapplyDays = async (payload: Payload): Promise<number> => {
+  const days = (await defaultSiteSettings(payload))?.reapplyAfterDays
+  return typeof days === 'number' && days >= 0 ? days : DEFAULT_REAPPLY_DAYS
 }
 
-/** The day, months after `from`, on which someone may apply again */
-export const reapplyFrom = (months: number, from = new Date()): string => {
-  const date = new Date(from)
-  date.setMonth(date.getMonth() + months)
-  return date.toISOString()
-}
+/** The moment, `days` after `from`, from which someone may apply again */
+export const reapplyFrom = (days: number, from: Date | string = new Date()): string =>
+  new Date(new Date(from).getTime() + days * DAY).toISOString()
 
+/** May this person start a new application in place of this one, now? */
 export const canReapply = (
   application: Pick<Application, 'stage'> & { reapplyFrom?: string | null },
   now = new Date(),
 ) =>
-  application.stage === 'rejected' &&
-  Boolean(application.reapplyFrom) &&
-  new Date(application.reapplyFrom!).getTime() <= now.getTime()
+  application.stage === 'withdrawn' ||
+  (application.stage === 'rejected' &&
+    Boolean(application.reapplyFrom) &&
+    new Date(application.reapplyFrom!).getTime() <= now.getTime())
 
 /** Staff end the wait early, with their name in the security log */
 export const allowReapplyNow = async (
@@ -69,8 +83,64 @@ export const allowReapplyNow = async (
   return updated
 }
 
-/** The applicant applies again: the same application, reopened */
-export const reopenApplication = async (
+/**
+ * A copy of an answer without the row ids Payload gives each entry of a list (an exhibition, a
+ * link, a work), which belong to the earlier application's rows and cannot be reused
+ */
+const withoutRowIds = <T>(value: T): T => {
+  if (Array.isArray(value)) {
+    return value.map((item) => {
+      if (!item || typeof item !== 'object') return item
+      const { id: _id, ...rest } = item as Record<string, unknown>
+      return withoutRowIds(rest)
+    }) as T
+  }
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, withoutRowIds(v)]),
+    ) as T
+  }
+  return value
+}
+
+/** What carries over from one application to the next */
+const carriedOver = async (
+  payload: Payload,
+  member: Member,
+  earlier: Application,
+): Promise<Partial<Application>> => {
+  if (earlier.type === 'partner') {
+    return { partner: withoutRowIds(earlier.partner), partnerCategory: earlier.partnerCategory }
+  }
+  // Works whose pictures are still this person's; a work whose picture has gone is left out
+  const works = withoutRowIds(earlier.portfolio ?? [])
+  const ids = works.map((w) => (typeof w.image === 'object' ? w.image?.id : w.image))
+  const owned = ids.length
+    ? (
+        await payload.find({
+          collection: 'portfolio-images',
+          where: { and: [{ id: { in: ids } }, { owner: { equals: member.id } }] },
+          limit: ids.length,
+          depth: 0,
+          overrideAccess: true,
+        })
+      ).docs.map((d) => d.id)
+    : []
+  const portfolio = works.filter((_, i) => owned.includes(ids[i] as number))
+  const completed = (earlier.completedSteps ?? []).filter(
+    (s) => KEPT_STEPS.includes(s) && (s !== 'portfolio' || portfolio.length === works.length),
+  )
+  return {
+    about: withoutRowIds(earlier.about),
+    address: withoutRowIds(earlier.address),
+    practice: withoutRowIds(earlier.practice),
+    portfolio,
+    completedSteps: completed,
+  }
+}
+
+/** Starts a new application of a kind, following the person's declined or withdrawn one */
+export const applyAgain = async (
   payload: Payload,
   member: Member,
   type: MemberKind,
@@ -78,54 +148,64 @@ export const reopenApplication = async (
   // Loaded here, not at the top: decide.ts (and so the Payload config) imports this file, and
   // the KYC service is server-only
   const { findOwnApplication } = await import('./application')
-  const { purgeKyc } = await import('@/kyc/service')
-  const application = (await findOwnApplication(payload, member, type, 0)) as
-    (Application & { reapplyFrom?: string | null; rounds?: unknown[] | null }) | null
-  if (!application) throw publicError('There is no application to open again.', 404)
-  if (application.stage !== 'rejected')
-    throw publicError('This application is not one that was declined.', 409)
-  if (!canReapply(application)) throw publicError('It is not yet time to apply again.', 409)
+  const earlier = await findOwnApplication(payload, member, type, 0)
+  if (!earlier) throw publicError('There is no application to follow.', 404)
+  if (earlier.stage !== 'rejected' && earlier.stage !== 'withdrawn')
+    throw publicError('Your current application is still open.', 409)
+  if (!canReapply(earlier)) throw publicError('It is not yet time to apply again.', 409)
 
-  const rounds = [
-    ...((application.rounds as Record<string, unknown>[] | null) ?? []).map(
-      ({ id: _id, ...round }) => round,
-    ),
-    {
-      decision: 'rejected',
-      submittedAt: application.submittedAt ?? null,
-      decidedAt: application.decidedAt ?? null,
-      note: application.decisionNote ?? null,
-    },
-  ]
-  const kept = (application.completedSteps ?? []).filter((s) => KEPT_STEPS.includes(s))
-  const updated = await payload.update({
-    collection: 'applications',
-    id: application.id,
-    data: {
-      stage: 'draft',
-      rounds,
-      completedSteps: type === 'artist' ? kept : [],
-      decisionNote: null,
-      decidedAt: null,
-      decidedBy: null,
-      submittedAt: null,
-      reapplyFrom: null,
-      ...(type === 'artist' ? { portfolio: [], declarations: {}, identityCode: null } : {}),
-    } as never,
-    overrideAccess: true,
-    context: { disableRevalidate: true, reopeningApplication: true },
-  })
+  const kept = await carriedOver(payload, member, earlier)
+  let created: Application | undefined
+  for (let attempt = 0; attempt < 5 && !created; attempt++) {
+    const req = await createLocalReq({}, payload)
+    await initTransaction(req)
+    try {
+      // The earlier one stops being current and the new one takes its place, together
+      await payload.update({
+        collection: 'applications',
+        id: earlier.id,
+        data: { currentSlot: null } as never,
+        overrideAccess: true,
+        req,
+        context: { disableRevalidate: true },
+      })
+      created = await payload.create({
+        collection: 'applications',
+        data: {
+          ...kept,
+          reference: newApplicationReference(type),
+          member: member.id,
+          type,
+          stage: 'draft',
+          previousApplication: earlier.id,
+          currentSlot: currentSlot(member.id, type),
+        } as never,
+        overrideAccess: true,
+        req,
+        context: { disableRevalidate: true },
+      })
+      await commitTransaction(req)
+    } catch (error) {
+      await killTransaction(req)
+      created = undefined
+      // A reference already taken: try another. Anything else, a second request that got there
+      // first among them, stops here
+      if (!/reference/i.test(String((error as Error)?.message)) || attempt === 4) throw error
+    }
+  }
+
   if (type === 'artist') {
-    await purgeKyc(payload, {
+    const { clearIdentityEvidence } = await import('@/kyc/service')
+    await clearIdentityEvidence(payload, {
       memberId: member.id,
-      reason: 'Applying again: identity starts fresh',
+      reason: `Applying again (${created!.reference}): documents and photo given afresh`,
     })
   }
   await logSecurityEvent(payload, {
     event: 'application-reopened',
     email: member.email,
-    subject: application.reference,
-    detail: `${type}, round ${rounds.length + 1}`,
+    subject: created!.reference,
+    detail: `${type}, follows ${earlier.reference} (${earlier.stage})`,
   })
-  return updated
+  return created!
 }

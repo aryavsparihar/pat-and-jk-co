@@ -131,15 +131,16 @@ const nextConfig: NextConfig = {
       },
       // Where several rules set the same header, the later one wins: the admin panel gets its
       // looser policy, and uploads get the sandbox instead of either
-      // The identity photo is taken in the artist application, so the camera is allowed there
-      // and nowhere else (src/security/memberPagePolicy.ts)
+      // The identity photo is taken in the artist application, and the map there can use the
+      // device's location, so the camera and location are allowed there and nowhere else. The
+      // same value as CAMERA_PERMISSIONS in src/security/memberPagePolicy.ts, which the proxy sets
       {
         source: '/collaborate/artists',
         headers: [
           {
             key: 'Permissions-Policy',
             value:
-              'camera=(self), microphone=(), geolocation=(), payment=(), usb=(), browsing-topics=()',
+              'camera=(self), microphone=(), geolocation=(self), payment=(), usb=(), browsing-topics=()',
           },
         ],
       },

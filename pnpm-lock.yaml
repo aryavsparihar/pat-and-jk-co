@@ -279,6 +279,9 @@ importers:
       '@tailwindcss/postcss':
         specifier: 4.3.3
         version: 4.3.3
+      '@types/google.maps':
+        specifier: 3.66.5
+        version: 3.66.5
       '@types/leaflet':
         specifier: 1.9.20
         version: 1.9.20
@@ -1808,6 +1811,9 @@ packages:
 
   '@types/geojson@7946.0.16':
     resolution: {integrity: sha512-6C8nqWur3j98U6+lXDfTUWIfgvZU+EumvpHKcYjujKH7woYyLj2sUmff0tRhrqM7BohUw7Pz3ZB1jj2gW9Fvmg==}
+
+  '@types/google.maps@3.66.5':
+    resolution: {integrity: sha512-z7wMLjozUDNC6SYoxvnsh4RvbFQoiqgjHmfcOWKCjKiLklAKV32jvywuBvJRfpThJZn4TonyoeJc/3t9RlVnWQ==}
 
   '@types/hast@3.0.5':
     resolution: {integrity: sha512-rp/ezSWaD1m44dPKICGhiskI13nVr7qTloFwDa/IYkhhf5nzwP+zIQcIJh3WIFSBOy/H1PzB40jPjMDksN4F+g==}
@@ -6178,6 +6184,8 @@ snapshots:
   '@types/estree@1.0.9': {}
 
   '@types/geojson@7946.0.16': {}
+
+  '@types/google.maps@3.66.5': {}
 
   '@types/hast@3.0.5':
     dependencies:

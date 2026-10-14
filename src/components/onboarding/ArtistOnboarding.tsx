@@ -13,10 +13,12 @@ import { KycStep } from './artist/KycStep'
 import { PortfolioStep } from './artist/Portfolio'
 import { ReviewStep } from './artist/Review'
 import { CodeSignIn } from './CodeSignIn'
-import { Sending } from './Sending'
 import { GarlandProgress } from '@/components/phulhaar/GarlandProgress'
 
 import { ErrorSummary, type Errors } from './fields'
+import { DeclinedNotice } from './DeclinedNotice'
+import { ApplyAgainButton } from '@/components/account/ApplicationActions'
+import type { SocialPlatform } from '@/brands/socialIcons'
 
 const STEP_TITLES: Record<ArtistStep, { title: string; intro: string }> = {
   about: { title: 'About you', intro: 'A few details, so we know who we are writing to.' },
@@ -68,7 +70,9 @@ export const ArtistOnboarding: React.FC<{
   terms?: { url: string; filename: string } | null
   /** The privacy policy, rendered on the server, for the consent in the Identity step */
   privacy?: React.ReactNode
-}> = ({ formToken, terms, privacy }) => {
+  /** Phulhaar's social accounts, from Site settings, for the screen after a decline */
+  socials?: { platform: SocialPlatform; label: string; url: string }[]
+}> = ({ formToken, terms, privacy, socials = [] }) => {
   const [phase, setPhase] = useState<Phase>({ kind: 'loading' })
   const [step, setStep] = useState<ArtistStep>('about')
   const [values, setValues] = useState<Record<string, Values>>({})
@@ -227,10 +231,35 @@ export const ArtistOnboarding: React.FC<{
       submitted: 'We have your application and will look at it soon.',
       'under-review': 'We are looking at your application now.',
       approved: 'Your application has been approved. Welcome.',
-      rejected: 'We are not able to take your application further at present.',
     }
     if (application.stage === 'rejected') {
-      return <Declined application={application} onReopened={load} />
+      const ready = waitIsOver(application.reapplyFrom)
+      return (
+        <DeclinedNotice
+          action={ready ? <ApplyAgainButton kind="artist" /> : undefined}
+          kind="artist"
+          note={application.decisionNote}
+          reapplyFrom={application.reapplyFrom}
+          ready={ready}
+          reference={application.reference}
+          socials={socials}
+        />
+      )
+    }
+    if (application.stage === 'withdrawn') {
+      return (
+        <div>
+          <p className="label">Application {application.reference}</p>
+          <h2 className="display-md mt-3">You withdrew this application.</h2>
+          <p className="lede measure mt-6">
+            You are welcome to apply again whenever you like. A new application starts with your
+            answers filled in; only your identity details, documents and photo are asked for again.
+          </p>
+          <div className="mt-10">
+            <ApplyAgainButton kind="artist" />
+          </div>
+        </div>
+      )
     }
     return (
       <div>
@@ -408,71 +437,10 @@ export const ArtistOnboarding: React.FC<{
   )
 }
 
-const longDate = (iso: string) =>
-  new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+/** Whether the wait before applying again has passed; read once per render */
+const waitIsOver = (iso?: string | null) => Boolean(iso) && new Date(iso!).getTime() <= Date.now()
 
 /**
  * A declined application. Once the wait is over, "Apply again" reopens it: the same reference,
  * the first three steps filled in to review, the work and identity to add afresh.
  */
-const Declined: React.FC<{ application: Application; onReopened: () => void }> = ({
-  application,
-  onReopened,
-}) => {
-  const [busy, setBusy] = useState(false)
-  const [message, setMessage] = useState<string | null>(null)
-  const from = application.reapplyFrom ? new Date(application.reapplyFrom) : null
-  // eslint-disable-next-line react-hooks/purity -- read once per render, to say whether the wait is over
-  const ready = from ? from.getTime() <= Date.now() : false
-
-  const reopen = async () => {
-    setBusy(true)
-    setMessage(null)
-    const result = await api('/next/members/application/reapply', { body: { type: 'artist' } })
-    setBusy(false)
-    if (!result.ok) return setMessage(result.data.message ?? 'That could not be done just now.')
-    onReopened()
-  }
-
-  return (
-    <div>
-      <p className="label">Application {application.reference}</p>
-      <h2 className="display-md mt-3">
-        We are not able to take your application further at present.
-      </h2>
-      {from && !ready && (
-        <p className="lede measure mt-6">
-          You are welcome to apply again from {longDate(application.reapplyFrom!)}.
-        </p>
-      )}
-      {ready && (
-        <>
-          <p className="lede measure mt-6">You are welcome to apply again.</p>
-          <p className="measure mt-4">
-            Your application keeps its reference. What you told us about yourself, where you live
-            and your practice will be there to review. Your work and your identity details start
-            afresh.
-          </p>
-          <button
-            className="btn btn-solid mt-10 min-h-11"
-            disabled={busy}
-            onClick={() => void reopen()}
-            type="button"
-          >
-            {busy ? <Sending label="Opening" /> : 'Apply again'}
-          </button>
-        </>
-      )}
-      {message && (
-        <p className="mt-4 text-base italic text-destructive" role="alert">
-          {message}
-        </p>
-      )}
-      {!ready && (
-        <a className="btn btn-solid mt-10 min-h-11" href="/account">
-          Your account
-        </a>
-      )}
-    </div>
-  )
-}
