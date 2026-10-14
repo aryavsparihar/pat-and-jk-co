@@ -68,6 +68,16 @@ jobs:
         env:
           NODE_ENV: production
 
+      - name: The database gives the site no more than it needs
+        # A login role in the app's group, as in production (docs/SETUP.md, "Database roles"),
+        # so the check also tries, from the inside, what the site must not be able to do
+        env:
+          APP_DATABASE_URL: postgres://pjk_app_ci:pjk-app-ci@localhost:5432/pjk_ci
+        run: |
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
+            -c "CREATE ROLE pjk_app_ci LOGIN PASSWORD 'pjk-app-ci' IN ROLE pjk_app_access"
+          pnpm check:database
+
       - name: Every schema change has a migration
         env:
           NODE_ENV: production

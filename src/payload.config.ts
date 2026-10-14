@@ -33,6 +33,7 @@ import { MEMBER_ID_SEQUENCE } from './members/ids'
 import { createLogger } from './observability/logger'
 import { plugins } from './plugins'
 import { guardMemberAccess } from './access/memberGuard'
+import { checkDatabaseRole } from './security/databaseRole'
 import { isCronRequest } from './security/secrets'
 import { isStaff } from './access/roles'
 import { defaultLexical } from '@/fields/defaultLexical'
@@ -165,7 +166,11 @@ export default buildConfig({
   // JSON lines in production, with personal data redacted from every line (src/observability)
   logger: createLogger(),
   // Staff session before member session when a request carries both (src/security/strategyOrder.ts)
-  onInit: async (payload) => putStaffSessionFirst(payload),
+  onInit: async (payload) => {
+    putStaffSessionFirst(payload)
+    // Never the database's owner at runtime (src/security/databaseRole.ts)
+    await checkDatabaseRole(payload)
+  },
   plugins,
   secret: env.PAYLOAD_SECRET,
   sharp,

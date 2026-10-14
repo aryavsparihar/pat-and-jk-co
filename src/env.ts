@@ -55,6 +55,11 @@ const schema = z.object({
     .string({ error: 'is not set (a postgres:// connection string)' })
     .regex(/^postgres(ql)?:\/\//, 'must be a postgres:// connection string'),
   PAYLOAD_SECRET: secret(16),
+  // The database owner, for migrations at build time only; the site itself uses DATABASE_URL, the
+  // least-privileged app role (docs/SETUP.md, "Database roles")
+  DATABASE_URL_MIGRATE: optional(
+    z.string().regex(/^postgres(ql)?:\/\//, 'must be a postgres:// connection string'),
+  ),
 
   // Optional, with safe fallbacks in the code
   NEXT_PUBLIC_SERVER_URL: optional(origin),

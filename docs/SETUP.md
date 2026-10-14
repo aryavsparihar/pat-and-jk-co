@@ -60,6 +60,51 @@ The app checks these when it starts (`src/env.ts`). If one is missing or malform
 
 5. Deploy. The first deploy creates all database tables.
 
+## Database roles
+
+The site connects as **`pjk_app`**, which may read and write rows and nothing else: no creating,
+changing or dropping tables, not the owner, and it cannot bypass Row-Level Security. Only
+migrations, at build time, use the owner (`neondb_owner`). The migration
+`20261013_185333_app_role_and_rls` creates a group role, `pjk_app_access`, holding exactly those
+rights, and turns Row-Level Security on for every table with a policy for that group alone. You
+create the login role and put it in the group. Do these steps in this order, so the live site
+never breaks along the way.
+
+1. **Merge and deploy** the pull request that adds the migration. Production migrates as before
+   (with today's `DATABASE_URL`, the owner), creating `pjk_app_access`. The site logs a warning that
+   it is connected as the owner; that is expected until step 4.
+2. **Make a password** on your own computer, and keep it only in your password manager:
+   `openssl rand -base64 32`
+3. **Create the role in Neon**, on the `main` branch: Neon → your project → **SQL Editor**, branch
+   `main`, database `neondb`, then run (with your password between the quotes):
+
+   ```sql
+   CREATE ROLE pjk_app WITH LOGIN PASSWORD 'the-password-from-step-2';
+   GRANT pjk_app_access TO pjk_app;
+   ```
+
+   Use the SQL Editor rather than **Roles → New role**: roles made in the console are also given
+   `neon_superuser`, which the site must not have. Then run the same two lines on the `preview`
+   branch, with a different password (Preview's migrations, with `MIGRATE_ON_PREVIEW=1`, create
+   `pjk_app_access` there).
+4. **Set the variables in Vercel** (Settings → Environment Variables), for Production, then for
+   Preview with that branch's values:
+   - `DATABASE_URL_MIGRATE`: the current owner connection string. Neon → **Connect**, role
+     `neondb_owner`, **Connection pooling off** (migrations are better without the pooler).
+   - `DATABASE_URL`: the same pooled string as now, with `neondb_owner:…@` replaced by
+     `pjk_app:<the password>@`. Keep `-pooler` in the host and `?sslmode=require` at the end.
+5. **Redeploy** (Deployments → the latest → Redeploy). The build migrates as the owner and the site
+   runs as `pjk_app`. From now on, a deployment connected as the owner refuses to start, so a
+   mistake here shows up at once. If anything goes wrong, put the old `DATABASE_URL` back, delete
+   `DATABASE_URL_MIGRATE`, and redeploy: everything is as it was.
+6. **Check**: `/api/health` says `ok`, and the warning about the owner has gone from the logs
+   (Vercel → Logs, search "connected to the database as").
+
+`pnpm check:database` checks all of this against any database (CI runs it on every pull request):
+RLS on every table, no policy for any other role, and `pjk_app_access` holding no more than
+listed. A migration that adds a table must also enable RLS on it and add the policy, as
+`app_role_and_rls` does, or CI fails.
+
 ## 4. Load the starter content
 
 From your laptop, point the seed script at the production database once:
