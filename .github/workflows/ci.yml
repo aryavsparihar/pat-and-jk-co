@@ -63,6 +63,9 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+      - name: Every environment variable is documented and checked
+        run: pnpm check:env
+
       - name: Migrations apply cleanly to an empty database
         run: pnpm payload migrate
         env:

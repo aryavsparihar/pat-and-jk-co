@@ -65,6 +65,8 @@ describe('environment validation', () => {
     expect(text).toMatch(/TURNSTILE_SECRET_KEY is required in production/)
     expect(text).toMatch(/NEXT_PUBLIC_TURNSTILE_SITE_KEY is required in production/)
     expect(text).toMatch(/must use https/)
+    expect(text).toMatch(/CRON_SECRET is required in production/)
+    expect(text).toMatch(/PREVIEW_SECRET is required in production/)
 
     expect(
       parseEnv({
@@ -80,6 +82,8 @@ describe('environment validation', () => {
         // Shaped like real keys; made up
         NEXT_PUBLIC_TURNSTILE_SITE_KEY: '0x4AAAAAAAexampleNotReal',
         TURNSTILE_SECRET_KEY: '0x4AAAAAAAexample-secret-not-real',
+        CRON_SECRET: 'cron-example-not-real-0000000000',
+        PREVIEW_SECRET: 'preview-example-not-real-0000000',
       }).problems,
     ).toEqual([])
   })

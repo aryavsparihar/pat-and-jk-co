@@ -19,6 +19,7 @@
     "test": "pnpm run test:int && pnpm run test:e2e",
     "test:e2e": "cross-env NODE_OPTIONS=\"--no-deprecation --import=tsx/esm --import=./scripts/allow-server-only.mjs\" playwright test --config=playwright.config.ts",
     "test:int": "cross-env NODE_OPTIONS=--no-deprecation vitest run --config ./vitest.config.mts",
+    "check:env": "node --no-deprecation --import tsx/esm scripts/check-env-vars.ts",
     "check:database": "node --no-deprecation --import tsx/esm scripts/check-database-access.ts",
     "social:icons": "node --no-deprecation --import tsx/esm scripts/social-icons.ts",
     "seed": "cross-env NODE_OPTIONS=--no-deprecation payload run src/seed/index.ts",
