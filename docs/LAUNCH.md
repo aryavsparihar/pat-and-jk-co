@@ -58,8 +58,11 @@ These need a lawyer or a CA, so start them first.
       `preview`, set `DATABASE_URL_MIGRATE` (owner) and `DATABASE_URL` (`pjk_app`, pooled) in
       Vercel for Production and Preview, with `sslmode=verify-full`, and redeploy. Done when
       `/api/health` says `ok` and the logs no longer warn that the site is connected as the owner.
-- [ ] **Unused variables removed.** Vercel → Environment Variables: delete
-      `BLOB_WEBHOOK_PUBLIC_KEY` and `KYC_WEBHOOK_PUBLIC_KEY`; nothing reads them.
+- [x] **Unused variables removed: not possible, harmless** (14 October 2026).
+      `BLOB_WEBHOOK_PUBLIC_KEY` and `KYC_WEBHOOK_PUBLIC_KEY` belong to the two Blob store
+      connections; Vercel manages them, and removing them would disconnect the stores. They are
+      public keys that nothing reads, so they stay. The boot check and CI ignore them, and a test
+      keeps it that way.
 - [ ] **Nothing goes live without its checks.** GitHub ruleset and Vercel Deployment Checks, as in
       [SECURITY.md](SECURITY.md#the-gatekeeper). Done when the ruleset lists the five checks and a
       pull request's deployment shows them under *Deployment Checks*.

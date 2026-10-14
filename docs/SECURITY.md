@@ -63,8 +63,12 @@ to check: the browser console names the directive that blocked it.
 
 **Cloudflare Turnstile** stands in front of the code request (signing in, and the start of
 both applications) and the public forms. The widget stays out of sight unless Cloudflare wants a
-box ticked; the server checks every token with Cloudflare (`src/security/turnstile.ts`) and
-refuses one that is missing, used before, or earned on a different form. Only the secret and the
+box ticked; the server checks every token with Cloudflare's siteverify (`src/security/turnstile.ts`)
+and refuses one that is missing, forged, used before, older than five minutes, earned on a
+different form (the action), or earned on a different site (the hostname). Cloudflare spends a
+token the first time it is verified, so each works once. `tests/int/turnstile.int.spec.ts` proves
+each case, against a stand-in that behaves as Cloudflare documents, and through the code request
+itself. Only the secret and the
 token are sent to Cloudflare, never the person's IP address or anything they typed. If Cloudflare
 cannot be reached the request goes ahead and the reason is logged: the honeypot, the form-start
 token and the rate limits still apply. Without `TURNSTILE_SECRET_KEY` (a developer's machine, the

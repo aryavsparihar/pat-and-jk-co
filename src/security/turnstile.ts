@@ -1,7 +1,9 @@
 /**
  * Cloudflare Turnstile, checked on the server: the code request (signing in, and the start of both
  * applications) and the public forms. The browser earns a token from the widget; this asks
- * Cloudflare whether it is genuine, unused, and was earned on the same form.
+ * Cloudflare (siteverify) whether it is genuine, unused and unexpired, was earned on the same form
+ * (the action), and on the same site the request came to (the hostname). Cloudflare spends a token
+ * the first time it is verified and refuses it after five minutes, so a token works once.
  *
  * Only where TURNSTILE_SECRET_KEY is set (production and previews). Without it, on a developer's
  * machine and in the tests, the check is skipped, as the widget is without its site key.
@@ -25,12 +27,18 @@ export type TurnstileAction = 'signin' | 'apply-artist' | 'apply-partner' | 'con
 
 /**
  * Cloudflare's published test secrets (always pass, always fail, already spent). Their answers
- * carry a placeholder in place of the form's action, so the action cannot be compared; previews
+ * carry placeholders in place of the form's action and the hostname, so neither can be compared; previews
  * use them, production never does
  */
 export const TURNSTILE_TEST_SECRET = /^[123]x0+AA$/
 /** And their test site keys (visible and invisible widgets): always pass, block, or challenge */
 export const TURNSTILE_TEST_SITE_KEY = /^[123]x0+[A-F]{2}$/
+
+/** The site a request came to, as Cloudflare reports it: no port, lower case */
+export const requestHostname = (headers: Headers | null | undefined): string | null => {
+  const host = headers?.get('x-forwarded-host') ?? headers?.get('host')
+  return host ? host.split(',')[0]!.trim().toLowerCase().replace(/:\d+$/, '') : null
+}
 
 export type TurnstileResult =
   { ok: true; checked: boolean; note?: string } | { ok: false; reason: string }
@@ -44,7 +52,13 @@ export const verifyTurnstile = async (
   {
     env = process.env,
     fetchImpl = fetch,
-  }: { env?: NodeJS.ProcessEnv; fetchImpl?: typeof fetch } = {},
+    hostname,
+  }: {
+    env?: NodeJS.ProcessEnv
+    fetchImpl?: typeof fetch
+    /** The site the request came to (requestHostname); the token must have been earned there */
+    hostname?: string | null
+  } = {},
 ): Promise<TurnstileResult> => {
   const secret = env.TURNSTILE_SECRET_KEY?.trim()
   if (!secret) return { ok: true, checked: false }
@@ -53,7 +67,7 @@ export const verifyTurnstile = async (
     return { ok: false, reason: 'missing' }
   }
 
-  let outcome: { success?: boolean; action?: string; 'error-codes'?: string[] }
+  let outcome: { success?: boolean; action?: string; hostname?: string; 'error-codes'?: string[] }
   try {
     const response = await fetchImpl(VERIFY_URL, {
       method: 'POST',
@@ -69,7 +83,10 @@ export const verifyTurnstile = async (
   if (!outcome.success) {
     return { ok: false, reason: (outcome['error-codes'] ?? []).join(',') || 'not-genuine' }
   }
-  if (outcome.action !== action && !TURNSTILE_TEST_SECRET.test(secret))
-    return { ok: false, reason: 'wrong-form' }
+  // Cloudflare's test secrets answer with placeholders for both, so neither can be compared there
+  if (TURNSTILE_TEST_SECRET.test(secret)) return { ok: true, checked: true }
+  if (outcome.action !== action) return { ok: false, reason: 'wrong-form' }
+  if (hostname && outcome.hostname?.toLowerCase() !== hostname.toLowerCase())
+    return { ok: false, reason: 'wrong-site' }
   return { ok: true, checked: true }
 }

@@ -6,7 +6,12 @@ import { getTenantAccess } from '@payloadcms/plugin-multi-tenant/utilities'
 import { isStaff, isSuperAdmin } from '@/access/roles'
 import { clientIp } from '@/security/constants'
 import { hitLimit } from '@/security/rateLimit'
-import { TURNSTILE_FIELD, TURNSTILE_REFUSED, verifyTurnstile } from '@/security/turnstile'
+import {
+  requestHostname,
+  TURNSTILE_FIELD,
+  TURNSTILE_REFUSED,
+  verifyTurnstile,
+} from '@/security/turnstile'
 import { HONEYPOT_FIELD } from '@/utilities/honeypot'
 
 const MAX_FIELDS = 30
@@ -35,7 +40,9 @@ export const protectSubmission: CollectionBeforeChangeHook = async ({ data, oper
   // are not
   if (!isStaff(req.user) && req.payloadAPI !== 'local') {
     const token = entries.find((e) => e.field === TURNSTILE_FIELD)?.value
-    const human = await verifyTurnstile(token, 'contact')
+    const human = await verifyTurnstile(token, 'contact', {
+      hostname: requestHostname(req.headers),
+    })
     if (!human.ok) {
       req.payload.logger.warn(`Form submission refused by the bot check: ${human.reason}`)
       throw publicError(TURNSTILE_REFUSED, 400)
