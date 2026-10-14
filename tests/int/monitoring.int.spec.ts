@@ -58,8 +58,26 @@ describe('the security log and its alerts', () => {
           (e) => e.path === '/:id/reveal',
         )!.handler
       : null!
+    // A real editor account: the log records who was refused, by reference to them
+    const email = `${MARK}-editor@pjk.co.in`
+    await payload.delete({
+      collection: 'users',
+      where: { email: { equals: email } },
+      overrideAccess: true,
+    })
+    const editor = await payload.create({
+      collection: 'users',
+      data: {
+        email,
+        name: 'Monitoring test',
+        roles: ['editor'] as never,
+        status: 'active',
+        password: 'Rw8-quiet-Forest-2026!',
+      },
+      overrideAccess: true,
+    })
     const response = await reveal({
-      user: { id: 1, email: `${MARK}@pjk.co.in`, collection: 'users', roles: ['editor'] },
+      user: { ...editor, collection: 'users' },
       payload,
       routeParams: { id: '1' },
       method: 'POST',
@@ -81,6 +99,7 @@ describe('the security log and its alerts', () => {
     expect(logged.docs.some((d) => d.detail?.includes('/api/kyc-records/1/reveal (users)'))).toBe(
       true,
     )
+    await payload.delete({ collection: 'users', id: editor.id, overrideAccess: true })
   })
 
   it('emails the technical inbox once an hour when failed sign-ins pass the threshold', async () => {

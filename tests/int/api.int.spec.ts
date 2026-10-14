@@ -194,8 +194,13 @@ describe('the deep health check', () => {
       .mockResolvedValueOnce({ user: { id: 1, collection: 'users', roles: ['editor'] } } as never)
     const staff = await GET(new Request('http://localhost:3000/api/health?deep=1'))
     spy.mockRestore()
-    const body = (await staff.json()) as { content: { checked: number; missing: string[] } }
-    expect(body.content.checked).toBeGreaterThan(15)
+    const body = (await staff.json()) as {
+      content: { ok: boolean; checked: number; missing: string[] }
+    }
+    // Whatever this database holds: a list of what is missing, and a status that matches it
+    expect(body.content.checked).toBeGreaterThan(0)
     expect(Array.isArray(body.content.missing)).toBe(true)
+    expect(body.content.ok).toBe(body.content.missing.length === 0)
+    expect(staff.status).toBe(body.content.ok ? 200 : 503)
   })
 })
