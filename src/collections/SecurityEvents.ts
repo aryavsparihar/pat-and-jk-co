@@ -37,6 +37,8 @@ export const securityEventTypes = [
   'application-changes-requested',
   'application-reopened',
   'application-reapply-allowed',
+  'application-under-review',
+  'application-withdrawn',
   // Identity and bank details
   'kyc-saved',
   'kyc-revealed',

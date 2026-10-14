@@ -255,16 +255,24 @@ export const SiteSettings: CollectionConfig = {
               },
             },
             {
-              name: 'reapplyAfterMonths',
-              label: 'Months before someone declined may apply again',
+              name: 'reapplyAfterDays',
+              label: 'Days before someone declined may apply again',
               type: 'number',
               min: 0,
-              max: 36,
-              defaultValue: 6,
+              max: 1095,
+              defaultValue: 90,
               admin: {
                 description:
-                  'Counted from the decision, and given in the email that tells them. 0 lets them apply again at once. Staff can end the wait early for one person from their application.',
+                  'Counted from the decision, and given on their account and in the email that tells them. 0 lets them apply again at once. Staff can end the wait early for one person from their application.',
               },
+            },
+            {
+              // Replaced by reapplyAfterDays (October 2026). Kept, unused, so a rollback to the
+              // release before still finds it; drop it in a later release
+              name: 'reapplyAfterMonths',
+              type: 'number',
+              defaultValue: 6,
+              admin: { hidden: true },
             },
             {
               name: 'artistTerms',

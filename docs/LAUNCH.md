@@ -107,8 +107,8 @@ These need a lawyer or a CA, so start them first.
       `https://pjk.co.in/api/health?deep=1`: under `content` it says `"ok":true`, or lists what is
       missing.
       (Or, from a terminal, `DATABASE_URL='<production string>' pnpm check:content`.)
-- [ ] **The wait before applying again.** Site settings → Applications → *Months before someone
-      declined may apply again* is what you want (6 by default).
+- [ ] **The wait before applying again.** Site settings → Applications → *Days before someone
+      declined may apply again* is what you want (90 by default).
 
 ## 6. Dress rehearsal (week of 26 October)
 

@@ -86,10 +86,12 @@ People who want to work with PJK apply on the website, at **/collaborate/artists
 
 Open an application to read it. In the sidebar, under **Decision**:
 
+- **Start reviewing.** On a newly sent application, so the applicant sees on their account that it is being read. Nobody is emailed.
 - **Approve.** The person is given a member ID (AT000001 for artists, PT000001 for partners) and an email welcoming them. The ID never changes. Someone can be both an artist and a partner, with one ID of each.
 - **Ask for changes.** Write a note saying what you need; they are emailed it and can edit their application and send it again.
 - **Decline.** Write a short, kind note; they are emailed it, with the date they may apply again, hello@pjk.co.in for questions, and Phulhaar's social accounts (**Site settings → Contact & social**).
-- **Applying again.** A declined applicant may apply again after the wait in **Site settings → Applications** (6 months unless changed). **Allow them to apply again now** on a declined application ends the wait early, and is logged. Applying again reopens the same application with the same reference: "About you", "Where you live" and "Your practice" come back filled in, to review; the work and identity details start fresh (the old identity details are deleted). The earlier decision is kept under **Earlier rounds**.
+- **Withdrawn.** An applicant can withdraw their own application from their account at any point before it is decided. It stays here marked *Withdrawn by the applicant*, and you are emailed if it had already been sent. An artist's identity details are deleted at once.
+- **Applying again.** A declined applicant may apply again after the wait in **Site settings → Applications** (90 days unless changed), counted from the decision; someone who withdrew may apply again at once. **Allow them to apply again now** on a declined application ends the wait early, and is logged. Applying again starts a **new application with its own reference**, filled in with their earlier answers for them to look over; only an artist's identity documents and identity photo are asked for again. The earlier application is left exactly as it was decided. Each application shows the whole line under **History**, newest first, with what became of each one; applications decided before October 2026 may also show **Earlier rounds** from when the same record was reopened.
 
 Every decision is recorded under **Administration → Security log**, with your name against it. Applications themselves cannot be edited here: they are the applicant's words. Use **Notes for staff** for anything the team should know; the applicant never sees it.
 

@@ -13,11 +13,11 @@ import type { Application, Member, User } from '@/payload-types'
 import { logSecurityEvent } from '@/security/events'
 
 import { sendDecisionEmail } from './emails'
-import { reapplyFrom, reapplyMonths } from './reapply'
+import { reapplyDays, reapplyFrom } from './reapply'
 import { formatMemberId, MEMBER_ID_SEQUENCE, type MemberKind } from './ids'
 
 /**
- * Staff decisions on an application: approve, reject, or ask for changes.
+ * Staff decisions on an application: start reviewing it, approve, reject, or ask for changes.
  *
  * Approval is the one place a member ID is issued. Everything that must happen together happens
  * in one database transaction: take the next number from the kind's sequence, write the member ID
@@ -27,16 +27,20 @@ import { formatMemberId, MEMBER_ID_SEQUENCE, type MemberKind } from './ids'
  * so nobody is ever told about an approval that did not happen.
  */
 
-export type Decision = 'approve' | 'reject' | 'request-changes'
+export type Decision = 'review' | 'approve' | 'reject' | 'request-changes'
+
+export const DECISIONS: readonly Decision[] = ['review', 'approve', 'reject', 'request-changes']
 
 const STAGE_AFTER: Record<Decision, Application['stage']> = {
+  review: 'under-review',
   approve: 'approved',
   reject: 'rejected',
   'request-changes': 'changes-requested',
 }
 
-/** Which stages each decision may be taken from */
+/** Which stages each decision may be taken from (within src/members/stages.ts) */
 const ALLOWED_FROM: Record<Decision, Application['stage'][]> = {
+  review: ['submitted'],
   approve: ['submitted', 'under-review'],
   reject: ['submitted', 'under-review', 'changes-requested'],
   'request-changes': ['submitted', 'under-review'],
@@ -44,8 +48,12 @@ const ALLOWED_FROM: Record<Decision, Application['stage'][]> = {
 
 const EVENT: Record<
   Decision,
-  'application-approved' | 'application-rejected' | 'application-changes-requested'
+  | 'application-under-review'
+  | 'application-approved'
+  | 'application-rejected'
+  | 'application-changes-requested'
 > = {
+  review: 'application-under-review',
   approve: 'application-approved',
   reject: 'application-rejected',
   'request-changes': 'application-changes-requested',
@@ -104,7 +112,7 @@ export const decideApplication = async (
       )
     }
     const cleanNote = (note ?? '').trim().slice(0, 4000) || null
-    if (decision !== 'approve' && !cleanNote) {
+    if ((decision === 'reject' || decision === 'request-changes') && !cleanNote) {
       throw publicError('Write a note to the applicant explaining the decision.', 400)
     }
 
@@ -152,13 +160,16 @@ export const decideApplication = async (
       id: application.id,
       data: {
         stage: STAGE_AFTER[decision],
-        decisionNote: cleanNote,
-        decidedAt: new Date().toISOString(),
+        // Starting the review is not a decision: nothing else changes, and nobody is emailed
+        ...(decision === 'review'
+          ? {}
+          : {
+              decisionNote: cleanNote,
+              decidedAt: new Date().toISOString(),
+              decidedBy: actor.id,
+            }),
         // A decline says when they may apply again
-        ...(decision === 'reject'
-          ? { reapplyFrom: reapplyFrom(await reapplyMonths(payload)) }
-          : {}),
-        decidedBy: actor.id,
+        ...(decision === 'reject' ? { reapplyFrom: reapplyFrom(await reapplyDays(payload)) } : {}),
         ...(earned ? { issuedId: earned } : {}),
       },
       overrideAccess: true,
@@ -190,11 +201,13 @@ export const decideApplication = async (
       detail: result.application.reference,
     })
   }
-  await sendDecisionEmail(payload, {
-    decision,
-    application: result.application,
-    member: result.member,
-  })
+  if (decision !== 'review') {
+    await sendDecisionEmail(payload, {
+      decision,
+      application: result.application,
+      member: result.member,
+    })
+  }
 
   return result
 }

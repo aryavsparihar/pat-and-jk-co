@@ -11,6 +11,9 @@ import type { Application, Member } from '@/payload-types'
 import type { MemberKind } from './ids'
 import { newApplicationReference } from './ids'
 
+/** The marker a person's current application of a kind carries (Applications.currentSlot) */
+export const currentSlot = (memberId: number, type: MemberKind): string => `${memberId}:${type}`
+
 /**
  * Makes sure someone has an application of a kind: creating their member record if this is the
  * first thing they have ever applied for, and a draft application of that kind if they have none.
@@ -54,6 +57,7 @@ export const ensureApplication = async (
         await payload.find({
           collection: 'applications',
           where: { and: [{ member: { equals: member.id } }, { type: { equals: type } }] },
+          sort: '-createdAt',
           limit: 1,
           depth: 0,
           overrideAccess: true,
@@ -63,7 +67,13 @@ export const ensureApplication = async (
       const createdApplication = !application
       application ??= await payload.create({
         collection: 'applications',
-        data: { reference: newApplicationReference(type), member: member.id, type, stage: 'draft' },
+        data: {
+          reference: newApplicationReference(type),
+          member: member.id,
+          type,
+          stage: 'draft',
+          currentSlot: currentSlot(member.id, type),
+        },
         overrideAccess: true,
         req,
         context: { disableRevalidate: true },
@@ -73,7 +83,9 @@ export const ensureApplication = async (
       return { member, application, createdMember, createdApplication }
     } catch (error) {
       await killTransaction(req)
-      const clash = /reference/i.test(String((error as Error)?.message))
+      // A reference already taken, or another request that created the application first: try
+      // again, and the next attempt finds it
+      const clash = /reference|current_slot/i.test(String((error as Error)?.message))
       if (!clash || attempt === 4) throw error
     }
   }

@@ -89,7 +89,8 @@ We never sell your data or share it for marketing.
 | | Kept until |
 | --- | --- |
 | Enquiries | **[confirm: e.g. 2 years]** after we last wrote to each other |
-| An application we decline | 90 days after our decision, for identity details; **[confirm]** for the rest |
+| An application we decline | 90 days after our decision, for identity details; **[confirm]** for the rest. If you apply again, your identity documents and photo are deleted then and asked for afresh |
+| An application you withdraw | Identity details deleted at once; **[confirm]** for the rest |
 | An application never sent | 180 days after it was last changed |
 | Details of artists we work with | While we work together, then **[confirm with CA: N years]** after the last payment, as the law requires us to keep records of payments |
 | Identity and payout details after you withdraw consent | Deleted promptly, unless the law requires us to keep them |
