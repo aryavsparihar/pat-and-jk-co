@@ -866,6 +866,35 @@
 .roller::-webkit-scrollbar {
   display: none;
 }
+/* Each value ruled off from the next by a hairline */
+.roller-row {
+  border-bottom: 1px solid var(--border);
+  transition: color 0.15s ease;
+}
+/* The band: dark, shaded, and plain to see; the value in it turns cream */
+.roller-band {
+  border-radius: 2px;
+  background: linear-gradient(
+    to bottom,
+    color-mix(in oklab, var(--primary) 82%, white),
+    var(--primary) 50%,
+    color-mix(in oklab, var(--primary) 82%, black)
+  );
+  box-shadow: 0 1px 3px color-mix(in oklab, var(--primary) 30%, transparent);
+}
+.roller-row-current {
+  color: var(--background);
+  border-bottom-color: transparent;
+}
+@media (prefers-reduced-motion: reduce) {
+  .roller {
+    scroll-behavior: auto;
+  }
+  .roller-row {
+    transition: none;
+  }
+}
+
 /* The map pin (src/components/onboarding/artist/LocationPin.tsx) */
 .location-pin {
   background: none;
