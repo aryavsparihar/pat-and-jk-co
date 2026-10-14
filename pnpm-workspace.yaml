@@ -36,3 +36,10 @@ auditConfig:
     # deeply nested glob patterns. No fixed version exists; it only ever matches globs from our
     # own build configuration, never anything a visitor sends. Review 2026-12-01
     - GHSA-vfj7-8cjw-p6xm
+
+# Small fixes to packages, until their authors make them. Each patch says why inside. When the
+# package is updated the patch must still apply, or the install fails and says so.
+#   @vercel/blob: report upload progress from XHR in browsers, which counts bytes actually sent,
+#   rather than from a streamed fetch, which races ahead of the network
+patchedDependencies:
+  '@vercel/blob@2.8.0': patches/@vercel__blob@2.8.0.patch
