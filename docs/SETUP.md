@@ -56,9 +56,100 @@ git push -u origin main
 | `KYC_BLIND_INDEX_KEY` | another `openssl rand -base64 32`, never the same as the encryption key. Finds duplicate PANs and accounts without decrypting |
 | `KYC_STORE_ID` | set by Vercel when you create a second, **private** Blob store (Storage → Create → Blob, access Private, named `pjk-kyc`) and connect it to Production and Preview with the prefix `KYC`. It is reached with the deployment's OIDC token, so there is no token to copy. Vercel also adds `KYC_WEBHOOK_PUBLIC_KEY`, which the site does not use |
 
-The app checks these when it starts (`src/env.ts`). If one is missing or malformed, the build stops with a list naming each problem, and the live site carries on running the previous deployment. In production `NEXT_PUBLIC_SERVER_URL`, `RESEND_API_KEY`, `BLOB_READ_WRITE_TOKEN`, `KYC_ENCRYPTION_KEY`, `KYC_BLIND_INDEX_KEY` and `KYC_STORE_ID` are required as well.
+The app checks these when it starts (`src/env.ts`). If one is missing or malformed, the build stops with a list naming each problem, and the live site carries on running the previous deployment. Which are required where is in [Environment variables](#environment-variables) below.
 
 5. Deploy. The first deploy creates all database tables.
+
+## Environment variables
+
+Every variable the code reads. **Secret** ones must never be committed, pasted into a chat or
+ticket, or put in a `NEXT_PUBLIC_` variable (those are sent to every browser). `.env.example`
+lists each with a placeholder, the boot check (`src/env.ts`) validates each, and `pnpm check:env`
+fails CI if the code reads a variable that is in neither.
+
+Key: **R** required, **O** optional, **—** not used, *auto* set by Vercel.
+
+| Variable | What it is for | Secret | Production | Preview | Local |
+| --- | --- | --- | --- | --- | --- |
+| `DATABASE_URL` | The database, as the least-privileged app role (see [Database roles](#database-roles)) | yes | R | R | R |
+| `DATABASE_URL_MIGRATE` | The database owner, for migrations at build time only. Setting it turns on the boot check that refuses to run the site as the owner | yes | R once the roles are split | R once the roles are split | — |
+| `MIGRATE_ON_PREVIEW` | `1` runs migrations on preview deploys (Preview has its own Neon branch) | no | — | R | — |
+| `PAYLOAD_SECRET` | Signs staff sessions, the admin gate and keys the rate-limit hashes | yes | R | R | R |
+| `MEMBER_SESSION_SECRET` | Signs artist and partner sessions | yes | R | R | O (derived locally) |
+| `PREVIEW_SECRET` | Live preview of drafts in the admin | yes | R | R | O |
+| `CRON_SECRET` | Vercel Cron's key for the weekly KYC purge and the job queue | yes | R | R | O |
+| `NEXT_PUBLIC_SERVER_URL` | The site's own address, for links, CORS and CSRF | no | R (`https://pjk.co.in`) | R | O |
+| `DEFAULT_TENANT_SLUG` | The brand served on unknown hostnames | no | O (`pjk`) | O | O |
+| `ALLOWED_ORIGINS` | Extra brand domains trusted with cookies | no | O | O | — |
+| `ADMIN_EMAIL_DOMAIN` | The only domain staff accounts may use (default `pjk.co.in`) | no | — | — | — |
+| `RESEND_API_KEY` | Sending email | yes | R | R | O (printed instead) |
+| `EMAIL_FROM_ADDRESS`, `EMAIL_FROM_NAME` | Who emails come from | no | O | O | O |
+| `CONTACT_INBOX`, `BUSINESS_INBOX`, `TECHNICAL_INBOX` | Where enquiries go; shown on the site | no | O | O | O |
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Cloudflare Turnstile, in the browser | no | R (real key) | R (test key) | — |
+| `TURNSTILE_SECRET_KEY` | Cloudflare Turnstile, on the server | yes | R (real key) | R (test key) | — |
+| `BLOB_READ_WRITE_TOKEN` | The public media store | yes | auto, R | auto | — |
+| `BLOB_STORE_ID` | The public media store's ID, read only to keep KYC out of it | no | auto | auto | — |
+| `KYC_ENCRYPTION_KEY` | Encrypts identity and bank details | yes | R | R (its own) | O (derived locally) |
+| `KYC_BLIND_INDEX_KEY` | Finds duplicate PANs and accounts | yes | R | R (its own) | O |
+| `KYC_ENCRYPTION_KEY_PREVIOUS` | Only while rotating the KYC key | yes | O | O | — |
+| `KYC_STORE_ID` | The private store for identity documents | no | auto, R | auto | — |
+| `LOG_LEVEL`, `DISABLE_LOGGING` | How much is logged | no | O | O | O |
+| `DEV_APPLICATIONS_OPEN` | Opens applications on a developer's machine only; ignored in production builds | no | — | — | O |
+| `VERCEL_*`, `NODE_ENV`, `NEXT_*`, `CI` | Set by the platform | no | auto | auto | — |
+
+Vercel also sets `BLOB_WEBHOOK_PUBLIC_KEY` and `KYC_WEBHOOK_PUBLIC_KEY`; nothing reads them.
+
+Only command-line scripts and tests read `ADMIN_EMAIL`, `ADMIN_NAME`, `ADMIN_PASSWORD`
+(`pnpm create-admin`), `SEED_RESET`, `APP_DATABASE_URL` (`pnpm check:database`), `E2E_BASE_URL` and
+`PLAYWRIGHT_CHROMIUM_PATH`. Never set them in Vercel.
+
+## Database roles
+
+The site connects as **`pjk_app`**, which may read and write rows and nothing else: no creating,
+changing or dropping tables, not the owner, and it cannot bypass Row-Level Security. Only
+migrations, at build time, use the owner (`neondb_owner`). The migration
+`20261013_185333_app_role_and_rls` creates a group role, `pjk_app_access`, holding exactly those
+rights, and turns Row-Level Security on for every table with a policy for that group alone. You
+create the login role and put it in the group. Do these steps in this order, so the live site
+never breaks along the way.
+
+1. **Merge and deploy** the pull request that adds the migration. Production migrates as before
+   (with today's `DATABASE_URL`, the owner), creating `pjk_app_access`. The site logs a warning that
+   it is connected as the owner; that is expected until step 4.
+2. **Make a password** on your own computer, and keep it only in your password manager:
+   `openssl rand -base64 32`
+3. **Create the role in Neon**, on the `main` branch: Neon → your project → **SQL Editor**, branch
+   `main`, database `neondb`, then run (with your password between the quotes):
+
+   ```sql
+   CREATE ROLE pjk_app WITH LOGIN PASSWORD 'the-password-from-step-2';
+   GRANT pjk_app_access TO pjk_app;
+   ```
+
+   Use the SQL Editor rather than **Roles → New role**: roles made in the console are also given
+   `neon_superuser`, which the site must not have. Then run the same two lines on the `preview`
+   branch, with a different password (Preview's migrations, with `MIGRATE_ON_PREVIEW=1`, create
+   `pjk_app_access` there).
+4. **Set the variables in Vercel** (Settings → Environment Variables), for Production, then for
+   Preview with that branch's values:
+   - `DATABASE_URL_MIGRATE`: the current owner connection string. Neon → **Connect**, role
+     `neondb_owner`, **Connection pooling off** (migrations are better without the pooler).
+   - `DATABASE_URL`: the same pooled string as now, with `neondb_owner:…@` replaced by
+     `pjk_app:<the password>@`. Keep `-pooler` in the host.
+   - In both, where the string says `sslmode=require`, write `sslmode=verify-full`: it checks the
+     database's certificate as well as encrypting. Today's driver already treats `require` that
+     way and prints a notice in the build log saying so; a later version will not.
+5. **Redeploy** (Deployments → the latest → Redeploy). The build migrates as the owner and the site
+   runs as `pjk_app`. From now on, a deployment connected as the owner refuses to start, so a
+   mistake here shows up at once. If anything goes wrong, put the old `DATABASE_URL` back, delete
+   `DATABASE_URL_MIGRATE`, and redeploy: everything is as it was.
+6. **Check**: `/api/health` says `ok`, and the warning about the owner has gone from the logs
+   (Vercel → Logs, search "connected to the database as").
+
+`pnpm check:database` checks all of this against any database (CI runs it on every pull request):
+RLS on every table, no policy for any other role, and `pjk_app_access` holding no more than
+listed. A migration that adds a table must also enable RLS on it and add the policy, as
+`app_role_and_rls` does, or CI fails.
 
 ## 4. Load the starter content
 

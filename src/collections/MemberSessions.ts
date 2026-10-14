@@ -24,6 +24,9 @@ export const MemberSessions: CollectionConfig = {
     { name: 'lastSeenAt', type: 'date', required: true },
     { name: 'expiresAt', type: 'date', required: true, index: true },
     { name: 'absoluteExpiresAt', type: 'date', required: true },
+    // When the member last proved it was them: at sign-in, or with a fresh emailed code
+    // (src/members/recent.ts). Sensitive actions need this within the last 30 minutes
+    { name: 'confirmedAt', type: 'date' },
     { name: 'revokedAt', type: 'date', index: true },
     { name: 'revokedReason', type: 'text' },
   ],

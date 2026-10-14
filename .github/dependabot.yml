@@ -10,6 +10,10 @@ updates:
       timezone: Asia/Kolkata
     open-pull-requests-limit: 5
     versioning-strategy: increase
+    # A release must be a week old before it is proposed: hijacked releases are usually found and
+    # pulled within days. Security updates are not held back by this
+    cooldown:
+      default-days: 7
     groups:
       next-react:
         patterns: ['next', 'eslint-config-next', 'react', 'react-dom', '@types/react', '@types/react-dom']
@@ -33,3 +37,5 @@ updates:
     directory: /
     schedule:
       interval: monthly
+    cooldown:
+      default-days: 7

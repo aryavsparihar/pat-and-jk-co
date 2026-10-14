@@ -1,11 +1,12 @@
-import { artistProblems, findOwnApplication } from '@/members/application'
+import { artistProblems, findOwnApplication, memberApplicationView } from '@/members/application'
 import { reply, requireMember, withRefresh } from '@/members/http'
 
 export const dynamic = 'force-dynamic'
 
 /**
  * The signed-in member's own application of a kind, as they may see it: everything they wrote,
- * where it has got to, and the note from staff if changes were asked for. Never staff notes.
+ * where it has got to, and the note from staff if changes were asked for. Never staff notes, and
+ * only the fields the pages use (memberApplicationView).
  */
 export async function GET(request: Request) {
   const auth = await requireMember(request)
@@ -16,12 +17,12 @@ export async function GET(request: Request) {
   if (type !== 'artist' && type !== 'partner') {
     return reply({ message: 'Ask for the artist or the partner application.' }, { status: 400 })
   }
-  const application = await findOwnApplication(payload, member, type, 1)
+  const application = await findOwnApplication(payload, member, type, 0)
   if (!application) return withRefresh(reply({ application: null }), auth.refresh)
 
   return withRefresh(
     reply({
-      application,
+      application: memberApplicationView(application),
       remaining: type === 'artist' ? Object.keys(artistProblems(application)) : [],
     }),
     auth.refresh,

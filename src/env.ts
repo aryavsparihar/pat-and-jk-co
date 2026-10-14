@@ -55,6 +55,11 @@ const schema = z.object({
     .string({ error: 'is not set (a postgres:// connection string)' })
     .regex(/^postgres(ql)?:\/\//, 'must be a postgres:// connection string'),
   PAYLOAD_SECRET: secret(16),
+  // The database owner, for migrations at build time only; the site itself uses DATABASE_URL, the
+  // least-privileged app role (docs/SETUP.md, "Database roles")
+  DATABASE_URL_MIGRATE: optional(
+    z.string().regex(/^postgres(ql)?:\/\//, 'must be a postgres:// connection string'),
+  ),
 
   // Optional, with safe fallbacks in the code
   NEXT_PUBLIC_SERVER_URL: optional(origin),
@@ -112,6 +117,14 @@ const schema = z.object({
   // Set by Vercel with the public media store; read only to make sure KYC never uses it
   BLOB_STORE_ID: optional(z.string().trim()),
 
+  // Logging (src/observability/logger.ts)
+  LOG_LEVEL: optional(z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal', 'silent'])),
+  DISABLE_LOGGING: optional(z.enum(['true', 'false'])),
+
+  // Build and development switches
+  MIGRATE_ON_PREVIEW: optional(z.enum(['0', '1'])),
+  DEV_APPLICATIONS_OPEN: optional(z.enum(['0', '1'])),
+
   // Set by Vercel
   VERCEL_ENV: optional(z.enum(['production', 'preview', 'development'])),
 })
@@ -125,6 +138,8 @@ const productionRequirements: { key: keyof Env; why: string }[] = [
     why: 'canonical URLs, CORS and CSRF need it (https://pjk.co.in)',
   },
   { key: 'RESEND_API_KEY', why: 'without email, nobody can receive a sign-in code' },
+  { key: 'CRON_SECRET', why: 'the weekly KYC purge and the job queue are refused without it' },
+  { key: 'PREVIEW_SECRET', why: 'live preview in the admin needs it' },
   {
     key: 'MEMBER_SESSION_SECRET',
     why: 'member sessions are signed with it',

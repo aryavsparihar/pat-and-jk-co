@@ -68,6 +68,24 @@ export const guardMemberAccess = (config: SanitizedConfig): SanitizedConfig => {
     }
   }
 
+  // Payload's own preferences endpoints (the admin panel's saved layouts) are for staff only.
+  // Called by a member they would fail inside Payload with a server error, as preferences only
+  // know staff accounts; refuse them plainly first
+  const preferences = config.collections.find((c) => c.slug === 'payload-preferences')
+  if (preferences && Array.isArray(preferences.endpoints)) {
+    // Copies: Payload shares its default endpoint objects between collections
+    preferences.endpoints = preferences.endpoints.map((endpoint) => ({
+      ...endpoint,
+      handler: (req) =>
+        signedInOutsider(req)
+          ? Response.json(
+              { errors: [{ message: 'You are not allowed to do that.' }] },
+              { status: 403 },
+            )
+          : endpoint.handler(req),
+    }))
+  }
+
   // The job queue: only staff (or the cron secret, checked inside the rule) may touch it
   const jobAccess = config.jobs?.access as unknown as Record<string, AccessFn | undefined>
   if (jobAccess) {

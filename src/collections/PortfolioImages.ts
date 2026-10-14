@@ -69,6 +69,16 @@ export const PortfolioImages: CollectionConfig = {
       relationTo: 'members',
       required: true,
       index: true,
+      // Shown to staff and the owner only: a public picture does not name the member behind it.
+      // Without a document (when Payload checks a query) the rule stands aside, as filtering by
+      // owner is what lets a member see their own
+      access: {
+        read: ({ req: { user }, doc }) =>
+          !doc ||
+          isStaff(user) ||
+          (isMember(user) &&
+            (typeof doc.owner === 'object' ? doc.owner?.id : doc.owner) === user.id),
+      },
       admin: { readOnly: true },
     },
     {

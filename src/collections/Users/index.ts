@@ -4,14 +4,20 @@ import { publicError } from '@/utilities/publicError'
 import { authenticated } from '../../access/authenticated'
 import { superAdminOnly, superAdminOnlyField, superAdminOrSelf } from '../../access/roles'
 import {
+  clientIp,
   COMPANY_EMAIL_DOMAIN,
   GATE_COOKIE,
+  GATE_TTL_SECONDS,
   isCompanyEmail,
   normaliseEmail,
 } from '../../security/constants'
 import { emailFooter } from '../../email/footer'
+import { notifyStaffLockout } from '../../security/email'
+import { logSecurityEvent } from '../../security/events'
 import { readGateToken } from '../../security/gateToken'
+import { hitLimit } from '../../security/rateLimit'
 import { getServerSideURL } from '../../utilities/getURL'
+import { BREACHED_MESSAGE, isBreachedPassword } from '../../security/breachedPassword'
 import { passwordProblem } from '../../security/otp'
 
 /** Reads the admin-gate cookie off an incoming request. */
@@ -25,6 +31,38 @@ const gateEmail = (req: { headers?: Headers }): string | null => {
   if (!cookie) return null
   return readGateToken(decodeURIComponent(cookie.slice(GATE_COOKIE.length + 1)))?.email ?? null
 }
+
+/**
+ * The staff password rules, then the breach check. Used when a password is set (create, update)
+ * and when it is reset from an emailed link.
+ */
+const checkStaffPassword = async (
+  password: string,
+  email: string | undefined,
+  logger: { warn: (o: object) => void },
+) => {
+  const problem = passwordProblem(password, email)
+  if (problem) throw publicError(`Password too weak: ${problem}`, 400)
+  const breached = await isBreachedPassword(password)
+  if (breached) throw publicError(BREACHED_MESSAGE, 400)
+  if (breached === null) {
+    logger.warn({ msg: 'Breached-password check skipped: the service could not be reached' })
+  }
+}
+
+/** Staff sessions: 30 minutes without activity, 12 hours at most */
+const STAFF_IDLE_SECONDS = 30 * 60
+const STAFF_ABSOLUTE_SECONDS = GATE_TTL_SECONDS
+
+const MAX_LOGIN_ATTEMPTS = 5
+const LOCK_MINUTES = 15
+
+/** A request to Payload's sign-in endpoint, and the address it was for */
+const loginAttempt = (req: { url?: string; data?: unknown }) =>
+  /\/users\/login(?:\?|$)/.test(req.url ?? '') &&
+  typeof (req.data as { email?: unknown })?.email === 'string'
+    ? normaliseEmail((req.data as { email: string }).email)
+    : null
 
 export const Users: CollectionConfig = {
   slug: 'users',
@@ -42,13 +80,15 @@ export const Users: CollectionConfig = {
     useAsTitle: 'name',
   },
   auth: {
-    // An admin session lasts a working day; after that, sign in again
-    tokenExpiration: 60 * 60 * 8,
+    // A session ends after 30 minutes without activity (the admin refreshes it while in use),
+    // and never lasts more than 12 hours, the gate's own limit (beforeOperation, below)
+    tokenExpiration: STAFF_IDLE_SECONDS,
     // Payload leaves Secure off by default. Over HTTPS (production) the session cookie is never
     // to be sent in the clear; browsers treat localhost as secure, so `pnpm start` still works.
+    // Strict: no other site can make a browser send it, not even by a link
     cookies: {
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'Lax',
+      sameSite: 'Strict',
     },
     // The "choose your password" email sent on approval and by "Forgot password": Payload's
     // wording, in the site's voice, signed off with the registered office
@@ -67,8 +107,8 @@ export const Users: CollectionConfig = {
       },
     },
     // Payload locks an account after repeated wrong passwords
-    maxLoginAttempts: 5,
-    lockTime: 15 * 60 * 1000,
+    maxLoginAttempts: MAX_LOGIN_ATTEMPTS,
+    lockTime: LOCK_MINUTES * 60 * 1000,
   },
   fields: [
     {
@@ -122,8 +162,60 @@ export const Users: CollectionConfig = {
     },
   ],
   hooks: {
+    // A reset sets the password without passing it to beforeValidate (Payload hashes it first and
+    // hands the hooks the stored record), so the rules are checked here, on the password itself
+    beforeOperation: [
+      async ({ args, operation, req }) => {
+        // A refresh extends a session by STAFF_IDLE_SECONDS; none is given once that would carry
+        // it past STAFF_ABSOLUTE_SECONDS from sign-in
+        if (operation === 'refresh') {
+          const user = req.user as { _sid?: string; sessions?: { id: string; createdAt: string }[] }
+          const session = user?.sessions?.find((s) => s.id === user._sid)
+          const age = session ? Date.now() - new Date(session.createdAt).getTime() : 0
+          if (age > (STAFF_ABSOLUTE_SECONDS - STAFF_IDLE_SECONDS) * 1000) {
+            throw publicError(
+              'Your session has reached its 12-hour limit. Please sign in again.',
+              401,
+            )
+          }
+          return args
+        }
+        // Reset emails: a few an hour for each address and each IP, on top of Payload's 15 seconds
+        // between requests for one account. Counted whether or not the address has an account, and
+        // refused with the same words either way, so the limit reveals nothing
+        if (operation === 'forgotPassword' && req.payloadAPI !== 'local') {
+          const email = normaliseEmail(
+            String((args as { data?: { email?: unknown } }).data?.email ?? ''),
+          )
+          for (const limit of [
+            { scope: 'staff-reset-address', subject: email, max: 3 },
+            { scope: 'staff-reset-ip', subject: clientIp(req.headers), max: 10 },
+          ]) {
+            const result = await hitLimit(req.payload, { ...limit, windowSeconds: 3600 })
+            if (!result.allowed) {
+              throw publicError('Too many reset requests. Please try again in an hour.', 429)
+            }
+          }
+          return args
+        }
+        if (operation !== 'resetPassword') return args
+        const password = (args as { data?: { password?: unknown; token?: unknown } }).data?.password
+        if (typeof password !== 'string') return args
+        const token = (args as { data?: { token?: unknown } }).data?.token
+        const owner =
+          typeof token === 'string' && token
+            ? ((await req.payload.db.findOne({
+                collection: 'users',
+                where: { resetPasswordToken: { equals: token } },
+                req,
+              })) as { email?: string } | null)
+            : null
+        await checkStaffPassword(password, owner?.email, req.payload.logger)
+        return args
+      },
+    ],
     beforeValidate: [
-      ({ data, req }) => {
+      async ({ data, req }) => {
         if (!data) return data
 
         if (data.email !== undefined) {
@@ -139,11 +231,70 @@ export const Users: CollectionConfig = {
 
         // Password rules are enforced here so they apply to every route into the app
         if (typeof data.password === 'string' && data.password.length > 0) {
-          const problem = passwordProblem(data.password, data.email ?? req.user?.email)
-          if (problem) throw publicError(`Password too weak: ${problem}`, 400)
+          await checkStaffPassword(data.password, data.email ?? req.user?.email, req.payload.logger)
         }
 
         return data
+      },
+    ],
+    afterLogin: [
+      async ({ req, user }) => {
+        if (req.payloadAPI === 'local') return user
+        // Within the sign-in's own transaction, which still holds the account's row
+        await logSecurityEvent(req.payload, {
+          event: 'staff-signed-in',
+          email: user.email,
+          ip: clientIp(req.headers),
+          actor: user.id,
+          req,
+        })
+        return user
+      },
+    ],
+    // Wrong passwords and locked accounts reach here as errors from the sign-in endpoint. A lock
+    // is logged and the account holder emailed once per lock, however many tries follow it
+    afterError: [
+      async ({ error, req }) => {
+        const email = loginAttempt(req)
+        if (!email) return
+        const ip = clientIp(req.headers)
+        const name = (error as { name?: string })?.name
+        if (name === 'AuthenticationError') {
+          await logSecurityEvent(req.payload, { event: 'staff-sign-in-failed', email, ip })
+        }
+        if (name !== 'LockedAuth' && name !== 'AuthenticationError') return
+        const user = (
+          await req.payload.find({
+            collection: 'users',
+            where: { email: { equals: email } },
+            limit: 1,
+            depth: 0,
+            overrideAccess: true,
+            showHiddenFields: true,
+          })
+        ).docs[0] as { id: number; email: string; lockUntil?: string | null } | undefined
+        const lockUntil = user?.lockUntil ? new Date(user.lockUntil).getTime() : 0
+        if (!user || lockUntil <= Date.now()) return
+        const lockedSince = new Date(lockUntil - LOCK_MINUTES * 60 * 1000).toISOString()
+        const told = await req.payload.count({
+          collection: 'security-events',
+          where: {
+            and: [
+              { event: { equals: 'staff-locked' } },
+              { email: { equals: user.email } },
+              { createdAt: { greater_than_equal: lockedSince } },
+            ],
+          },
+          overrideAccess: true,
+        })
+        if (told.totalDocs > 0) return
+        await logSecurityEvent(req.payload, {
+          event: 'staff-locked',
+          email: user.email,
+          ip,
+          detail: `${MAX_LOGIN_ATTEMPTS} wrong passwords; locked for ${LOCK_MINUTES} minutes`,
+        })
+        await notifyStaffLockout(req.payload, { email: user.email, minutes: LOCK_MINUTES })
       },
     ],
     beforeLogin: [

@@ -1,3 +1,4 @@
+import { requireRecentSignIn } from '@/members/recent'
 import { IDENTITY_CODE_MINUTES, issueIdentityCode } from '@/kyc/identityCode'
 import { EDITABLE, findOwnApplication } from '@/members/application'
 import { fromOurOrigin, refuseCrossSite, reply, requireMember, withRefresh } from '@/members/http'
@@ -15,6 +16,9 @@ export async function POST(request: Request) {
   const auth = await requireMember(request)
   if (!auth.ok) return auth.response
   const { payload, member } = auth
+  // Identity details, documents and data requests: a sign-in within the last 30 minutes
+  const stale = requireRecentSignIn(auth.session)
+  if (stale) return stale
 
   const { open, note } = await applicationsOpenness(payload)
   if (!open) return closedReply(note)

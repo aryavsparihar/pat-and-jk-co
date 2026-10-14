@@ -1,6 +1,7 @@
 import type { CollectionConfig, Field, FieldAccess, TextField } from 'payload'
 
 import { isKycReviewer, kycReviewerOnly } from '../access/roles'
+import { refuse } from '../security/refused'
 
 const nobody: FieldAccess = () => false
 
@@ -351,8 +352,7 @@ export const KycRecords: CollectionConfig = {
       path: '/:id/reveal',
       method: 'post',
       handler: async (req) => {
-        if (!isKycReviewer(req.user))
-          return Response.json({ message: 'Not allowed.' }, { status: 403 })
+        if (!isKycReviewer(req.user)) return refuse(req, 'Not allowed.')
         // Loaded here, not at the top: the KYC code is server-only, and this file is also read
         // by the Payload CLI (migrations), where a server-only module refuses to load
         const { KycError, revealKyc } = await import('../kyc/service')
@@ -380,8 +380,7 @@ export const KycRecords: CollectionConfig = {
       path: '/:id/approve-bank-change',
       method: 'post',
       handler: async (req) => {
-        if (!isKycReviewer(req.user))
-          return Response.json({ message: 'Not allowed.' }, { status: 403 })
+        if (!isKycReviewer(req.user)) return refuse(req, 'Not allowed.')
         const { KycError, approveBankChange } = await import('../kyc/service')
         try {
           await approveBankChange(req.payload, {
@@ -403,8 +402,7 @@ export const KycRecords: CollectionConfig = {
       path: '/:id/request-payout-details',
       method: 'post',
       handler: async (req) => {
-        if (!isKycReviewer(req.user))
-          return Response.json({ message: 'Not allowed.' }, { status: 403 })
+        if (!isKycReviewer(req.user)) return refuse(req, 'Not allowed.')
         const { KycError, requestPayoutDetails } = await import('../kyc/service')
         const { sendPayoutDetailsRequest } = await import('../members/emails')
         try {
@@ -432,8 +430,7 @@ export const KycRecords: CollectionConfig = {
       path: '/:id/record-withdrawal',
       method: 'post',
       handler: async (req) => {
-        if (!isKycReviewer(req.user))
-          return Response.json({ message: 'Not allowed.' }, { status: 403 })
+        if (!isKycReviewer(req.user)) return refuse(req, 'Not allowed.')
         const { KycError, recordConsentWithdrawal } = await import('../kyc/service')
         const body = (await req.json?.().catch(() => ({}))) as {
           reason?: string
@@ -462,8 +459,7 @@ export const KycRecords: CollectionConfig = {
       path: '/:id/legal-hold',
       method: 'post',
       handler: async (req) => {
-        if (!isKycReviewer(req.user))
-          return Response.json({ message: 'Not allowed.' }, { status: 403 })
+        if (!isKycReviewer(req.user)) return refuse(req, 'Not allowed.')
         const { KycError, setLegalHold } = await import('../kyc/service')
         const body = (await req.json?.().catch(() => ({}))) as {
           reason?: string

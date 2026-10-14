@@ -24,10 +24,11 @@ How the admin panel is protected, and what to do when something goes wrong.
 | Codes | 6 digits, single use, expire in 10 minutes, 5 attempts, stored only as a keyed hash |
 | Code requests | 5 per address per hour, 20 per IP per hour |
 | Access requests | 3 per IP per day; never create an account by themselves |
-| Passwords | At least 12 characters with upper, lower, number and symbol; may not contain the address or a common phrase |
-| Wrong passwords | Account locks for 15 minutes after 5 attempts (Payload) |
-| Sessions | Gate lasts 12 hours; the admin session lasts 8 hours |
-| Cookies | httpOnly, SameSite=Strict, Secure in production |
+| Passwords | At least 12 characters with upper, lower, number and symbol; may not contain the address or a common phrase; refused if it has appeared in a data breach (Have I Been Pwned, which is sent only the first five characters of the password's hash). The same rules apply when a password is reset |
+| Password resets | The link works once, for an hour, and ends every session. 3 requests an hour per address, 10 per IP; an unknown address gets the same answer and nothing is sent |
+| Wrong passwords | Account locks for 15 minutes after 5 attempts (Payload). Every failed sign-in is logged; the lock is logged once and the account holder is emailed |
+| Sessions | The gate closes after 30 minutes without activity and after 12 hours at most; the admin session ends after 30 minutes without activity and is never extended past 12 hours from sign-in |
+| Cookies | httpOnly, SameSite=Strict, Secure in production ([every cookie](#cookies)) |
 | Suspending someone | **Administration → Users → Status: Suspended.** Blocks sign-in at once, keeps their work |
 | Audit | Every request, failure, approval and block is written to **Administration → Security log** (read-only, super admins only) |
 | Account enumeration | Asking for a code returns the same answer whether or not the address exists |
@@ -108,7 +109,8 @@ The endpoints live under `/next/members/`.
 | Code requests | 5 per address and 20 per IP per hour, counted in Postgres |
 | Verification | 30 per IP per hour; an address with 10 wrong codes in an hour is **locked** for the rest of the hour, even against the right code, and the lockout is logged |
 | Enumeration | A sign-in request gets the same reply whether or not the address is registered; an application request always sends a code, so it reveals nothing either |
-| Sessions | `pjk_member` cookie: httpOnly, SameSite=Lax, Secure in production, signed with `MEMBER_SESSION_SECRET`. A week from last use, never more than 30 days. A new session on every sign-in (the old one is ended). The database holds only a keyed hash of the session secret, and no IP address |
+| Sessions | `pjk_member` cookie: httpOnly, SameSite=Lax, Secure in production, signed with `MEMBER_SESSION_SECRET`. A day from last use, never more than 30 days. A new session on every sign-in (the old one is ended). Signing out marks the session ended in the database, so the cookie is useless even if kept |
+| Recent sign-in | Identity details, payout details, changing the email address and data requests need a sign-in within the last 30 minutes. Otherwise the page asks for a fresh code, sent to the member's own address, and carries on where it was The database holds only a keyed hash of the session secret, and no IP address |
 | Sign out everywhere | Ends every session of the member at once. Suspending a member does the same |
 | Origin | Every state-changing member endpoint refuses requests whose `Origin` is not the site's own |
 | Admin | Members can never reach `/admin`: their collection refuses admin access, the member guard refuses it again, and the staff gate stands in front of it |
@@ -181,7 +183,8 @@ anything is written, `src/observability/redact.ts` removes email addresses, phon
 IFSC, and any run of 9 to 18 digits (Aadhaar and bank account numbers), wherever they appear: in
 the message, in fields, inside error messages and stacks. Values under keys such as `password`,
 `otp`, `token`, `pan` or `accountNumber` are dropped whatever they contain. A test logs a PAN every
-way it can and checks it never comes out.
+way it can and checks it never comes out. Credentials are removed too: connection strings with a
+password, bearer tokens, JWTs and service keys (Resend, Vercel Blob, Neon), wherever they appear.
 
 Unhandled errors in pages and routes are logged the same way by `src/instrumentation.ts`, with the
 query string stripped from the path.
@@ -200,8 +203,115 @@ serverless instance sees the same count. What is counted (an IP, an email) is st
 HMAC under `PAYLOAD_SECRET`; the table never holds an address. Server code using the Local API is
 not limited.
 
-Outside the app, one Vercel Firewall rule (the most Hobby allows) can add a coarse per-IP ceiling;
-see [AUDIT.md](AUDIT.md#9-rate-limiting).
+Outside the app, one Vercel Firewall rule (the most Hobby allows) adds a coarse per-IP ceiling:
+100 POSTs to `/next/` per IP per minute, then refused (published 4 October 2026; see
+[AUDIT.md](AUDIT.md#9-rate-limiting)). The load tests stay under it ([LOAD_TEST.md](LOAD_TEST.md)).
+
+## Monitoring and alerts
+
+The security log (**Administration → Security log**, super admins only) records staff sign-ins,
+failed sign-ins and lockouts; every code requested, sent, verified or refused; member sign-ins and
+sign-outs; every reveal of identity details and every identity document opened; every refusal of a
+signed-in person by an access rule (`access-refused`, with the path); and the first hit of each
+rate limit in its window (`rate-limited`). The app can add to it but never change or delete it
+(the database itself enforces that for the app's role).
+
+`src/security/alerts.ts` emails tech@pjk.co.in (or `TECHNICAL_INBOX`) when, within an hour, there
+are more than 20 failed staff sign-ins, 30 rate-limit hits, 3 lockouts or 50 refused requests. At
+most one email an hour for each kind, through Resend, which the site already uses: nothing to sign
+up for. Each alert is itself logged (`alert-sent`). An alert means look at the security log, not
+panic: a busy launch day can trip the rate-limit one.
+
+## Cookies
+
+Every cookie the site sets. None is used for tracking or advertising, so there is no consent banner.
+
+| Cookie | Set by | For | Lifetime | Flags |
+| --- | --- | --- | --- | --- |
+| `pjk_member` | signing in with a code (`src/security/memberSession.ts`) | a member's session | a day from last use, 30 days at most | HttpOnly, SameSite=Lax, Secure |
+| `pjk_admin_gate` | the admin gate (`/admin-access`) | proves a staff code was entered | 30 minutes idle, 12 hours at most | HttpOnly, SameSite=Strict, Secure |
+| `payload-token` | Payload's staff sign-in | the staff session | 30 minutes idle, 12 hours at most | HttpOnly, SameSite=Strict, Secure |
+| `payload-theme`, `payload-lng` | the admin panel | the admin's light/dark and language choice | up to a year | not secret; read by the admin's own script |
+| `__prerender_bypass` | Next.js, at `/next/preview` | shows drafts to staff while previewing | the browser session | HttpOnly, SameSite=None, Secure |
+
+The member cookie is Lax rather than Strict so that following a link in an email to the account
+page arrives signed in. Every state-changing member request also has its `Origin` checked.
+
+## Every route
+
+The full table, with who may call each route and each collection, is the route test
+(`tests/e2e/routes.e2e.spec.ts`): it calls every one as nobody, an expired session, a member, an
+editor and an admin, and fails if any answers someone it should not. Adding a route without adding
+it to the table fails the test too.
+
+**Public endpoints, and what protects each.** Everything else needs a member or staff session.
+
+| Endpoint | Protection |
+| --- | --- |
+| Pages, `robots.txt`, `sitemap.xml` | read only; drafts never shown without a staff preview |
+| `GET /api/<public collection>` (pages, posts, ventures, people, media, settings, forms, approved pictures) | read only, published content only, `maxDepth` 4, GraphQL off |
+| `POST /api/form-submissions` (contact and enquiry forms) | Turnstile, honeypot, 5 per IP per 10 minutes, fields checked against the form and capped (`src/collections/FormSubmissions/overrides.ts`) |
+| `/api/health` | database ping only; the `?deep=1` content check is staff only |
+| `/next/members/request-code` | origin check, Turnstile, honeypot, form-start token, 5 per address and 20 per IP an hour; same reply whether or not the address exists |
+| `/next/members/verify-code` | origin check, 5 tries a code, 30 per IP an hour, address locked after 10 wrong codes in an hour |
+| `/next/members/session`, `/next/members/sign-out` | read or end only the caller's own session |
+| `/next/members/kyc/bank-change/cancel` | a single-use token from the email, valid once |
+| `/next/admin-gate/request-code`, `verify-code`, `request-access` | the staff gate's own limits (above) |
+| `/next/visits` | origin check; counts a visitor once in 20 minutes |
+| `/next/preview` | `PREVIEW_SECRET`, compared in constant time, plus a staff session |
+| `/next/exit-preview` | only clears the preview cookie |
+| `/next/cron/kyc-purge`, Payload's job runner | `CRON_SECRET`, compared in constant time; an unset secret never matches |
+
+## Database access
+
+The site connects as `pjk_app`, a role with no ownership and no right to create or alter tables;
+migrations run during the build as the owner, through `DATABASE_URL_MIGRATE`. Every table has
+Row-Level Security on, with one policy that lets the app role do its work and nobody else
+anything, and the security log is add-only. In production the site refuses to start if it is
+connected as the owner, a superuser, or any role that bypasses RLS or can create tables. Setting
+the role up is in [SETUP.md](SETUP.md#database-roles); `pnpm check:database` checks it, and runs in
+CI. FORCE RLS is not used: it would bind the owner too and stop migrations, and the owner is only
+used by the build.
+
+## The gatekeeper
+
+Two settings make sure nothing reaches pjk.co.in without passing every check. Both are by hand,
+once.
+
+**GitHub → Settings → Rules → Rulesets → the `main` ruleset → Require status checks to pass.**
+Tick these (each appears after its workflow has run once on a pull request):
+
+- `verify` and `e2e` (CI)
+- `Secret scan`, `Dependency, secret and config scan` and `Code scan (Semgrep)` (Security)
+
+Also tick *Require branches to be up to date before merging*.
+
+**Vercel → the project → Settings → Build and Deployment → Deployment Checks → Add Checks →
+GitHub**, and choose the same five. Vercel then builds each production deployment but does not put
+it live until those checks pass on its commit. It needs automatic production aliasing left on (the
+default). In an emergency, **Promote** on a deployment overrides it.
+
+## Before every release
+
+Before merging anything to `main`:
+
+1. CI and Security are green on the pull request (all five checks).
+2. If it adds a migration: it only adds things (CI says so), and `pnpm payload migrate:create`
+   with no changes makes no new file. If it changes data or is otherwise risky, take a Neon
+   snapshot first ([RUNBOOK.md](RUNBOOK.md#4-restoring-the-database-neon)).
+3. If it adds an environment variable: it is in `src/env.ts`, `.env.example` and the SETUP.md
+   table (CI checks), and set in Vercel for Production and Preview **before** merging.
+4. If it adds a route: it is in the route test's table, with who may call it.
+5. If it touches sign-in, sessions, KYC or payouts: try it once on the Preview deployment.
+6. Nothing in the diff logs a request body, an email address or anything a member typed.
+7. A new dependency: needed, maintained, at least a week old, and not pulling in a tree of others.
+
+After it goes live:
+
+8. `https://pjk.co.in/api/health` says `ok` with the new commit; a new release appears in GitHub
+   → Releases.
+9. Vercel → Logs: no new errors in the first ten minutes.
+10. If something is wrong: roll back first ([RUNBOOK.md](RUNBOOK.md)), then fix.
 
 ## Setting up the first account
 

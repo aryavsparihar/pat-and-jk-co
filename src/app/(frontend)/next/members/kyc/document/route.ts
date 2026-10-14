@@ -1,3 +1,4 @@
+import { requireRecentSignIn } from '@/members/recent'
 import { EDITABLE, findOwnApplication } from '@/members/application'
 import { fromOurOrigin, refuseCrossSite, reply, requireMember, withRefresh } from '@/members/http'
 import { KYC_DOCUMENT_KINDS, type KycDocumentKind } from '@/kyc/schema'
@@ -22,6 +23,9 @@ export async function POST(request: Request) {
   const auth = await requireMember(request)
   if (!auth.ok) return auth.response
   const { payload, member } = auth
+  // Identity details, documents and data requests: a sign-in within the last 30 minutes
+  const stale = requireRecentSignIn(auth.session)
+  if (stale) return stale
 
   const application = await findOwnApplication(payload, member, 'artist', 0)
   const open = application && EDITABLE.includes(application.stage)
@@ -82,7 +86,7 @@ export async function POST(request: Request) {
       return reply({ message: CODE_PROBLEM[check], codeProblem: check }, { status: 422 })
     }
     const name = String(form.get('panName') ?? '').trim()
-    if (!name) {
+    if (!name || name.length > 120) {
       return reply(
         { message: 'Please give your name as on your PAN before adding the photo.' },
         { status: 422 },

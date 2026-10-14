@@ -12,6 +12,7 @@ import {
   partnerApplicationFields,
   progressFields,
 } from './applicationFields'
+import { refuse } from '../security/refused'
 
 /** Stages an applicant may still edit their own application in */
 export const EDITABLE_STAGES = ['draft', 'changes-requested'] as const
@@ -277,7 +278,7 @@ export const Applications: CollectionConfig = {
       path: '/:id/allow-reapply',
       method: 'post',
       handler: async (req) => {
-        if (!isStaff(req.user)) return Response.json({ message: 'Not allowed.' }, { status: 403 })
+        if (!isStaff(req.user)) return refuse(req, 'Not allowed.')
         const { allowReapplyNow } = await import('../members/reapply')
         try {
           await allowReapplyNow(req.payload, {
@@ -300,7 +301,7 @@ export const Applications: CollectionConfig = {
       method: 'post',
       handler: async (req) => {
         if (!isStaff(req.user)) {
-          return Response.json({ message: 'Only staff can decide applications.' }, { status: 403 })
+          return refuse(req, 'Only staff can decide applications.')
         }
         const id = Number(req.routeParams?.id)
         const body = (await req.json?.().catch(() => ({}))) as { decision?: string; note?: string }

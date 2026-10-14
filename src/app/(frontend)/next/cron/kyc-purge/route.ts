@@ -1,20 +1,14 @@
 import configPromise from '@payload-config'
-import { createHash, timingSafeEqual } from 'node:crypto'
 import { getPayload } from 'payload'
 
 import { runKycPurge } from '@/kyc/service'
+import { isCronRequest } from '@/security/secrets'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
 /** Vercel Cron sends `Authorization: Bearer <CRON_SECRET>`; compared in constant time */
-const authorised = (request: Request): boolean => {
-  const secret = process.env.CRON_SECRET
-  if (!secret) return false
-  const given = request.headers.get('authorization') ?? ''
-  const digest = (v: string) => createHash('sha256').update(v).digest()
-  return timingSafeEqual(digest(given), digest(`Bearer ${secret}`))
-}
+const authorised = (request: Request): boolean => isCronRequest(request.headers)
 
 /**
  * The weekly KYC purge (vercel.json): applies the retention rules in docs/KYC.md and logs what it

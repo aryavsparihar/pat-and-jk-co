@@ -1,7 +1,7 @@
 import type { Access, CollectionConfig, Field, FieldAccess } from 'payload'
 import { publicError } from '@/utilities/publicError'
 
-import { isMember, isStaff, superAdminOnly } from '../access/roles'
+import { isKycReviewer, isMember, isStaff, superAdminOnly } from '../access/roles'
 import { PARTNER_CATEGORIES } from '../members/categories'
 import { MEDIUMS } from '../members/forms/schemas'
 import { publishedFields, reviewGroup } from '../members/reviewFields'
@@ -9,6 +9,7 @@ import { addressFields } from './applicationFields'
 import { MEMBER_ID_PATTERN } from '../members/ids'
 import { normaliseEmail } from '../security/constants'
 import { memberSessionStrategy } from '../security/memberStrategy'
+import { refuse } from '../security/refused'
 
 /** Staff see everyone; a member sees only their own record; nobody else sees any. */
 const readOwnOrStaff: Access = ({ req: { user } }) => {
@@ -74,7 +75,19 @@ export const Members: CollectionConfig = {
       required: true,
       unique: true,
       index: true,
-      access: { update: staffOnlyField },
+      // Never edited by hand: the member changes it with a code to the new address, or a KYC
+      // reviewer changes it after an identity check with "Change the email address" (logged, and
+      // both addresses told). A plain edit here would hand the account to whoever typed it
+      access: { update: () => false },
+      admin: { readOnly: true },
+    },
+    {
+      name: 'emailRecovery',
+      type: 'ui',
+      admin: {
+        position: 'sidebar',
+        components: { Field: '@/components/admin/EmailRecoveryPanel#EmailRecoveryPanel' },
+      },
     },
     {
       type: 'row',
@@ -258,11 +271,38 @@ export const Members: CollectionConfig = {
   },
   endpoints: [
     {
+      // POST /api/members/:id/change-email  { email, reason }. KYC reviewers only; logged
+      path: '/:id/change-email',
+      method: 'post',
+      handler: async (req) => {
+        if (!isKycReviewer(req.user)) {
+          return refuse(req, 'Only a KYC reviewer can do this.')
+        }
+        const body = (await req.json?.().catch(() => ({}))) as { email?: string; reason?: string }
+        const { changeEmailByStaff } = await import('../members/account')
+        const { PortalError } = await import('../members/artworks')
+        try {
+          const result = await changeEmailByStaff(req.payload, {
+            memberId: Number(req.routeParams?.id),
+            email: body?.email,
+            reason: body?.reason,
+            actor: req.user,
+          })
+          return Response.json({ ok: true, ...result })
+        } catch (error) {
+          if (error instanceof PortalError)
+            return Response.json({ message: error.message }, { status: error.status })
+          req.payload.logger.error({ err: error, msg: 'Staff email change failed' })
+          return Response.json({ message: 'The address could not be changed.' }, { status: 500 })
+        }
+      },
+    },
+    {
       // POST /api/{collection}/:id/profile-review  { decision: 'approve' | 'request-changes', note }. Staff only
       path: '/:id/profile-review',
       method: 'post',
       handler: async (req) => {
-        if (!isStaff(req.user)) return Response.json({ message: 'Not allowed.' }, { status: 403 })
+        if (!isStaff(req.user)) return refuse(req, 'Not allowed.')
         const body = (await req.json?.().catch(() => ({}))) as { decision?: string; note?: string }
         if (body?.decision !== 'approve' && body?.decision !== 'request-changes') {
           return Response.json({ message: 'Approve, or ask for changes?' }, { status: 400 })

@@ -63,10 +63,26 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
+      - name: Every environment variable is documented and checked
+        run: pnpm check:env
+
+      - name: Migrations only add things, so a rollback always works
+        run: node scripts/check-migrations.mjs
+
       - name: Migrations apply cleanly to an empty database
         run: pnpm payload migrate
         env:
           NODE_ENV: production
+
+      - name: The database gives the site no more than it needs
+        # A login role in the app's group, as in production (docs/SETUP.md, "Database roles"),
+        # so the check also tries, from the inside, what the site must not be able to do
+        env:
+          APP_DATABASE_URL: postgres://pjk_app_ci:pjk-app-ci@localhost:5432/pjk_ci
+        run: |
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
+            -c "CREATE ROLE pjk_app_ci LOGIN PASSWORD 'pjk-app-ci' IN ROLE pjk_app_access"
+          pnpm check:database
 
       - name: Every schema change has a migration
         env:
@@ -79,11 +95,18 @@ jobs:
             exit 1
           fi
 
+      # The command Vercel runs (migrations, then next build), with the same Node and pnpm, so CI
+      # builds what production builds; any new warning fails it (build-warnings.allow). Before the
+      # integration tests: they run Payload in development mode, which marks the database as
+      # pushed, and `payload migrate` would then stop to ask about it and wait for ever
+      - name: Production build
+        run: |
+          set -o pipefail
+          pnpm vercel-build 2>&1 | tee build.log
+          node scripts/check-build-log.mjs build.log
+
       - name: Integration tests
         run: pnpm test:int
-
-      - name: Production build
-        run: pnpm build
 
   # The end-to-end tests (tests/e2e) in a real browser, against the app running on a throwaway
   # database that is migrated and seeded first. Nothing here is a real secret or a real person.

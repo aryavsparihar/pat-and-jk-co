@@ -11,7 +11,7 @@
     "generate:importmap": "cross-env NODE_OPTIONS=--no-deprecation payload generate:importmap",
     "generate:types": "cross-env NODE_OPTIONS=--no-deprecation payload generate:types",
     "ii": "cross-env NODE_OPTIONS=--no-deprecation pnpm --ignore-workspace install",
-    "lint": "cross-env NODE_OPTIONS=--no-deprecation eslint .",
+    "lint": "cross-env NODE_OPTIONS=--no-deprecation eslint . --max-warnings 0",
     "lint:fix": "cross-env NODE_OPTIONS=--no-deprecation eslint . --fix",
     "payload": "cross-env NODE_OPTIONS=--no-deprecation payload",
     "reinstall": "cross-env NODE_OPTIONS=--no-deprecation rm -rf node_modules && rm pnpm-lock.yaml && pnpm --ignore-workspace install",
@@ -19,6 +19,9 @@
     "test": "pnpm run test:int && pnpm run test:e2e",
     "test:e2e": "cross-env NODE_OPTIONS=\"--no-deprecation --import=tsx/esm --import=./scripts/allow-server-only.mjs\" playwright test --config=playwright.config.ts",
     "test:int": "cross-env NODE_OPTIONS=--no-deprecation vitest run --config ./vitest.config.mts",
+    "check:content": "cross-env NODE_ENV=production node --no-deprecation --import tsx/esm --import ./scripts/allow-server-only.mjs scripts/check-content.ts",
+    "check:env": "node --no-deprecation --import tsx/esm scripts/check-env-vars.ts",
+    "check:database": "node --no-deprecation --import tsx/esm scripts/check-database-access.ts",
     "social:icons": "node --no-deprecation --import tsx/esm scripts/social-icons.ts",
     "seed": "cross-env NODE_OPTIONS=--no-deprecation payload run src/seed/index.ts",
     "vercel-build": "node scripts/vercel-build.mjs",
@@ -35,7 +38,8 @@
     "attach-venture-logo": "cross-env NODE_OPTIONS=--no-deprecation payload run src/scripts/attach-venture-logo.ts",
     "kyc:purge": "cross-env NODE_OPTIONS=\"--no-deprecation --import=./scripts/allow-server-only.mjs\" payload run src/scripts/kyc-purge.ts",
     "kyc:check-aadhaar": "node --no-deprecation --import tsx/esm --import ./scripts/allow-server-only.mjs scripts/check-eaadhaar.ts",
-    "kyc:rotate-key": "cross-env NODE_OPTIONS=\"--no-deprecation --import=./scripts/allow-server-only.mjs\" payload run src/scripts/kyc-rotate-key.ts"
+    "kyc:rotate-key": "cross-env NODE_OPTIONS=\"--no-deprecation --import=./scripts/allow-server-only.mjs\" payload run src/scripts/kyc-rotate-key.ts",
+    "load-test:sessions": "cross-env NODE_ENV=production node --no-deprecation --import tsx/esm --import ./scripts/allow-server-only.mjs scripts/load-test-sessions.ts"
   },
   "dependencies": {
     "@payloadcms/admin-bar": "3.90.2",
@@ -58,7 +62,6 @@
     "dotenv": "16.4.7",
     "graphql": "16.14.2",
     "leaflet": "1.9.4",
-    "lucide-react": "0.563.0",
     "next": "16.3.8",
     "payload": "3.90.2",
     "pdfjs-dist": "6.3.289",
@@ -67,24 +70,23 @@
     "react": "19.2.6",
     "react-dom": "19.2.6",
     "react-hook-form": "7.71.1",
-    "sharp": "0.35.4",
+    "sharp": "0.35.5",
     "tailwind-merge": "3.6.0",
     "zod": "4.6.5"
   },
   "devDependencies": {
-    "@axe-core/playwright": "^4.13.0",
     "@playwright/test": "1.58.2",
     "@tailwindcss/postcss": "4.3.3",
-    "@testing-library/react": "16.3.0",
-    "@types/escape-html": "1.0.4",
     "@types/leaflet": "1.9.20",
     "@types/node": "22.19.9",
+    "@types/pg": "8.20.0",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "4.5.2",
     "eslint": "9.39.5",
     "eslint-config-next": "16.3.8",
     "jsdom": "28.0.0",
+    "pg": "8.20.0",
     "postcss": "8.5.28",
     "prettier": "3.9.6",
     "tailwindcss": "4.3.3",
@@ -94,8 +96,8 @@
     "vitest": "4.1.11"
   },
   "engines": {
-    "node": ">=20.9.0",
-    "pnpm": ">=10"
+    "node": "24.x",
+    "pnpm": ">=12"
   },
   "private": true,
   "packageManager": "pnpm@12.4.1"

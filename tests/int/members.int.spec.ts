@@ -466,13 +466,11 @@ describe('sessions', () => {
     const { value, sid } = await createSession(payload, { memberId: member.id })
     await execute(
       payload,
-      sql`UPDATE member_sessions SET last_seen_at = now() - interval '2 days', expires_at = now() + interval '5 days' WHERE sid = ${sid}`,
+      sql`UPDATE member_sessions SET last_seen_at = now() - interval '20 minutes', expires_at = now() + interval '23 hours' WHERE sid = ${sid}`,
     )
     const slid = await readSession(payload, value)
-    expect(slid?.refreshCookie).toMatch(/Max-Age=6\d{5}/) // about seven days, in seconds
-    expect(new Date(slid!.session.expiresAt).getTime()).toBeLessThan(
-      Date.now() + 7 * 86_400_000 + 1000,
-    )
+    expect(slid?.refreshCookie).toMatch(/Max-Age=86\d{3}/) // about a day, in seconds
+    expect(new Date(slid!.session.expiresAt).getTime()).toBeLessThan(Date.now() + 86_400_000 + 1000)
 
     await execute(
       payload,
@@ -481,7 +479,7 @@ describe('sessions', () => {
     expect(await readSession(payload, value)).toBeNull()
   })
 
-  it('end when idle for a week', async () => {
+  it('end when idle for a day', async () => {
     const { member } = await applyAndSignIn('apply-artist')
     const { value, sid } = await createSession(payload, { memberId: member.id })
     await execute(

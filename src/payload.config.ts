@@ -33,6 +33,8 @@ import { MEMBER_ID_SEQUENCE } from './members/ids'
 import { createLogger } from './observability/logger'
 import { plugins } from './plugins'
 import { guardMemberAccess } from './access/memberGuard'
+import { checkDatabaseRole } from './security/databaseRole'
+import { isCronRequest } from './security/secrets'
 import { isStaff } from './access/roles'
 import { defaultLexical } from '@/fields/defaultLexical'
 import { putStaffSessionFirst } from './security/strategyOrder'
@@ -164,7 +166,35 @@ export default buildConfig({
   // JSON lines in production, with personal data redacted from every line (src/observability)
   logger: createLogger(),
   // Staff session before member session when a request carries both (src/security/strategyOrder.ts)
-  onInit: async (payload) => putStaffSessionFirst(payload),
+  // Requests the API refuses (no access, not signed in) go to the security log, so probing for
+  // other people's records shows up there and in the alerts (src/security/alerts.ts). Wrong
+  // passwords are logged as sign-in failures instead (src/collections/Users)
+  hooks: {
+    afterError: [
+      async ({ error, req }) => {
+        const status = (error as { status?: number }).status
+        const name = (error as { name?: string }).name
+        if (status !== 401 && status !== 403) return
+        if (name === 'AuthenticationError' || name === 'LockedAuth') return
+        const { logSecurityEvent } = await import('./security/events')
+        const { requestLine } = await import('./security/refused')
+        const { clientIp } = await import('./security/constants')
+        const user = req.user as { id?: number; email?: string; collection?: string } | null
+        await logSecurityEvent(req.payload, {
+          event: 'access-refused',
+          email: user?.email,
+          ip: clientIp(req.headers),
+          actor: user?.collection === 'users' ? (user.id ?? null) : null,
+          detail: `${requestLine(req)}${user ? ` (${user.collection})` : ' (not signed in)'}`,
+        })
+      },
+    ],
+  },
+  onInit: async (payload) => {
+    putStaffSessionFirst(payload)
+    // Never the database's owner at runtime (src/security/databaseRole.ts)
+    await checkDatabaseRole(payload)
+  },
   plugins,
   secret: env.PAYLOAD_SECRET,
   sharp,
@@ -177,14 +207,8 @@ export default buildConfig({
         // Staff may run the queue by hand from the admin panel
         if (isStaff(req.user)) return true
 
-        const secret = process.env.CRON_SECRET
-        if (!secret) return false
-
-        // If there is no logged in user, then check
-        // for the Vercel Cron secret to be present as an
-        // Authorization header:
-        const authHeader = req.headers.get('authorization')
-        return authHeader === `Bearer ${secret}`
+        // Otherwise only Vercel Cron, with the secret, compared in constant time
+        return isCronRequest(req.headers)
       },
     },
     tasks: [],

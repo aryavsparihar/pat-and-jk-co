@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react'
 
 import { api } from '../onboarding/api'
+import { useStepUp } from '../onboarding/StepUp'
 import { TextField } from '../onboarding/fields'
 
 type Session = {
@@ -18,6 +19,7 @@ const when = (iso: string) =>
 
 /** Changing the email address: a code to the new address confirms it */
 export const EmailChange: React.FC<{ current: string }> = ({ current }) => {
+  const { guard } = useStepUp()
   const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
   const [challengeId, setChallengeId] = useState<number | null>(null)
@@ -31,9 +33,10 @@ export const EmailChange: React.FC<{ current: string }> = ({ current }) => {
     setBusy(true)
     setErrors({})
     setMessage(null)
-    const result = await api<{ challengeId: number; message: string }>(
-      '/next/members/portal/email',
-      { body: { email } },
+    const result = await guard(() =>
+      api<{ challengeId: number; message: string }>('/next/members/portal/email', {
+        body: { email },
+      }),
     )
     setBusy(false)
     if (!result.ok) {
@@ -217,13 +220,16 @@ const REQUESTS = [
 
 /** A member's requests about their own data; each is recorded and goes to our team */
 export const DataRequests: React.FC = () => {
+  const { guard } = useStepUp()
   const [message, setMessage] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
   const ask = async (kind: (typeof REQUESTS)[number]['kind'], confirmText: string | null) => {
     if (confirmText && !window.confirm(confirmText)) return
     setBusy(true)
-    const result = await api<{ message: string }>('/next/members/data-request', { body: { kind } })
+    const result = await guard(() =>
+      api<{ message: string }>('/next/members/data-request', { body: { kind } }),
+    )
     setBusy(false)
     setMessage(result.data.message ?? 'That could not be sent.')
   }

@@ -12,7 +12,7 @@ export const loadMember = async () => {
   const jar = await cookies()
   const active = await readSession(payload, jar.get(MEMBER_COOKIE)?.value)
   if (!active) redirect('/collaborate/signin')
-  return { payload, member: active.member }
+  return { payload, member: active.member, session: active.session }
 }
 
 /** The same, for pages only an approved artist may see; anyone else goes to their overview */

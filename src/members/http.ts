@@ -53,6 +53,10 @@ export const filledHoneypot = (body: Record<string, unknown> | null): boolean =>
  * The signed-in member for a request, or a 401 to return. Passes on a refreshed cookie when the
  * session slid forward, so callers can attach it to their reply.
  */
+/** When the database cannot be reached; what was saved before is still there */
+export const UNAVAILABLE =
+  'We could not reach our records just now, so nothing was changed. Please try again in a minute: what you typed is still here.'
+
 export const requireMember = async (
   request: Request,
 ): Promise<
@@ -60,7 +64,14 @@ export const requireMember = async (
   | { ok: false; response: Response }
 > => {
   const payload = await getPayload({ config: configPromise })
-  const active = await readSession(payload, readMemberCookie(request.headers))
+  let active: Awaited<ReturnType<typeof readSession>>
+  try {
+    active = await readSession(payload, readMemberCookie(request.headers))
+  } catch (error) {
+    // The database could not be reached: say so plainly, never with the error itself
+    payload.logger.error({ err: error, msg: 'Could not read a member session' })
+    return { ok: false, response: reply({ message: UNAVAILABLE }, { status: 503 }) }
+  }
   if (!active) {
     return { ok: false, response: reply({ message: 'Please sign in again.' }, { status: 401 }) }
   }

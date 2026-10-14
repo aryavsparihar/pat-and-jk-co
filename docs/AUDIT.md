@@ -455,3 +455,198 @@ In the order they are fixed. Each is its own commit.
 - Better Stack or UptimeRobot for uptime checks against `/api/health` (section 12).
 - Cloudflare Turnstile for the public forms (Phase 4). Done: the code request and the public
   forms (docs/SECURITY.md).
+
+---
+
+# Security and launch-readiness pass, 14 October 2026
+
+Every item checked against the code and, where it can be seen from outside, against pjk.co.in
+(read-only requests only). Each is **verified** (already sound; the evidence is a file and line, a
+test, or a command and its result) or **fixed** (the commit). **By hand** items need an account
+only the owner holds; they are collected in [LAUNCH.md](LAUNCH.md). Nothing that was already sound
+was rebuilt.
+
+## 1. Passwords and staff sign-in
+
+| Item | State | Evidence |
+| --- | --- | --- |
+| Passwords hashed with a slow, salted hash | verified | Payload: PBKDF2-SHA256, 600,000 iterations, random salt (`node_modules/payload/dist/auth/strategies/local/generatePasswordSaltHash.js:4-5,41`) |
+| Password rules applied on every path, reset included | fixed | `95f5c6a`; test *resets a password once, within the hour, by the rules* (`tests/int/staff-auth.int.spec.ts:100`) |
+| Breached passwords refused (Have I Been Pwned, k-anonymity, padded) | fixed | `4f86294`; `src/security/breachedPassword.ts`; tests at `staff-auth.int.spec.ts:28-76`. If the service is down the password is allowed and the failure logged, so an outage cannot lock staff out |
+| Reset links single use, one hour, end every session | verified | `forgotPassword.js:71` (one hour), `resetPassword.js:64` (spent on use); test `staff-auth.int.spec.ts:100` |
+| Reset answers the same for unknown addresses | verified | test `staff-auth.int.spec.ts:174` |
+| Reset requests limited | fixed | `4bcc1f4`: 3 an hour per address, 10 per IP (`src/collections/Users/index.ts:191-192`) |
+| Lockout after wrong passwords, logged, account holder emailed | fixed | 5 attempts, 15 minutes (`Users/index.ts:57-58,110-111`) was already there; `57e787a` adds the log and the email; test `staff-auth.int.spec.ts:205` |
+| Members have no passwords | verified | `src/collections/Members.ts:48` (`disableLocalStrategy`); members sign in with emailed codes only |
+| A member who has lost their mailbox can be recovered | fixed | `60ddb30`: a KYC reviewer changes the address with a reason, every session ends, both addresses are told; the field cannot be edited any other way. ADMIN_GUIDE.md, *When an artist has lost access to their email*. Tests `tests/int/member-recovery.int.spec.ts:101-141` |
+| No auth secret in the browser | verified | Built client bundle (`.next/static`, 124 files) searched for every secret's name and for the local values of DATABASE_URL, PAYLOAD_SECRET, CRON_SECRET, PREVIEW_SECRET and RESEND_API_KEY: no values. The only name found is `BLOB_READ_WRITE_TOKEN` inside the Vercel Blob library's own code, which reads it on the server and finds nothing in a browser. The only `NEXT_PUBLIC_` values are the site URL and the Turnstile site key, both public by design |
+
+## 2. Sessions and cookies
+
+The full cookie inventory is in [SECURITY.md](SECURITY.md#cookies).
+
+| Item | State | Evidence |
+| --- | --- | --- |
+| Staff session: Strict, 30 minutes idle, 12 hours at most | fixed | `9460499`; `Users/index.ts:83-93,170-175`; test `staff-auth.int.spec.ts:283` |
+| Admin gate: 30 minutes idle | fixed | `dd0b6f6`; `src/security/constants.ts:20`, renewed by `src/proxy.ts:46` |
+| Member session: Lax, a day idle, 30 days at most | fixed (idle) / verified (absolute, Lax) | `a55b2e9`; `constants.ts:62-64`; `src/security/memberSession.ts:73-85` |
+| Recent sign-in (30 minutes) for identity details, payout details, email change, data requests | fixed | `fef0e6b`; `src/members/recent.ts:15`; tests `tests/int/recent-sign-in.int.spec.ts:85-116` |
+| New session ID at every sign-in | verified | members: a fresh random `sid` per sign-in (`memberSession.ts:127`); staff: Payload adds a new session id to the JWT at each login |
+| Sign-out ends the session on the server | verified | members: the row is marked revoked and never accepted again (`memberSession.ts:175,206`); staff: Payload removes the session from the account (`node_modules/payload/dist/auth/operations/logout.js:46-49`) |
+
+Files changed for this section: `src/collections/Users/index.ts`, `src/security/constants.ts`,
+`src/security/gateToken.ts`, `src/proxy.ts`, `src/security/memberSession.ts`,
+`src/collections/MemberSessions.ts`, `src/members/recent.ts`, the step-up routes under
+`src/app/(frontend)/next/members/step-up/`, `src/components/onboarding/StepUp.tsx` and the pages
+that use it, and two migrations (`20261013_170910`, `20261013_171821`).
+
+## 3. Routes and responses
+
+| Item | State | Evidence |
+| --- | --- | --- |
+| Inventory of every route, with who may call it | fixed | `e8c1bbd`: `tests/e2e/routes.e2e.spec.ts` holds the table; summary in [SECURITY.md](SECURITY.md#every-route) |
+| Each route tried with no session, an expired one, a member, an editor and an admin | fixed | same test; 9 of 9 pass, also against a production build running as the least-privileged database role |
+| One member cannot reach another's records (IDOR) | verified | the same test sets up a second member and checks that every collection returns only the caller's own rows (`tests/e2e/routes.e2e.spec.ts:385`), that another member's work is not found by its address (`:285`), and that another member's records cannot be changed even by ID (`:416`) |
+| Responses carry only what the page uses | fixed | `56dfb0d` (own application), `5842ef1` (public pictures no longer name the member) |
+| Payload's preferences endpoints refuse members cleanly | fixed | `c539994` |
+| Upload-token endpoint checks the session first | fixed | `09c3cf1` |
+| Secrets compared in constant time, never matching an empty one | fixed | `166bfbc`; `src/security/secrets.ts` |
+| Public endpoints and how each is protected | verified | [SECURITY.md](SECURITY.md#every-route) lists each with its origin check, Turnstile, form token, honeypot and rate limit |
+| Visit counter cannot be inflated | fixed | `d760426`: once per visitor per 20 minutes across instances, only from our own pages |
+
+## 4. Database
+
+| Item | State | Evidence |
+| --- | --- | --- |
+| Credentials server-only | verified | bundle search under section 1 |
+| Owner and app role split; migrations run as the owner | fixed | `6531024`: group role `pjk_app_access`, `DATABASE_URL_MIGRATE` for migrations (`scripts/vercel-build.mjs`) |
+| The site refuses to start as the owner | fixed | `checkDatabaseRole` (`src/security/databaseRole.ts`, called from `src/payload.config.ts`): in production with `DATABASE_URL_MIGRATE` set it refuses an owner, superuser, RLS-bypassing or table-creating role |
+| RLS on every table, a policy for the app role only | fixed | `src/migrations/20261013_185333_app_role_and_rls.ts:49-52`. The security log is append-only for the app; the migrations table read-only |
+| FORCE RLS | not used, on purpose | it would apply to the owner too and stop migrations; the owner is used only by the build. RLS is a second guard behind Payload's own access rules, which the route tests cover |
+| CI checks it | fixed | `pnpm check:database` in CI against a fresh database (`scripts/check-database-access.ts`) |
+| Neon and Vercel steps | by hand | docs/SETUP.md, *Database roles*; LAUNCH.md |
+| TLS to Neon | verified | the connection strings end `sslmode=require`, and Neon refuses unencrypted connections. The build log's `pg` notice says that today `require` is treated as `verify-full`, so the certificate is checked too; a future `pg` will make `require` weaker, so SETUP.md now says to write `sslmode=verify-full`, which keeps today's behaviour and silences the notice |
+| Neon IP allow-list | not available | needs Neon's Scale plan; Vercel's addresses change anyway. The connection string is the secret (paid recommendations, below) |
+
+## 5. HTTPS
+
+| Item | State | Evidence |
+| --- | --- | --- |
+| HTTP redirects to HTTPS | verified | `curl -I http://pjk.co.in` and `http://www.pjk.co.in`: 308 to https |
+| HSTS | verified | `next.config.ts:68`; live header `max-age=63072000; includeSubDomains; preload` |
+| upgrade-insecure-requests | verified | `next.config.ts:52` (production only; WebKit applies it to localhost) |
+| No mixed content | verified | 12 public pages fetched and searched for `http://` sub-resources: none |
+| HSTS preload | ready, not submitted | hstspreload.org reports *eligible, no errors*. Submitting is a one-way decision for every subdomain, so it is listed for you in LAUNCH.md |
+
+## 6. Secrets
+
+| Item | State | Evidence |
+| --- | --- | --- |
+| Nothing real ever committed | verified | gitleaks over every commit: no real credential. Its one finding was a made-up token in this branch's own redaction test (`37b13cf`), now built at runtime and its old line listed in `.gitleaksignore` with the reason (`6f28061`). Trivy over the working tree: only the Vercel OIDC token in `.env.local`, which is gitignored and never committed. **No key needs rotating** |
+| Env files ignored | verified | `.gitignore:5,39`; the only tracked env files are `.env.example` (placeholders) and `test.env` (no secrets) |
+| No secret behind `NEXT_PUBLIC_` | verified | section 1 |
+| Secret scanning in CI | fixed | `3487b7d`: gitleaks over the whole history on every push, PR and weekly |
+
+## 7. Environment variables
+
+| Item | State | Evidence |
+| --- | --- | --- |
+| A table of every variable | fixed | `cf32f62`: docs/SETUP.md, *Environment variables* |
+| Boot check covers every variable | fixed | `src/env.ts`; `CRON_SECRET` and `PREVIEW_SECRET` now required in production |
+| `.env.example` complete; CI keeps code, example and boot check in step | fixed | `pnpm check:env` (`scripts/check-env-vars.ts`) |
+| Matches Vercel (names only) | verified | Production and Preview hold every required name. Missing: `DATABASE_URL_MIGRATE` (added with the role split, by hand). Unused in Vercel: `BLOB_WEBHOOK_PUBLIC_KEY`, `KYC_WEBHOOK_PUBLIC_KEY` (safe to delete) |
+
+## 8. Logging
+
+| Item | State | Evidence |
+| --- | --- | --- |
+| No personal data in logs | verified | redaction on the logger (`src/observability/redact.ts:37-40`), tests in `tests/int/redact.int.spec.ts` |
+| No credentials in logs | fixed | `37b13cf`: connection strings, bearer tokens, JWTs and service keys redacted from any line |
+
+## 9. Errors
+
+| Item | State | Evidence |
+| --- | --- | --- |
+| No raw error reaches a visitor | verified | API errors are generic (`tests/int/public-error.int.spec.ts`) |
+| Branded error pages | fixed | `50efcae`: per-site error page and a global one |
+| Database unreachable | fixed | `70deb86`: a plain 503, tested |
+| Session runs out mid-application | fixed | `ea9afda`: sign in again in place, nothing lost |
+| Unhappy paths in a real browser: malformed input, slow and offline network, double-click, back button, session expiry, upload failure and cancel, empty states | fixed | `c29d50c`: `tests/e2e/unhappy.e2e.spec.ts`, 7 of 7 pass |
+| Outside services failing: Resend, Turnstile, IFSC lookup, Blob, database | fixed | `tests/int/outside-failures.int.spec.ts` |
+
+## 10. Input validation
+
+| Item | State | Evidence |
+| --- | --- | --- |
+| Strict schemas on every input | verified | zod schemas in `src/members/forms/schemas.ts` and `src/kyc/schema.ts`, applied on the server for every step and form |
+| Every free-text identity field capped | fixed | `ca50111` |
+| Names in any script | verified | name fields accept any script: tests with Devanagari and Urdu names (`tests/int/forms.int.spec.ts:306`, `tests/e2e/unhappy.e2e.spec.ts:91`) |
+| No SQL, shell or HTML injection | verified | Drizzle and Payload parameterise every query; the only raw SQL uses tagged templates; no shell calls with user input; React escapes output; the three `dangerouslySetInnerHTML` uses carry JSON-LD with every `<` escaped (`src/components/JsonLd.tsx:32`) and constant SVG icons from the repository (`BrandSvg.tsx`, `BrandSocialLinks.tsx`), never text a visitor or editor typed (Semgrep, section 16) |
+| Uploads | verified | the format is read by decoding the file, not from its name; 25 MB and a pixel limit; every picture re-encoded as a fresh JPEG with EXIF and GPS dropped (`src/members/portfolio.ts:61-100`); tests in `tests/int/onboarding.int.spec.ts` |
+
+## 11. Dependencies
+
+| Item | State | Evidence |
+| --- | --- | --- |
+| pnpm audit, Trivy and OSV | fixed | `ec48fa1` (sharp 0.35.5), `bc80103` (source-map-js 1.2.2). One left: `braces` inside a build-time tool, no fixed version that the tool accepts; allow-listed with a review date of 1 December 2026 |
+| Unused packages (knip) | fixed | `6642e5e`, `93aebca`, `2347d69`, `7f76238` |
+| Deprecated packages | known | ESLint 9 is deprecated; ESLint 10 breaks `eslint-plugin-react`, so it stays until that plugin catches up. Dependabot will propose it |
+| New releases wait a week | fixed | `c1ac123`: pnpm `minimumReleaseAge`, Dependabot cooldown |
+| Payload packages move together | verified | every `@payloadcms/*` and `payload` pinned to 3.90.2 |
+
+Commands: `pnpm audit --audit-level high`, `trivy fs --scanners vuln,secret,misconfig .`,
+`osv-scanner scan source -r .`, `pnpm dlx knip`.
+
+## 12. Build health
+
+| Item | State | Evidence |
+| --- | --- | --- |
+| Vercel build warnings | fixed | `5357c63` (engines, npm setting). The `pg` SSL notice is harmless (section 4) |
+| CI fails on build or lint warnings, with an allow-list | fixed | `42d5511`: `scripts/check-build-log.mjs`, `build-warnings.allow`, ESLint `--max-warnings 0` |
+| Same Node, pnpm and build as production | fixed | Node 24 pinned, CI runs `pnpm vercel-build` |
+
+## 13. Content readiness
+
+| Item | State | Evidence |
+| --- | --- | --- |
+| Check that the live site's records exist | fixed | `529c6c0`: `pnpm check:content`; staff-only `/api/health?deep=1` |
+| Run against production | by hand | needs the production connection string or a signed-in staff browser; LAUNCH.md |
+| Graceful when data is missing | verified | `tests/e2e/unhappy.e2e.spec.ts` renders an empty site |
+
+## 14. Rollback
+
+| Item | State | Evidence |
+| --- | --- | --- |
+| A tag and release for each production deploy | fixed | `ce86189`: `.github/workflows/release.yml` |
+| Runbook | fixed | `a8ac02e`: docs/RUNBOOK.md. Vercel screenshots not included: the browser here is not signed in to Vercel, and signing in is yours to do |
+| Migrations additive, enforced in CI | fixed | `a8ac02e`: `scripts/check-migrations.mjs`, exceptions in `migrations-allow.txt` with a reason |
+| Neon snapshot before launch and risky migrations | fixed | RUNBOOK.md section 4; LAUNCH.md |
+
+## 15. Load testing
+
+| Item | State | Evidence |
+| --- | --- | --- |
+| k6 scripts for browsing, applying and a health burst | fixed | `5d78329`: `load-tests/`, docs/LOAD_TEST.md; local dry run passes |
+| Run on a Preview deployment | waiting | needs a Protection Bypass for Automation secret, which only you can create. The tests fit under the Firewall rule as it is; no setting needs changing |
+
+## 16. Security in CI
+
+| Item | State | Evidence |
+| --- | --- | --- |
+| Trivy, failing on HIGH and CRITICAL with a fix; allow-list with reason and date | fixed | `3487b7d`: `.github/workflows/security.yml`, `.trivyignore.yaml` |
+| pnpm audit | fixed | same workflow |
+| Code scanning | fixed | Semgrep community rules (CodeQL needs GitHub Advanced Security on a private repository) |
+| SBOM | fixed | CycloneDX, kept 90 days as a workflow artifact |
+| Actions pinned to commits, least permissions | verified / fixed | every action pinned to a full SHA; all three workflows default to `contents: read`, and only the release job may write (tags and releases) |
+| Required checks and Vercel holding deploys until they pass | by hand | [SECURITY.md](SECURITY.md#the-gatekeeper); LAUNCH.md |
+| Security headers still in place | verified | live pjk.co.in: CSP, HSTS, `X-Frame-Options: SAMEORIGIN`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `Permissions-Policy` (camera allowed only on the artist application), `Cross-Origin-Opener-Policy` |
+
+## 17. Monitoring
+
+| Item | State | Evidence |
+| --- | --- | --- |
+| Security log records sign-ins, code requests, lockouts, rate-limit hits, KYC reveals and refusals | fixed | sign-ins and lockouts `57e787a`; refusals and rate limits `b581468`; code requests and KYC reveals (`kyc-revealed`, `kyc-document-opened`) were already logged |
+| Free alert email to tech@pjk.co.in | fixed | `b581468`: `src/security/alerts.ts`, through Resend (already in use), at most once an hour per kind |
+| Turnstile active in production | verified | the live sign-in page loads Cloudflare's script with a real site key; production refuses to start with the test keys (`src/env.ts`) |
+| App rate limits active | verified | Postgres-backed, tested (`tests/int/rateLimit.int.spec.ts`); 19 load-test code requests from one IP logged and limited as expected |
+| Firewall rule active | recorded | published 4 October 2026 (LAUNCH.md). It cannot be confirmed from outside without tripping it on production, so it is listed for a look in the Vercel dashboard |

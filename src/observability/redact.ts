@@ -12,7 +12,9 @@
  *   international phone numbers (+91 …)      → [phone]
  *   runs of 9 to 18 digits, with or without spaces or hyphens: Aadhaar numbers, bank account
  *   numbers, Indian mobile numbers          → [number]
- *   any value under a key that names one of the above, or a password, token or secret
+ *   credentials: the user and password in a connection string (postgres://u:p@host),
+ *   Bearer tokens, JWTs, and Resend, Vercel Blob and Vercel OIDC tokens  → [credentials] etc.
+ *   any value under a key that names one of the above, or a password, token, key or secret
  *
  * It errs towards removing too much: a log line that loses a long number is a small cost, and
  * one that keeps an account number is not. Dates (2026-10-02 15:00) are left alone.
@@ -25,12 +27,23 @@ const INTERNATIONAL_PHONE = /\+\d{1,3}[\s().-]*\d(?:[\s().-]*\d){6,13}/g
 // 9–18 digits, optionally grouped by single spaces or hyphens, not part of a longer word or decimal
 const LONG_NUMBER = /(?<![\w.])\d(?:[ -]?\d){8,17}(?![\w.])/g
 const LOOKS_LIKE_DATE = /^\d{4}-\d{2}-\d{2}/
+// postgres://user:password@host, and any other URL carrying a user and password
+const URL_CREDENTIALS = /\b([a-z][a-z0-9+.-]*:\/\/)[^\s/@:]+:[^\s/@]+@/gi
+const BEARER = /\bBearer\s+[A-Za-z0-9._~+/=-]{8,}/gi
+const JWT = /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g
+const SERVICE_KEY =
+  /\b(?:re_[A-Za-z0-9_]{16,}|vercel_blob_rw_[A-Za-z0-9_]{16,}|npm_[A-Za-z0-9]{20,})\b/g
 
 const SENSITIVE_KEY =
-  /^(e-?mail|email_?address|phone|mobile|pan|pan_?number|aadhaar.*|account_?number|account_?no|acc_?no|ifsc.*|password|passcode|otp|token|secret|authorization|cookie|set-cookie)$/i
+  /^(e-?mail|email_?address|phone|mobile|pan|pan_?number|aadhaar.*|account_?number|account_?no|acc_?no|ifsc.*|password|passcode|otp|token|secret|authorization|cookie|set-cookie|api_?key|.*_secret|.*_token|connection_?string|database_?url)$/i
 
 export const redactString = (value: string): string =>
   value
+    // Credentials first, before the email pattern can mistake user:pass@host for an address
+    .replace(URL_CREDENTIALS, '$1[credentials]@')
+    .replace(BEARER, 'Bearer [token]')
+    .replace(JWT, '[jwt]')
+    .replace(SERVICE_KEY, '[key]')
     .replace(EMAIL, '[email]')
     .replace(INTERNATIONAL_PHONE, '[phone]')
     .replace(PAN, '[pan]')

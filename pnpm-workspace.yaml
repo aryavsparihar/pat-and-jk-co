@@ -4,6 +4,10 @@ allowBuilds:
   unrs-resolver: true
   workerd: true
 
+# A package version must have been published for a week before pnpm will install it, so a
+# hijacked release is usually found and pulled before it reaches us (in minutes)
+minimumReleaseAge: 10080
+
 # Pull transitive dependencies up to patched releases. Each line names the advisory it answers;
 # remove one once the package that brings it in ships the fix itself (check with `pnpm why`).
 overrides:
@@ -18,3 +22,17 @@ overrides:
   # eslint → minimatch (development only): DoS via nested braces
   "brace-expansion@<1.1.21": "^1.1.21"
   "brace-expansion@>=4.0.0 <5.0.12": "^5.0.12"
+  # sharp (images: uploads, Next's optimiser): librsvg flaw in SVG decoding, GHSA-wq5f-xc86-pv6w
+  "sharp@<0.35.5": "0.35.5"
+  # postcss and the bundler (build time): event-loop DoS from crafted source maps, GHSA-68fv-2mgg-jv7q
+  "source-map-js@>=1.0.0 <1.2.2": "^1.2.2"
+
+# Advisories that cannot be fixed yet, each with why it does not reach the site and a date to look
+# again. CI fails on any other high or critical advisory (.github/workflows/security.yml). The same
+# list, for Trivy, is in .trivyignore.yaml.
+auditConfig:
+  ignoreGhsas:
+    # braces 3.0.3, through chokidar in sass (file watching at build time): stack overflow on
+    # deeply nested glob patterns. No fixed version exists; it only ever matches globs from our
+    # own build configuration, never anything a visitor sends. Review 2026-12-01
+    - GHSA-vfj7-8cjw-p6xm

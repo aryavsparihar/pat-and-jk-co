@@ -1,6 +1,6 @@
 import type { Payload } from 'payload'
 
-import type { Member, MemberSession } from '@/payload-types'
+import type { Member, MemberSession, User } from '@/payload-types'
 import { checkChallenge, issueChallenge } from '@/security/challenges'
 import { isEmail, normaliseEmail } from '@/security/constants'
 import { logSecurityEvent } from '@/security/events'
@@ -8,7 +8,7 @@ import { revokeSession } from '@/security/memberSession'
 
 import { memberIdsOf } from '../collections/Members'
 import { findMember } from './accounts'
-import { sendEmailChangedNotice, sendMemberCode } from './emails'
+import { sendEmailChangedNotice, sendMemberCode, sendStaffEmailChangeNotices } from './emails'
 import { PortalError } from './artworks'
 
 const ctx = { disableRevalidate: true }
@@ -170,4 +170,83 @@ export const confirmEmailChange = async (
   })
   await sendEmailChangedNotice(payload, { oldEmail })
   return { email: pending.pendingEmail }
+}
+
+/**
+ * When a member has lost access to their email, a KYC reviewer changes the address for them, after
+ * checking who they are against the identity details on file (docs/ADMIN_GUIDE.md). Only for a
+ * member with identity details to check against; a reason is required and logged with the
+ * reviewer's name; every session ends; both addresses are told.
+ */
+export const changeEmailByStaff = async (
+  payload: Payload,
+  {
+    memberId,
+    email,
+    reason,
+    actor,
+  }: { memberId: number; email: unknown; reason: unknown; actor: User },
+) => {
+  const why = String(reason ?? '').trim()
+  if (why.length < 10) {
+    throw new PortalError(
+      'Please give a reason of at least a few words. It is kept in the security log.',
+      400,
+    )
+  }
+  const member = await payload.findByID({
+    collection: 'members',
+    id: memberId,
+    depth: 0,
+    overrideAccess: true,
+  })
+  const next = normaliseEmail(String(email ?? ''))
+  if (!isEmail(next)) throw new PortalError('Please give a full email address.')
+  if (next === member.email) throw new PortalError('That is already the address on the account.')
+  const kyc = await payload.count({
+    collection: 'kyc-records',
+    where: { member: { equals: member.id } },
+    overrideAccess: true,
+  })
+  if (kyc.totalDocs === 0) {
+    throw new PortalError(
+      'There are no identity details on file to check them against, so the address cannot be changed this way. A super admin can decide what to do.',
+      409,
+    )
+  }
+  const taken = await findMember(payload, next)
+  if (taken && taken.id !== member.id) {
+    throw new PortalError('That address already has an account with us.', 409)
+  }
+
+  const oldEmail = member.email
+  await payload.update({
+    collection: 'members',
+    id: member.id,
+    data: {
+      email: next,
+      emailChange: { pendingEmail: null, challengeId: null, requestedAt: null },
+    } as never,
+    overrideAccess: true,
+    context: ctx,
+  })
+  const sessions = await payload.find({
+    collection: 'member-sessions',
+    where: { and: [{ member: { equals: member.id } }, { revokedAt: { exists: false } }] },
+    limit: 100,
+    depth: 0,
+    overrideAccess: true,
+  })
+  for (const s of sessions.docs)
+    await revokeSession(payload, s.sid, 'email address changed by staff')
+
+  await logSecurityEvent(payload, {
+    event: 'member-email-changed',
+    email: next,
+    subject: memberIdsOf(member),
+    actor: actor.id,
+    detail: `Changed by ${actor.email} after an identity check: ${why.slice(0, 300)}; ${sessions.docs.length} session(s) ended`,
+  })
+  await sendStaffEmailChangeNotices(payload, { oldEmail, newEmail: next })
+  return { email: next }
 }

@@ -7,6 +7,7 @@ import { hitLimit } from '@/security/rateLimit'
 import { PortalError } from './artworks'
 import { fieldErrors } from './forms/schemas'
 import { fromOurOrigin, readJson, refuseCrossSite, reply, requireMember, withRefresh } from './http'
+import { requireRecentSignIn } from './recent'
 
 type Context = { payload: Payload; member: Member; session: MemberSession; request: Request }
 
@@ -19,7 +20,12 @@ export const portalHandler =
   <T>(
     scope: string,
     handle: (ctx: Context) => Promise<T>,
-    options: { limit?: number; changes?: boolean } = {},
+    options: {
+      limit?: number
+      changes?: boolean
+      /** A sensitive action: needs a sign-in within the last 30 minutes (src/members/recent.ts) */
+      recent?: boolean
+    } = {},
   ) =>
   async (request: Request): Promise<Response> => {
     const changes = options.changes ?? request.method !== 'GET'
@@ -27,6 +33,10 @@ export const portalHandler =
     const auth = await requireMember(request)
     if (!auth.ok) return auth.response
     const { payload, member, session } = auth
+    if (options.recent) {
+      const stale = requireRecentSignIn(session)
+      if (stale) return stale
+    }
 
     if (changes) {
       const limit = await hitLimit(payload, {

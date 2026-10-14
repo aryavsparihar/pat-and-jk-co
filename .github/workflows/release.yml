@@ -1,0 +1,65 @@
+# After each successful production deployment, a tag (release-2026-10-13-1) and a GitHub release
+# listing what changed since the last one. They give every live version a name to roll back to and
+# a plain record of what went out when (docs/RUNBOOK.md). Vercel reports its deployments to GitHub,
+# which starts this.
+name: Release
+
+on:
+  deployment_status:
+
+permissions:
+  contents: read
+
+jobs:
+  tag:
+    name: Tag the release
+    if: >-
+      github.event.deployment_status.state == 'success' &&
+      github.event.deployment.environment == 'Production'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write # to push the tag and create the release, nothing else
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.deployment.sha }}
+          fetch-depth: 0
+
+      - name: Tag and release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.deployment.sha }}
+          URL: ${{ github.event.deployment_status.environment_url }}
+        run: |
+          set -euo pipefail
+          # Once per commit: a redeploy of the same commit is the same release
+          if git tag --points-at "$SHA" | grep -q '^release-'; then
+            echo "Already released: $(git tag --points-at "$SHA" | grep '^release-')"
+            exit 0
+          fi
+          day=$(TZ=Asia/Kolkata date +%Y-%m-%d)
+          n=1
+          while git rev-parse -q --verify "refs/tags/release-$day-$n" >/dev/null; do n=$((n + 1)); done
+          tag="release-$day-$n"
+          previous=$(git tag --list 'release-*' --sort=-creatordate | head -1)
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$tag" "$SHA" -m "Live on pjk.co.in from $(TZ=Asia/Kolkata date '+%d %b %Y, %H:%M') IST"
+          git push origin "$tag"
+
+          {
+            echo "Deployed to production: $URL"
+            echo
+            if [ -n "$previous" ]; then
+              echo "Changes since $previous:"
+              echo
+              git log --no-merges --format='- %s (%h)' "$previous..$SHA"
+            else
+              echo "The first tagged release."
+            fi
+            echo
+            echo "To roll back to the version before this one, see docs/RUNBOOK.md."
+          } > notes.md
+          gh release create "$tag" --target "$SHA" --title "$tag" --notes-file notes.md

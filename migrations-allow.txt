@@ -1,0 +1,2 @@
+# Migrations allowed to remove or change something (scripts/check-migrations.mjs), one name per
+# line, then "#" and why the previous release of the code still works against it. Empty is best.

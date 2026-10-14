@@ -5,6 +5,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { api } from '../api'
 import { ErrorSummary, type Errors, TextField } from '../fields'
 import { Sending } from '../Sending'
+import { StepUpProvider, useStepUp } from '../StepUp'
 import { CameraCapture, type CameraProblem } from './identity/CameraCapture'
 import { FilePreview } from './identity/FilePreview'
 import { type Code, IdentityCode } from './identity/IdentityCode'
@@ -86,6 +87,7 @@ const Upload: React.FC<{
   const [busy, setBusy] = useState(false)
   // The chosen file, kept in this page only, to preview
   const [file, setFile] = useState<File | null>(null)
+  const { guard } = useStepUp()
   const id = `field-documents-${kind}`
   const send = async (chosen: File | undefined) => {
     if (!chosen) return
@@ -100,9 +102,9 @@ const Upload: React.FC<{
     const form = new FormData()
     form.append('kind', kind)
     form.append('file', body, chosen.name)
-    const result = await api<{ document: { id: number } }>('/next/members/kyc/document', {
-      body: form,
-    })
+    const result = await guard(() =>
+      api<{ document: { id: number } }>('/next/members/kyc/document', { body: form }),
+    )
     setBusy(false)
     if (!result.ok) return setState(result.data.message ?? 'That file could not be sent.')
     onUploaded(result.data.document.id)
@@ -164,13 +166,22 @@ const longDate = (iso: string | undefined) =>
  * how the details are protected, and who can see them, before anything is asked for. Nothing typed
  * here is ever put in browser storage, and what comes back from the server is masked.
  */
-export const KycStep: React.FC<{
+type KycStepProps = {
   onSaved: (completedSteps: string[]) => void
   /** The privacy policy, rendered on the server, for the consent dialog */
   privacy: React.ReactNode
   /** From About you: written on the paper in the photo */
   dateOfBirth?: string
-}> = ({ onSaved, privacy, dateOfBirth }) => {
+}
+
+/** Identity details need a sign-in within the last 30 minutes; the step asks for a code if not */
+export const KycStep: React.FC<KycStepProps> = (props) => (
+  <StepUpProvider>
+    <KycForm {...props} />
+  </StepUpProvider>
+)
+
+const KycForm: React.FC<KycStepProps> = ({ onSaved, privacy, dateOfBirth }) => {
   const [masked, setMasked] = useState<Masked | undefined>(undefined)
   const [noticeVersion, setNoticeVersion] = useState<string | undefined>(undefined)
   const [editing, setEditing] = useState(false)
@@ -184,6 +195,7 @@ export const KycStep: React.FC<{
   const [photoBusy, setPhotoBusy] = useState(false)
   const [photoNote, setPhotoNote] = useState<string | null>(null)
   const [agreed, setAgreed] = useState(false)
+  const { guard } = useStepUp()
   const [v, setV] = useState<Record<string, string | boolean | undefined>>({
     idChoice: 'aadhaar',
   })
@@ -227,7 +239,7 @@ export const KycStep: React.FC<{
 
   const newCode = async () => {
     setCodeBusy(true)
-    const result = await api<Code>('/next/members/kyc/identity-code', { body: {} })
+    const result = await guard(() => api<Code>('/next/members/kyc/identity-code', { body: {} }))
     setCodeBusy(false)
     if (!result.ok)
       return setPhotoNote(result.data.message ?? 'A code could not be given just now.')
@@ -253,9 +265,10 @@ export const KycStep: React.FC<{
     form.append('identityCode', code.code)
     form.append('panName', name)
     form.append('capturedWith', capturedWith)
-    const result = await api<{ document: { id: number }; codeProblem?: string }>(
-      '/next/members/kyc/document',
-      { body: form },
+    const result = await guard(() =>
+      api<{ document: { id: number }; codeProblem?: string }>('/next/members/kyc/document', {
+        body: form,
+      }),
     )
     setPhotoBusy(false)
     if (!result.ok) {
@@ -272,24 +285,26 @@ export const KycStep: React.FC<{
     setBusy(true)
     setErrors({})
     setMessage(null)
-    const result = await api<{ kyc: Masked; completedSteps: string[] }>('/next/members/kyc', {
-      body: {
-        consent: agreed,
-        consentReadToEnd: agreed,
-        consentTyped: agreed ? AGREE_PHRASE : '',
-        noticeVersion,
-        pan: s('pan'),
-        panName: s('panName'),
-        idChoice: v.idChoice,
-        aadhaarLast4: v.idChoice === 'aadhaar' ? s('aadhaarLast4') : undefined,
-        // Sent once, to open the PDF for the check; not kept here or on the server
-        aadhaarPassword: v.idChoice === 'aadhaar' ? s('aadhaarPassword') || undefined : undefined,
-        otherIdKind: v.idChoice === 'other' ? v.otherIdKind : undefined,
-        addressOnIdMatches:
-          typeof v.addressOnIdMatches === 'boolean' ? v.addressOnIdMatches : undefined,
-        documents: docs,
-      },
-    })
+    const result = await guard(() =>
+      api<{ kyc: Masked; completedSteps: string[] }>('/next/members/kyc', {
+        body: {
+          consent: agreed,
+          consentReadToEnd: agreed,
+          consentTyped: agreed ? AGREE_PHRASE : '',
+          noticeVersion,
+          pan: s('pan'),
+          panName: s('panName'),
+          idChoice: v.idChoice,
+          aadhaarLast4: v.idChoice === 'aadhaar' ? s('aadhaarLast4') : undefined,
+          // Sent once, to open the PDF for the check; not kept here or on the server
+          aadhaarPassword: v.idChoice === 'aadhaar' ? s('aadhaarPassword') || undefined : undefined,
+          otherIdKind: v.idChoice === 'other' ? v.otherIdKind : undefined,
+          addressOnIdMatches:
+            typeof v.addressOnIdMatches === 'boolean' ? v.addressOnIdMatches : undefined,
+          documents: docs,
+        },
+      }),
+    )
     setBusy(false)
     if (!result.ok) {
       setErrors(result.data.errors ?? {})

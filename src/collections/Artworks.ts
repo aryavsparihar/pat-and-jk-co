@@ -2,6 +2,7 @@ import type { Access, CollectionConfig } from 'payload'
 
 import { isStaff } from '../access/roles'
 import { publishedFields, reviewGroup } from '../members/reviewFields'
+import { refuse } from '../security/refused'
 
 export const ARTWORK_AVAILABILITY = [
   { label: 'Available', value: 'available' },
@@ -150,7 +151,7 @@ export const Artworks: CollectionConfig = {
       path: '/:id/review',
       method: 'post',
       handler: async (req) => {
-        if (!isStaff(req.user)) return Response.json({ message: 'Not allowed.' }, { status: 403 })
+        if (!isStaff(req.user)) return refuse(req, 'Not allowed.')
         const body = (await req.json?.().catch(() => ({}))) as { decision?: string; note?: string }
         if (body?.decision !== 'approve' && body?.decision !== 'request-changes') {
           return Response.json({ message: 'Approve, or ask for changes?' }, { status: 400 })
