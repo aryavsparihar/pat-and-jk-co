@@ -542,7 +542,7 @@ that use it, and two migrations (`20261013_170910`, `20261013_171821`).
 
 | Item | State | Evidence |
 | --- | --- | --- |
-| Nothing real ever committed | verified | gitleaks over all 112 commits: no findings. Trivy over the working tree: only the Vercel OIDC token in `.env.local`, which is gitignored and never committed. **No key needs rotating** |
+| Nothing real ever committed | verified | gitleaks over every commit: no real credential. Its one finding was a made-up token in this branch's own redaction test (`37b13cf`), now built at runtime and its old line listed in `.gitleaksignore` with the reason (`6f28061`). Trivy over the working tree: only the Vercel OIDC token in `.env.local`, which is gitignored and never committed. **No key needs rotating** |
 | Env files ignored | verified | `.gitignore:5,39`; the only tracked env files are `.env.example` (placeholders) and `test.env` (no secrets) |
 | No secret behind `NEXT_PUBLIC_` | verified | section 1 |
 | Secret scanning in CI | fixed | `3487b7d`: gitleaks over the whole history on every push, PR and weekly |
