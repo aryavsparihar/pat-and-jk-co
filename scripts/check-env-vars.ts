@@ -34,6 +34,7 @@ const SCRIPTS_AND_TESTS = new Set([
   'ADMIN_PASSWORD', // pnpm create-admin
   'SEED_RESET', // pnpm seed:reset
   'APP_DATABASE_URL', // pnpm check:database
+  'LOAD_TEST_DATABASE_HOST', // pnpm load-test:sessions
   'E2E_BASE_URL', // the browser tests
   'PLAYWRIGHT_CHROMIUM_PATH', // the browser tests
 ])

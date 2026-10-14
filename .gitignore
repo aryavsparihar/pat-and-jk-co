@@ -38,3 +38,7 @@ drive-download-*/
 # Every local environment file (.env, .env.local from `vercel link`, …) except the template
 .env*
 !.env.example
+
+# Load-test sessions (as good as passwords for the test artists) and results
+load-tests/sessions.json
+load-tests/results/
