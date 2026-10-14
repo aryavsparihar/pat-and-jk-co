@@ -4,6 +4,10 @@ allowBuilds:
   unrs-resolver: true
   workerd: true
 
+# A package version must have been published for a week before pnpm will install it, so a
+# hijacked release is usually found and pulled before it reaches us (in minutes)
+minimumReleaseAge: 10080
+
 # Pull transitive dependencies up to patched releases. Each line names the advisory it answers;
 # remove one once the package that brings it in ships the fix itself (check with `pnpm why`).
 overrides:
