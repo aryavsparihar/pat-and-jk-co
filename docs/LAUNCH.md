@@ -50,6 +50,9 @@ These need a lawyer or a CA, so start them first.
 - [ ] **The weekly KYC purge runs.** Vercel → Crons shows `/next/cron/kyc-purge` succeeding on
       Mondays at 02:00 UTC.
 - [ ] **Payload is current.** The upgrade to 3.90.2 (a security release) is merged.
+- [ ] **Google Maps (optional).** Two keys, restricted and capped, as in
+      [SETUP.md](SETUP.md#google-maps). Until they are in Vercel the map is OpenStreetMap's.
+      Done when a preview's address step shows Google's map with address search.
 - [ ] **The site runs as its own database role.** After the security pull request is deployed,
       follow [SETUP.md](SETUP.md#database-roles): create `pjk_app` in Neon on `main` and on
       `preview`, set `DATABASE_URL_MIGRATE` (owner) and `DATABASE_URL` (`pjk_app`, pooled) in

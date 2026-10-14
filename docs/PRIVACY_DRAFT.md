@@ -25,8 +25,11 @@ yuvraj@pjk.co.in.
 
 **When you apply as an artist or partner:** your email, name, date of birth, phone number,
 address, and what you tell us about your work, with pictures of it. If you choose to, a pin on a
-map showing where you live; the map is OpenStreetMap's, and it loads only if you open it, at which
-point OpenStreetMap's servers see your internet address. To consider your application and to work
+map showing where you live. The map is Google's (or OpenStreetMap's), and it loads only if you open
+it; then that company's servers see your internet address, and Google also sees what you type in
+the map's address search and the address already in the form, to find it on the map. If you press
+"Use my location", your browser asks you first, and your device's position is used only to place
+the pin; it is kept only if you save the pin with the step. To consider your application and to work
 with you if we approve it.
 
 **Identity details (artists).** Your PAN and the name on it, which we ask of every artist. A second
@@ -76,6 +79,7 @@ We use these service providers, who process data for us and only on our instruct
 | Vercel | Hosting the website and storing uploaded files | Singapore, and the United States for some files |
 | Neon | The database | Singapore |
 | Resend | Sending email | United States |
+| Google (Google Maps Platform) | The optional map on the address step, its address search, and finding a typed address on it: it sees your IP address, browser details, and the address you search for or have typed, only if you open the map | United States, and wherever their nearest server is **[confirm]** |
 | Cloudflare (Turnstile) | Telling people from automated programs when a form is sent: it sees your IP address and details of your browser and device, not what you type | United States, and wherever their nearest server is |
 | India Post (api.postalpincode.in) | Filling in your town, district and state from your PIN code: it is sent the PIN code only, by our server, never anything else | India |
 

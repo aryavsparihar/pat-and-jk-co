@@ -96,6 +96,14 @@ const schema = z.object({
   NEXT_PUBLIC_TURNSTILE_SITE_KEY: optional(z.string().min(10, 'must be a Turnstile site key')),
   TURNSTILE_SECRET_KEY: optional(z.string().min(10, 'must be a Turnstile secret key')),
 
+  // Google Maps on the artist application's address step (src/components/onboarding/artist/
+  // LocationPin.tsx). Public by design: Google restricts it to our sites and the APIs we use
+  // (docs/SETUP.md). Without it the map is OpenStreetMap's, as before
+  NEXT_PUBLIC_GOOGLE_MAPS_KEY: optional(
+    z.string().regex(/^AIza[\w-]{35}$/, 'must be a Google API key'),
+  ),
+  NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID: optional(z.string().min(4, 'must be a Google Maps map ID')),
+
   // Media
   BLOB_READ_WRITE_TOKEN: optional(
     z.string().startsWith('vercel_blob_rw_', 'must be a Vercel Blob read-write token'),
