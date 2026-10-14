@@ -26,6 +26,9 @@ export const OrganizationJsonLd: React.FC<{ ctx: TenantContext }> = ({ ctx }) =>
 
   return (
     <script
+      // Structured data from our own CMS, serialised as JSON with every "<" escaped, so nothing in
+      // it can close the script tag.
+      // nosemgrep: typescript.react.security.audit.react-dangerouslysetinnerhtml.react-dangerouslysetinnerhtml
       dangerouslySetInnerHTML={{ __html: JSON.stringify(data).replace(/</g, '\\u003c') }}
       type="application/ld+json"
     />

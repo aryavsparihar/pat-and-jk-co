@@ -1,0 +1,98 @@
+# Security checks on every push and pull request, and weekly, so an advisory published about a
+# dependency we already use is noticed without waiting for a change. Each job is a required check
+# on main (docs/SECURITY.md, "The gatekeeper"). Every action is pinned to a full commit, and every
+# tool is a pinned release whose checksum is checked before it runs.
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '0 3 * * 1' # Mondays, 08:30 in India
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # the whole history: a secret removed later was still committed
+
+      - name: gitleaks, every commit
+        run: |
+          curl -sSfL -o gitleaks.tar.gz \
+            https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz
+          echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  gitleaks.tar.gz" | sha256sum -c -
+          tar -xzf gitleaks.tar.gz gitleaks
+          ./gitleaks git --redact --no-banner --exit-code 1 .
+
+  dependencies:
+    name: Dependency, secret and config scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+
+      # Known advisories that cannot be fixed yet are listed, with reasons, in pnpm-workspace.yaml
+      - name: pnpm audit, high and critical
+        run: pnpm audit --audit-level high
+
+      - name: Install Trivy
+        run: |
+          curl -sSfL -o trivy.tar.gz \
+            https://github.com/aquasecurity/trivy/releases/download/v0.75.0/trivy_0.75.0_Linux-64bit.tar.gz
+          echo "c6e65abddb348e25f10549df887045629cf28cc72453cd1c63acb717316b3f3f  trivy.tar.gz" | sha256sum -c -
+          tar -xzf trivy.tar.gz trivy
+
+      # Dependencies, secrets in the working tree, and configuration (workflows, vercel.json,
+      # next.config). Anything that cannot be fixed must be listed in .trivyignore.yaml with a
+      # reason and a date to look again; past that date it fails here until someone does
+      - name: Trivy, high and critical
+        run: |
+          ./trivy fs --scanners vuln,secret,misconfig --severity HIGH,CRITICAL \
+            --ignorefile .trivyignore.yaml --exit-code 1 --skip-dirs node_modules .
+
+      - name: Software bill of materials (CycloneDX)
+        run: ./trivy fs --format cyclonedx --output sbom.cdx.json --skip-dirs node_modules .
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sbom-cyclonedx
+          path: sbom.cdx.json
+          retention-days: 90
+
+  code:
+    name: Code scan (Semgrep)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Injection, unsafe HTML, weak crypto and the like, in our own code. CodeQL needs GitHub
+      # Advanced Security on a private repository; Semgrep's community rules need no account.
+      # Findings reviewed as safe carry a nosemgrep comment saying why. pnpm's release-age setting
+      # lives in pnpm-workspace.yaml, where the .npmrc rule cannot see it.
+      - name: Semgrep
+        run: |
+          pipx install semgrep==1.180.0
+          semgrep scan --metrics=off --error \
+            --config p/default --config p/typescript --config p/nextjs --config p/react \
+            --exclude node_modules --exclude src/migrations --exclude src/payload-types.ts \
+            --exclude-rule package_managers.npm.npm-missing-minimum-release-age.npm-missing-minimum-release-age \
+            .

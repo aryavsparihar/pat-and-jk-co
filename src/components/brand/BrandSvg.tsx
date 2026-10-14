@@ -18,6 +18,8 @@ export const BrandSvg: React.FC<Props> = ({ name, title, ...rest }) => {
       aria-label={title}
       aria-hidden={title ? undefined : true}
       {...rest}
+      // Constant artwork from ./svgs, in the repository; never anything a visitor or editor typed.
+      // nosemgrep: typescript.react.security.audit.react-dangerouslysetinnerhtml.react-dangerouslysetinnerhtml
       dangerouslySetInnerHTML={{ __html: markup }}
     />
   )

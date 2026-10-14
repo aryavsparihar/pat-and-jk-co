@@ -14,6 +14,8 @@ const allow = readFileSync(new URL('../build-warnings.allow', import.meta.url), 
   .split('\n')
   .map((line) => line.trim())
   .filter((line) => line && !line.startsWith('#'))
+  // Patterns from our own allowlist file in the repository
+  // nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp
   .map((line) => new RegExp(line.split(/\s+#\s/)[0].trim(), 'i'))
 
 const WARNING = /\b(warn|warning|deprecated)\b|⚠/i

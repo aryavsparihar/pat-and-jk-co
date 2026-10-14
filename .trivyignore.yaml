@@ -1,0 +1,11 @@
+# Findings Trivy may skip, each with why it does not reach the site and when to look again.
+# CI (.github/workflows/security.yml) fails on any other HIGH or CRITICAL finding that has a fix.
+vulnerabilities:
+  - id: CVE-2026-93687
+    paths:
+      - pnpm-lock.yaml
+    statement: >-
+      braces 3.0.3, through chokidar in sass (file watching at build time): stack overflow on
+      deeply nested glob patterns. No fixed version exists; it only ever matches globs from our own
+      build configuration, never anything a visitor sends.
+    expired_at: 2026-12-01
