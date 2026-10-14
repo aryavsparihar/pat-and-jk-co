@@ -89,7 +89,11 @@ export function proxy(request: NextRequest) {
   // Pages where people type personal details get a per-request nonce and a strict policy
   if (MEMBER_PAGE.test(pathname)) {
     const nonce = createNonce()
-    const policy = memberPagePolicy(nonce, { dev: process.env.NODE_ENV === 'development' })
+    const policy = memberPagePolicy(nonce, {
+      dev: process.env.NODE_ENV === 'development',
+      // Google's map, only on the artist application and only once a key is set
+      maps: CAMERA_PAGE.test(pathname) && Boolean(process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY),
+    })
     // Next.js reads the nonce from this request header and puts it on its own scripts
     const requestHeaders = new Headers(request.headers)
     requestHeaders.set('content-security-policy', policy)
