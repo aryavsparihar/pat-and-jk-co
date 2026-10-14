@@ -128,10 +128,13 @@ describe('the logger', () => {
 describe('credentials in log lines', () => {
   it('are removed from connection strings, headers, tokens and keys', async () => {
     const { redactString } = await import('@/observability/redact')
+    // A made-up token, put together here so the repository holds nothing shaped like a real one
+    const b64 = (value: string) => Buffer.from(value).toString('base64url')
+    const jwt = `${b64('{"alg":"HS256"}')}.${b64('{"sub":"made-up"}')}.${b64('not-a-signature')}`
     const line = [
       'connect failed: postgres://neondb_owner:pw-Example-123@ep-made-up.neon.tech/neondb',
       'Authorization: Bearer abc.def-123456789',
-      'token eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJtYWRlLXVwIn0.c2lnbmF0dXJlLWZha2U',
+      `token ${jwt}`,
       'key re_FAKEFAKEFAKEFAKEFAKE1234 and vercel_blob_rw_FAKEFAKEFAKEFAKE1234',
     ].join(' | ')
     const out = redactString(line)
@@ -139,7 +142,7 @@ describe('credentials in log lines', () => {
       'pw-Example-123',
       'neondb_owner',
       'abc.def-123456789',
-      'eyJhbGciOiJIUzI1NiJ9',
+      jwt,
       're_FAKEFAKE',
       'vercel_blob_rw_FAKE',
     ])

@@ -1,0 +1,6 @@
+# Findings reviewed and known to be harmless, one fingerprint each (commit:file:rule:line), with why.
+# Never add a real credential here: rotate it instead (docs/SECURITY.md).
+
+# A made-up JWT ({"sub":"made-up"}, unsigned) in the log-redaction test, as first committed. The test
+# now builds it at runtime; the old line stays in history, which is not rewritten.
+37b13cf3b3dfd29f48b77bd6c2ac7b6f2da9682c:tests/int/redact.int.spec.ts:jwt:134
