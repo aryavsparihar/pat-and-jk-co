@@ -135,7 +135,10 @@ never breaks along the way.
    - `DATABASE_URL_MIGRATE`: the current owner connection string. Neon → **Connect**, role
      `neondb_owner`, **Connection pooling off** (migrations are better without the pooler).
    - `DATABASE_URL`: the same pooled string as now, with `neondb_owner:…@` replaced by
-     `pjk_app:<the password>@`. Keep `-pooler` in the host and `?sslmode=require` at the end.
+     `pjk_app:<the password>@`. Keep `-pooler` in the host.
+   - In both, where the string says `sslmode=require`, write `sslmode=verify-full`: it checks the
+     database's certificate as well as encrypting. Today's driver already treats `require` that
+     way and prints a notice in the build log saying so; a later version will not.
 5. **Redeploy** (Deployments → the latest → Redeploy). The build migrates as the owner and the site
    runs as `pjk_app`. From now on, a deployment connected as the owner refuses to start, so a
    mistake here shows up at once. If anything goes wrong, put the old `DATABASE_URL` back, delete

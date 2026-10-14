@@ -50,6 +50,23 @@ These need a lawyer or a CA, so start them first.
 - [ ] **The weekly KYC purge runs.** Vercel → Crons shows `/next/cron/kyc-purge` succeeding on
       Mondays at 02:00 UTC.
 - [ ] **Payload is current.** The upgrade to 3.90.2 (a security release) is merged.
+- [ ] **The site runs as its own database role.** After the security pull request is deployed,
+      follow [SETUP.md](SETUP.md#database-roles): create `pjk_app` in Neon on `main` and on
+      `preview`, set `DATABASE_URL_MIGRATE` (owner) and `DATABASE_URL` (`pjk_app`, pooled) in
+      Vercel for Production and Preview, with `sslmode=verify-full`, and redeploy. Done when
+      `/api/health` says `ok` and the logs no longer warn that the site is connected as the owner.
+- [ ] **Unused variables removed.** Vercel → Environment Variables: delete
+      `BLOB_WEBHOOK_PUBLIC_KEY` and `KYC_WEBHOOK_PUBLIC_KEY`; nothing reads them.
+- [ ] **Nothing goes live without its checks.** GitHub ruleset and Vercel Deployment Checks, as in
+      [SECURITY.md](SECURITY.md#the-gatekeeper). Done when the ruleset lists the five checks and a
+      pull request's deployment shows them under *Deployment Checks*.
+- [ ] **The Firewall rule is still there.** Vercel → Firewall: the rate-limit rule on POSTs to
+      `/next/` (100 a minute per IP) is listed and enabled.
+- [ ] **HSTS preload: decide.** pjk.co.in already sends a preload-ready header and
+      hstspreload.org accepts it. Submitting puts pjk.co.in in every browser's built-in list: no
+      page on it or any subdomain can ever be served over plain HTTP again, and leaving the list
+      takes months. Worth it once every subdomain you will ever use is on HTTPS (they are today).
+      To do it: hstspreload.org → enter pjk.co.in → tick both boxes → Submit.
 
 ## 3. Keys and accounts
 
@@ -78,16 +95,26 @@ These need a lawyer or a CA, so start them first.
 - [x] **/collaborate leads to the applications.** "Two ways to begin" and "How it works" were added
       by a migration on 4 October 2026, and the open calls lead to the applications. Read the
       words once in the admin; they are yours to change.
+- [ ] **Applications are switched off until 8 November.** Site settings → Applications →
+      *Applications are open* is unticked, except during the dress rehearsal.
 - [ ] **The closed note.** Site settings → Applications → *Note while applications are closed*
       says what you want visitors to read until 8 November.
 
 - [ ] **Phulhaar's social accounts.** Site settings → Contact & social → *Phulhaar's social
       accounts*: the Instagram, Facebook and Pinterest links. Until they are there, the venture page
       and the decline email leave them out.
+- [ ] **Every record the site needs is there.** Signed in to the admin, open
+      `https://pjk.co.in/api/health?deep=1`: under `content` it says `"ok":true`, or lists what is
+      missing.
+      (Or, from a terminal, `DATABASE_URL='<production string>' pnpm check:content`.)
 - [ ] **The wait before applying again.** Site settings → Applications → *Months before someone
       declined may apply again* is what you want (6 by default).
 
 ## 6. Dress rehearsal (week of 26 October)
+
+- [ ] **Load test on Preview.** Create a Protection Bypass for Automation secret (Vercel →
+      Settings → Deployment Protection) and run the three tests in [LOAD_TEST.md](LOAD_TEST.md)
+      against a Preview deployment. Never against pjk.co.in. Record the results there.
 
 One full application in production, with your own details, then deleted. It is the only test of
 the real email, Blob store, Turnstile keys and KYC encryption together.
@@ -114,6 +141,11 @@ the real email, Blob store, Turnstile keys and KYC encryption together.
 
 ## 7. Launch day, 8 November
 
+- [ ] **The day before: a database snapshot.** Neon → Branches → Create branch from `main`,
+      *Current data*, named `snapshot-2026-11-07`. Free while it sits there, and it outlasts the
+      restore window ([RUNBOOK.md](RUNBOOK.md#4-restoring-the-database-neon)). Take one the same way
+      before any risky migration, at any time.
+- [ ] **Read [RUNBOOK.md](RUNBOOK.md) once**, so rolling back is familiar before it is needed.
 - [ ] Turn on **Site settings → Applications → Applications are open**.
 - [ ] Apply's first step works on a phone: the code arrives.
 - [ ] Watch the staff inbox and the security log during the day.
@@ -140,3 +172,8 @@ Each needs an account; ask before adding one.
 - Uptime checks against `/api/health` (Better Stack or UptimeRobot).
 - Error tracking (Sentry, with `sendDefaultPii: false`).
 - Vercel Pro, once artist data is being collected.
+- Neon's Scale plan, for an IP allow-list on the database. Vercel's outgoing addresses are not
+  fixed on Hobby or Pro, so this only pays off with Vercel's Static IPs; until then the connection
+  string is the secret, and RLS and the app role limit what a leaked one can do.
+- GitHub Advanced Security, for CodeQL on this private repository. Semgrep covers the same ground
+  for free today.
