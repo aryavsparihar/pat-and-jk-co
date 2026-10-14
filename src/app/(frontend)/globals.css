@@ -812,6 +812,51 @@
   }
 }
 
+/*
+ * Scrollbars, in Phulhaar's palette: a thumb shaded from leaf to ink green on a faint cream track,
+ * so it stands out from the paper without glaring. For mouse and trackpad only: phones and tablets
+ * keep their own overlay scrollbars, which appear while scrolling and are made for fingers.
+ *
+ * Chrome, Edge and Safari draw the gradient through ::-webkit-scrollbar. Firefox cannot draw a
+ * gradient, so it gets the same two colours flat through scrollbar-color (which it inherits
+ * everywhere). scrollbar-color is kept from the others on purpose: in Chrome it would switch the
+ * gradient off.
+ */
+:root {
+  --scroll-track: color-mix(in oklab, #023118 7%, #fbf4e5);
+  --scroll-thumb: linear-gradient(to bottom, #017448, #023118);
+  --scroll-thumb-hover: linear-gradient(to bottom, #015c39, #011d0e);
+}
+@media (pointer: fine) {
+  ::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--scroll-track);
+  }
+  ::-webkit-scrollbar-thumb {
+    min-height: 48px;
+    border: 3px solid var(--scroll-track);
+    border-radius: 999px;
+    background: var(--scroll-thumb);
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover,
+  ::-webkit-scrollbar-thumb:active {
+    background: var(--scroll-thumb-hover);
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-corner {
+    background: var(--scroll-track);
+  }
+  @supports not selector(::-webkit-scrollbar) {
+    :root {
+      scrollbar-color: #01573a var(--scroll-track);
+    }
+  }
+}
+
 /* The roller (src/components/onboarding/Roller.tsx): rows fade towards the edges, no scrollbar */
 .roller {
   scrollbar-width: none;
@@ -820,6 +865,34 @@
 }
 .roller::-webkit-scrollbar {
   display: none;
+}
+/* Each value ruled off from the next by a hairline */
+.roller-row {
+  border-bottom: 1px solid var(--border);
+  transition: color 0.15s ease;
+}
+/* The band: dark, shaded, and plain to see; the value in it turns cream */
+.roller-band {
+  border-radius: 2px;
+  background: linear-gradient(
+    to bottom,
+    color-mix(in oklab, var(--primary) 82%, white),
+    var(--primary) 50%,
+    color-mix(in oklab, var(--primary) 82%, black)
+  );
+  box-shadow: 0 1px 3px color-mix(in oklab, var(--primary) 30%, transparent);
+}
+.roller-row-current {
+  color: var(--background);
+  border-bottom-color: transparent;
+}
+@media (prefers-reduced-motion: reduce) {
+  .roller {
+    scroll-behavior: auto;
+  }
+  .roller-row {
+    transition: none;
+  }
 }
 
 /* The map pin (src/components/onboarding/artist/LocationPin.tsx) */

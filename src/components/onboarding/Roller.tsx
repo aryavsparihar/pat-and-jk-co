@@ -1,7 +1,7 @@
 'use client'
 
 import { cn } from '@/utilities/ui'
-import React, { useEffect, useRef } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 
 import { idFor } from './fields'
 
@@ -10,15 +10,19 @@ export type RollerOption = { value: number; label: string }
 /** Each row's height in px (h-10), and how many rows show at once */
 const ROW = 40
 const TYPE_AHEAD_MS = 800
+/** Where scrollend is missing (older Safari): how long the list must be still before it settles */
+const SETTLE_MS = 150
 
 const smooth = (): ScrollBehavior =>
   window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'
 
 /**
- * A vertical roller for choosing one of a long run of numbers: years, say. Five rows show; the
- * middle one is the choice. Scroll or swipe it and it settles on a row; click or tap a row to
- * choose it; or use the keyboard: the arrow keys, Page Up and Down, Home and End, or type the start
- * of a value. Screen readers hear it as a list box and are told the choice as it changes.
+ * A vertical roller for choosing one of a long run of numbers: years, say. Five rows show, each
+ * ruled off from the next; the middle one, in a dark band, is the choice. Scroll or swipe it (with
+ * the browser's own momentum on touch) and it snaps gently to the nearest row; the band lights
+ * whichever row is passing through it. Click or tap a row to choose it, or use the keyboard: the
+ * arrow keys, Page Up and Down, Home and End, or type the start of a value. Screen readers hear it
+ * as a list box and are told the choice as it changes. With reduced motion it jumps, never glides.
  *
  * The first row, "Choose", means nothing is chosen yet, so a required roller is never filled in
  * without the person's doing.
@@ -37,6 +41,13 @@ export const Roller: React.FC<{
   const id = idFor(name)
   const list = useRef<HTMLDivElement>(null)
   const settle = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const frame = useRef(0)
+  /**
+   * The row the roller is on its way to after a click, a key or its own smooth scroll. Until it
+   * arrives, scrolling does not choose: otherwise a scroll that ends just after a click (the
+   * browser bringing the row into view first) would choose the row it stopped on instead
+   */
+  const steering = useRef<number | null>(null)
   const typed = useRef({ text: '', at: 0 })
   const mounted = useRef(false)
 
@@ -49,6 +60,13 @@ export const Roller: React.FC<{
     0,
     rows.findIndex((r) => r.value === chosen),
   )
+  // The row in the band right now, while it moves; the choice itself changes once it settles
+  const [passing, setPassing] = useState(index)
+  const [settled, setSettled] = useState(index)
+  if (settled !== index) {
+    setSettled(index)
+    setPassing(index)
+  }
 
   // Keeps the chosen row in the middle, whoever chose it
   useEffect(() => {
@@ -56,25 +74,63 @@ export const Roller: React.FC<{
     if (!el) return
     const target = index * ROW
     if (Math.abs(el.scrollTop - target) > 1) {
+      steering.current = index
       el.scrollTo({ top: target, behavior: mounted.current ? smooth() : 'auto' })
+    } else {
+      steering.current = null
     }
     mounted.current = true
   }, [index])
 
-  useEffect(() => () => clearTimeout(settle.current), [])
+  useEffect(
+    () => () => {
+      clearTimeout(settle.current)
+      cancelAnimationFrame(frame.current)
+    },
+    [],
+  )
 
   const choose = (i: number) => {
     const next = Math.min(rows.length - 1, Math.max(0, i))
     if (next !== index) onValue(rows[next]!.value)
   }
 
-  // A scroll or swipe chooses the row it comes to rest on
-  const onScroll = () => {
+  /** A click or a key: go to that row, whatever scrolling is still settling */
+  const steer = (i: number) => {
     clearTimeout(settle.current)
-    settle.current = setTimeout(() => {
-      const el = list.current
-      if (el) choose(Math.round(el.scrollTop / ROW))
-    }, 120)
+    steering.current = Math.min(rows.length - 1, Math.max(0, i))
+    choose(i)
+  }
+
+  /** The person takes hold of the list themselves: their scroll decides again */
+  const takeOver = () => {
+    steering.current = null
+  }
+
+  const rowAtRest = () => Math.round((list.current?.scrollTop ?? 0) / ROW)
+
+  // A scroll or swipe chooses the row it comes to rest on: at once where the browser says the
+  // scroll has ended, otherwise once it has been still for a moment
+  const arrived = () =>
+    steering.current !== null &&
+    Math.abs((list.current?.scrollTop ?? 0) - steering.current * ROW) <= 1
+  const onScroll = () => {
+    cancelAnimationFrame(frame.current)
+    frame.current = requestAnimationFrame(() => setPassing(rowAtRest()))
+    clearTimeout(settle.current)
+    if (steering.current !== null) {
+      if (arrived()) steering.current = null
+      return
+    }
+    settle.current = setTimeout(() => choose(rowAtRest()), SETTLE_MS)
+  }
+  const onScrollEnd = () => {
+    clearTimeout(settle.current)
+    if (steering.current !== null) {
+      if (arrived()) steering.current = null
+      return
+    }
+    choose(rowAtRest())
   }
 
   const onKeyDown = (event: React.KeyboardEvent) => {
@@ -88,7 +144,7 @@ export const Roller: React.FC<{
     }
     if (event.key in moves) {
       event.preventDefault()
-      choose(moves[event.key]!)
+      steer(moves[event.key]!)
       return
     }
     // Typing "20" goes to the first row that starts with it
@@ -98,7 +154,7 @@ export const Roller: React.FC<{
         (now - typed.current.at < TYPE_AHEAD_MS ? typed.current.text : '') + event.key.toLowerCase()
       typed.current = { text, at: now }
       const found = rows.findIndex((r, i) => i > 0 && r.label.toLowerCase().startsWith(text))
-      if (found > 0) choose(found)
+      if (found > 0) steer(found)
     }
   }
 
@@ -118,7 +174,7 @@ export const Roller: React.FC<{
         {/* The band the choice sits in */}
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-20 h-10 border-y border-primary/50 bg-surface"
+          className="roller-band pointer-events-none absolute inset-x-0 top-20 h-10"
         />
         <div
           aria-activedescendant={`${id}-row-${index}`}
@@ -129,7 +185,11 @@ export const Roller: React.FC<{
           className="roller relative h-[200px] snap-y snap-mandatory overflow-y-auto overscroll-contain outline-none focus-visible:shadow-[0_0_0_2px_var(--primary)]"
           id={id}
           onKeyDown={onKeyDown}
+          onPointerDown={takeOver}
           onScroll={onScroll}
+          onScrollEnd={onScrollEnd}
+          onTouchStart={takeOver}
+          onWheel={takeOver}
           ref={list}
           role="listbox"
           tabIndex={0}
@@ -139,13 +199,13 @@ export const Roller: React.FC<{
             <div
               aria-selected={i === index}
               className={cn(
-                'flex h-10 cursor-pointer snap-center items-center justify-center text-[1.15rem] tabular-nums transition-colors',
-                i === index ? 'font-medium text-primary' : 'text-muted-foreground',
+                'roller-row flex h-10 cursor-pointer snap-center items-center justify-center text-[1.15rem] tabular-nums',
+                i === passing ? 'roller-row-current font-medium' : 'text-muted-foreground',
                 i === 0 && 'text-base italic',
               )}
               id={`${id}-row-${i}`}
               key={row.label}
-              onClick={() => choose(i)}
+              onClick={() => steer(i)}
               role="option"
             >
               {row.label}
