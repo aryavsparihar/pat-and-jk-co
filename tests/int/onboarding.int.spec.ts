@@ -459,7 +459,7 @@ describe('an artist application', () => {
 })
 
 describe('applying again after a decline', () => {
-  it('waits, unless staff end the wait, then reopens the same application', async () => {
+  it('waits, unless staff end the wait, then starts a new application with the answers kept', async () => {
     const { member, cookie, application } = await applicant('artist')
     for (const step of ['about', 'address', 'practice'] as const) {
       expect((await call(saveStep, cookie, { step, data: goodSteps[step] })).status).toBe(200)
@@ -480,11 +480,9 @@ describe('applying again after a decline', () => {
       actor: staff,
     })
 
-    // Six months by default, given in the email with where to write
-    const from = new Date(declined.reapplyFrom!)
-    const months =
-      (from.getFullYear() - new Date().getFullYear()) * 12 + from.getMonth() - new Date().getMonth()
-    expect(months).toBe(6)
+    // Ninety days by default, given in the email with where to write
+    const days = Math.round((new Date(declined.reapplyFrom!).getTime() - Date.now()) / 86_400_000)
+    expect(days).toBe(90)
     const email = await decisionEmail(payload, { decision: 'reject', application: declined })
     expect(email.text).toMatch(/apply again from \d{1,2} \w+ \d{4}/)
     expect(email.text).toContain('For any further questions, contact us at hello@pjk.co.in.')
@@ -492,37 +490,62 @@ describe('applying again after a decline', () => {
 
     expect((await call(reapply, cookie, { type: 'artist' })).status).toBe(409)
     await allowReapplyNow(payload, { applicationId: application.id, actor: staff })
-    expect((await call(reapply, cookie, { type: 'artist' })).status).toBe(200)
+    const started = await call(reapply, cookie, { type: 'artist' })
+    expect(started.status).toBe(200)
+    const { reference } = (await started.json()) as { reference: string }
 
-    const reopened = await payload.findByID({
+    // A new application, with its own reference, following the declined one
+    expect(reference).not.toBe(application.reference)
+    const fresh = (
+      await payload.find({
+        collection: 'applications',
+        where: { reference: { equals: reference } },
+        overrideAccess: true,
+        depth: 0,
+      })
+    ).docs[0]!
+    expect(fresh.stage).toBe('draft')
+    expect(fresh.previousApplication).toBe(application.id)
+    expect([...(fresh.completedSteps ?? [])].sort()).toEqual(['about', 'address', 'practice'])
+    expect(fresh.about?.legalName).toBe(goodSteps.about.legalName)
+    expect(fresh.practice?.bio).toBe(goodSteps.practice.bio.trim())
+
+    // The declined one is left exactly as it was decided
+    const old = await payload.findByID({
       collection: 'applications',
       id: application.id,
       overrideAccess: true,
     })
-    expect(reopened.reference).toBe(application.reference)
-    expect(reopened.stage).toBe('draft')
-    expect([...(reopened.completedSteps ?? [])].sort()).toEqual(['about', 'address', 'practice'])
-    expect(reopened.about?.legalName).toBe(goodSteps.about.legalName)
-    expect(reopened.portfolio ?? []).toEqual([])
-    expect(reopened.rounds?.[0]).toMatchObject({ decision: 'rejected' })
-    // The old identity details are gone
+    expect(old.stage).toBe('rejected')
+    expect(old.decisionNote).toBe('Thank you. We would like to see more of your recent work.')
+
+    // The application the pages see now is the new one
+    const now = await getApplication(
+      new Request(`${ORIGIN}/next/members/application?type=artist`, { headers: { cookie } }),
+    )
+    expect(
+      ((await now.json()) as { application: { reference: string } }).application.reference,
+    ).toBe(reference)
+
+    // The identity documents and photo are given again
     const left = await payload.count({
       collection: 'kyc-documents',
       where: { id: { in: Object.values(photos) } },
       overrideAccess: true,
     })
     expect(left.totalDocs).toBe(0)
-    for (const event of ['application-reapply-allowed', 'application-reopened']) {
+    for (const [event, subject] of [
+      ['application-reapply-allowed', application.reference],
+      ['application-reopened', reference],
+    ]) {
       const logged = await payload.count({
         collection: 'security-events',
-        where: {
-          and: [{ event: { equals: event } }, { subject: { equals: application.reference } }],
-        },
+        where: { and: [{ event: { equals: event } }, { subject: { equals: subject } }] },
         overrideAccess: true,
       })
       expect(logged.totalDocs).toBe(1)
     }
-    // Only a declined application can be reopened
+    // A draft is not something to apply again after
     expect((await call(reapply, cookie, { type: 'artist' })).status).toBe(409)
   })
 })

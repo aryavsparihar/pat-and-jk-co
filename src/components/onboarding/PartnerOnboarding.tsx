@@ -1,6 +1,8 @@
 'use client'
 
 import React, { useCallback, useEffect, useState } from 'react'
+import { ApplyAgainButton } from '@/components/account/ApplicationActions'
+import { DeclinedNotice } from './DeclinedNotice'
 
 import { PARTNER_CATEGORIES } from '@/members/categories'
 import { STATES_AND_TERRITORIES } from '@/members/forms/india'
@@ -13,6 +15,9 @@ import { CodeSignIn } from './CodeSignIn'
 import { ErrorSummary, type Errors, SelectField, TextArea, TextField } from './fields'
 
 type Values = Record<string, string | undefined>
+
+/** Whether the wait before applying again has passed; read once per render */
+const waitIsOver = (iso?: string | null) => Boolean(iso) && new Date(iso!).getTime() <= Date.now()
 
 /**
  * The partner application: an email check, then one page. Shorter than the artist's, and with no
@@ -114,11 +119,46 @@ export const PartnerOnboarding: React.FC<{ formToken: string; initialCategory?: 
   if (phase === 'signin')
     return <CodeSignIn formToken={formToken} onSignedIn={load} purpose="apply-partner" />
 
+  if (phase === 'closed' && application?.stage === 'rejected') {
+    return (
+      <DeclinedNotice
+        action={
+          waitIsOver(application.reapplyFrom) ? <ApplyAgainButton kind="partner" /> : undefined
+        }
+        kind="partner"
+        note={application.decisionNote}
+        reapplyFrom={application.reapplyFrom}
+        ready={waitIsOver(application.reapplyFrom)}
+        reference={application.reference}
+        socials={[]}
+      />
+    )
+  }
+  if (phase === 'closed' && application?.stage === 'withdrawn') {
+    return (
+      <div>
+        <p className="label">Application {application.reference}</p>
+        <h2 className="display-md mt-3">You withdrew this application.</h2>
+        <p className="lede measure mt-6">
+          You are welcome to write to us again whenever you like. A new application starts with your
+          answers filled in.
+        </p>
+        <div className="mt-10">
+          <ApplyAgainButton kind="partner" />
+        </div>
+      </div>
+    )
+  }
+
   if (phase === 'sent' || phase === 'closed') {
     return (
       <div role="status">
         <h2 className="display-md">
-          {phase === 'sent' ? 'Thank you. We will be in touch.' : 'We have your application.'}
+          {phase === 'sent'
+            ? 'Thank you. We will be in touch.'
+            : application?.stage === 'approved'
+              ? 'Your application has been approved. Welcome.'
+              : 'We have your application.'}
         </h2>
         <p className="lede measure mt-6">
           Your reference is{' '}

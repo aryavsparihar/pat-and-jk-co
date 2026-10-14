@@ -4,6 +4,7 @@ import React, { useRef, useState } from 'react'
 
 import { api } from '../onboarding/api'
 import { CheckGroup, ErrorSummary, type Errors, TextArea, TextField } from '../onboarding/fields'
+import { UploadProgress } from '../onboarding/UploadProgress'
 import { usePictures } from '../onboarding/usePictures'
 
 export type ProfileValues = {
@@ -30,7 +31,7 @@ export const ProfileForm: React.FC<{
   const [errors, setErrors] = useState<Errors>({})
   const [message, setMessage] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
-  const { pictures, send, busy, problem } = usePictures()
+  const { pictures, send, busy, problem, uploading } = usePictures()
   const input = useRef<HTMLInputElement>(null)
 
   const set = <K extends keyof ProfileValues>(key: K, value: ProfileValues[K]) =>
@@ -141,6 +142,9 @@ export const ProfileForm: React.FC<{
           <p aria-live="polite" className="mt-2 text-base" role="status">
             {busy ?? ''}
           </p>
+          {uploading && (
+            <UploadProgress className="mt-2" name={uploading.name} state={uploading.state} />
+          )}
           {problem && <p className="text-base italic text-destructive">{problem}</p>}
         </div>
 

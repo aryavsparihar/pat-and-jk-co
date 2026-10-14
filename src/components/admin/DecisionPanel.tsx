@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation'
 import React, { useState } from 'react'
 
 /**
- * The staff decision on an application, in its sidebar: approve, ask for changes, or decline, with
- * a note to the applicant. Approving issues the AT or PT member ID and emails the applicant; every
+ * The staff decision on an application, in its sidebar: start reviewing it (so the applicant sees
+ * it is being read), approve, ask for changes, or decline, with a note to the applicant. Approving issues the AT or PT member ID and emails the applicant; every
  * decision is recorded in the security log against the member of staff who took it.
  * (POST /api/applications/:id/decide, src/members/decide.ts)
  */
@@ -30,6 +30,7 @@ export const DecisionPanel: React.FC = () => {
       draft: 'Still being filled in by the applicant. Nothing to decide yet.',
       approved: `Approved${issued ? `. Member ID ${issued}.` : '.'}`,
       rejected: 'Declined. The applicant has been told.',
+      withdrawn: 'Withdrawn by the applicant. Nothing to decide.',
     }
     return (
       <div style={{ marginBottom: 'var(--base)' }}>
@@ -37,6 +38,22 @@ export const DecisionPanel: React.FC = () => {
         <p>{words[stage ?? ''] ?? '—'}</p>
       </div>
     )
+  }
+
+  const startReview = async () => {
+    setBusy(true)
+    setMessage(null)
+    const response = await fetch(`/api/applications/${id}/decide`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ decision: 'review' }),
+    })
+    const body = (await response.json().catch(() => ({}))) as { message?: string }
+    setBusy(false)
+    if (!response.ok) return setMessage(body.message ?? 'That could not be saved.')
+    setMessage('Marked as under review. The applicant sees it is being read.')
+    router.refresh()
   }
 
   const decide = async (decision: 'approve' | 'reject' | 'request-changes') => {
@@ -80,6 +97,21 @@ export const DecisionPanel: React.FC = () => {
         <p style={{ marginBottom: 'var(--base)' }}>
           Waiting for the applicant to make the changes you asked for.
         </p>
+      )}
+      {stage === 'submitted' && (
+        <div style={{ marginBottom: 'var(--base)' }}>
+          <p style={{ marginBottom: '0.5rem' }}>
+            Reading it now? Mark it, so the applicant can see it is being read. Nobody is emailed.
+          </p>
+          <button
+            className="btn btn--style-secondary btn--size-small"
+            disabled={busy}
+            onClick={() => void startReview()}
+            type="button"
+          >
+            Start reviewing
+          </button>
+        </div>
       )}
       <label className="field-label" htmlFor="decision-note">
         Note to the applicant

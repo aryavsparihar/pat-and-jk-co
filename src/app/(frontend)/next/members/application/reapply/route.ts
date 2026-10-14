@@ -9,12 +9,12 @@ import {
   requireMember,
   withRefresh,
 } from '@/members/http'
-import { reopenApplication } from '@/members/reapply'
+import { applyAgain } from '@/members/reapply'
 import { hitLimit } from '@/security/rateLimit'
 
 export const dynamic = 'force-dynamic'
 
-/** Applying again after a decline, once the wait is over: the same application reopens */
+/** Applying again after a decline (once the wait is over) or a withdrawal: a new application, its answers carried over */
 export async function POST(request: Request) {
   if (!fromOurOrigin(request)) return refuseCrossSite()
   const auth = await requireMember(request)
@@ -37,14 +37,14 @@ export async function POST(request: Request) {
     return reply({ message: 'Please wait a little before trying again.' }, { status: 429 })
 
   try {
-    const application = await reopenApplication(payload, member, type)
+    const application = await applyAgain(payload, member, type)
     return withRefresh(reply({ ok: true, reference: application.reference }), auth.refresh)
   } catch (error) {
     if (error instanceof APIError)
       return reply({ message: error.message }, { status: error.status })
-    payload.logger.error({ err: error, msg: 'Could not reopen an application' })
+    payload.logger.error({ err: error, msg: 'Could not start a new application' })
     return reply(
-      { message: 'Your application could not be opened again. Please try later.' },
+      { message: 'Your new application could not be started. Please try later.' },
       { status: 500 },
     )
   }

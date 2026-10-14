@@ -179,7 +179,9 @@ The artist does all of this from **Payouts** in their account (`/account/payouts
 | KYC of an application never sent | 180 days after it was last touched |
 | KYC after consent is withdrawn | At the next purge, unless a legal hold applies |
 | An uploaded document never saved with the step | After 7 days |
-| Identity details of a declined artist who applies again | At once, when they press **Apply again**: the new round starts without them |
+| Identity documents and photo of a declined artist who applies again | At once, when they press **Apply again**: the new application asks for them afresh. What they typed (PAN, the name on it, the last four digits) stays for the new application, if the 90-day rule has not already removed it |
+| KYC of an application the artist withdraws | At once, when they withdraw it |
+| KYC after a decline, once the person has applied again | Judged by their current application, not the declined one |
 | The identity code | Its hash is replaced by the next code; the code itself is kept only with the photo, and goes with it |
 | KYC of an approved artist | **[confirm with CA]** Kept while they work with us, then for **[N] years** after the last payment, as the Income Tax Act and GST rules require for payment records. Not deleted automatically until this is settled; a reviewer sets a legal hold on the record with **Set a legal hold** |
 

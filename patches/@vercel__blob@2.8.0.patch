@@ -1,0 +1,44 @@
+diff --git a/dist/chunk-QMTUXFZH.cjs b/dist/chunk-QMTUXFZH.cjs
+index fe346a42fc412166a0dc964b296c636b0e08f986..72ec1ab6f1993ca6d25613108978d3ccdcee8c91 100644
+--- a/dist/chunk-QMTUXFZH.cjs
++++ b/dist/chunk-QMTUXFZH.cjs
+@@ -521,12 +521,14 @@ var blobRequest = async ({
+   onUploadProgress
+ }) => {
+   if (onUploadProgress) {
+-    if (hasFetchWithUploadProgress) {
+-      return blobFetch({ input, init, onUploadProgress });
+-    }
++    // Patched (pnpm patches/): in a browser, XHR's upload progress counts bytes actually sent.
++    // A streamed fetch counts bytes handed to the stream, which runs far ahead of the network.
+     if (hasXhr) {
+       return blobXhr({ input, init, onUploadProgress });
+     }
++    if (hasFetchWithUploadProgress) {
++      return blobFetch({ input, init, onUploadProgress });
++    }
+   }
+   if (hasFetch) {
+     return blobFetch({ input, init });
+diff --git a/dist/chunk-YYMLUMXS.js b/dist/chunk-YYMLUMXS.js
+index 34a1b3a6440b2781c8e76d084e06198fe876d847..c8d2d6704ed217d1b09d6562d6616db97429b4a3 100644
+--- a/dist/chunk-YYMLUMXS.js
++++ b/dist/chunk-YYMLUMXS.js
+@@ -521,12 +521,14 @@ var blobRequest = async ({
+   onUploadProgress
+ }) => {
+   if (onUploadProgress) {
+-    if (hasFetchWithUploadProgress) {
+-      return blobFetch({ input, init, onUploadProgress });
+-    }
++    // Patched (pnpm patches/): in a browser, XHR's upload progress counts bytes actually sent.
++    // A streamed fetch counts bytes handed to the stream, which runs far ahead of the network.
+     if (hasXhr) {
+       return blobXhr({ input, init, onUploadProgress });
+     }
++    if (hasFetchWithUploadProgress) {
++      return blobFetch({ input, init, onUploadProgress });
++    }
+   }
+   if (hasFetch) {
+     return blobFetch({ input, init });

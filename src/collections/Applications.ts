@@ -4,8 +4,9 @@ import { APIError } from 'payload'
 
 import { isMember, isStaff, superAdminOnly } from '../access/roles'
 import { PARTNER_CATEGORIES } from '../members/categories'
-import { decideApplication, type Decision } from '../members/decide'
+import { decideApplication, DECISIONS, type Decision } from '../members/decide'
 import { APPLICATION_REFERENCE_PATTERN } from '../members/ids'
+import { canMove, type Stage } from '../members/stages'
 
 import {
   artistApplicationFields,
@@ -38,18 +39,23 @@ const staffOnlyField: FieldAccess = ({ req: { user } }) => isStaff(user)
 const nobody: FieldAccess = () => false
 
 /**
- * One application per member per kind: how someone asks to work with PJK as an artist, or as a
- * partner. The same person may hold one of each, under one sign-in. It exists from the moment
- * an applicant verifies their email (as a draft), carries a reference they can quote
- * (A-7K3Q9X for an artist, PT-7K3Q9X for a partner), and moves through its stages:
+ * How someone asks to work with PJK as an artist, or as a partner. The same person may apply as
+ * both, under one sign-in, and has at most one current application of each kind. It exists from
+ * the moment an applicant verifies their email (as a draft), carries a reference they can quote
+ * (A-7K3Q9X for an artist, PT-7K3Q9X for a partner), and moves through its stages as
+ * src/members/stages.ts allows, and no other way:
  *
  *   draft → submitted → under review → approved
  *                                    → changes requested → submitted again
- *                                    → rejected
+ *                                    → declined
+ *   (and, until it is decided, withdrawn by the applicant)
  *
- * Nobody moves the stage by editing it. Applicants submit (Phase 4); staff decide through
+ * Someone declined or withdrawn who applies again gets a new application, with its own reference,
+ * pointing back to this one; staff see every earlier one in its history.
+ *
+ * Nobody moves the stage by editing it. Applicants submit and withdraw; staff decide through
  * POST /api/applications/:id/decide, which runs the approval transaction and issues the member ID
- * (src/members/decide.ts). The form's own fields are added in Phase 4.
+ * (src/members/decide.ts).
  */
 export const Applications: CollectionConfig = {
   slug: 'applications',
@@ -179,11 +185,49 @@ export const Applications: CollectionConfig = {
         { label: 'Under review', value: 'under-review' },
         { label: 'Changes requested', value: 'changes-requested' },
         { label: 'Approved', value: 'approved' },
-        { label: 'Rejected', value: 'rejected' },
+        { label: 'Declined', value: 'rejected' },
+        { label: 'Withdrawn by the applicant', value: 'withdrawn' },
       ],
       // Moved only by the server: a submission, or a staff decision through /decide
       access: { update: nobody },
       admin: { position: 'sidebar', readOnly: true },
+    },
+    {
+      name: 'withdrawnAt',
+      type: 'date',
+      access: { update: nobody },
+      admin: {
+        position: 'sidebar',
+        readOnly: true,
+        condition: (data) => data?.stage === 'withdrawn',
+      },
+    },
+    {
+      // The application this one follows, when someone applied again after a decline or a
+      // withdrawal
+      name: 'previousApplication',
+      label: 'Follows',
+      type: 'relationship',
+      relationTo: 'applications',
+      access: { update: nobody },
+      admin: { position: 'sidebar', readOnly: true },
+    },
+    {
+      // "<member>:<type>" on a person's current application of a kind, and empty on every earlier
+      // one. Unique, so two current applications of one kind cannot exist, even when two requests
+      // race
+      name: 'currentSlot',
+      type: 'text',
+      unique: true,
+      index: true,
+      hidden: true,
+    },
+    {
+      name: 'history',
+      type: 'ui',
+      admin: {
+        components: { Field: '@/components/admin/ApplicationHistory#ApplicationHistory' },
+      },
     },
     {
       name: 'partnerCategory',
@@ -243,7 +287,9 @@ export const Applications: CollectionConfig = {
       admin: {
         readOnly: true,
         initCollapsed: true,
-        description: 'Each earlier decision, kept when the applicant applied again.',
+        description:
+          'Earlier decisions on this same record, from before each application had a record of its own (October 2026). Later applications appear under History instead.',
+        condition: (data) => Boolean(data?.rounds?.length),
       },
       fields: [
         { name: 'decision', type: 'text' },
@@ -262,16 +308,29 @@ export const Applications: CollectionConfig = {
   ],
   hooks: {
     beforeChange: [
-      ({ data, operation }) => {
+      ({ data, operation, originalDoc }) => {
         if (operation === 'create' && !APPLICATION_REFERENCE_PATTERN.test(String(data.reference))) {
           throw publicError('Applications are given a reference by the server.', 400)
+        }
+        // A new application is always its person's current one of its kind; the unique slot then
+        // refuses a second beside it, however it is created (src/members/reapply.ts clears the
+        // earlier one's first)
+        if (operation === 'create') {
+          const member = typeof data.member === 'object' ? data.member?.id : data.member
+          if (member && data.type) data.currentSlot = `${member}:${data.type}`
+        }
+        // Stages move only as src/members/stages.ts allows, whoever asks
+        const from = originalDoc?.stage as Stage | undefined
+        const to = data.stage as Stage | undefined
+        if (operation === 'update' && from && to && !canMove(from, to)) {
+          throw publicError(`An application that is "${from}" cannot become "${to}".`, 409)
         }
         return data
       },
     ],
   },
-  // One artist application and one partner application per person, at most
-  indexes: [{ fields: ['member', 'type'], unique: true }],
+  // Every application of a person, of a kind, found quickly; at most one is current (currentSlot)
+  indexes: [{ fields: ['member', 'type'] }],
   endpoints: [
     {
       // POST /api/applications/:id/allow-reapply. Staff only; logged
@@ -306,12 +365,9 @@ export const Applications: CollectionConfig = {
         const id = Number(req.routeParams?.id)
         const body = (await req.json?.().catch(() => ({}))) as { decision?: string; note?: string }
         const decision = body?.decision as Decision
-        if (
-          !Number.isSafeInteger(id) ||
-          !['approve', 'reject', 'request-changes'].includes(decision)
-        ) {
+        if (!Number.isSafeInteger(id) || !DECISIONS.includes(decision)) {
           return Response.json(
-            { message: 'Choose approve, reject or request-changes.' },
+            { message: 'Choose review, approve, reject or request-changes.' },
             { status: 400 },
           )
         }

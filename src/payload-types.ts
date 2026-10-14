@@ -1423,8 +1423,9 @@ export interface SiteSetting {
    */
   applicationsClosedNote?: string | null;
   /**
-   * Counted from the decision, and given in the email that tells them. 0 lets them apply again at once. Staff can end the wait early for one person from their application.
+   * Counted from the decision, and given on their account and in the email that tells them. 0 lets them apply again at once. Staff can end the wait early for one person from their application.
    */
+  reapplyAfterDays?: number | null;
   reapplyAfterMonths?: number | null;
   /**
    * Linked on the last step of the artist application. While a document is here, an artist must tick that they agree and type I AGREE before sending, and which document they agreed to is kept with their application. Upload a new one to change the terms; earlier agreements stay linked to the version agreed to.
@@ -1756,7 +1757,10 @@ export interface Application {
    * The AT or PT number this application earned on approval.
    */
   issuedId?: string | null;
-  stage: 'draft' | 'submitted' | 'under-review' | 'changes-requested' | 'approved' | 'rejected';
+  stage: 'draft' | 'submitted' | 'under-review' | 'changes-requested' | 'approved' | 'rejected' | 'withdrawn';
+  withdrawnAt?: string | null;
+  previousApplication?: (number | null) | Application;
+  currentSlot?: string | null;
   partnerCategory?: ('placement' | 'design-technology' | 'partnership') | null;
   about?: {
     legalName?: string | null;
@@ -1909,7 +1913,7 @@ export interface Application {
    */
   reapplyFrom?: string | null;
   /**
-   * Each earlier decision, kept when the applicant applied again.
+   * Earlier decisions on this same record, from before each application had a record of its own (October 2026). Later applications appear under History instead.
    */
   rounds?:
     | {
@@ -2169,6 +2173,8 @@ export interface SecurityEvent {
     | 'application-changes-requested'
     | 'application-reopened'
     | 'application-reapply-allowed'
+    | 'application-under-review'
+    | 'application-withdrawn'
     | 'kyc-saved'
     | 'kyc-revealed'
     | 'kyc-document-opened'
@@ -3098,6 +3104,7 @@ export interface SiteSettingsSelect<T extends boolean = true> {
   showVisitorCount?: T;
   applicationsOpen?: T;
   applicationsClosedNote?: T;
+  reapplyAfterDays?: T;
   reapplyAfterMonths?: T;
   artistTerms?: T;
   email?: T;
@@ -3362,6 +3369,9 @@ export interface ApplicationsSelect<T extends boolean = true> {
   type?: T;
   issuedId?: T;
   stage?: T;
+  withdrawnAt?: T;
+  previousApplication?: T;
+  currentSlot?: T;
   partnerCategory?: T;
   about?:
     | T

@@ -9,11 +9,12 @@ import type { Purpose } from '@/security/challenges'
 import { phulhaarSocialLinks } from '@/brands/socialIcons'
 import { getServerSideURL } from '@/utilities/getURL'
 
+import { APPLICATIONS_CONTACT } from './contact'
 import type { Decision } from './decide'
 import { defaultSiteSettings } from './openness'
 
-/** Where questions about an application go */
-export const APPLICATIONS_CONTACT = 'hello@pjk.co.in'
+/** Where questions about an application go (src/members/contact.ts) */
+export { APPLICATIONS_CONTACT }
 
 /** "11 April 2027", as the emails write dates */
 export const longDate = (iso: string) =>
@@ -124,7 +125,10 @@ export const sendMemberCode = async (
 
 export const decisionEmail = async (
   payload: Payload,
-  { decision, application }: { decision: Decision; application: Application; member?: Member },
+  {
+    decision,
+    application,
+  }: { decision: Exclude<Decision, 'review'>; application: Application; member?: Member },
 ): Promise<BuiltEmail> => {
   const signIn = `${getServerSideURL()}/collaborate/signin`
   const kind = application.type === 'artist' ? 'artist' : 'partner'
@@ -181,14 +185,14 @@ export const decisionEmail = async (
     parts: [
       {
         kind: 'paragraph',
-        text: 'Thank you for applying, and for the time you gave it. We are not able to take your application further at present.',
+        text: 'Thank you for applying, and for the time you gave it. We are not able to accept your application this time.',
       },
       ...(note ? [{ kind: 'paragraph' as const, text: note }] : []),
       ...(reapplyFrom
         ? [
             {
               kind: 'paragraph' as const,
-              text: `You are welcome to apply again from ${longDate(reapplyFrom)}. Sign in with this email address, and what you told us about yourself and your practice will be there to review.`,
+              text: `You are welcome to apply again from ${longDate(reapplyFrom)}. Sign in with this email address and your answers will be there to review${kind === 'artist' ? '; only your identity documents and photo are asked for again' : ''}.`,
             },
           ]
         : []),
@@ -208,7 +212,7 @@ export const decisionEmail = async (
 
 export const sendDecisionEmail = async (
   payload: Payload,
-  args: { decision: Decision; application: Application; member: Member },
+  args: { decision: Exclude<Decision, 'review'>; application: Application; member: Member },
 ): Promise<boolean> => send(payload, args.member.email, await decisionEmail(payload, args))
 
 export const applicationReceivedEmail = async (
@@ -278,6 +282,38 @@ export const notifyStaffOfApplication = async (
     footer: await emailFooter(payload),
   })
   return send(payload, to, email)
+}
+
+/** Tells staff an applicant has withdrawn an application they had sent */
+export const notifyStaffOfWithdrawal = async (
+  payload: Payload,
+  { application }: { application: Application },
+): Promise<boolean> => {
+  const settings = await defaultSiteSettings(payload).catch(() => null)
+  const to = settings?.businessEmail || settings?.email || process.env.CONTACT_INBOX
+  if (!to) return false
+  const kind = application.type === 'artist' ? 'artist' : 'partner'
+  return send(
+    payload,
+    to,
+    buildEmail({
+      subject: `Application ${application.reference} withdrawn`,
+      preheader: `The applicant has withdrawn their ${kind} application.`,
+      parts: [
+        {
+          kind: 'paragraph',
+          text: `The applicant has withdrawn their ${kind} application. There is nothing more to decide on it.`,
+        },
+        { kind: 'reference', label: 'Reference', value: application.reference },
+        {
+          kind: 'link',
+          label: 'Open it in the admin',
+          url: `${getServerSideURL()}/admin/collections/applications/${application.id}`,
+        },
+      ],
+      footer: await emailFooter(payload),
+    }),
+  )
 }
 
 /**

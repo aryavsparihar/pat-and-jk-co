@@ -70,6 +70,7 @@ export async function POST(request: Request) {
     await payload.find({
       collection: 'applications',
       where: { member: { equals: member.id } },
+      sort: '-createdAt',
       limit: 1,
       depth: 0,
       overrideAccess: true,
