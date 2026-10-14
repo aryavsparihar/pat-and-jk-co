@@ -554,7 +554,7 @@ that use it, and two migrations (`20261013_170910`, `20261013_171821`).
 | A table of every variable | fixed | `cf32f62`: docs/SETUP.md, *Environment variables* |
 | Boot check covers every variable | fixed | `src/env.ts`; `CRON_SECRET` and `PREVIEW_SECRET` now required in production |
 | `.env.example` complete; CI keeps code, example and boot check in step | fixed | `pnpm check:env` (`scripts/check-env-vars.ts`) |
-| Matches Vercel (names only) | verified | Production and Preview hold every required name. Missing: `DATABASE_URL_MIGRATE` (added with the role split, by hand). Unused in Vercel: `BLOB_WEBHOOK_PUBLIC_KEY`, `KYC_WEBHOOK_PUBLIC_KEY` (safe to delete) |
+| Matches Vercel (names only) | verified | Production and Preview hold every required name. Missing: `DATABASE_URL_MIGRATE` (added with the role split, by hand). Unused in Vercel: `BLOB_WEBHOOK_PUBLIC_KEY`, `KYC_WEBHOOK_PUBLIC_KEY`. Vercel manages them with the Blob store connections and they cannot be removed without disconnecting the stores; public keys, read by nothing, ignored by the boot check and CI (`tests/int/env.int.spec.ts`) |
 
 ## 8. Logging
 
