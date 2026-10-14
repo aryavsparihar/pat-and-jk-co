@@ -95,8 +95,13 @@ jobs:
       - name: Integration tests
         run: pnpm test:int
 
+      # The command Vercel runs (migrations, then next build), with the same Node and pnpm, so CI
+      # builds what production builds; any new warning fails it (build-warnings.allow)
       - name: Production build
-        run: pnpm build
+        run: |
+          set -o pipefail
+          pnpm vercel-build 2>&1 | tee build.log
+          node scripts/check-build-log.mjs build.log
 
   # The end-to-end tests (tests/e2e) in a real browser, against the app running on a throwaway
   # database that is migrated and seeded first. Nothing here is a real secret or a real person.

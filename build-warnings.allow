@@ -1,0 +1,6 @@
+# Build warnings that are known and harmless, one regular expression per line, then " # " with
+# why it is harmless and a date to look at it again. scripts/check-build-log.mjs reads this; CI
+# fails on any other warning. Keep it short.
+
+# Payload logs this when no email key is set, as in CI, where nothing should be sent. Review 2027-04
+No email adapter provided  # CI has no email service on purpose; production refuses to start without one. Review 2027-04
