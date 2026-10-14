@@ -21,6 +21,7 @@ import {
   TURNSTILE_FIELD,
   TURNSTILE_REFUSED,
   type TurnstileAction,
+  requestHostname,
   verifyTurnstile,
 } from '@/security/turnstile'
 
@@ -69,6 +70,7 @@ export async function POST(request: Request) {
   const human = await verifyTurnstile(
     (body as Record<string, unknown> | null)?.[TURNSTILE_FIELD],
     purpose,
+    { hostname: requestHostname(request.headers) ?? new URL(request.url).hostname },
   )
   if (!human.ok) {
     payload.logger.warn(`Code request refused by the bot check (${purpose}): ${human.reason}`)
