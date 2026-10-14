@@ -50,6 +50,18 @@ describe('environment validation', () => {
     expect(short.warnings.join()).toMatch(/PAYLOAD_SECRET is 24 characters/)
   })
 
+  it('ignores the variables Vercel sets with each Blob store connection', () => {
+    // Vercel adds these and they cannot be removed without disconnecting the stores; nothing
+    // reads them (docs/SETUP.md). Made-up values
+    const { problems, warnings } = parseEnv({
+      ...base,
+      BLOB_WEBHOOK_PUBLIC_KEY: 'made-up-public-key-for-the-test',
+      KYC_WEBHOOK_PUBLIC_KEY: 'made-up-public-key-for-the-test',
+    })
+    expect(problems).toEqual([])
+    expect(warnings).toEqual([])
+  })
+
   it('asks more of production', () => {
     const { problems } = parseEnv({
       ...base,

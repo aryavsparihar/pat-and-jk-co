@@ -99,7 +99,9 @@ Key: **R** required, **O** optional, **—** not used, *auto* set by Vercel.
 | `DEV_APPLICATIONS_OPEN` | Opens applications on a developer's machine only; ignored in production builds | no | — | — | O |
 | `VERCEL_*`, `NODE_ENV`, `NEXT_*`, `CI` | Set by the platform | no | auto | auto | — |
 
-Vercel also sets `BLOB_WEBHOOK_PUBLIC_KEY` and `KYC_WEBHOOK_PUBLIC_KEY`; nothing reads them.
+Vercel also sets `BLOB_WEBHOOK_PUBLIC_KEY` and `KYC_WEBHOOK_PUBLIC_KEY`, as part of each Blob store
+connection. Nothing reads them, and they cannot be deleted without disconnecting the stores, so
+leave them: they are public keys, and neither the boot check nor CI looks at them.
 
 Only command-line scripts and tests read `ADMIN_EMAIL`, `ADMIN_NAME`, `ADMIN_PASSWORD`
 (`pnpm create-admin`), `SEED_RESET`, `APP_DATABASE_URL` (`pnpm check:database`), `E2E_BASE_URL` and
