@@ -4,3 +4,7 @@
 
 # Payload logs this when no email key is set, as in CI, where nothing should be sent. Review 2027-04
 No email adapter provided  # CI has no email service on purpose; production refuses to start without one. Review 2027-04
+
+# Each CI run starts on a fresh machine with no .next folder, so there is no cache to reuse. Vercel
+# keeps its own cache between deployments. Review 2027-04
+No build cache found  # CI builds from scratch on purpose; Vercel caches its own builds. Review 2027-04
