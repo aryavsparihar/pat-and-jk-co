@@ -2,7 +2,7 @@ import { getPayload, type Payload } from 'payload'
 import config from '@/payload.config'
 import { p, root } from '@/seed/lexical'
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 
 /**
  * Integration tests against the database in DATABASE_URL. They create two throwaway brands
@@ -177,5 +177,25 @@ describe('what the public API gives away', () => {
 
   it('caps how deep a read may populate', () => {
     expect(payload.config.maxDepth).toBeLessThanOrEqual(4)
+  })
+})
+
+describe('the deep health check', () => {
+  it('is for staff only, and lists anything the site needs that is missing', async () => {
+    const { GET } = await import('@/app/(payload)/api/health/route')
+    const { getPayload } = await import('payload')
+    const config = (await import('@/payload.config')).default
+    const payload = await getPayload({ config: await config })
+    const visitor = await GET(new Request('http://localhost:3000/api/health?deep=1'))
+    expect(visitor.status).toBe(401)
+    expect(await visitor.text()).not.toContain('missing')
+    const spy = vi
+      .spyOn(payload, 'auth')
+      .mockResolvedValueOnce({ user: { id: 1, collection: 'users', roles: ['editor'] } } as never)
+    const staff = await GET(new Request('http://localhost:3000/api/health?deep=1'))
+    spy.mockRestore()
+    const body = (await staff.json()) as { content: { checked: number; missing: string[] } }
+    expect(body.content.checked).toBeGreaterThan(15)
+    expect(Array.isArray(body.content.missing)).toBe(true)
   })
 })
