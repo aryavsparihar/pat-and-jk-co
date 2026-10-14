@@ -1,12 +1,13 @@
 'use client'
 
-import { upload } from '@vercel/blob/client'
 import React, { useEffect, useRef, useState } from 'react'
 
 import { DIMENSION_UNITS, PORTFOLIO_MAX, PORTFOLIO_MIN, yearChoices } from '@/members/forms/schemas'
 import { cn } from '@/utilities/ui'
 
-import { api, uploadWithProgress } from '../api'
+import { api } from '../api'
+import { sendPicture } from '../sendPicture'
+import { UploadProgress, type UploadState } from '../UploadProgress'
 import { SelectField, TextField } from '../fields'
 import { Roller, type RollerOption } from '../Roller'
 import type { StepProps, Values } from './steps'
@@ -18,16 +19,12 @@ type Pending = {
   key: string
   name: string
   preview: string
-  progress: number
-  phase: 'waiting' | 'sending' | 'checking' | 'failed'
+  state: UploadState
 }
 
 const ACCEPT = 'image/jpeg,image/png,image/webp'
 
 const YEARS: RollerOption[] = yearChoices().map((y) => ({ value: y, label: String(y) }))
-
-/** Sending is most of the bar; the check on our side fills the rest */
-const SENT = 0.9
 
 /** "12,5" or "12.5", and nothing else */
 const decimal = (value: string) =>
@@ -73,28 +70,9 @@ export const PortfolioStep: React.FC<StepProps> = ({ values, set, errors }) => {
     setPending((all) => all.map((p) => (p.key === key ? { ...p, ...change } : p)))
 
   const sendOne = async (file: File, key: string): Promise<Image | null> => {
-    const progress = (fraction: number) =>
-      update(key, { progress: Math.min(SENT, fraction * SENT), phase: 'sending' })
-    let result
-    if (mode === 'blob') {
-      const blob = await upload(`${prefix}${file.name.replace(/[^\w.-]/g, '_')}`, file, {
-        access: 'public',
-        handleUploadUrl: '/next/members/portfolio/upload-token',
-        contentType: file.type,
-        onUploadProgress: ({ percentage }) => progress(percentage / 100),
-      })
-      update(key, { progress: SENT, phase: 'checking' })
-      result = await api<{ image: Image }>('/next/members/portfolio', {
-        body: { blobUrl: blob.url },
-      })
-    } else {
-      const form = new FormData()
-      form.append('file', file)
-      result = await uploadWithProgress<{ image: Image }>('/next/members/portfolio', form, (f) => {
-        progress(f)
-        if (f >= 1) update(key, { progress: SENT, phase: 'checking' })
-      })
-    }
+    const result = await sendPicture<{ image: Image }>(file, { mode, prefix }, (state) =>
+      update(key, { state }),
+    )
     if (!result.ok) {
       setProblem(`${file.name}: ${result.data.message ?? 'That picture could not be added.'}`)
       return null
@@ -117,8 +95,7 @@ export const PortfolioStep: React.FC<StepProps> = ({ values, set, errors }) => {
           key: `${Date.now()}-${i}-${file.name}`,
           name: file.name,
           preview,
-          progress: 0,
-          phase: 'waiting',
+          state: { phase: 'waiting' },
         } satisfies Pending,
       }
     })
@@ -127,7 +104,6 @@ export const PortfolioStep: React.FC<StepProps> = ({ values, set, errors }) => {
 
     let current = works
     for (const { file, item } of queue) {
-      update(item.key, { phase: 'sending' })
       let image: Image | null = null
       try {
         image = await sendOne(file, item.key)
@@ -135,11 +111,11 @@ export const PortfolioStep: React.FC<StepProps> = ({ values, set, errors }) => {
         setProblem(`${file.name}: that picture could not be sent. Please try again.`)
       }
       if (!image) {
-        update(item.key, { phase: 'failed' })
+        update(item.key, { state: { phase: 'failed' } })
         continue
       }
       const added = image
-      update(item.key, { progress: 1 })
+      update(item.key, { state: { phase: 'done' } })
       // A moment at full, then it settles into the list as a work
       await new Promise((r) => setTimeout(r, 250))
       setImages((all) => ({ ...all, [added.id]: added }))
@@ -158,8 +134,8 @@ export const PortfolioStep: React.FC<StepProps> = ({ values, set, errors }) => {
     set('works', next)
   }
 
-  const sending = pending.some((p) => p.phase !== 'failed')
-  const total = works.length + pending.filter((p) => p.phase !== 'failed').length
+  const sending = pending.some((p) => p.state.phase !== 'failed')
+  const total = works.length + pending.filter((p) => p.state.phase !== 'failed').length
 
   return (
     <div>
@@ -329,40 +305,17 @@ export const PortfolioStep: React.FC<StepProps> = ({ values, set, errors }) => {
                 alt=""
                 className={cn(
                   'size-full object-contain transition-opacity duration-500',
-                  p.phase === 'failed' ? 'opacity-30' : p.progress < 1 && 'opacity-70',
+                  p.state.phase === 'failed'
+                    ? 'opacity-30'
+                    : p.state.phase !== 'done' && 'opacity-70',
                 )}
                 src={p.preview}
               />
             </div>
             <div className="self-center">
               <p className="text-base">{p.name}</p>
-              <div
-                aria-label={`Sending ${p.name}`}
-                aria-valuemax={100}
-                aria-valuemin={0}
-                aria-valuenow={Math.round(p.progress * 100)}
-                className="mt-3 h-1 w-full max-w-sm overflow-hidden bg-border"
-                role="progressbar"
-              >
-                <div
-                  className={cn(
-                    'upload-bar h-full origin-left bg-primary',
-                    p.phase === 'checking' && 'upload-bar-checking',
-                    p.phase === 'failed' && 'bg-destructive',
-                  )}
-                  style={{ transform: `scaleX(${p.progress})` }}
-                />
-              </div>
-              <p className="muted mt-2 text-base">
-                {p.phase === 'waiting'
-                  ? 'Waiting its turn'
-                  : p.phase === 'sending'
-                    ? `Sending, ${Math.round(p.progress * 100)}%`
-                    : p.phase === 'checking'
-                      ? 'Checking the picture'
-                      : 'Not added'}
-              </p>
-              {p.phase === 'failed' && (
+              <UploadProgress className="mt-3" name={p.name} state={p.state} />
+              {p.state.phase === 'failed' && (
                 <button
                   className="link link-caps mt-1 min-h-11"
                   onClick={() => setPending((all) => all.filter((x) => x.key !== p.key))}
@@ -379,7 +332,7 @@ export const PortfolioStep: React.FC<StepProps> = ({ values, set, errors }) => {
       <div className="mt-10 border-t border-border pt-8">
         <p aria-live="polite" className="text-base" role="status">
           {sending
-            ? `Adding ${pending.filter((p) => p.phase !== 'failed').length === 1 ? 'a picture' : 'pictures'}. You can keep writing meanwhile.`
+            ? `Adding ${pending.filter((p) => p.state.phase !== 'failed').length === 1 ? 'a picture' : 'pictures'}. You can keep writing meanwhile.`
             : `${works.length} of ${PORTFOLIO_MAX} works added.`}
         </p>
         {problem && (

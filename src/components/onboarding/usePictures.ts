@@ -1,15 +1,17 @@
 'use client'
 
-import { upload } from '@vercel/blob/client'
 import { useCallback, useEffect, useState } from 'react'
 
 import { api } from './api'
+import { sendPicture } from './sendPicture'
+import type { UploadState } from './UploadProgress'
 
 export type Picture = { id: number; thumbnail: string | null }
 
 /**
  * The member's pictures, and a way to send more: straight to Blob storage in production, as a
  * form upload locally. Each is checked and cleaned on the server and comes back as a thumbnail.
+ * `uploading` says where the picture being sent has got to, for an UploadProgress bar.
  */
 export const usePictures = () => {
   const [pictures, setPictures] = useState<Record<number, Picture>>({})
@@ -17,6 +19,7 @@ export const usePictures = () => {
   const [prefix, setPrefix] = useState('')
   const [busy, setBusy] = useState<string | null>(null)
   const [problem, setProblem] = useState<string | null>(null)
+  const [uploading, setUploading] = useState<{ name: string; state: UploadState } | null>(null)
 
   useEffect(() => {
     let current = true
@@ -35,21 +38,9 @@ export const usePictures = () => {
 
   const sendOne = useCallback(
     async (file: File): Promise<Picture | null> => {
-      let result
-      if (mode === 'blob') {
-        const blob = await upload(`${prefix}${file.name.replace(/[^\w.-]/g, '_')}`, file, {
-          access: 'public',
-          handleUploadUrl: '/next/members/portfolio/upload-token',
-          contentType: file.type,
-        })
-        result = await api<{ image: Picture }>('/next/members/portfolio', {
-          body: { blobUrl: blob.url },
-        })
-      } else {
-        const form = new FormData()
-        form.append('file', file)
-        result = await api<{ image: Picture }>('/next/members/portfolio', { body: form })
-      }
+      const result = await sendPicture<{ image: Picture }>(file, { mode, prefix }, (state) =>
+        setUploading({ name: file.name, state }),
+      )
       if (!result.ok) {
         setProblem(`${file.name}: ${result.data.message ?? 'That picture could not be added.'}`)
         return null
@@ -78,10 +69,11 @@ export const usePictures = () => {
         }
       }
       setBusy(null)
+      setUploading(null)
       return added
     },
     [sendOne],
   )
 
-  return { pictures, send, busy, problem }
+  return { pictures, send, busy, problem, uploading }
 }

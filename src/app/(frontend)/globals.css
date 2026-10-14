@@ -840,12 +840,16 @@
 .upload-bar {
   transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
 }
-.upload-bar-checking {
-  animation: upload-checking 1.4s ease-in-out infinite;
+/* Work that cannot be measured: a band travels along the bar, with no number */
+.upload-bar-moving {
+  animation: upload-moving 1.3s ease-in-out infinite;
 }
-@keyframes upload-checking {
-  50% {
-    opacity: 0.55;
+@keyframes upload-moving {
+  from {
+    left: -33%;
+  }
+  to {
+    left: 100%;
   }
 }
 .work-arrive {
@@ -870,7 +874,13 @@
   .upload-bar {
     transition: none;
   }
-  .upload-bar-checking,
+  /* Still visibly busy, without movement: a steady half-strength band */
+  .upload-bar-moving {
+    animation: none;
+    left: 0;
+    width: 100%;
+    opacity: 0.45;
+  }
   .work-arrive,
   .work-settle {
     animation: none;
