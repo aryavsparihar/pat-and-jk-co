@@ -28,6 +28,7 @@ import * as migration_20261011_073719_ipad_feedback from './20261011_073719_ipad
 import * as migration_20261013_170910_staff_sign_in_events from './20261013_170910_staff_sign_in_events';
 import * as migration_20261013_171821_member_recent_sign_in from './20261013_171821_member_recent_sign_in';
 import * as migration_20261013_185333_app_role_and_rls from './20261013_185333_app_role_and_rls';
+import * as migration_20261014_033632_security_monitoring_events from './20261014_033632_security_monitoring_events';
 
 export const migrations = [
   {
@@ -178,6 +179,11 @@ export const migrations = [
   {
     up: migration_20261013_185333_app_role_and_rls.up,
     down: migration_20261013_185333_app_role_and_rls.down,
-    name: '20261013_185333_app_role_and_rls'
+    name: '20261013_185333_app_role_and_rls',
+  },
+  {
+    up: migration_20261014_033632_security_monitoring_events.up,
+    down: migration_20261014_033632_security_monitoring_events.down,
+    name: '20261014_033632_security_monitoring_events'
   },
 ];

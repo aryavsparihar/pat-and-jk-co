@@ -15,6 +15,9 @@ export const securityEventTypes = [
   'staff-signed-in',
   'staff-sign-in-failed',
   'staff-locked',
+  'access-refused',
+  'rate-limited',
+  'alert-sent',
   // Members (artists and partners)
   'member-code-requested',
   'member-code-sent',

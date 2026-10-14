@@ -4,6 +4,8 @@ import type { Payload } from 'payload'
 
 import { execute } from '@/utilities/sql'
 
+import { logSecurityEvent } from './events'
+
 /**
  * Fixed-window rate limits held in Postgres, so they hold across every serverless instance.
  *
@@ -22,6 +24,8 @@ export type Limit = {
   subject: string
   /** Most requests allowed per window */
   max: number
+  /** Log the first refusal in each window to the security log (default yes) */
+  log?: boolean
   windowSeconds: number
 }
 
@@ -73,6 +77,10 @@ export const hitLimit = async (payload: Payload, limit: Limit): Promise<LimitRes
   }
 
   const count = Number(row?.hits ?? 1)
+  // The first refusal in each window goes to the security log: once, however many follow
+  if (count === limit.max + 1 && limit.log !== false) {
+    await logSecurityEvent(payload, { event: 'rate-limited', detail: limit.scope })
+  }
   // now() is when each statement's transaction began, so one that queued behind a concurrent
   // insert can see a window that "started" a moment after it did. Never report a negative age.
   const elapsed = Math.max(0, Number(row?.elapsed ?? 0))

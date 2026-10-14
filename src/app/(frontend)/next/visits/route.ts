@@ -65,6 +65,7 @@ export async function POST(request: Request) {
         subject: `${tenant.id}:${clientIp(request.headers)}`,
         max: 1,
         windowSeconds: REPEAT_WINDOW_MS / 1000,
+        log: false, // a repeat visit is not abuse
       })
     ).allowed
   if (repeat) return Response.json({ total: await totalFor(payload, tenant.id) })

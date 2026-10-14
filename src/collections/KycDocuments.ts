@@ -1,6 +1,7 @@
 import type { CollectionConfig, FieldAccess } from 'payload'
 
 import { isKycReviewer, kycReviewerOnly } from '../access/roles'
+import { refuse } from '../security/refused'
 
 const nobody: FieldAccess = () => false
 
@@ -126,8 +127,7 @@ export const KycDocuments: CollectionConfig = {
       path: '/:id/download',
       method: 'post',
       handler: async (req) => {
-        if (!isKycReviewer(req.user))
-          return Response.json({ message: 'Not allowed.' }, { status: 403 })
+        if (!isKycReviewer(req.user)) return refuse(req, 'Not allowed.')
         // Loaded here so the Payload CLI, which reads this file, never loads the KYC code
         const { KycError, openKycDocument } = await import('../kyc/service')
         const body = (await req.json?.().catch(() => ({}))) as { reason?: string }

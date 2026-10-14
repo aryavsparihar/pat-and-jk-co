@@ -9,6 +9,7 @@ import { addressFields } from './applicationFields'
 import { MEMBER_ID_PATTERN } from '../members/ids'
 import { normaliseEmail } from '../security/constants'
 import { memberSessionStrategy } from '../security/memberStrategy'
+import { refuse } from '../security/refused'
 
 /** Staff see everyone; a member sees only their own record; nobody else sees any. */
 const readOwnOrStaff: Access = ({ req: { user } }) => {
@@ -275,7 +276,7 @@ export const Members: CollectionConfig = {
       method: 'post',
       handler: async (req) => {
         if (!isKycReviewer(req.user)) {
-          return Response.json({ message: 'Only a KYC reviewer can do this.' }, { status: 403 })
+          return refuse(req, 'Only a KYC reviewer can do this.')
         }
         const body = (await req.json?.().catch(() => ({}))) as { email?: string; reason?: string }
         const { changeEmailByStaff } = await import('../members/account')
@@ -301,7 +302,7 @@ export const Members: CollectionConfig = {
       path: '/:id/profile-review',
       method: 'post',
       handler: async (req) => {
-        if (!isStaff(req.user)) return Response.json({ message: 'Not allowed.' }, { status: 403 })
+        if (!isStaff(req.user)) return refuse(req, 'Not allowed.')
         const body = (await req.json?.().catch(() => ({}))) as { decision?: string; note?: string }
         if (body?.decision !== 'approve' && body?.decision !== 'request-changes') {
           return Response.json({ message: 'Approve, or ask for changes?' }, { status: 400 })

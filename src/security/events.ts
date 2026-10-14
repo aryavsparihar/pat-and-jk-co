@@ -36,5 +36,14 @@ export const logSecurityEvent = async (
     })
   } catch (error) {
     payload.logger.error({ err: error, msg: 'Could not write security event' })
+    return
+  }
+  // Unusual patterns email the technical inbox (src/security/alerts.ts); never delays the request
+  // by more than a count now and then, and never fails it
+  try {
+    const { watchForAbuse } = await import('./alerts')
+    await watchForAbuse(payload, entry.event)
+  } catch (error) {
+    payload.logger.error({ err: error, msg: 'Could not check for unusual activity' })
   }
 }
