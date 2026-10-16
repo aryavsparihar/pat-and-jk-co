@@ -135,15 +135,26 @@ const decide = (collection: 'artworks' | 'members', id: number, decision: string
     json: async () => ({ decision, note }),
   } as never)
 
+/** Whether an approved work or portrait uses the picture (its `public` mark) */
 const isPublicImage = async (id: number) =>
-  (
-    await payload.find({
+  Boolean(
+    (await payload.findByID({ collection: 'portfolio-images', id, overrideAccess: true, depth: 0 }))
+      .public,
+  )
+
+/** Whether a visitor, signed in as nobody, can read the picture: never, approved or not */
+const visitorCanRead = async (id: number) =>
+  payload
+    .find({
       collection: 'portfolio-images',
       where: { id: { equals: id } },
       overrideAccess: false,
       depth: 0,
     })
-  ).docs.length === 1
+    .then(
+      (found) => found.docs.length === 1,
+      () => false, // refused outright
+    )
 
 const cleanup = async () => {
   const like = `%${DOMAIN}`
@@ -235,6 +246,8 @@ describe('a work, from the artist to the public', () => {
     expect(shown).toHaveLength(1)
     expect(shown[0]).toMatchObject({ title: 'River at dusk', priceInr: 45000, images: [image.id] })
     expect(await isPublicImage(image.id)).toBe(true)
+    // Approved, and still private: the public get copies made when a work is published
+    expect(await visitorCanRead(image.id)).toBe(false)
 
     // An edit waits for review; the approved version stays public meanwhile
     const edited = await updateRoute(

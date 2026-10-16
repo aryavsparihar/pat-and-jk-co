@@ -164,9 +164,13 @@ Offline Verification Seeking Entity, and that is a decision for the business and
 ## The member portal
 
 - Approved artists edit their profile and works through `/next/members/portal/*` only; the
-  `artworks` collection refuses members outright, and member pictures are private.
-- Nothing reaches the public without a member of staff approving it, and a picture is public only
-  while an approved, unarchived work or the approved portrait uses it.
+  `artworks` collection refuses members outright.
+- Artists' pictures are private: kept in the private Blob store (never the public one), readable by
+  staff and their owner only, approved or not, and served only through Payload's file route with
+  `Cache-Control: private` and a sandboxing policy. Uploads are made smaller in the browser and
+  pass through the server, which checks and re-encodes them before anything is stored; nothing goes
+  through public storage on the way. Nothing reaches the public without a member of staff
+  approving it.
 - Changing the email address needs a code sent to the **new** address; the old address is told,
   and every other device is signed out. A pending change is bound to its own code, so a code for
   anything else cannot complete it.
@@ -253,7 +257,7 @@ it to the table fails the test too.
 | Endpoint | Protection |
 | --- | --- |
 | Pages, `robots.txt`, `sitemap.xml` | read only; drafts never shown without a staff preview |
-| `GET /api/<public collection>` (pages, posts, ventures, people, media, settings, forms, approved pictures) | read only, published content only, `maxDepth` 4, GraphQL off |
+| `GET /api/<public collection>` (pages, posts, ventures, people, media, settings, forms) | read only, published content only, `maxDepth` 4, GraphQL off |
 | `POST /api/form-submissions` (contact and enquiry forms) | Turnstile, honeypot, 5 per IP per 10 minutes, fields checked against the form and capped (`src/collections/FormSubmissions/overrides.ts`) |
 | `/api/health` | database ping only; the `?deep=1` content check is staff only |
 | `/next/members/request-code` | origin check, Turnstile, honeypot, form-start token, 5 per address and 20 per IP an hour; same reply whether or not the address exists |

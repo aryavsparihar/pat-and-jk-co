@@ -21,7 +21,6 @@ import { allowReapplyNow } from '@/members/reapply'
 import { checkFormToken, createFormToken } from '@/members/formToken'
 import {
   cleanImage,
-  isOwnIncomingBlob,
   PORTFOLIO_MIN_LONG_SIDE,
   PortfolioError,
 } from '@/members/portfolio'
@@ -228,7 +227,7 @@ describe('pictures of the work', () => {
     const meta = await sharp(data).metadata()
     expect(meta.format).toBe('jpeg')
     expect(meta.exif).toBeUndefined()
-    expect(width).toBe(4000)
+    expect(width).toBe(2400)
   })
 
   it('are judged by their bytes, not their name', async () => {
@@ -248,29 +247,9 @@ describe('pictures of the work', () => {
     expect([small.width, small.height]).toEqual([400, 300])
   })
 
-  it('shrink a very large picture to 4000 px, and keep its proportions', async () => {
+  it('shrink a very large picture to 2400 px, and keep its proportions', async () => {
     const large = await cleanImage(await photo('jpeg', 6000, 3000))
-    expect([large.width, large.height]).toEqual([4000, 2000])
-  })
-
-  it('are only imported from this artist’s own folder in our Blob store', () => {
-    const member = { id: 42 }
-    expect(
-      isOwnIncomingBlob(
-        'https://abc123.public.blob.vercel-storage.com/incoming/42/work-x.jpg',
-        member,
-      ),
-    ).toBe(true)
-    for (const url of [
-      'https://abc123.public.blob.vercel-storage.com/incoming/43/work-x.jpg',
-      'https://abc123.public.blob.vercel-storage.com/incoming/42/../43/x.jpg',
-      'https://evil.example/incoming/42/x.jpg',
-      'http://abc123.public.blob.vercel-storage.com/incoming/42/x.jpg',
-      'https://169.254.169.254/latest/meta-data',
-      'not a url',
-    ]) {
-      expect(isOwnIncomingBlob(url, member)).toBe(false)
-    }
+    expect([large.width, large.height]).toEqual([2400, 1200])
   })
 
   it('upload through the endpoint, and nobody else can use them', async () => {

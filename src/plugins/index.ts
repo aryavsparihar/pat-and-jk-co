@@ -2,6 +2,7 @@ import { formBuilderPlugin } from '@payloadcms/plugin-form-builder'
 import { multiTenantPlugin } from '@payloadcms/plugin-multi-tenant'
 import { redirectsPlugin } from '@payloadcms/plugin-redirects'
 import { seoPlugin } from '@payloadcms/plugin-seo'
+import { cloudStoragePlugin } from '@payloadcms/plugin-cloud-storage'
 import { vercelBlobStorage } from '@payloadcms/storage-vercel-blob'
 import type { GenerateTitle, GenerateURL } from '@payloadcms/plugin-seo/types'
 import { FixedToolbarFeature, HeadingFeature, lexicalEditor } from '@payloadcms/richtext-lexical'
@@ -17,7 +18,7 @@ import {
 import { revalidateFrontend } from '@/hooks/revalidateFrontend'
 import type { Config, Page, Post, Venture } from '@/payload-types'
 import { emailFooter } from '@/email/footer'
-import { blobEnvironmentPrefix } from '@/members/storage'
+import { privateMemberMedia } from '@/storage/memberMediaAdapter'
 import { docPath } from '@/utilities/docHref'
 import { getServerSideURL } from '@/utilities/getURL'
 
@@ -158,10 +159,19 @@ export const plugins: Plugin[] = [
     clientUploads: true,
     collections: {
       media: true,
-      // Served through Payload's file route, which applies the collection's read rule
-      // Kept apart from production's on preview deployments (src/members/storage.ts)
-      'portfolio-images': { prefix: `${blobEnvironmentPrefix()}portfolio` },
     },
     token: process.env.BLOB_READ_WRITE_TOKEN || '',
+  }),
+  // Artists' pictures: the private store, never the public one, served only through Payload's file
+  // route after its read rule (staff, or the owner) and through signed links in the portal
+  // (src/storage/memberMediaAdapter.ts). Locally they live in .uploads/media
+  cloudStoragePlugin({
+    alwaysInsertFields: true,
+    collections: {
+      'portfolio-images': {
+        adapter: privateMemberMedia,
+        disableLocalStorage: true,
+      },
+    },
   }),
 ]

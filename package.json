@@ -39,7 +39,8 @@
     "kyc:purge": "cross-env NODE_OPTIONS=\"--no-deprecation --import=./scripts/allow-server-only.mjs\" payload run src/scripts/kyc-purge.ts",
     "kyc:check-aadhaar": "node --no-deprecation --import tsx/esm --import ./scripts/allow-server-only.mjs scripts/check-eaadhaar.ts",
     "kyc:rotate-key": "cross-env NODE_OPTIONS=\"--no-deprecation --import=./scripts/allow-server-only.mjs\" payload run src/scripts/kyc-rotate-key.ts",
-    "load-test:sessions": "cross-env NODE_ENV=production node --no-deprecation --import tsx/esm --import ./scripts/allow-server-only.mjs scripts/load-test-sessions.ts"
+    "load-test:sessions": "cross-env NODE_ENV=production node --no-deprecation --import tsx/esm --import ./scripts/allow-server-only.mjs scripts/load-test-sessions.ts",
+    "media:make-private": "cross-env NODE_ENV=production node --no-deprecation --import tsx/esm --import ./scripts/allow-server-only.mjs scripts/make-media-private.ts"
   },
   "dependencies": {
     "@payloadcms/admin-bar": "3.90.2",
@@ -47,6 +48,7 @@
     "@payloadcms/email-resend": "3.90.2",
     "@payloadcms/live-preview-react": "3.90.2",
     "@payloadcms/next": "3.90.2",
+    "@payloadcms/plugin-cloud-storage": "3.90.2",
     "@payloadcms/plugin-form-builder": "3.90.2",
     "@payloadcms/plugin-multi-tenant": "3.90.2",
     "@payloadcms/plugin-redirects": "3.90.2",
