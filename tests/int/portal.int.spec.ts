@@ -2,6 +2,8 @@
 import { sql } from '@payloadcms/db-postgres'
 import { getPayload, type Payload } from 'payload'
 import sharp from 'sharp'
+import { readFile } from 'node:fs/promises'
+import path from 'node:path'
 import config from '@/payload.config'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -483,6 +485,36 @@ describe('the works folder in Google Drive', () => {
       overrideAccess: true,
     })
     expect(after.worksFolder ?? null).toBeNull()
+  })
+
+  it('pictures staff add in the admin are cleaned as an artist’s are', async () => {
+    const { member } = await someone('artist')
+    const original = await sharp({
+      create: { width: 3200, height: 2400, channels: 3, background: { r: 60, g: 90, b: 120 } },
+    })
+      .withExif({ IFD0: { Artist: 'Example Person' } })
+      .jpeg()
+      .toBuffer()
+    expect((await sharp(original).metadata()).exif).toBeDefined()
+    const added = await payload.create({
+      collection: 'portfolio-images',
+      data: { owner: member.id },
+      file: {
+        data: original,
+        mimetype: 'image/jpeg',
+        name: 'IMG_1234 river.jpg',
+        size: original.length,
+      },
+      user: { ...staff, collection: 'users' } as never,
+      overrideAccess: false,
+    })
+    expect(added.filename).toMatch(/^work-[0-9a-f]{16}\.jpg$/)
+    const stored = await readFile(
+      path.resolve(process.cwd(), '.uploads/media', String(added.prefix), String(added.filename)),
+    )
+    const meta = await sharp(stored).metadata()
+    expect(meta.exif).toBeUndefined()
+    expect(Math.max(meta.width!, meta.height!)).toBe(2400)
   })
 })
 

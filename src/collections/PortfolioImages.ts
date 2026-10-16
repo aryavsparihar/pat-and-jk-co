@@ -3,6 +3,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 
 import { isMember, isStaff } from '../access/roles'
+import { publicError } from '../utilities/publicError'
 import { portfolioFolder } from '../storage/memberMediaAdapter'
 
 const filename = fileURLToPath(import.meta.url)
@@ -43,7 +44,9 @@ export const PortfolioImages: CollectionConfig = {
   slug: 'portfolio-images',
   labels: { singular: 'Portfolio image', plural: 'Portfolio images' },
   access: {
-    create: () => false, // only the server, after checking and cleaning the file
+    // The server, after checking and cleaning the file; and staff, adding the pictures of a work
+    // from the artist's Google Drive folder, whose uploads are cleaned the same way (below)
+    create: ({ req: { user } }) => isStaff(user),
     read: readable,
     update: ({ req: { user } }) => isStaff(user),
     delete: ownOrStaff,
@@ -103,6 +106,27 @@ export const PortfolioImages: CollectionConfig = {
     ],
   },
   hooks: {
+    beforeOperation: [
+      // A picture staff upload in the admin gets what an artist's gets: checked to be what it
+      // says it is, re-encoded without location or camera details, at most 2400 px, under a name
+      // that says nothing about the file it came from
+      async ({ operation, req }) => {
+        if (operation !== 'create' || !req.file || !isStaff(req.user)) return
+        const { cleanImage, PortfolioError } = await import('../members/portfolio')
+        const { randomBytes } = await import('node:crypto')
+        let data: Buffer
+        try {
+          data = (await cleanImage(req.file.data)).data
+        } catch (error) {
+          if (error instanceof PortfolioError) throw publicError(error.message, 400)
+          throw error
+        }
+        req.file.data = data
+        req.file.size = data.length
+        req.file.mimetype = 'image/jpeg'
+        req.file.name = `work-${randomBytes(8).toString('hex')}.jpg`
+      },
+    ],
     beforeChange: [
       // Where a new upload's files go: this environment's folder of the private store. Set here,
       // not as the storage plugin's prefix option, whose default would make the column's default
