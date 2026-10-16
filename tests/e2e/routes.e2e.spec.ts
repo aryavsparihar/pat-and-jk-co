@@ -124,8 +124,8 @@ const COLLECTIONS: Record<string, 'public' | 'own' | 'staff' | 'self' | 'admin' 
     users: 'self',
     members: 'own',
     applications: 'own',
-    // Pictures of approved works are public; a member also sees their own
-    'portfolio-images': 'public',
+    // Private: staff, and a member their own, approved or not (src/storage/privateMedia.ts)
+    'portfolio-images': 'own',
     artworks: 'staff',
     'kyc-records': 'kyc',
     'kyc-documents': 'kyc',
@@ -386,10 +386,6 @@ test('each collection is read only by those it is meant for, and a member sees o
         }
       }
       if (rule === 'self' && who === 'editor') expect(docs.length, label).toBeLessThanOrEqual(1)
-      // A public picture does not name the member behind it
-      if (slug === 'portfolio-images' && (who === 'anonymous' || who === 'expired')) {
-        for (const doc of docs) expect(doc, label).not.toHaveProperty('owner')
-      }
     }
   }
 })
