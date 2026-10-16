@@ -4,7 +4,6 @@ import sharp, { type Metadata } from 'sharp'
 
 import type { Member, PortfolioImage } from '@/payload-types'
 
-import { blobEnvironmentPrefix } from './storage'
 
 /**
  * Every picture an artist sends passes through here before it is kept:
@@ -17,7 +16,8 @@ import { blobEnvironmentPrefix } from './storage'
  *   4. stored as this artist's own; Payload makes the web-sized copies
  */
 
-export const PORTFOLIO_MAX_BYTES = 25 * 1024 * 1024
+/** What one request may carry: the browser sends at most 4 MB (src/components/onboarding/sendPicture.ts) */
+export const PORTFOLIO_MAX_BYTES = 5 * 1024 * 1024
 const MAX_PIXELS = 50_000_000
 /**
  * The smallest picture accepted, in pixels on its longest side, for application pictures and the
@@ -26,7 +26,7 @@ const MAX_PIXELS = 50_000_000
  */
 export const PORTFOLIO_MIN_LONG_SIDE: number | null = null
 /** Larger pictures are shrunk to this; smaller ones are never enlarged */
-const MAX_LONG_SIDE = 4000
+const MAX_LONG_SIDE = 2400
 /** Ten works, with room to replace a few pictures along the way */
 export const MAX_IMAGES_PER_MEMBER = 16
 /** An approved artist keeps pictures for every work in their portfolio, up to eight each */
@@ -63,7 +63,7 @@ export const cleanImage = async (
   input: Buffer,
 ): Promise<{ data: Buffer; width: number; height: number }> => {
   if (input.length > PORTFOLIO_MAX_BYTES) {
-    throw new PortfolioError('That picture is larger than 25 MB. Please send a smaller version.')
+    throw new PortfolioError('That picture is larger than 5 MB. Please send a smaller version.')
   }
   let meta: Metadata
   try {
@@ -136,52 +136,3 @@ export const ingestPortfolioImage = async (
     context: { disableRevalidate: true },
   })
 }
-
-/** Where browsers may put pictures on their way in, per member */
-export const incomingPrefix = (member: Pick<Member, 'id'>) =>
-  `${blobEnvironmentPrefix()}incoming/${member.id}/`
-
-/**
- * Only a picture this member uploaded to our own Blob store may be fetched for import: any other
- * address is refused before a request is made, so this cannot be used to make the server fetch
- * something elsewhere.
- */
-export const isOwnIncomingBlob = (url: string, member: Pick<Member, 'id'>): boolean => {
-  try {
-    const parsed = new URL(url)
-    return (
-      parsed.protocol === 'https:' &&
-      parsed.hostname.endsWith('.public.blob.vercel-storage.com') &&
-      parsed.pathname.startsWith(`/${incomingPrefix(member)}`) &&
-      !parsed.pathname.includes('..')
-    )
-  } catch {
-    return false
-  }
-}
-
-/** Downloads at most PORTFOLIO_MAX_BYTES; anything longer is refused rather than buffered */
-export const fetchCapped = async (url: string): Promise<Buffer> => {
-  const response = await fetch(url, { redirect: 'error' })
-  if (!response.ok || !response.body)
-    throw new PortfolioError('That upload could not be found. Please try again.', 404)
-  const declared = Number(response.headers.get('content-length') ?? 0)
-  if (declared > PORTFOLIO_MAX_BYTES) throw new PortfolioError('That picture is larger than 25 MB.')
-  const chunks: Uint8Array[] = []
-  let total = 0
-  const reader = response.body.getReader()
-  for (;;) {
-    const { done, value } = await reader.read()
-    if (done) break
-    total += value.length
-    if (total > PORTFOLIO_MAX_BYTES) {
-      await reader.cancel()
-      throw new PortfolioError('That picture is larger than 25 MB.')
-    }
-    chunks.push(value)
-  }
-  return Buffer.concat(chunks)
-}
-
-/** Whether pictures go straight from the browser to Blob (production) or through us (local) */
-export const blobUploadsAvailable = () => Boolean(process.env.BLOB_READ_WRITE_TOKEN)

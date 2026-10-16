@@ -1,15 +1,9 @@
-import { del } from '@vercel/blob'
-
 import { findOwnApplication } from '@/members/application'
 import { imageInUseByPortal } from '@/members/artworks'
 import { fromOurOrigin, refuseCrossSite, reply, requireMember, withRefresh } from '@/members/http'
 import {
-  blobUploadsAvailable,
   canAddPictures,
-  fetchCapped,
-  incomingPrefix,
   ingestPortfolioImage,
-  isOwnIncomingBlob,
   PortfolioError,
   PORTFOLIO_MAX_BYTES,
 } from '@/members/portfolio'
@@ -39,20 +33,13 @@ export async function GET(request: Request) {
     depth: 0,
     overrideAccess: true,
   })
-  return withRefresh(
-    reply({
-      mode: blobUploadsAvailable() ? 'blob' : 'direct',
-      // Where this member's browser may put files in the Blob store (checked again on import)
-      uploadPrefix: incomingPrefix(member),
-      images: images.docs.map(imageView),
-    }),
-    auth.refresh,
-  )
+  return withRefresh(reply({ images: images.docs.map(imageView) }), auth.refresh)
 }
 
 /**
- * Takes one picture: either the file itself (local development, small files), or the address of
- * one the browser has just put in our Blob store (production, any size up to 25 MB).
+ * Takes one picture, already made smaller by the browser (src/components/onboarding/sendPicture.ts),
+ * checks what it really is, re-encodes it and keeps it in private storage. Nothing passes through
+ * public storage on the way.
  */
 export async function POST(request: Request) {
   if (!fromOurOrigin(request)) return refuseCrossSite()
@@ -77,26 +64,17 @@ export async function POST(request: Request) {
   if (!limit.allowed)
     return reply({ message: 'That is a lot of uploads. Please wait a while.' }, { status: 429 })
 
-  let incoming: string | null = null
   try {
-    let bytes: Buffer
     const type = request.headers.get('content-type') ?? ''
-    if (type.startsWith('multipart/form-data')) {
-      const form = await request.formData()
-      const file = form.get('file')
-      if (!(file instanceof File))
-        return reply({ message: 'Please choose a picture.' }, { status: 400 })
-      if (file.size > PORTFOLIO_MAX_BYTES)
-        throw new PortfolioError('That picture is larger than 25 MB.')
-      bytes = Buffer.from(await file.arrayBuffer())
-    } else {
-      const body = (await request.json().catch(() => null)) as { blobUrl?: string } | null
-      if (!body?.blobUrl || !isOwnIncomingBlob(body.blobUrl, member)) {
-        return reply({ message: 'That upload could not be found.' }, { status: 400 })
-      }
-      incoming = body.blobUrl
-      bytes = await fetchCapped(incoming)
-    }
+    if (!type.startsWith('multipart/form-data'))
+      return reply({ message: 'Please choose a picture.' }, { status: 400 })
+    const form = await request.formData()
+    const file = form.get('file')
+    if (!(file instanceof File))
+      return reply({ message: 'Please choose a picture.' }, { status: 400 })
+    if (file.size > PORTFOLIO_MAX_BYTES)
+      throw new PortfolioError('That picture is larger than 5 MB.')
+    const bytes = Buffer.from(await file.arrayBuffer())
 
     const image = await ingestPortfolioImage(payload, member, bytes)
     return withRefresh(reply({ image: imageView(image) }, { status: 201 }), auth.refresh)
@@ -109,7 +87,6 @@ export async function POST(request: Request) {
         member: member.id,
         status: error.status,
         reason: error.message,
-        via: incoming ? 'blob' : 'direct',
       })
       return reply({ message: error.message }, { status: error.status })
     }
@@ -117,14 +94,8 @@ export async function POST(request: Request) {
       err: error,
       msg: 'Portfolio upload failed',
       member: member.id,
-      via: incoming ? 'blob' : 'direct',
     })
     return reply({ message: 'That picture could not be saved. Please try again.' }, { status: 500 })
-  } finally {
-    // The raw upload is never kept: only the cleaned copy is
-    // The incoming folder is in the public media store: its token, never a fallback credential
-    if (incoming)
-      await del(incoming, { token: process.env.BLOB_READ_WRITE_TOKEN }).catch(() => undefined)
   }
 }
 

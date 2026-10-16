@@ -46,19 +46,13 @@ export const PortfolioStep: React.FC<StepProps> = ({ values, set, errors }) => {
   const [local, setLocal] = useState<Record<number, string>>({})
   const [pending, setPending] = useState<Pending[]>([])
   const [fresh, setFresh] = useState<number | null>(null)
-  const [mode, setMode] = useState<'blob' | 'direct'>('direct')
-  const [prefix, setPrefix] = useState('')
   const [problem, setProblem] = useState<string | null>(null)
   const input = useRef<HTMLInputElement>(null)
   const urls = useRef<string[]>([])
 
   useEffect(() => {
-    void api<{ mode: 'blob' | 'direct'; uploadPrefix: string; images: Image[] }>(
-      '/next/members/portfolio',
-    ).then((r) => {
+    void api<{ images: Image[] }>('/next/members/portfolio').then((r) => {
       if (!r.ok) return
-      setMode(r.data.mode)
-      setPrefix(r.data.uploadPrefix)
       setImages(Object.fromEntries(r.data.images.map((i) => [i.id, i])))
     })
   }, [])
@@ -70,7 +64,7 @@ export const PortfolioStep: React.FC<StepProps> = ({ values, set, errors }) => {
     setPending((all) => all.map((p) => (p.key === key ? { ...p, ...change } : p)))
 
   const sendOne = async (file: File, key: string): Promise<Image | null> => {
-    const result = await sendPicture<{ image: Image }>(file, { mode, prefix }, (state) =>
+    const result = await sendPicture<{ image: Image }>(file, (state) =>
       update(key, { state }),
     )
     if (!result.ok) {

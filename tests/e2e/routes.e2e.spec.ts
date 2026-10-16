@@ -98,7 +98,6 @@ const ROUTES: Record<string, 'public' | 'member' | 'staff' | 'secret' | 'token'>
   '/next/members/portal/sessions': 'member',
   '/next/members/portal/sessions/[id]': 'member',
   '/next/members/portfolio': 'member',
-  '/next/members/portfolio/upload-token': 'member',
   '/next/members/step-up': 'member',
   '/next/members/step-up/confirm': 'member',
 }

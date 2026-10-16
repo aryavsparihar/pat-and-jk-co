@@ -15,20 +15,14 @@ export type Picture = { id: number; thumbnail: string | null }
  */
 export const usePictures = () => {
   const [pictures, setPictures] = useState<Record<number, Picture>>({})
-  const [mode, setMode] = useState<'blob' | 'direct'>('direct')
-  const [prefix, setPrefix] = useState('')
   const [busy, setBusy] = useState<string | null>(null)
   const [problem, setProblem] = useState<string | null>(null)
   const [uploading, setUploading] = useState<{ name: string; state: UploadState } | null>(null)
 
   useEffect(() => {
     let current = true
-    void api<{ mode: 'blob' | 'direct'; uploadPrefix: string; images: Picture[] }>(
-      '/next/members/portfolio',
-    ).then((r) => {
+    void api<{ images: Picture[] }>('/next/members/portfolio').then((r) => {
       if (!current || !r.ok) return
-      setMode(r.data.mode)
-      setPrefix(r.data.uploadPrefix)
       setPictures(Object.fromEntries(r.data.images.map((i) => [i.id, i])))
     })
     return () => {
@@ -38,7 +32,7 @@ export const usePictures = () => {
 
   const sendOne = useCallback(
     async (file: File): Promise<Picture | null> => {
-      const result = await sendPicture<{ image: Picture }>(file, { mode, prefix }, (state) =>
+      const result = await sendPicture<{ image: Picture }>(file, (state) =>
         setUploading({ name: file.name, state }),
       )
       if (!result.ok) {
@@ -47,7 +41,7 @@ export const usePictures = () => {
       }
       return result.data.image
     },
-    [mode, prefix],
+    [],
   )
 
   /** Sends each file in turn; returns the pictures that arrived */
