@@ -47,6 +47,7 @@
     "@payloadcms/email-resend": "3.90.2",
     "@payloadcms/live-preview-react": "3.90.2",
     "@payloadcms/next": "3.90.2",
+    "@payloadcms/plugin-cloud-storage": "3.90.2",
     "@payloadcms/plugin-form-builder": "3.90.2",
     "@payloadcms/plugin-multi-tenant": "3.90.2",
     "@payloadcms/plugin-redirects": "3.90.2",

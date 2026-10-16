@@ -15,14 +15,14 @@ const ownOrStaff: Access = ({ req: { user } }) => {
 }
 
 /**
- * Staff see every image; a member sees their own; anyone sees an image staff have approved for
- * the public (a published work's picture or an approved portrait), and no other.
+ * Staff see every image and a member sees their own; nobody else, approved or not. Pictures for the
+ * public are copied out to public storage when a work is published, so the originals never need to
+ * be readable by anyone else.
  */
 const readable: Access = ({ req: { user } }): boolean | Where => {
   if (isStaff(user)) return true
-  const approved: Where = { public: { equals: true } }
-  if (isMember(user)) return { or: [{ owner: { equals: user.id } }, approved] }
-  return approved
+  if (isMember(user)) return { owner: { equals: user.id } }
+  return false
 }
 
 /**
@@ -33,8 +33,10 @@ const readable: Access = ({ req: { user } }): boolean | Where => {
  * bytes rather than its name, re-encodes it (which drops EXIF, including any GPS position), caps
  * its size, and only then stores it here; Payload makes the web-sized copies.
  *
- * Not public: unlike site media, these are served only through Payload's file route, which applies
- * the read rule above. Locally they live outside public/ for the same reason.
+ * Private: kept in the private store, never the public one (src/storage/memberMediaAdapter.ts),
+ * and served only through Payload's file route, which applies the read rule above, or through the
+ * portal's signed links (src/members/mediaLinks.ts). Never through a public URL, the image
+ * optimiser or the CDN.
  */
 export const PortfolioImages: CollectionConfig = {
   slug: 'portfolio-images',
@@ -54,8 +56,9 @@ export const PortfolioImages: CollectionConfig = {
   },
   fields: [
     {
-      // Set only by the server when staff approve a work or a portrait that uses this image,
-      // and cleared when nothing public uses it any more (src/members/artworks.ts)
+      // Set only by the server when staff approve a work or a portrait that uses this image, and
+      // cleared when nothing approved uses it any more (src/members/artworks.ts). It no longer makes
+      // the picture readable by anyone: publishing copies public versions out instead
       name: 'public',
       type: 'checkbox',
       defaultValue: false,
@@ -89,6 +92,7 @@ export const PortfolioImages: CollectionConfig = {
     },
   ],
   upload: {
+    // Only where pictures from before were kept locally; new ones go to the private store
     staticDir: path.resolve(dirname, '../../.uploads/portfolio-images'),
     mimeTypes: ['image/jpeg', 'image/png', 'image/webp'],
     adminThumbnail: 'thumbnail',
