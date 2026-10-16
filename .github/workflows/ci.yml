@@ -1,6 +1,12 @@
 # The same checks as "before pushing" in docs/ARCHITECTURE.md, run on every push and pull request,
 # plus two that only make sense on a fresh database: that every migration applies cleanly from
 # nothing, and that no schema change has been made without a migration to go with it.
+#
+# Minutes are budgeted (docs/ARCHITECTURE.md, "CI minutes"). The scope job decides whether the heavy
+# jobs have anything new to prove: nothing for a documentation-only change, nor on main when the
+# merge holds exactly the code its pull request already passed. Either way verify and e2e still
+# run and report under their names, which the ruleset and Vercel require; they just skip their
+# steps and pass in seconds.
 name: CI
 
 on:
@@ -16,7 +22,34 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  scope:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+    outputs:
+      heavy: ${{ steps.scope.outputs.heavy }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - id: scope
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: .github/scripts/scope.sh CI
+
+      - if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: tested-tree
+          path: tested-tree.txt
+          retention-days: 30
+
   verify:
+    needs: scope
+    # Runs even if the scope job broke: then nothing says "skip", so everything runs
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -45,36 +78,49 @@ jobs:
       NEXT_TELEMETRY_DISABLED: '1'
 
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - if: needs.scope.outputs.heavy == 'false'
+        run: echo "Nothing new to prove here (see the scope job), so this passes without running."
+
+      - if: needs.scope.outputs.heavy != 'false'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # Reads the pnpm version from package.json "packageManager"
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - if: needs.scope.outputs.heavy != 'false'
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
 
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - if: needs.scope.outputs.heavy != 'false'
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
           cache: pnpm
 
-      - run: pnpm install --frozen-lockfile
+      - if: needs.scope.outputs.heavy != 'false'
+        run: pnpm install --frozen-lockfile
 
-      - name: Lint
+      - if: needs.scope.outputs.heavy != 'false'
+        name: Lint
         run: pnpm lint
 
-      - name: Typecheck
+      - if: needs.scope.outputs.heavy != 'false'
+        name: Typecheck
         run: pnpm typecheck
 
-      - name: Every environment variable is documented and checked
+      - if: needs.scope.outputs.heavy != 'false'
+        name: Every environment variable is documented and checked
         run: pnpm check:env
 
-      - name: Migrations only add things, so a rollback always works
+      - if: needs.scope.outputs.heavy != 'false'
+        name: Migrations only add things, so a rollback always works
         run: node scripts/check-migrations.mjs
 
-      - name: Migrations apply cleanly to an empty database
+      - if: needs.scope.outputs.heavy != 'false'
+        name: Migrations apply cleanly to an empty database
         run: pnpm payload migrate
         env:
           NODE_ENV: production
 
-      - name: The database gives the site no more than it needs
+      - if: needs.scope.outputs.heavy != 'false'
+        name: The database gives the site no more than it needs
         # A login role in the app's group, as in production (docs/SETUP.md, "Database roles"),
         # so the check also tries, from the inside, what the site must not be able to do
         env:
@@ -84,7 +130,8 @@ jobs:
             -c "CREATE ROLE pjk_app_ci LOGIN PASSWORD 'pjk-app-ci' IN ROLE pjk_app_access"
           pnpm check:database
 
-      - name: Every schema change has a migration
+      - if: needs.scope.outputs.heavy != 'false'
+        name: Every schema change has a migration
         env:
           NODE_ENV: production
         run: |
@@ -99,18 +146,23 @@ jobs:
       # builds what production builds; any new warning fails it (build-warnings.allow). Before the
       # integration tests: they run Payload in development mode, which marks the database as
       # pushed, and `payload migrate` would then stop to ask about it and wait for ever
-      - name: Production build
+      - if: needs.scope.outputs.heavy != 'false'
+        name: Production build
         run: |
           set -o pipefail
           pnpm vercel-build 2>&1 | tee build.log
           node scripts/check-build-log.mjs build.log
 
-      - name: Integration tests
+      - if: needs.scope.outputs.heavy != 'false'
+        name: Integration tests
         run: pnpm test:int
 
   # The end-to-end tests (tests/e2e) in a real browser, against the app running on a throwaway
   # database that is migrated and seeded first. Nothing here is a real secret or a real person.
   e2e:
+    needs: scope
+    # Runs even if the scope job broke: then nothing says "skip", so everything runs
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -139,28 +191,38 @@ jobs:
       CI: 'true'
 
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - if: needs.scope.outputs.heavy == 'false'
+        run: echo "Nothing new to prove here (see the scope job), so this passes without running."
 
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - if: needs.scope.outputs.heavy != 'false'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - if: needs.scope.outputs.heavy != 'false'
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - if: needs.scope.outputs.heavy != 'false'
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
           cache: pnpm
 
-      - run: pnpm install --frozen-lockfile
+      - if: needs.scope.outputs.heavy != 'false'
+        run: pnpm install --frozen-lockfile
 
-      - name: Install the browser
+      - if: needs.scope.outputs.heavy != 'false'
+        name: Install the browser
         run: pnpm exec playwright install --with-deps chromium
 
-      - name: Migrate and seed the throwaway database
+      - if: needs.scope.outputs.heavy != 'false'
+        name: Migrate and seed the throwaway database
         run: |
           pnpm payload migrate
           pnpm seed
         env:
           NODE_ENV: production
 
-      - name: End-to-end tests
+      - if: needs.scope.outputs.heavy != 'false'
+        name: End-to-end tests
         run: pnpm test:e2e
 
       - name: Keep the report when something fails
