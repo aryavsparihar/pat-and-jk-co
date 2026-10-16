@@ -166,6 +166,28 @@ export const Members: CollectionConfig = {
       fields: addressFields(),
     },
 
+    // The artist's works live in one Google Drive folder of theirs, a folder per work inside it
+    // (docs/ADMIN_GUIDE.md, "Artists' works"). Set by the artist from their account
+    // (/next/members/portal/works-folder), checked to be a Drive folder link; staff may correct it
+    {
+      name: 'worksFolder',
+      label: 'Works folder (Google Drive)',
+      type: 'text',
+      maxLength: 200,
+      access: { update: staffOnlyField },
+      admin: {
+        position: 'sidebar',
+        condition: (data) => Boolean(data?.artistId),
+        components: { Field: '@/components/admin/DriveFolderField#DriveFolderField' },
+      },
+    },
+    {
+      name: 'worksFolderUpdatedAt',
+      type: 'date',
+      access: { create: nobody, update: nobody },
+      admin: { hidden: true },
+    },
+
     // The artist's public profile (Phase 6 portal). Members edit `profile` from their account;
     // staff approve it, which publishes `publicProfile`, the only version the public sees.
     {

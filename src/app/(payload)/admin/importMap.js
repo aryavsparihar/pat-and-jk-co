@@ -26,9 +26,11 @@ import { FolderTableCell as FolderTableCell_f9c02e79a4aed9a3924487c0cd4cafb1 } f
 import { FolderField as FolderField_f9c02e79a4aed9a3924487c0cd4cafb1 } from '@payloadcms/next/rsc'
 import { WatchTenantCollection as WatchTenantCollection_1d0591e3cf4f332c83a86da13a0de59a } from '@payloadcms/plugin-multi-tenant/client'
 import { EmailRecoveryPanel as EmailRecoveryPanel_1e7b46736f74144de3026cf06fae8eb8 } from '@/components/admin/EmailRecoveryPanel'
+import { DriveFolderField as DriveFolderField_4f09c71a184dc0eba4abc468f50b20a8 } from '@/components/admin/DriveFolderField'
 import { ReviewPanel as ReviewPanel_caa7f039c39638b50465b2dc4034742a } from '@/components/admin/ReviewPanel'
 import { DecisionPanel as DecisionPanel_676fe2f15dcdfed9d10f593f564c78d0 } from '@/components/admin/DecisionPanel'
 import { ApplicationHistory as ApplicationHistory_f59f805df6b53acde3669a4489990560 } from '@/components/admin/ApplicationHistory'
+import { WorkFolderPanel as WorkFolderPanel_7ab215109363fb8600a11c4f06496035 } from '@/components/admin/WorkFolderPanel'
 import { KycPanel as KycPanel_0eb769a0ed0fcab70970f575327a3340 } from '@/components/admin/KycPanel'
 import { FolderTypeField as FolderTypeField_2b8867833a34864a02ddf429b0728a40 } from '@payloadcms/next/client'
 import { Icon as Icon_e60daefd9ca0ae7722c67ce9a39e1dd6 } from '@/components/admin/Graphics'
@@ -73,9 +75,11 @@ export const importMap = {
   "@payloadcms/next/rsc#FolderField": FolderField_f9c02e79a4aed9a3924487c0cd4cafb1,
   "@payloadcms/plugin-multi-tenant/client#WatchTenantCollection": WatchTenantCollection_1d0591e3cf4f332c83a86da13a0de59a,
   "@/components/admin/EmailRecoveryPanel#EmailRecoveryPanel": EmailRecoveryPanel_1e7b46736f74144de3026cf06fae8eb8,
+  "@/components/admin/DriveFolderField#DriveFolderField": DriveFolderField_4f09c71a184dc0eba4abc468f50b20a8,
   "@/components/admin/ReviewPanel#ReviewPanel": ReviewPanel_caa7f039c39638b50465b2dc4034742a,
   "@/components/admin/DecisionPanel#DecisionPanel": DecisionPanel_676fe2f15dcdfed9d10f593f564c78d0,
   "@/components/admin/ApplicationHistory#ApplicationHistory": ApplicationHistory_f59f805df6b53acde3669a4489990560,
+  "@/components/admin/WorkFolderPanel#WorkFolderPanel": WorkFolderPanel_7ab215109363fb8600a11c4f06496035,
   "@/components/admin/KycPanel#KycPanel": KycPanel_0eb769a0ed0fcab70970f575327a3340,
   "@payloadcms/next/client#FolderTypeField": FolderTypeField_2b8867833a34864a02ddf429b0728a40,
   "@/components/admin/Graphics#Icon": Icon_e60daefd9ca0ae7722c67ce9a39e1dd6,

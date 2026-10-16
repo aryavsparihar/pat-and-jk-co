@@ -5,7 +5,8 @@ import React, { useState } from 'react'
 import { api } from '../onboarding/api'
 import type { WorkValues } from './WorkForm'
 
-type Work = WorkValues & { id: number; archived: boolean; isPublic: boolean }
+// The pictures are the ones staff added from the artist's Google Drive folder
+type Work = WorkValues & { id: number; archived: boolean; isPublic: boolean; images?: number[] }
 
 const REVIEW_WORDS: Record<string, string> = {
   pending: 'Waiting for our review',
@@ -77,12 +78,12 @@ export const WorksList: React.FC<{
             className={`grid grid-cols-[5rem_1fr] gap-x-6 gap-y-3 border-t border-border py-6 sm:grid-cols-[6rem_1fr_auto] ${work.archived ? 'opacity-60' : ''}`}
             key={work.id}
           >
-            {thumbnails[work.images[0] ?? -1] ? (
+            {thumbnails[work.images?.[0] ?? -1] ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 alt=""
                 className="aspect-square w-full bg-surface object-cover"
-                src={thumbnails[work.images[0]!]!}
+                src={thumbnails[work.images![0]!]!}
               />
             ) : (
               <div className="aspect-square w-full bg-surface" />

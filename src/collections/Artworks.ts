@@ -120,7 +120,16 @@ export const Artworks: CollectionConfig = {
         },
       ],
     },
-    { name: 'description', type: 'textarea', maxLength: 2000 },
+    { name: 'description', type: 'textarea', maxLength: 3000 },
+    {
+      // Which folder in the artist's Google Drive holds this work's pictures and video
+      name: 'folderGuide',
+      type: 'ui',
+      admin: {
+        position: 'sidebar',
+        components: { Field: '@/components/admin/WorkFolderPanel#WorkFolderPanel' },
+      },
+    },
     {
       name: 'images',
       type: 'relationship',
