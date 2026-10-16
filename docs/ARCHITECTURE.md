@@ -166,6 +166,36 @@ plus two that need a fresh database: every migration must apply cleanly to an em
 `payload migrate:create --skip-empty` must find nothing to write. If that second check fails, a
 collection or block changed without a migration; create one and commit it.
 
+### CI minutes
+
+The repository is private, so Actions minutes are rationed: GitHub Pro includes 3,000 a month, with
+a small spending limit as a buffer. CI is shaped to spend them only where they prove something:
+
+- **One run per pull request.** Run the checks above locally, and push a pull request once, when it
+  is ready. Each push to an open pull request cancels the run before it.
+- **Documentation-only changes** (`docs/`, `*.md`) skip the heavy jobs.
+- **After merging,** the run on `main` skips the heavy jobs when the merge holds exactly the code
+  the pull request's run tested and passed (the same git tree). It still has to report, as Vercel
+  waits for these checks before a release goes live (docs/SECURITY.md, "The gatekeeper").
+- **Security:** the secret scan runs every time. The dependency and code scans run when code or
+  dependencies changed, and in full every Monday.
+- **Dependabot:** one pull request a week for all npm updates, one a month for all GitHub Actions.
+
+`.github/scripts/scope.sh` makes these decisions, and it fails safe. Every required job (verify,
+e2e, Secret scan, Dependency, secret and config scan, Code scan (Semgrep)) still runs and reports
+under its own name. When there is nothing to prove, it skips its steps and passes in seconds; when
+anything is unclear, it runs everything.
+
+A code pull request costs about 35 minutes: CI's own run, about 32, mostly the browser tests,
+plus the security scans. Merging it costs about 5 more, against about 71 in all before. A
+documentation-only one costs about 12. To see where the month stands:
+
+```bash
+scripts/ci-minutes.sh
+```
+
+It estimates the way GitHub bills (each job rounded up to a minute) and warns past 2,700.
+
 ## Tests
 
 | | What | Runs against |

@@ -1,5 +1,7 @@
-# Weekly version updates, grouped so a quiet week is one pull request rather than twenty.
-# Security updates are separate and immediate once enabled in the repository settings.
+# Version updates, grouped so each costs one CI run (docs/ARCHITECTURE.md, "CI minutes"): one pull
+# request a week for every npm package, and one a month for every GitHub Action. Dependabot cannot
+# put the two ecosystems in one pull request. Security updates are separate and immediate once
+# enabled in the repository settings.
 version: 2
 updates:
   - package-ecosystem: npm
@@ -8,21 +10,18 @@ updates:
       interval: weekly
       day: monday
       timezone: Asia/Kolkata
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 2
     versioning-strategy: increase
     # A release must be a week old before it is proposed: hijacked releases are usually found and
     # pulled within days. Security updates are not held back by this
     cooldown:
       default-days: 7
     groups:
-      next-react:
-        patterns: ['next', 'eslint-config-next', 'react', 'react-dom', '@types/react', '@types/react-dom']
-      development:
-        dependency-type: development
+      # Everything in one pull request: Next.js and React, development tools and production
+      # patches alike. Majors are left out below, as deliberate upgrades
+      weekly:
+        patterns: ['*']
         update-types: [minor, patch]
-      production-patches:
-        dependency-type: production
-        update-types: [patch]
     ignore:
       # Major versions are deliberate upgrades, not chores
       - dependency-name: '*'
@@ -39,3 +38,7 @@ updates:
       interval: monthly
     cooldown:
       default-days: 7
+    open-pull-requests-limit: 1
+    groups:
+      monthly:
+        patterns: ['*']
