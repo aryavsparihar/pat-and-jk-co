@@ -14,7 +14,12 @@ export default async function NewWorkPage() {
     <PortalFrame
       current="/account/works"
       heading="Add a work"
-      intro={<>A few facts and a picture or two. Our team looks at it before it is shown.</>}
+      intro={
+        <>
+          A few facts and a description. Its pictures and any video go in your Google Drive folder.
+          Our team looks at it before it is shown.
+        </>
+      }
     >
       <WorkForm />
     </PortalFrame>
