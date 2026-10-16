@@ -1,4 +1,5 @@
-import 'server-only'
+// Server code only, loaded by the Payload config; see src/storage/privateMedia.ts on why it
+// does not import 'server-only'
 
 import type { Adapter } from '@payloadcms/plugin-cloud-storage/types'
 import { del as delBlob } from '@vercel/blob'

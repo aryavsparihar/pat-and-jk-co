@@ -3,6 +3,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 
 import { isMember, isStaff } from '../access/roles'
+import { portfolioFolder } from '../storage/memberMediaAdapter'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -99,6 +100,17 @@ export const PortfolioImages: CollectionConfig = {
     imageSizes: [
       { name: 'thumbnail', width: 400 },
       { name: 'display', width: 1600 },
+    ],
+  },
+  hooks: {
+    beforeChange: [
+      // Where a new upload's files go: this environment's folder of the private store. Set here,
+      // not as the storage plugin's prefix option, whose default would make the column's default
+      // (and so the schema) differ between a laptop, CI and production
+      ({ data, req }) => {
+        if (req.file) data.prefix = portfolioFolder()
+        return data
+      },
     ],
   },
   timestamps: true,

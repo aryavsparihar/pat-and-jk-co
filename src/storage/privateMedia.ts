@@ -1,4 +1,6 @@
-import 'server-only'
+// Server code only: it is loaded by the Payload config (the storage plugin), which Payload's own
+// command-line tool also reads, so it cannot carry `import 'server-only'`; nothing in the browser
+// imports it
 
 import { del, get, head, put } from '@vercel/blob'
 import { getVercelOidcToken } from '@vercel/oidc'

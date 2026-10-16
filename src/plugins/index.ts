@@ -18,7 +18,7 @@ import {
 import { revalidateFrontend } from '@/hooks/revalidateFrontend'
 import type { Config, Page, Post, Venture } from '@/payload-types'
 import { emailFooter } from '@/email/footer'
-import { portfolioFolder, privateMemberMedia } from '@/storage/memberMediaAdapter'
+import { privateMemberMedia } from '@/storage/memberMediaAdapter'
 import { docPath } from '@/utilities/docHref'
 import { getServerSideURL } from '@/utilities/getURL'
 
@@ -171,7 +171,6 @@ export const plugins: Plugin[] = [
       'portfolio-images': {
         adapter: privateMemberMedia,
         disableLocalStorage: true,
-        prefix: portfolioFolder(),
       },
     },
   }),
