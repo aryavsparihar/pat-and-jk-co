@@ -2,6 +2,11 @@
 # dependency we already use is noticed without waiting for a change. Each job is a required check
 # on main (docs/SECURITY.md, "The gatekeeper"). Every action is pinned to a full commit, and every
 # tool is a pinned release whose checksum is checked before it runs.
+#
+# Minutes are budgeted (docs/ARCHITECTURE.md, "CI minutes"). The secret scan runs every time: it
+# takes seconds and reads the whole history. The dependency and code scans run when code or
+# dependencies changed (the scope job, as in CI) and every Monday in full; otherwise they report
+# success under their names without running, as the ruleset and Vercel need them to report.
 name: Security
 
 on:
@@ -19,6 +24,30 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  scope:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+    outputs:
+      heavy: ${{ steps.scope.outputs.heavy }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - id: scope
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: .github/scripts/scope.sh Security
+
+      - if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: tested-tree
+          path: tested-tree.txt
+          retention-days: 30
+
   secrets:
     name: Secret scan
     runs-on: ubuntu-latest
@@ -38,22 +67,33 @@ jobs:
 
   dependencies:
     name: Dependency, secret and config scan
+    needs: scope
+    # Runs even if the scope job broke: then nothing says "skip", so everything runs
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - if: needs.scope.outputs.heavy == 'false'
+        run: echo "No code or dependency changed (see the scope job), so this passes without running."
 
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - if: needs.scope.outputs.heavy != 'false'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      - if: needs.scope.outputs.heavy != 'false'
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - if: needs.scope.outputs.heavy != 'false'
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
 
       # Known advisories that cannot be fixed yet are listed, with reasons, in pnpm-workspace.yaml
-      - name: pnpm audit, high and critical
+      - if: needs.scope.outputs.heavy != 'false'
+        name: pnpm audit, high and critical
         run: pnpm audit --audit-level high
 
-      - name: Install Trivy
+      - if: needs.scope.outputs.heavy != 'false'
+        name: Install Trivy
         run: |
           curl -sSfL -o trivy.tar.gz \
             https://github.com/aquasecurity/trivy/releases/download/v0.75.0/trivy_0.75.0_Linux-64bit.tar.gz
@@ -63,15 +103,18 @@ jobs:
       # Dependencies, secrets in the working tree, and configuration (workflows, vercel.json,
       # next.config). Anything that cannot be fixed must be listed in .trivyignore.yaml with a
       # reason and a date to look again; past that date it fails here until someone does
-      - name: Trivy, high and critical
+      - if: needs.scope.outputs.heavy != 'false'
+        name: Trivy, high and critical
         run: |
           ./trivy fs --scanners vuln,secret,misconfig --severity HIGH,CRITICAL \
             --ignorefile .trivyignore.yaml --exit-code 1 --skip-dirs node_modules .
 
-      - name: Software bill of materials (CycloneDX)
+      - if: needs.scope.outputs.heavy != 'false'
+        name: Software bill of materials (CycloneDX)
         run: ./trivy fs --format cyclonedx --output sbom.cdx.json --skip-dirs node_modules .
 
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      - if: needs.scope.outputs.heavy != 'false'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: sbom-cyclonedx
           path: sbom.cdx.json
@@ -79,16 +122,24 @@ jobs:
 
   code:
     name: Code scan (Semgrep)
+    needs: scope
+    # Runs even if the scope job broke: then nothing says "skip", so everything runs
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - if: needs.scope.outputs.heavy == 'false'
+        run: echo "No code or dependency changed (see the scope job), so this passes without running."
+
+      - if: needs.scope.outputs.heavy != 'false'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # Injection, unsafe HTML, weak crypto and the like, in our own code. CodeQL needs GitHub
       # Advanced Security on a private repository; Semgrep's community rules need no account.
       # Findings reviewed as safe carry a nosemgrep comment saying why. pnpm's release-age setting
       # lives in pnpm-workspace.yaml, where the .npmrc rule cannot see it.
-      - name: Semgrep
+      - if: needs.scope.outputs.heavy != 'false'
+        name: Semgrep
         run: |
           pipx install semgrep==1.180.0
           semgrep scan --metrics=off --error \
