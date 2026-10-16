@@ -56,8 +56,12 @@ test('an approved artist gives their Drive folder and describes a work, which wa
 
   // A work: its name says how to name its folder and files, and it needs a description
   await page.getByRole('link', { name: 'Describe a work' }).click()
-  await page.getByLabel('Name of the work', { exact: true }).fill('River at Dusk')
-  await expect(page.getByText('River at Dusk - 1.jpg')).toBeVisible()
+  // Typed again until the page is ready for it: under load, a value typed before the page has
+  // finished loading is not seen
+  await expect(async () => {
+    await page.getByLabel('Name of the work', { exact: true }).fill('River at Dusk')
+    await expect(page.getByText('River at Dusk - 1.jpg')).toBeVisible({ timeout: 2000 })
+  }).toPass()
   await page.getByLabel(/^Year/).fill('2024')
   await page.getByLabel(/^Medium/).fill('Oil')
   await page.getByLabel(/^Surface/).fill('Canvas')

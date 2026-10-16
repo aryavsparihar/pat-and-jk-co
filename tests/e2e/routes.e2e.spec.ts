@@ -428,7 +428,8 @@ test('nobody without the right role can create, change or delete through the API
     const response = await call(method, url, 'member', {
       title: 'Taken over',
       forSale: false,
-      images: [1],
+      description:
+        'Taken over by someone else, who has written more than enough here to pass every other check.',
       archived: true,
     })
     expect([401, 403, 404], `${method} ${url}`).toContain(response.status())
