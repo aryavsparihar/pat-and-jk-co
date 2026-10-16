@@ -117,9 +117,22 @@ origin, rate limited), never Payload's API, which members cannot reach for `artw
 public (`publicArtworksOf`). The pattern lives in `src/members/reviewFields.ts`; it is not
 Payload's drafts, so no field is called `status`.
 
-**Public pictures.** Portfolio images are private unless `public` is set, and only
-`syncPublicImages` sets it: true for the pictures of an approved, unarchived work and the approved
-portrait, false for everything else of that member's. It runs after every approval and archive.
+**Pictures are private.** Artists' pictures (portfolio images, works and portraits) are kept in the
+private Blob store, in a `media/` folder beside KYC's `kyc/` one, reached with the deployment's own
+OIDC token (`src/storage/privateMedia.ts`, `memberMediaAdapter.ts`). Locally they live in
+`.uploads/media`. Payload's file route serves them after the read rule, which admits staff and the
+picture's owner only, with headers that keep them out of every cache but the viewer's. Nothing goes
+through a public URL, the image optimiser or the CDN.
+
+Pictures are made at most 2400 px in the browser (`sendPicture.ts`) and sent through the server,
+which checks and re-encodes them. Only the picture and its 400 px thumbnail are written; Payload's
+1600 px size is skipped, as each file written counts against the free plan. Pictures uploaded before
+this move from the public store the first time they are asked for, or all at once with
+`pnpm media:make-private --apply`.
+
+`public` on a picture still marks those an approved, unarchived work or approved portrait uses
+(`syncPublicImages`, after every approval and archive). It no longer makes them readable: anything
+shown to the public will be a copy made when it is published.
 
 ## Admin access
 
