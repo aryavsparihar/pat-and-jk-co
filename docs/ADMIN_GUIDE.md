@@ -161,7 +161,14 @@ action refuses; a super admin decides what to do.
 
 Once approved, an artist has a portal at /account: their profile, their works, where we pay them, and their account. Nothing they write there is shown to the public until you approve it.
 
-- **Members → Artworks** lists every work. Use **Filters → Review › State is "Waiting for review"** to see what needs looking at. Open a work: check the facts and the pictures, then in the sidebar press **Approve and publish**, or write a note and press **Ask for changes**. The artist is emailed either way.
+**Artists' works: Google Drive, and a description here.** Artists do not upload their works' photos or videos to the site; it would cost too much to keep them. Instead:
+
+- Each artist gives **one Google Drive folder** for all their works, under **Your works** in their account. You are emailed when they first give it or change it. It is on the artist's record in **Members → Members**, in the sidebar, as **Works folder (Google Drive)**: **Open the artist's folder**. You can correct the link there if it is wrong.
+- Inside it is **a folder for each work, named exactly as the work**, for example *River at Dusk*. In it: the photos, named *River at Dusk - 1.jpg*, *River at Dusk - 2.jpg* and so on, the whole work from the front first; and any video, *River at Dusk - video.mp4*.
+- The artist **describes each work in their account**: its name, year, medium, size, price and a description of at least 80 characters. That is what you review.
+- If a folder cannot be opened, the artist has not shared it: ask them, by email, to set it to *Anyone with the link* as a *Viewer*. Questions about works go by email, to and from hello@pjk.co.in.
+
+**Reviewing a work.** **Members → Artworks** lists every work. Use **Filters → Review › State is "Waiting for review"** to see what needs looking at. Open a work: the sidebar says which folder its pictures are in, under **Pictures and video**. Check the description and facts against the folder. To show the work with pictures, download them from the folder and add them under **Images** (**Add new**): upload each picture and choose the artist as its owner. Pictures are cleaned as you upload them (location and camera details removed, made at most 2400 px). Each must be under about 4 MB, as larger uploads are refused; if a photo from Drive is bigger, make it smaller first (on a Mac, open it in Preview and choose *Tools → Adjust Size*). Then press **Approve and publish**, or write a note and press **Ask for changes**. The artist is emailed either way, and when they edit a work, the pictures you added stay.
 - **Profiles** are reviewed the same way, from the artist's record in **Members → Members**, under **Profile review** in the sidebar.
 - When an artist changes something already public, the version you approved stays up until you approve the change.
 - An artist can **archive** a work themselves; it disappears from the public at once, with no review.
