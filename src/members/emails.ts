@@ -588,6 +588,35 @@ export const sendReviewDecision = async (
   )
 
 /** Staff hear that something is waiting for review; no details beyond what and whose */
+/** Tells staff an artist has given or changed their Google Drive works folder */
+export const notifyStaffOfWorksFolder = async (
+  payload: Payload,
+  { memberId, adminPath }: { memberId: string; adminPath: string },
+): Promise<boolean> => {
+  const to = await staffInbox(payload)
+  if (!to) return false
+  return send(
+    payload,
+    to,
+    buildEmail({
+      subject: `Works folder from ${memberId}`,
+      preheader: `${memberId} has given the Google Drive folder their works are in.`,
+      parts: [
+        {
+          kind: 'paragraph',
+          text: `${memberId} has given or changed the Google Drive folder their works are in. Each work is in a folder named after it, with the descriptions under their works in the admin.`,
+        },
+        {
+          kind: 'link',
+          label: 'Open the artist in the admin',
+          url: `${getServerSideURL()}${adminPath}`,
+        },
+      ],
+      footer: await emailFooter(payload),
+    }),
+  )
+}
+
 export const notifyStaffOfReview = async (
   payload: Payload,
   { what, memberId, adminPath }: { what: string; memberId: string; adminPath: string },

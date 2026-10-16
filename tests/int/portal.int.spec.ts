@@ -2,6 +2,8 @@
 import { sql } from '@payloadcms/db-postgres'
 import { getPayload, type Payload } from 'payload'
 import sharp from 'sharp'
+import { readFile } from 'node:fs/promises'
+import path from 'node:path'
 import config from '@/payload.config'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -19,6 +21,7 @@ import { POST as emailRoute } from '@/app/(frontend)/next/members/portal/email/r
 import { POST as profileRoute } from '@/app/(frontend)/next/members/portal/profile/route'
 import { DELETE as endSessionRoute } from '@/app/(frontend)/next/members/portal/sessions/[id]/route'
 import { GET as sessionsRoute } from '@/app/(frontend)/next/members/portal/sessions/route'
+import { POST as worksFolderRoute } from '@/app/(frontend)/next/members/portal/works-folder/route'
 import { DELETE as deletePicture } from '@/app/(frontend)/next/members/portfolio/route'
 import { ensureApplication } from '@/members/accounts'
 import { publicArtworksOf } from '@/members/artworks'
@@ -106,7 +109,8 @@ const picture = async (member: Member) => {
   return ingestPortfolioImage(payload, member, bytes)
 }
 
-const work = (images: number[], title = 'River at dusk') => ({
+/** A work as the artist describes it: its pictures are in their Google Drive folder */
+const work = (title = 'River at dusk') => ({
   title,
   year: 2024,
   medium: 'Oil',
@@ -116,8 +120,19 @@ const work = (images: number[], title = 'River at dusk') => ({
   forSale: true,
   priceInr: 45000,
   availability: 'available',
-  images,
+  description:
+    'The river below the town at dusk, painted outdoors over three evenings in early winter, in oil on a primed canvas.',
 })
+
+/** Staff add a work's pictures, from the artist's Google Drive folder, in the admin */
+const staffAddsPictures = (id: number, images: number[]) =>
+  payload.update({
+    collection: 'artworks',
+    id,
+    data: { images },
+    overrideAccess: true,
+    context: { disableRevalidate: true },
+  })
 
 const reviewEndpoint = (collection: 'artworks' | 'members', path: string) =>
   payload.collections[collection].config.endpoints
@@ -210,7 +225,7 @@ describe('who has a portfolio', () => {
     for (const kind of ['applicant', 'partner'] as const) {
       const { cookie } = await someone(kind)
       expect((await listRoute(request('GET', cookie))).status, kind).toBe(403)
-      expect((await createRoute(request('POST', cookie, work([1])))).status, kind).toBe(403)
+      expect((await createRoute(request('POST', cookie, work()))).status, kind).toBe(403)
       expect((await profileRoute(request('POST', cookie, { displayName: 'X' }))).status, kind).toBe(
         403,
       )
@@ -234,10 +249,11 @@ describe('a work, from the artist to the public', () => {
     const { member, cookie } = await someone('artist')
     const image = await picture(member)
 
-    const created = await createRoute(request('POST', cookie, work([image.id])))
+    const created = await createRoute(request('POST', cookie, work()))
     expect(created.status).toBe(200)
     const { artwork } = await json<{ artwork: { id: number; review: { state: string } } }>(created)
     expect(artwork.review.state).toBe('pending')
+    await staffAddsPictures(artwork.id, [image.id])
     expect(await publicArtworksOf(payload, member.id)).toEqual([])
     expect(await isPublicImage(image.id)).toBe(false)
 
@@ -251,11 +267,19 @@ describe('a work, from the artist to the public', () => {
 
     // An edit waits for review; the approved version stays public meanwhile
     const edited = await updateRoute(
-      request('PATCH', cookie, work([image.id], 'River at night')),
+      request('PATCH', cookie, work('River at night')),
       params(artwork.id),
     )
     expect(edited.status).toBe(200)
     expect((await publicArtworksOf(payload, member.id))[0]?.title).toBe('River at dusk')
+    // The artist's edit leaves the pictures staff added as they were
+    const kept = await payload.findByID({
+      collection: 'artworks',
+      id: artwork.id,
+      overrideAccess: true,
+      depth: 0,
+    })
+    expect(kept.images).toEqual([image.id])
 
     // Asking for changes needs a note, which the artist then sees
     expect((await decide('artworks', artwork.id, 'request-changes')).status).toBe(422)
@@ -271,36 +295,55 @@ describe('a work, from the artist to the public', () => {
     })
   })
 
-  it('needs a price unless not for sale, and only the artist’s own pictures', async () => {
+  it('needs a price unless not for sale, a description, and a name a file can hold', async () => {
     const { member, cookie } = await someone('artist')
-    const other = await someone('artist')
     const mine = await picture(member)
-    const theirs = await picture(other.member)
+    const errorsOf = async (body: Record<string, unknown>) =>
+      (
+        await json<{ errors?: Record<string, string> }>(
+          await createRoute(request('POST', cookie, body)),
+        )
+      ).errors ?? {}
 
-    const noPrice = await createRoute(
-      request('POST', cookie, { ...work([mine.id]), priceInr: undefined }),
+    expect(await errorsOf({ ...work(), priceInr: undefined })).toHaveProperty('priceInr')
+    expect(
+      (
+        await createRoute(
+          request('POST', cookie, { ...work(), priceInr: undefined, forSale: false }),
+        )
+      ).status,
+    ).toBe(200)
+    expect(await errorsOf({ ...work(), description: undefined })).toHaveProperty('description')
+    expect(await errorsOf({ ...work(), description: 'Too short to say much.' })).toHaveProperty(
+      'description',
     )
-    expect((await json<{ errors: Record<string, string> }>(noPrice)).errors).toHaveProperty(
-      'priceInr',
+    expect(await errorsOf({ ...work(), description: 'x'.repeat(3001) })).toHaveProperty(
+      'description',
     )
-    const notForSale = await createRoute(
-      request('POST', cookie, { ...work([mine.id]), priceInr: undefined, forSale: false }),
-    )
-    expect(notForSale.status).toBe(200)
+    for (const title of ['River/Dusk', 'Dusk: river', 'What?', 'A "quoted" name'])
+      expect(await errorsOf(work(title)), title).toHaveProperty('title')
 
-    expect((await createRoute(request('POST', cookie, work([theirs.id])))).status).toBe(422)
+    // Pictures are staff's to add: any the artist sends are ignored
+    const { artwork } = await json<{ artwork: { id: number } }>(
+      await createRoute(request('POST', cookie, { ...work('With pictures'), images: [mine.id] })),
+    )
+    const stored = await payload.findByID({
+      collection: 'artworks',
+      id: artwork.id,
+      overrideAccess: true,
+      depth: 0,
+    })
+    expect(stored.images ?? []).toEqual([])
   })
 
   it('takes empty fields as the form sends them, and an edit that empties one clears it', async () => {
-    const { member, cookie } = await someone('artist')
-    const image = await picture(member)
+    const { cookie } = await someone('artist')
     // The browser's form sends every field, an empty one as null
     const created = await createRoute(
       request('POST', cookie, {
-        ...work([image.id]),
+        ...work(),
         edition: 'One of three',
         depthCm: null,
-        description: null,
       }),
     )
     expect(created.status).toBe(200)
@@ -308,12 +351,11 @@ describe('a work, from the artist to the public', () => {
 
     const edited = await updateRoute(
       request('PATCH', cookie, {
-        ...work([image.id]),
+        ...work(),
         edition: null,
         forSale: false,
         priceInr: null,
         depthCm: null,
-        description: null,
       }),
       params(artwork.id),
     )
@@ -331,8 +373,9 @@ describe('a work, from the artist to the public', () => {
     const { member, cookie } = await someone('artist')
     const image = await picture(member)
     const { artwork } = await json<{ artwork: { id: number } }>(
-      await createRoute(request('POST', cookie, work([image.id]))),
+      await createRoute(request('POST', cookie, work())),
     )
+    await staffAddsPictures(artwork.id, [image.id])
     await decide('artworks', artwork.id, 'approve')
 
     expect(
@@ -356,13 +399,12 @@ describe('a work, from the artist to the public', () => {
   })
 
   it('keeps the artist’s order, and refuses another member’s works', async () => {
-    const { member, cookie } = await someone('artist')
+    const { cookie } = await someone('artist')
     const intruder = await someone('artist')
-    const image = await picture(member)
     const ids: number[] = []
     for (const title of ['First', 'Second', 'Third']) {
       const { artwork } = await json<{ artwork: { id: number } }>(
-        await createRoute(request('POST', cookie, work([image.id], title))),
+        await createRoute(request('POST', cookie, work(title))),
       )
       ids.push(artwork.id)
     }
@@ -373,13 +415,106 @@ describe('a work, from the artist to the public', () => {
     expect((await orderRoute(request('POST', cookie, { ids: [ids[0]] }))).status).toBe(409)
 
     expect(
-      (await updateRoute(request('PATCH', intruder.cookie, work([image.id])), params(ids[0]!)))
-        .status,
+      (await updateRoute(request('PATCH', intruder.cookie, work()), params(ids[0]!))).status,
     ).toBe(404)
     expect(
       (await archiveRoute(request('POST', intruder.cookie, { archived: true }), params(ids[0]!)))
         .status,
     ).toBe(404)
+  })
+})
+
+describe('the works folder in Google Drive', () => {
+  it('takes only a Google Drive folder link, kept in one plain form, from an approved artist', async () => {
+    const { member, cookie } = await someone('artist')
+    const save = async (url: string, as = cookie) => worksFolderRoute(request('POST', as, { url }))
+    const ID = '1AbCdEfGhIjKlMnOpQrStUv'
+
+    for (const pasted of [
+      `https://drive.google.com/drive/folders/${ID}?usp=sharing`,
+      `https://drive.google.com/drive/u/0/folders/${ID}`,
+      `  https://drive.google.com/drive/folders/${ID}  `,
+    ]) {
+      const saved = await save(pasted)
+      expect(saved.status, pasted).toBe(200)
+      expect((await json<{ worksFolder: string }>(saved)).worksFolder).toBe(
+        `https://drive.google.com/drive/folders/${ID}`,
+      )
+    }
+    for (const wrong of [
+      `https://drive.google.com/file/d/${ID}/view`,
+      `http://drive.google.com/drive/folders/${ID}`,
+      `https://drive.google.com.evil.example/drive/folders/${ID}`,
+      `https://evil.example/drive/folders/${ID}`,
+      'javascript:alert(1)',
+      'not a link',
+    ]) {
+      expect((await save(wrong)).status, wrong).toBe(422)
+    }
+    const stored = await payload.findByID({
+      collection: 'members',
+      id: member.id,
+      overrideAccess: true,
+    })
+    expect(stored.worksFolder).toBe(`https://drive.google.com/drive/folders/${ID}`)
+
+    // An empty one clears it
+    expect((await json<{ worksFolder: string | null }>(await save(''))).worksFolder).toBeNull()
+
+    // Only an approved artist has a works folder
+    for (const kind of ['applicant', 'partner'] as const) {
+      const other = await someone(kind)
+      expect(
+        (await save(`https://drive.google.com/drive/folders/${ID}`, other.cookie)).status,
+        kind,
+      ).toBe(403)
+    }
+    // And members cannot set it through Payload's API: the field is left as it was
+    await payload
+      .update({
+        collection: 'members',
+        id: member.id,
+        data: { worksFolder: 'https://evil.example' },
+        user: { ...member, collection: 'members' } as never,
+        overrideAccess: false,
+      })
+      .catch(() => null)
+    const after = await payload.findByID({
+      collection: 'members',
+      id: member.id,
+      overrideAccess: true,
+    })
+    expect(after.worksFolder ?? null).toBeNull()
+  })
+
+  it('pictures staff add in the admin are cleaned as an artist’s are', async () => {
+    const { member } = await someone('artist')
+    const original = await sharp({
+      create: { width: 3200, height: 2400, channels: 3, background: { r: 60, g: 90, b: 120 } },
+    })
+      .withExif({ IFD0: { Artist: 'Example Person' } })
+      .jpeg()
+      .toBuffer()
+    expect((await sharp(original).metadata()).exif).toBeDefined()
+    const added = await payload.create({
+      collection: 'portfolio-images',
+      data: { owner: member.id },
+      file: {
+        data: original,
+        mimetype: 'image/jpeg',
+        name: 'IMG_1234 river.jpg',
+        size: original.length,
+      },
+      user: { ...staff, collection: 'users' } as never,
+      overrideAccess: false,
+    })
+    expect(added.filename).toMatch(/^work-[0-9a-f]{16}\.jpg$/)
+    const stored = await readFile(
+      path.resolve(process.cwd(), '.uploads/media', String(added.prefix), String(added.filename)),
+    )
+    const meta = await sharp(stored).metadata()
+    expect(meta.exif).toBeUndefined()
+    expect(Math.max(meta.width!, meta.height!)).toBe(2400)
   })
 })
 

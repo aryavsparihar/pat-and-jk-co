@@ -121,9 +121,12 @@ const submitted = () => ({
   reviewedBy: null,
 })
 
+/**
+ * The artist describes a work; its pictures and any video are in their Google Drive folder, in a
+ * folder named after it. Staff add the pictures here when they approve it.
+ */
 export const createArtwork = async (payload: Payload, member: Member, input: ArtworkInput) => {
   requireArtist(member)
-  await ownImages(payload, member.id, input.images)
   const last = await payload.find({
     collection: 'artworks',
     where: { owner: { equals: member.id } },
@@ -161,7 +164,7 @@ export const updateArtwork = async (
 ) => {
   requireArtist(member)
   await ownArtwork(payload, member, id)
-  await ownImages(payload, member.id, input.images)
+  // The pictures are staff's to add and order: an edit by the artist leaves them as they are
   const work = await payload.update({
     collection: 'artworks',
     id,
@@ -290,6 +293,31 @@ export const saveProfile = async (payload: Payload, member: Member, input: Profi
     adminPath: `/admin/collections/members/${member.id}`,
   })
   return profileView(updated)
+}
+
+/**
+ * The artist's Google Drive folder, which holds a folder per work (docs/ADMIN_GUIDE.md, "Artists'
+ * works"). It changes at once, as it is never shown to the public; staff are told when it is first
+ * given or changed, so they know where to look.
+ */
+export const saveWorksFolder = async (payload: Payload, member: Member, url: string | null) => {
+  requireArtist(member)
+  if ((member.worksFolder ?? null) === url) return { worksFolder: url }
+  const updated = await payload.update({
+    collection: 'members',
+    id: member.id,
+    data: { worksFolder: url, worksFolderUpdatedAt: new Date().toISOString() } as never,
+    overrideAccess: true,
+    context: ctx,
+  })
+  if (url) {
+    const { notifyStaffOfWorksFolder } = await import('./emails')
+    await notifyStaffOfWorksFolder(payload, {
+      memberId: memberIdsOf(member) ?? `Member ${member.id}`,
+      adminPath: `/admin/collections/members/${member.id}`,
+    })
+  }
+  return { worksFolder: updated.worksFolder ?? null }
 }
 
 /** Contact details change at once: they are never shown to the public */

@@ -1,11 +1,9 @@
 'use client'
 
-import React, { useRef, useState } from 'react'
+import React, { useState } from 'react'
 
 import { api } from '../onboarding/api'
 import { ErrorSummary, type Errors, SelectField, TextArea, TextField } from '../onboarding/fields'
-import { UploadProgress } from '../onboarding/UploadProgress'
-import { usePictures } from '../onboarding/usePictures'
 
 export type WorkValues = {
   id?: number
@@ -21,7 +19,6 @@ export type WorkValues = {
   priceInr: number | null
   availability: string
   description: string | null
-  images: number[]
   review?: { state: string; note: string | null }
 }
 
@@ -45,41 +42,26 @@ const empty: WorkValues = {
   priceInr: null,
   availability: 'available',
   description: null,
-  images: [],
 }
 
-const MAX_PICTURES = 8
+/** Characters a file name cannot hold, as the server checks (src/members/forms/portal.ts) */
+const NOT_IN_FILE_NAMES = /[\\/:*?"<>|]/
 
 /**
- * A work in the artist's portfolio, new or existing. Saving sends it for review; it is shown to
- * the public only once our team approves it, and an approved version stays up while a change is
- * being looked at.
+ * A work in the artist's portfolio, new or existing: its name, details and description. Its photos
+ * and any video are in the artist's Google Drive folder, in a folder of the same name, and the
+ * form shows the names to use as they type. Saving sends it for review; it is shown to the public
+ * only once our team approves it, and an approved version stays up while a change is looked at.
  */
 export const WorkForm: React.FC<{ initial?: WorkValues }> = ({ initial }) => {
   const [v, setV] = useState<WorkValues>(initial ?? empty)
   const [errors, setErrors] = useState<Errors>({})
   const [message, setMessage] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
-  const { pictures, send, busy, problem, uploading } = usePictures()
-  const input = useRef<HTMLInputElement>(null)
 
   const set = <K extends keyof WorkValues>(key: K, value: WorkValues[K]) =>
     setV((all) => ({ ...all, [key]: value }))
   const num = (s: string) => (s.trim() === '' ? null : Number(s))
-
-  const addPictures = async (files: FileList | null) => {
-    const room = MAX_PICTURES - v.images.length
-    const added = await send(files, room)
-    if (added.length) set('images', [...v.images, ...added.map((p) => p.id)])
-    if (input.current) input.current.value = ''
-  }
-
-  const movePicture = (from: number, to: number) => {
-    const next = [...v.images]
-    const [item] = next.splice(from, 1)
-    next.splice(to, 0, item!)
-    set('images', next)
-  }
 
   const save = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -118,14 +100,27 @@ export const WorkForm: React.FC<{ initial?: WorkValues }> = ({ initial }) => {
       )}
 
       <div className="grid gap-y-8">
-        <TextField
-          errors={errors}
-          label="Title"
-          maxLength={160}
-          name="title"
-          onValue={(x) => set('title', x)}
-          value={v.title}
-        />
+        <div>
+          <TextField
+            errors={errors}
+            hint="Exactly as you name its folder and files in your Google Drive folder."
+            label="Name of the work"
+            maxLength={120}
+            name="title"
+            onValue={(x) => set('title', x)}
+            value={v.title}
+          />
+          {v.title.trim() && !NOT_IN_FILE_NAMES.test(v.title) && (
+            <div className="mt-4 border-l-2 border-border bg-surface py-4 pl-5 pr-4 text-base">
+              <p className="font-medium">In your Google Drive folder</p>
+              <p className="mt-1">
+                A folder named <strong>{v.title.trim()}</strong>, with photos named{' '}
+                <strong>{v.title.trim()} - 1.jpg</strong>, <strong>{v.title.trim()} - 2.jpg</strong>{' '}
+                and so on, and any video as <strong>{v.title.trim()} - video.mp4</strong>.
+              </p>
+            </div>
+          )}
+        </div>
         <div className="grid gap-x-10 gap-y-8 sm:grid-cols-3">
           <TextField
             errors={errors}
@@ -238,93 +233,19 @@ export const WorkForm: React.FC<{ initial?: WorkValues }> = ({ initial }) => {
         />
         <TextArea
           errors={errors}
-          label="About the work"
-          limit={2000}
+          hint="What it shows, how and why you made it, and anything a buyer would like to know. At least 80 characters."
+          label="Description"
+          limit={3000}
+          min={80}
           name="description"
           onValue={(x) => set('description', x || null)}
-          optional
-          rows={5}
+          rows={8}
           value={v.description ?? ''}
         />
-
-        <fieldset>
-          <legend className="label mb-1">Pictures</legend>
-          <p className="muted mb-4 text-base" id="field-images-hint">
-            Up to {MAX_PICTURES}. The first is the one shown in lists. JPEG, PNG or WebP.
-          </p>
-          {errors.images && (
-            <p className="mb-4 text-base italic text-destructive" id="field-images">
-              {errors.images}
-            </p>
-          )}
-          <ol className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            {v.images.map((id, i) => (
-              <li className="grid gap-2" key={id}>
-                {pictures[id]?.thumbnail ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    alt={`Picture ${i + 1}`}
-                    className="aspect-square w-full bg-surface object-cover"
-                    src={pictures[id]!.thumbnail!}
-                  />
-                ) : (
-                  <div className="aspect-square w-full bg-surface" />
-                )}
-                <div className="flex flex-wrap gap-x-4 text-base">
-                  {i > 0 && (
-                    <button
-                      className="link min-h-11"
-                      onClick={() => movePicture(i, i - 1)}
-                      type="button"
-                    >
-                      Earlier<span className="sr-only"> (picture {i + 1})</span>
-                    </button>
-                  )}
-                  <button
-                    className="link min-h-11"
-                    onClick={() =>
-                      set(
-                        'images',
-                        v.images.filter((x) => x !== id),
-                      )
-                    }
-                    type="button"
-                  >
-                    Remove<span className="sr-only"> picture {i + 1}</span>
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ol>
-          {v.images.length < MAX_PICTURES && (
-            <div className="mt-6">
-              <label className="btn btn-outline min-h-11 cursor-pointer" htmlFor="work-pictures">
-                Add pictures
-              </label>
-              <input
-                accept="image/jpeg,image/png,image/webp"
-                aria-describedby="field-images-hint"
-                className="sr-only"
-                id="work-pictures"
-                multiple
-                onChange={(e) => addPictures(e.target.files)}
-                ref={input}
-                type="file"
-              />
-            </div>
-          )}
-          <p aria-live="polite" className="mt-3 text-base" role="status">
-            {busy ?? ''}
-          </p>
-          {uploading && (
-            <UploadProgress className="mt-2" name={uploading.name} state={uploading.state} />
-          )}
-          {problem && <p className="text-base italic text-destructive">{problem}</p>}
-        </fieldset>
       </div>
 
       <div className="mt-14 flex flex-wrap items-center gap-x-8 gap-y-4 border-t border-border pt-8">
-        <button className="btn btn-solid min-h-11" disabled={saving || Boolean(busy)} type="submit">
+        <button className="btn btn-solid min-h-11" disabled={saving} type="submit">
           {saving ? 'Saving…' : 'Save and send for review'}
         </button>
         <a className="link link-caps min-h-11" href="/account/works">

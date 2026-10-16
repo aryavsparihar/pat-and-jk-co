@@ -24,6 +24,31 @@ const optionalNumber = (min: number, max: number, message: string) =>
     z.number({ error: message }).min(min, message).max(max, message).nullable(),
   )
 
+/**
+ * Characters a file or folder name cannot hold on Windows, macOS or Google Drive's download: the
+ * work's name is also its folder and file names in the artist's Drive folder
+ */
+const NOT_IN_FILE_NAMES = /[\\/:*?"<>|]/
+
+/** "https://drive.google.com/drive/folders/<id>", from any of the ways Drive writes a folder link */
+export const DRIVE_FOLDER =
+  /^https:\/\/drive\.google\.com\/drive\/(?:u\/\d+\/)?folders\/([A-Za-z0-9_-]{10,100})(?:[/?#].*)?$/
+
+export const driveFolderSchema = z.object({
+  url: z
+    .string()
+    .trim()
+    .max(400, 'That link is too long to be a Google Drive folder.')
+    .refine(
+      (v) => v === '' || DRIVE_FOLDER.test(v),
+      'Please paste the link to a Google Drive folder. It starts https://drive.google.com/drive/folders/',
+    )
+    // Kept in one plain form, whatever was pasted: no sharing or tracking parts
+    .transform((v) =>
+      v ? `https://drive.google.com/drive/folders/${DRIVE_FOLDER.exec(v)![1]}` : null,
+    ),
+})
+
 export const ARTWORK_AVAILABILITY_VALUES = [
   'available',
   'reserved',
@@ -33,11 +58,16 @@ export const ARTWORK_AVAILABILITY_VALUES = [
 
 export const artworkSchema = z
   .object({
+    // Also the name of its folder and files in the artist's Google Drive folder
     title: z
-      .string({ error: 'Please give the work a title.' })
+      .string({ error: 'Please give the work its name.' })
       .trim()
-      .min(1, 'Please give the work a title.')
-      .max(160, 'Please keep the title under 160 characters.'),
+      .min(1, 'Please give the work its name.')
+      .max(120, 'Please keep the name under 120 characters.')
+      .refine(
+        (v) => !NOT_IN_FILE_NAMES.test(v),
+        'Please leave out \\ / : * ? " < > |, which a file name cannot hold.',
+      ),
     year: optionalNumber(1900, new Date().getFullYear() + 1, 'Please give a year such as 2024.'),
     medium: optionalText(120),
     surface: optionalText(120),
@@ -48,11 +78,11 @@ export const artworkSchema = z
     forSale: z.boolean().default(true),
     priceInr: optionalNumber(1, 1e9, 'Please give the price in rupees, as a number.'),
     availability: z.enum(ARTWORK_AVAILABILITY_VALUES).default('available'),
-    description: optionalText(2000),
-    images: z
-      .array(z.coerce.number().int().positive())
-      .min(1, 'Please add at least one picture of the work.')
-      .max(8, 'Up to eight pictures, please.'),
+    description: z
+      .string({ error: 'Please describe the work, in at least 80 characters.' })
+      .trim()
+      .min(80, 'Please describe the work, in at least 80 characters.')
+      .max(3000, 'Please keep the description under 3,000 characters.'),
   })
   .superRefine((value, ctx) => {
     if (value.forSale && value.priceInr == null) {

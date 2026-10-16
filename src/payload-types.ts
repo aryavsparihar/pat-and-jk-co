@@ -1608,6 +1608,8 @@ export interface Member {
     latitude?: number | null;
     longitude?: number | null;
   };
+  worksFolder?: string | null;
+  worksFolderUpdatedAt?: string | null;
   profileReview?: {
     state?: ('none' | 'pending' | 'approved' | 'changes-requested') | null;
     /**
@@ -3310,6 +3312,8 @@ export interface MembersSelect<T extends boolean = true> {
         latitude?: T;
         longitude?: T;
       };
+  worksFolder?: T;
+  worksFolderUpdatedAt?: T;
   profileReview?:
     | T
     | {

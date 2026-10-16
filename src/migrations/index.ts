@@ -31,6 +31,7 @@ import * as migration_20261013_185333_app_role_and_rls from './20261013_185333_a
 import * as migration_20261014_033632_security_monitoring_events from './20261014_033632_security_monitoring_events';
 import * as migration_20261014_105526_declined_applications from './20261014_105526_declined_applications';
 import * as migration_20261016_182639_private_media_prefix from './20261016_182639_private_media_prefix';
+import * as migration_20261016_183108_works_folder from './20261016_183108_works_folder';
 
 export const migrations = [
   {
@@ -196,6 +197,11 @@ export const migrations = [
   {
     up: migration_20261016_182639_private_media_prefix.up,
     down: migration_20261016_182639_private_media_prefix.down,
-    name: '20261016_182639_private_media_prefix'
+    name: '20261016_182639_private_media_prefix',
+  },
+  {
+    up: migration_20261016_183108_works_folder.up,
+    down: migration_20261016_183108_works_folder.down,
+    name: '20261016_183108_works_folder'
   },
 ];

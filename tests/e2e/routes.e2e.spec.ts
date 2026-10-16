@@ -97,6 +97,7 @@ const ROUTES: Record<string, 'public' | 'member' | 'staff' | 'secret' | 'token'>
   '/next/members/portal/profile': 'member',
   '/next/members/portal/sessions': 'member',
   '/next/members/portal/sessions/[id]': 'member',
+  '/next/members/portal/works-folder': 'member',
   '/next/members/portfolio': 'member',
   '/next/members/step-up': 'member',
   '/next/members/step-up/confirm': 'member',
@@ -427,7 +428,8 @@ test('nobody without the right role can create, change or delete through the API
     const response = await call(method, url, 'member', {
       title: 'Taken over',
       forSale: false,
-      images: [1],
+      description:
+        'Taken over by someone else, who has written more than enough here to pass every other check.',
       archived: true,
     })
     expect([401, 403, 404], `${method} ${url}`).toContain(response.status())
