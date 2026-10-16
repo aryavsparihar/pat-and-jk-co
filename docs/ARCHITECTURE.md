@@ -130,6 +130,14 @@ which checks and re-encodes them. Only the picture and its 400 px thumbnail are 
 this move from the public store the first time they are asked for, or all at once with
 `pnpm media:make-private --apply`.
 
+**Works come by Google Drive.** To stay on the free plan, artists upload no works here. Each
+approved artist gives one Google Drive folder link (`worksFolder` on the member, set through
+`/next/members/portal/works-folder`, only ever as a canonical `drive.google.com/drive/folders/<id>`
+link) and describes each work in the portal. Staff download a work's pictures from the folder and
+add them in the admin, where `PortfolioImages`' `beforeOperation` hook cleans them as the portal's
+upload did. File names follow the work's name, so a work's name leaves out what a file name cannot
+hold (`artworkSchema`).
+
 `public` on a picture still marks those an approved, unarchived work or approved portrait uses
 (`syncPublicImages`, after every approval and archive). It no longer makes them readable: anything
 shown to the public will be a copy made when it is published.

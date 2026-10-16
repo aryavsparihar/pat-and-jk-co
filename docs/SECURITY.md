@@ -171,6 +171,12 @@ Offline Verification Seeking Entity, and that is a decision for the business and
   pass through the server, which checks and re-encodes them before anything is stored; nothing goes
   through public storage on the way. Nothing reaches the public without a member of staff
   approving it.
+- An artist's Google Drive folder link is accepted only as a `drive.google.com` folder link,
+  stored in one canonical form, and set only by its artist through the portal (Payload's API
+  cannot change it; staff can in the admin). It is shown to staff and the artist only. The folder
+  itself is shared by the artist as "Anyone with the link"; we never ask for Drive access.
+- Pictures staff add in the admin are checked, re-encoded and renamed exactly as an artist's
+  were. Members cannot create pictures through Payload's API.
 - Changing the email address needs a code sent to the **new** address; the old address is told,
   and every other device is signed out. A pending change is bound to its own code, so a code for
   anything else cannot complete it.
