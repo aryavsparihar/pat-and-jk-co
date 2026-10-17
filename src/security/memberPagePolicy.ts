@@ -24,6 +24,16 @@ export const createNonce = (): string => {
  * as Google's own guidance lists them (developers.google.com/maps/documentation/javascript/
  * content-security-policy). Added on the artist application only, never on the other pages.
  */
+/**
+ * OpenStreetMap's map, where Google's is not set up or could not load: its own tiles, Esri's
+ * satellite imagery and place names, OpenTopoMap's terrain, and one search for the typed town on
+ * OpenStreetMap's Nominatim (src/components/onboarding/artist/LocationPin.tsx).
+ */
+const OPEN_MAPS = {
+  img: 'https://tile.openstreetmap.org https://server.arcgisonline.com https://*.tile.opentopomap.org',
+  connect: 'https://nominatim.openstreetmap.org',
+}
+
 const GOOGLE_MAPS = {
   img: 'https://*.googleapis.com https://*.gstatic.com https://*.google.com https://*.googleusercontent.com',
   connect: 'https://*.googleapis.com https://*.google.com https://*.gstatic.com',
@@ -52,11 +62,11 @@ export const memberPagePolicy = (nonce: string, { dev = false, maps = false } = 
       .join(' '),
     // Next.js and next/font set inline styles; styles cannot run code
     `style-src 'self' 'unsafe-inline'${maps ? ` ${GOOGLE_MAPS.style}` : ''}`,
-    // OpenStreetMap's tiles, for the optional map pin on the address step when Google's is not set up
-    `img-src 'self' data: blob: https://tile.openstreetmap.org${maps ? ` ${GOOGLE_MAPS.img}` : ''}`,
+    // The optional map pin's tiles on the address step (OPEN_MAPS above, and Google's where set up)
+    `img-src 'self' data: blob: ${OPEN_MAPS.img}${maps ? ` ${GOOGLE_MAPS.img}` : ''}`,
     `font-src 'self'${maps ? ` ${GOOGLE_MAPS.font}` : ''}`,
     // Pictures go from the browser straight to Vercel Blob in production
-    `connect-src 'self' https://vercel.com https://*.public.blob.vercel-storage.com${maps ? ` ${GOOGLE_MAPS.connect}` : ''}${dev ? ' ws: wss:' : ''}`,
+    `connect-src 'self' https://vercel.com https://*.public.blob.vercel-storage.com ${OPEN_MAPS.connect}${maps ? ` ${GOOGLE_MAPS.connect}` : ''}${dev ? ' ws: wss:' : ''}`,
     "worker-src 'self' blob:",
     // Turnstile's challenge, and on the artist application Google's map
     `frame-src https://challenges.cloudflare.com${maps ? ` ${GOOGLE_MAPS.frame}` : ''}`,
