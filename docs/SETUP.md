@@ -284,7 +284,7 @@ Editors can schedule pages and posts to publish later. `vercel.json` runs Payloa
 
 | | Local | Preview (every git branch) | Production |
 | --- | --- | --- | --- |
-| URL | localhost:3000 | `*.vercel.app` (not indexed by search engines) | pjk.co.in |
+| URL | localhost:3000 | `*.vercel.app`, behind Vercel's login, never indexed (`X-Robots-Tag: noindex`) | pjk.co.in only: production's `*.vercel.app` addresses redirect there (308, same path), except Vercel's cron calls |
 | Database | local Postgres | a Neon branch of its own (set `DATABASE_URL` and `MIGRATE_ON_PREVIEW=1` for Preview only). If Preview shares production's database, migrations are skipped there | Neon `main` |
 | Media | `public/media/` | Vercel Blob | Vercel Blob |
 | Email | printed to terminal | Resend | Resend |
