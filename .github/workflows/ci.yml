@@ -161,8 +161,12 @@ jobs:
           pnpm vercel-build 2>&1 | tee build.log
           node scripts/check-build-log.mjs build.log
 
+      # The login role made above: tests that must hold for the live site run as it
+      # (tests/helpers/appRole.ts), since the owner is exempt from every permission and policy
       - if: needs.scope.outputs.heavy != 'false'
         name: Integration tests
+        env:
+          APP_DATABASE_URL: postgres://pjk_app_ci:pjk-app-ci@localhost:5432/pjk_ci
         run: pnpm test:int
 
   # The end-to-end tests (tests/e2e) in a real browser, against the app running on a throwaway
