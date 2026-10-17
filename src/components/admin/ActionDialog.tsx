@@ -16,11 +16,13 @@ export type DialogRequest = {
   email?: { label: string; hint?: string }
   /** A box that must be ticked before going ahead, e.g. that a check has been done */
   attest?: { label: string }
+  /** Text that must be typed exactly, e.g. the ID of the person being deleted */
+  typed?: { label: string; expect: string }
   /** A red button, for something hard to undo */
   danger?: boolean
 }
 
-export type DialogAnswer = { reason: string; date: string; email: string }
+export type DialogAnswer = { reason: string; date: string; email: string; typed: string }
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 
@@ -69,7 +71,9 @@ const ActionDialog: React.FC<{
   const [date, setDate] = useState(request.date?.initial ?? '')
   const [email, setEmail] = useState('')
   const [attested, setAttested] = useState(false)
+  const [typed, setTyped] = useState('')
   const ids = {
+    typed: useId(),
     title: useId(),
     description: useId(),
     reason: useId(),
@@ -93,12 +97,14 @@ const ActionDialog: React.FC<{
     (request.date.optional && date.trim() === '') ||
     /^\d{4}-\d{2}-\d{2}$/.test(date.trim())
   const emailOk = !request.email || EMAIL.test(email.trim())
-  const ready = reasonOk && dateOk && emailOk && (!request.attest || attested)
+  const typedOk =
+    !request.typed || typed.trim().toUpperCase() === request.typed.expect.toUpperCase()
+  const ready = reasonOk && dateOk && emailOk && typedOk && (!request.attest || attested)
 
   // Not a <form>: Payload renders the sidebar inside its own document form, and forms cannot nest
   const submit = () => {
     if (!ready) return
-    onFinish({ reason: reason.trim(), date: date.trim(), email: email.trim() })
+    onFinish({ reason: reason.trim(), date: date.trim(), email: email.trim(), typed: typed.trim() })
   }
 
   return (
@@ -193,6 +199,28 @@ const ActionDialog: React.FC<{
             <p id={`${ids.reason}-hint`} style={{ opacity: 0.7, marginTop: '0.25rem' }}>
               {request.reason.hint ??
                 'A few words at least. It is recorded in the security log with your name.'}
+            </p>
+          </div>
+        )}
+
+        {request.typed && (
+          <div className="field-type text" style={{ marginBottom: '1rem' }}>
+            <label className="field-label" htmlFor={ids.typed}>
+              {request.typed.label}
+              <span className="required">*</span>
+            </label>
+            <input
+              aria-describedby={`${ids.typed}-hint`}
+              aria-required
+              autoComplete="off"
+              id={ids.typed}
+              onChange={(e) => setTyped(e.target.value)}
+              spellCheck={false}
+              type="text"
+              value={typed}
+            />
+            <p id={`${ids.typed}-hint`} style={{ opacity: 0.7, marginTop: '0.25rem' }}>
+              Type <strong>{request.typed.expect}</strong> exactly.
             </p>
           </div>
         )}
