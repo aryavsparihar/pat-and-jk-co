@@ -9,6 +9,21 @@ const dirname = path.dirname(__filename)
 const isDev = process.env.NODE_ENV === 'development'
 
 /**
+ * The site's one public address. Vercel also serves production at pat-and-jk-co.vercel.app (open
+ * to anyone) and at each deployment's own address (behind Vercel's login). A production build
+ * sends every *.vercel.app request on to pjk.co.in with a permanent redirect (308), keeping the
+ * path and query, so people and search engines settle on one address. Previews are built without
+ * it and stay behind Vercel's login.
+ *
+ * Vercel's cron jobs call the production deployment at its own address, with the cron secret in
+ * the Authorization header, which a redirect to another host would drop; they are recognised by
+ * the user agent Vercel gives them and left alone.
+ */
+const SITE_HOST = 'pjk.co.in'
+const VERCEL_HOST = '.+\\.vercel\\.app'
+const isProductionBuild = process.env.VERCEL_ENV === 'production'
+
+/**
  * Content Security Policy, in two strengths.
  *
  * The public site never evaluates strings as code and runs one outside script, Cloudflare
@@ -119,6 +134,18 @@ const nextConfig: NextConfig = {
     ],
     qualities: [90],
     formats: ['image/avif', 'image/webp'],
+  },
+  async redirects() {
+    if (!isProductionBuild) return []
+    return [
+      {
+        source: '/:path*',
+        has: [{ type: 'host', value: VERCEL_HOST }],
+        missing: [{ type: 'header', key: 'user-agent', value: 'vercel-cron/.*' }],
+        destination: `https://${SITE_HOST}/:path*`,
+        permanent: true,
+      },
+    ]
   },
   async headers() {
     return [
