@@ -196,8 +196,28 @@ collection or block changed without a migration; create one and commit it.
 
 ### CI minutes
 
-The repository is private, so Actions minutes are rationed: GitHub Pro includes 3,000 a month, with
-a small spending limit as a buffer. CI is shaped to spend them only where they prove something:
+The repository is private, and GitHub's own runners bill by the minute once the month's included
+minutes are gone. Since October 2026, **CI runs on a GitHub runner on the founder's Mac**, which
+costs nothing. Each job gets a throwaway database in the Mac's PostgreSQL 17
+(`.github/scripts/ci-database.sh`), dropped when the job ends.
+
+- **Where jobs run** is one repository variable, `CI_RUNS_ON` (GitHub → Settings → Secrets and
+  variables → Actions → Variables): `["self-hosted","pjk-mac"]` for the Mac. Delete it, and every
+  job runs on GitHub's `ubuntu-latest` again, unchanged. The workflows work on both.
+- **Dependabot's pull requests always run on GitHub's runners**, never on the Mac: they install
+  package code nobody has reviewed yet. They come once a month, within the free minutes.
+- **The nightly backup** stays on GitHub's runners too: it must run while the Mac sleeps. It uses
+  about 30 of the free minutes a month.
+- **The Mac must be awake** for a pull request to be checked; until then its checks wait in the
+  queue (GitHub gives up after a day), and so does Vercel's release, which waits for them.
+- The scanners the security jobs use on the Mac (gitleaks, Trivy, Semgrep) are the copies installed
+  there, checked against the exact versions the workflow pins. Updating one means updating the pin
+  and the Mac together.
+
+Setting the runner up again, stopping it, or moving it to another machine: RUNBOOK.md, "7. The CI
+runner on the Mac".
+
+Wherever it runs, CI spends only where it proves something:
 
 - **One run per pull request.** Run the checks above locally, and push a pull request once, when it
   is ready. Each push to an open pull request cancels the run before it.
@@ -207,29 +227,27 @@ a small spending limit as a buffer. CI is shaped to spend them only where they p
   waits for these checks before a release goes live (docs/SECURITY.md, "The gatekeeper").
 - **Security:** the secret scan runs every time. The dependency and code scans run when code or
   dependencies changed, and in full every Monday.
-- **Dependabot:** one pull request a week for all npm updates, one a month for all GitHub Actions.
+- **Dependabot:** one pull request a month for all npm updates, one a month for all GitHub Actions.
+- **The browser tests keep Next.js's compile cache** (`.next/dev/cache`) between runs, so pages
+  already compiled on main are not compiled again from nothing.
 
 `.github/scripts/scope.sh` makes these decisions, and it fails safe. Every required job (verify,
 e2e, Secret scan, Dependency, secret and config scan, Code scan (Semgrep)) still runs and reports
 under its own name. When there is nothing to prove, it skips its steps and passes in seconds; when
 anything is unclear, it runs everything.
 
-A code pull request costs about 35 minutes: CI's own run, about 32, mostly the browser tests,
-plus the security scans. Merging it costs about 5 more, against about 71 in all before. A
-documentation-only one costs about 12. To see where the month stands:
+To see how many of GitHub's own minutes the month has used:
 
 ```bash
 scripts/ci-minutes.sh
 ```
-
-It estimates the way GitHub bills (each job rounded up to a minute) and warns past 2,700.
 
 ## Tests
 
 | | What | Runs against |
 | --- | --- | --- |
 | `pnpm test:int` | Integration tests (`tests/int`, Vitest): the route handlers, access rules, KYC encryption, the e-Aadhaar check, the portal | `DATABASE_URL`, cleaning up after itself |
-| `pnpm test:e2e` | End-to-end tests (`tests/e2e`, Playwright) in a real browser: an artist applying step by step and coming back, PAN with a masked e-Aadhaar, another ID, a partner, signing in with a code, staff approving an application, an approved artist adding a work, a pending one kept out, a bank change stopped from the email's link, and staff and member sessions in one browser | the app as `pnpm dev`, and the same database |
+| `pnpm test:e2e` | End-to-end tests (`tests/e2e`, Playwright) in a real browser: an artist applying step by step and coming back, PAN with a masked e-Aadhaar, another ID, a partner, signing in with a code, staff approving an application, an approved artist adding a work, a pending one kept out, a bank change stopped from the email's link, and staff and member sessions in one browser | the app as `pnpm dev` (on port 3000, or `E2E_PORT`), and the same database |
 
 **End-to-end tests** do outside the browser what a person would: `tests/helpers/e2e.ts` sets the
 code "in the email" to a known one, signs staff in the way Payload does (no password or email
