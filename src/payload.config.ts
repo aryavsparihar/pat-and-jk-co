@@ -31,6 +31,7 @@ import { VisitorCounts } from './collections/VisitorCounts'
 import { loadEnv } from './env'
 import { MEMBER_ID_SEQUENCE } from './members/ids'
 import { reportErrorsTo } from './observability/errorAlerts'
+import { MEDIA_UPLOAD_HANDLERS } from './storage/mediaPlugin'
 import { createLogger } from './observability/logger'
 import { plugins } from './plugins'
 import { guardMemberAccess } from './access/memberGuard'
@@ -53,6 +54,9 @@ const allowedOrigins = trustedOrigins()
 
 export default buildConfig({
   admin: {
+    // Both media storage plugins' upload components, so switching store is only a setting
+    // (src/storage/mediaPlugin.ts)
+    dependencies: MEDIA_UPLOAD_HANDLERS,
     components: {
       beforeLogin: ['@/components/admin/BeforeLogin'],
       beforeDashboard: ['@/components/admin/Welcome'],

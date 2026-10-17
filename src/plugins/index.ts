@@ -3,7 +3,6 @@ import { multiTenantPlugin } from '@payloadcms/plugin-multi-tenant'
 import { redirectsPlugin } from '@payloadcms/plugin-redirects'
 import { seoPlugin } from '@payloadcms/plugin-seo'
 import { cloudStoragePlugin } from '@payloadcms/plugin-cloud-storage'
-import { vercelBlobStorage } from '@payloadcms/storage-vercel-blob'
 import type { GenerateTitle, GenerateURL } from '@payloadcms/plugin-seo/types'
 import { FixedToolbarFeature, HeadingFeature, lexicalEditor } from '@payloadcms/richtext-lexical'
 import type { Plugin } from 'payload'
@@ -18,6 +17,7 @@ import {
 import { revalidateFrontend } from '@/hooks/revalidateFrontend'
 import type { Config, Page, Post, Venture } from '@/payload-types'
 import { emailFooter } from '@/email/footer'
+import { mediaStoragePlugin } from '@/storage/mediaPlugin'
 import { privateMemberMedia } from '@/storage/memberMediaAdapter'
 import { docPath } from '@/utilities/docHref'
 import { getServerSideURL } from '@/utilities/getURL'
@@ -149,19 +149,8 @@ export const plugins: Plugin[] = [
     },
     userHasAccessToAllTenants: (user) => isSuperAdmin(user),
   }),
-  vercelBlobStorage({
-    // Enabled automatically on Vercel once a Blob store is connected; local dev writes to public/media
-    enabled: Boolean(process.env.BLOB_READ_WRITE_TOKEN),
-    // Add the plugin's fields (the per-file `prefix` above all) whether or not it is enabled, so
-    // the schema is the same locally, where migrations are generated, as on Vercel. Without this,
-    // portfolio_images had no `prefix` column and every query on it failed once deployed.
-    alwaysInsertFields: true,
-    clientUploads: true,
-    collections: {
-      media: true,
-    },
-    token: process.env.BLOB_READ_WRITE_TOKEN || '',
-  }),
+  // The public site's pictures: Vercel Blob, or an S3-compatible bucket by setting
+  mediaStoragePlugin(),
   // Artists' pictures: the private store, never the public one, served only through Payload's file
   // route after its read rule (staff, or the owner) and through signed links in the portal
   // (src/storage/memberMediaAdapter.ts). Locally they live in .uploads/media
