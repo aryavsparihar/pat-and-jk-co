@@ -36,12 +36,15 @@ export const PathsBlock: React.FC<PathsBlockProps> = ({
             >
               {key === 'artists' ? (
                 // Phulhaar's garland, on the paper tone the mark is drawn for (docs/BRANDS.md)
+                // Shown 72 pixels wide, so a 144- or 288-pixel copy, not the 200 KB original
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   alt=""
                   className="mb-8 h-auto w-[4.5rem]"
                   height={1200}
-                  src="/brand/ventures/phulhaar-garland.webp"
+                  sizes="72px"
+                  src="/brand/ventures/phulhaar-garland-144.webp"
+                  srcSet="/brand/ventures/phulhaar-garland-144.webp 144w, /brand/ventures/phulhaar-garland-288.webp 288w"
                   width={795}
                 />
               ) : (
