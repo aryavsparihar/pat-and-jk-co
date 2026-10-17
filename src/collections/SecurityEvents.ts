@@ -62,6 +62,16 @@ export const securityEventTypes = [
   'staff-erased',
   // Written by the database itself whenever addresses are erased from this log
   'security-log-erased',
+  // Kept beyond the one hour Vercel keeps logs (src/observability/errorAlerts.ts)
+  'server-error',
+  'bot-check-failed',
+  // An artist or partner saving something in their account (src/members/portalHttp.ts)
+  'portal-saved',
+  // Staff changing staff accounts and members' standing in the admin
+  'staff-account-created',
+  'staff-account-changed',
+  'member-standing-changed',
+  'scheduled-task-ran',
 ] as const
 
 /**
@@ -81,7 +91,7 @@ export const SecurityEvents: CollectionConfig = {
     group: 'Administration',
     defaultColumns: ['event', 'email', 'subject', 'actor', 'createdAt'],
     description:
-      'Every sign-in attempt, access request and decision on a member, staff and members alike. Read-only.',
+      'Every sign-in attempt, access request and decision, staff and members alike, what members save in their accounts, changes to staff accounts, and server errors. Read-only. A member’s own entries are also listed on their record.',
     hidden: ({ user }) => !isSuperAdmin(user as never),
   },
   defaultSort: '-createdAt',
