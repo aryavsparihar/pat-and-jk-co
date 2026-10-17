@@ -176,7 +176,10 @@ jobs:
     # Runs even if the scope job broke: then nothing says "skip", so everything runs
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # The suite takes about 25 minutes on a runner, and a slow first compile of a page can add a
+    # retry or two: 30 minutes cut runs off with one test to go. A run that is genuinely stuck still
+    # stops here rather than at GitHub's six hours
+    timeout-minutes: 40
 
     services:
       postgres:
