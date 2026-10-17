@@ -1,14 +1,15 @@
 # Version updates, grouped so each costs one CI run (docs/ARCHITECTURE.md, "CI minutes"): one pull
-# request a week for every npm package, and one a month for every GitHub Action. Dependabot cannot
+# request a month for every npm package, and one a month for every GitHub Action. Dependabot cannot
 # put the two ecosystems in one pull request. Security updates are separate and immediate once
 # enabled in the repository settings.
 version: 2
 updates:
   - package-ecosystem: npm
     directory: /
+    # Monthly: each of these pull requests costs a full CI run, and a weekly one used about 150 of
+    # the month's minutes. Security updates do not wait for this
     schedule:
-      interval: weekly
-      day: monday
+      interval: monthly
       timezone: Asia/Kolkata
     open-pull-requests-limit: 2
     versioning-strategy: increase
@@ -19,7 +20,7 @@ updates:
     groups:
       # Everything in one pull request: Next.js and React, development tools and production
       # patches alike. Majors are left out below, as deliberate upgrades
-      weekly:
+      npm:
         patterns: ['*']
         update-types: [minor, patch]
     ignore:
