@@ -253,11 +253,13 @@ const AddressFields: React.FC<
           ]
             .filter((part) => typeof part === 'string' && part.trim())
             .join(', ')}
+          country={address.country}
           onValue={(latitude, longitude) => {
             set(at('latitude'), latitude)
             set(at('longitude'), longitude)
           }}
           state={address.state}
+          town={address.city?.trim() || address.district?.trim()}
         />
       )}
     </fieldset>

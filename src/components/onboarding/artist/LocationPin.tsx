@@ -1,15 +1,42 @@
 'use client'
 
-import type { Map as LeafletMap, Marker } from 'leaflet'
+import type { Circle, Layer, Map as LeafletMap, Marker } from 'leaflet'
 import React, { useEffect, useRef, useState } from 'react'
 
 import { STATE_CENTRES } from '@/members/forms/stateCentres'
 
 import { GoogleLocationPin } from './GoogleLocationPin'
-import { describeCoordinates, roundCoordinate, useMyLocation } from './useMyLocation'
+import { type MapStyle, MapStyleToggle } from './MapStyleToggle'
+import {
+  CITY_ZOOM,
+  describeAccuracy,
+  describeCoordinates,
+  type Fix,
+  roundCoordinate,
+  useMyLocation,
+  zoomForAccuracy,
+} from './useMyLocation'
 
-/** OpenStreetMap's own tiles: free, no account. The member pages' policy allows this host only */
-const TILES = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
+/**
+ * The OpenStreetMap map's three looks, all free and without an account; the member pages' policy
+ * allows exactly these hosts (src/security/memberPagePolicy.ts):
+ *
+ *   Map        OpenStreetMap's own tiles
+ *   Satellite  Esri's World Imagery, with Esri's place names over it
+ *   Terrain    OpenTopoMap (OpenStreetMap data with contours and hill shading)
+ */
+const OSM_ATTRIBUTION =
+  '&copy; <a href="https://www.openstreetmap.org/copyright" rel="noopener noreferrer" target="_blank">OpenStreetMap</a> contributors'
+const TILES = {
+  map: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+  imagery:
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  places:
+    'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+  terrain: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+}
+/** OpenStreetMap's own place search, asked once per opening of the map, for the town only */
+const PLACE_SEARCH = 'https://nominatim.openstreetmap.org/search'
 const INDIA: [number, number] = [22.6, 79.0]
 /** How far one arrow key moves the pin, in screen pixels */
 const NUDGE = 12
@@ -25,6 +52,9 @@ type PinProps = {
   state?: string
   /** What the artist has typed so far, so Google's map can start there */
   address?: string
+  /** The town (or else the district) they typed, so OpenStreetMap's map can start there */
+  town?: string
+  country?: string
   onValue: (latitude: number | undefined, longitude: number | undefined) => void
 }
 
@@ -61,6 +91,8 @@ const OpenStreetMapPin: React.FC<PinProps & { replacingGoogle?: boolean }> = ({
   latitude,
   longitude,
   state,
+  town,
+  country,
   onValue,
   replacingGoogle = false,
 }) => {
@@ -70,19 +102,66 @@ const OpenStreetMapPin: React.FC<PinProps & { replacingGoogle?: boolean }> = ({
   const element = useRef<HTMLDivElement>(null)
   const map = useRef<LeafletMap | null>(null)
   const marker = useRef<Marker | null>(null)
+  const circle = useRef<Circle | null>(null)
+  const tiles = useRef<Layer | null>(null)
+  const leaflet = useRef<typeof import('leaflet') | null>(null)
+  /** Once the artist has moved the pin or asked for their location, nothing else moves the map */
+  const touched = useRef(false)
   const locateAfterOpen = useRef(false)
   const [live, setLive] = useState<{ lat: number; lng: number } | null>(null)
+  const [style, setStyle] = useState<MapStyle>('map')
   const pinned = typeof latitude === 'number' && typeof longitude === 'number'
   const where = useMyLocation({ canSearch: false })
 
-  const locateMe = () =>
-    where.locate((lat, lng) => {
-      if (!map.current || !marker.current) return
-      marker.current.setLatLng([lat, lng])
-      map.current.setView([lat, lng], 18)
-      setLive({ lat, lng })
-      onValue(rounded(lat), rounded(lng))
-    })
+  const showFix = ({ latitude: lat, longitude: lng, accuracy }: Fix) => {
+    const L = leaflet.current
+    if (!L || !map.current || !marker.current) return
+    marker.current.setLatLng([lat, lng])
+    map.current.setView([lat, lng], zoomForAccuracy(accuracy))
+    if (circle.current) circle.current.setLatLng([lat, lng]).setRadius(accuracy)
+    else {
+      circle.current = L.circle([lat, lng], {
+        radius: accuracy,
+        className: 'location-accuracy',
+        interactive: false,
+      }).addTo(map.current)
+    }
+    setLive({ lat, lng })
+    onValue(rounded(lat), rounded(lng))
+  }
+
+  const locateMe = () => {
+    touched.current = true
+    where.locate(showFix)
+  }
+
+  /** Map, Satellite or Terrain: one tile layer (two for satellite) at a time */
+  const showStyle = (next: MapStyle) => {
+    const L = leaflet.current
+    const m = map.current
+    if (!L || !m) return
+    tiles.current?.remove()
+    tiles.current =
+      next === 'satellite'
+        ? L.layerGroup([
+            L.tileLayer(TILES.imagery, {
+              maxZoom: 19,
+              maxNativeZoom: 18,
+              attribution: 'Powered by Esri. Imagery &copy; Esri, Maxar, Earthstar Geographics',
+            }),
+            L.tileLayer(TILES.places, { maxZoom: 19, maxNativeZoom: 18 }),
+          ])
+        : next === 'terrain'
+          ? L.tileLayer(TILES.terrain, {
+              maxZoom: 19,
+              maxNativeZoom: 17,
+              subdomains: 'abc',
+              attribution: `${OSM_ATTRIBUTION}, &copy; <a href="https://opentopomap.org" rel="noopener noreferrer" target="_blank">OpenTopoMap</a> (CC-BY-SA)`,
+            })
+          : L.tileLayer(TILES.map, { maxZoom: 19, attribution: OSM_ATTRIBUTION })
+    tiles.current.addTo(m)
+    setStyle(next)
+  }
 
   useEffect(() => {
     if (!open || !element.current || map.current) return
@@ -98,14 +177,13 @@ const OpenStreetMapPin: React.FC<PinProps & { replacingGoogle?: boolean }> = ({
           : (STATE_CENTRES[state ?? ''] ?? INDIA)
         const m = L.map(element.current, {
           center: start,
-          zoom: pinned ? 16 : STATE_CENTRES[state ?? ''] ? 7 : 4,
+          zoom: pinned ? 17 : STATE_CENTRES[state ?? ''] ? 7 : 4,
+          maxZoom: 19,
           scrollWheelZoom: false,
         })
-        L.tileLayer(TILES, {
-          maxZoom: 19,
-          attribution:
-            '&copy; <a href="https://www.openstreetmap.org/copyright" rel="noopener noreferrer" target="_blank">OpenStreetMap</a> contributors',
-        }).addTo(m)
+        leaflet.current = L
+        map.current = m
+        showStyle(style)
         const pin = L.marker(start, {
           draggable: true,
           keyboard: true,
@@ -123,6 +201,11 @@ const OpenStreetMapPin: React.FC<PinProps & { replacingGoogle?: boolean }> = ({
           setLive({ lat, lng })
           onValue(rounded(lat), rounded(lng))
         }
+        pin.on('dragstart', () => {
+          touched.current = true
+          // Their own placing wins over a better fix still on its way
+          where.stop()
+        })
         pin.on('drag', () => setLive(pin.getLatLng()))
         pin.on('dragend', report)
         // From the keyboard: the arrow keys move the pin a little at a time
@@ -137,17 +220,26 @@ const OpenStreetMapPin: React.FC<PinProps & { replacingGoogle?: boolean }> = ({
           if (!step) return
           event.preventDefault()
           event.stopPropagation()
+          touched.current = true
+          where.stop()
           const point = m.latLngToContainerPoint(pin.getLatLng()).add(step)
           pin.setLatLng(m.containerPointToLatLng(point))
           report()
         })
-        map.current = m
         marker.current = pin
         setTimeout(() => m.invalidateSize(), 0)
         if (pinned) setLive({ lat: start[0], lng: start[1] })
         if (locateAfterOpen.current) {
           locateAfterOpen.current = false
           locateMe()
+        } else if (!pinned && town?.trim()) {
+          // Start at the town they typed, if OpenStreetMap knows it; the pin is not placed until
+          // they move it. Only the town, state and country are sent, never the street
+          void findTown(town, state, country).then((spot) => {
+            if (!spot || cancelled || touched.current || map.current !== m) return
+            m.setView(spot, CITY_ZOOM)
+            pin.setLatLng(spot)
+          })
         }
       } catch {
         setProblem('The map could not load just now. Your address is all we need.')
@@ -174,6 +266,9 @@ const OpenStreetMapPin: React.FC<PinProps & { replacingGoogle?: boolean }> = ({
     map.current?.remove()
     map.current = null
     marker.current = null
+    circle.current = null
+    tiles.current = null
+    touched.current = false
     setOpen(false)
     setLive(null)
     where.clear()
@@ -224,8 +319,8 @@ const OpenStreetMapPin: React.FC<PinProps & { replacingGoogle?: boolean }> = ({
           )}
           <p className="measure text-base" id="location-pin-help">
             {pinned
-              ? 'Drag the pin to where you live. Zoom in to place it closely.'
-              : 'Drag the pin to where you live. Zoom in to place it closely. It is placed once you move it.'}
+              ? 'Drag the pin to where you live. Zoom in with the + button to place it closely.'
+              : 'Drag the pin to where you live. Zoom in with the + button to place it closely. It is placed once you move it.'}
           </p>
           <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2">
             <button
@@ -245,10 +340,17 @@ const OpenStreetMapPin: React.FC<PinProps & { replacingGoogle?: boolean }> = ({
               {where.message}
             </p>
           )}
+          <div className="mt-4">
+            <MapStyleToggle
+              disabled={loading || Boolean(problem)}
+              onChange={showStyle}
+              value={style}
+            />
+          </div>
           <div
             aria-describedby="location-pin-help"
             aria-label="Map"
-            className="location-map mt-4 h-[min(60vh,26rem)] w-full overflow-hidden border border-border bg-surface"
+            className="location-map mt-3 h-[min(60vh,26rem)] w-full overflow-hidden border border-border bg-surface"
             ref={element}
             role="region"
           />
@@ -261,6 +363,11 @@ const OpenStreetMapPin: React.FC<PinProps & { replacingGoogle?: boolean }> = ({
                   ? `Pin at ${describeCoordinates(live.lat, live.lng)}`
                   : ''}
           </p>
+          {where.fix && (
+            <p className="muted text-base">
+              Your device placed you {describeAccuracy(where.fix.accuracy)}: the shaded circle.
+            </p>
+          )}
           <div className="mt-3 flex flex-wrap gap-x-8">
             <button className="link link-caps min-h-11" onClick={close} type="button">
               Close the map
@@ -282,4 +389,37 @@ const OpenStreetMapPin: React.FC<PinProps & { replacingGoogle?: boolean }> = ({
       )}
     </div>
   )
+}
+
+/**
+ * The town's centre from OpenStreetMap's place search (Nominatim), or nothing. Its rules allow an
+ * occasional search like this one, not search-as-you-type; the browser sends our site as the
+ * referrer, which is how it knows who is asking. Never slows the map: four seconds at most.
+ */
+const findTown = async (
+  town: string,
+  state: string | undefined,
+  country: string | undefined,
+): Promise<[number, number] | null> => {
+  const inIndia = !country?.trim() || /^india$/i.test(country.trim())
+  const params = new URLSearchParams({
+    q: [town, state, inIndia ? 'India' : country].filter((part) => part?.trim()).join(', '),
+    format: 'jsonv2',
+    limit: '1',
+    'accept-language': 'en',
+  })
+  if (inIndia) params.set('countrycodes', 'in')
+  try {
+    const response = await fetch(`${PLACE_SEARCH}?${params}`, {
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(4_000),
+    })
+    if (!response.ok) return null
+    const [found] = (await response.json()) as { lat?: string; lon?: string }[]
+    const lat = Number(found?.lat)
+    const lon = Number(found?.lon)
+    return Number.isFinite(lat) && Number.isFinite(lon) && found ? [lat, lon] : null
+  } catch {
+    return null
+  }
 }
