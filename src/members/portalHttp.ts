@@ -2,6 +2,9 @@ import type { Payload } from 'payload'
 import type { z } from 'zod'
 
 import type { Member, MemberSession } from '@/payload-types'
+import { memberIdsOf } from '@/collections/Members'
+import { clientIp } from '@/security/constants'
+import { logSecurityEvent } from '@/security/events'
 import { hitLimit } from '@/security/rateLimit'
 
 import { PortalError } from './artworks'
@@ -52,6 +55,16 @@ export const portalHandler =
 
     try {
       const result = await handle({ payload, member, session, request })
+      if (changes) {
+        // What members change in their own accounts belongs in the record too
+        await logSecurityEvent(payload, {
+          event: 'portal-saved',
+          email: member.email,
+          ip: clientIp(request.headers),
+          subject: memberIdsOf(member),
+          detail: `${scope}: ${request.method} ${new URL(request.url).pathname}`,
+        })
+      }
       return withRefresh(reply(result), auth.refresh)
     } catch (error) {
       if (error instanceof PortalError) {
