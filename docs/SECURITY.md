@@ -272,9 +272,22 @@ Every cookie the site sets. None is used for tracking or advertising, so there i
 | `payload-token` | Payload's staff sign-in | the staff session | 30 minutes idle, 12 hours at most | HttpOnly, SameSite=Strict, Secure |
 | `payload-theme`, `payload-lng` | the admin panel | the admin's light/dark and language choice | up to a year | not secret; read by the admin's own script |
 | `__prerender_bypass` | Next.js, at `/next/preview` | shows drafts to staff while previewing | the browser session | HttpOnly, SameSite=None, Secure |
+| `pjk_signed_in` | signing in, signing out, and `/next/session` | tells a page whether to ask who is signed in: `member` or `staff`, nothing else | as long as the session it hints at | SameSite=Lax, Secure; not HttpOnly, as the page reads it; holds no secret and grants nothing |
 
 The member cookie is Lax rather than Strict so that following a link in an email to the account
 page arrives signed in. Every state-changing member request also has its `Origin` checked.
+
+**Who is signed in is never in a cached page.** Every public page is prerendered and served from
+the CDN, identical for everyone, and always says Sign in. The header learns who is signed in from
+the browser alone, by asking `/next/session`, which answers only `member`, `staff` or no one, with
+`Cache-Control: private, no-store` (`src/components/session/sessionStore.ts`). It asks only when
+`pjk_signed_in` says someone may be signed in, or once in a browser that has never asked, so a
+signed-out visitor's pages make no server call for it at all; a forged or stale hint costs one
+request, which corrects it. It asks again after signing in or out in any tab (BroadcastChannel),
+on returning to a tab, on a page restored from the back/forward cache, and every five minutes while
+signed in. The build fails if any public page stops being prerendered
+(`scripts/check-build-log.mjs`), so a header, cookie or nonce can never quietly make one dynamic.
+The nonce-based CSP stays on the dynamic member pages only (`src/security/memberPagePolicy.ts`).
 
 ## Every route
 

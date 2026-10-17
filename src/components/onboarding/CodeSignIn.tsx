@@ -1,6 +1,6 @@
 'use client'
 
-import { SESSION_CHANGED } from '@/components/SiteHeader/AccountControl'
+import { announceSessionChange } from '@/components/session/sessionStore'
 import { BotCheckHelp } from '@/components/turnstile/BotCheckHelp'
 import { useVisibleTurnstile } from '@/components/turnstile/useTurnstile'
 import { TURNSTILE_FIELD } from '@/security/turnstile'
@@ -107,8 +107,9 @@ export const CodeSignIn: React.FC<{
     const result = await api('/next/members/verify-code', { body: { challengeId, code } })
     setBusy(false)
     if (!result.ok) return setError(result.data.message ?? 'That code was not accepted.')
-    // The header's Sign in becomes the account and Sign out, without a page load
-    window.dispatchEvent(new Event(SESSION_CHANGED))
+    // The header's Sign in becomes the account and Sign out, here and in every other open tab,
+    // without a page load
+    announceSessionChange()
     onSignedIn()
   }
 

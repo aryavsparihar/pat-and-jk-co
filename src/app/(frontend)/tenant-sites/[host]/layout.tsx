@@ -18,8 +18,11 @@ type Args = {
   params: Promise<{ host: string }>
 }
 
-// Safety net on top of on-demand revalidation: pages refresh at least hourly
-export const revalidate = 3600
+// A safety net only: every save in the admin already refreshes every page at once
+// (src/hooks/revalidateFrontend.ts). Every six hours, not hourly: each refresh writes several
+// cache entries per page, and hourly ones outnumbered the pages actually read. Six hours still
+// takes an opening notice down within a few hours of its day ending (OpeningNotice.tsx)
+export const revalidate = 21600
 
 /** Pre-render every brand's primary domain at build time. */
 export async function generateStaticParams() {
