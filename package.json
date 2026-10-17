@@ -41,6 +41,7 @@
     "kyc:rotate-key": "cross-env NODE_OPTIONS=\"--no-deprecation --import=./scripts/allow-server-only.mjs\" payload run src/scripts/kyc-rotate-key.ts",
     "load-test:sessions": "cross-env NODE_ENV=production node --no-deprecation --import tsx/esm --import ./scripts/allow-server-only.mjs scripts/load-test-sessions.ts",
     "media:make-private": "cross-env NODE_ENV=production node --no-deprecation --import tsx/esm --import ./scripts/allow-server-only.mjs scripts/make-media-private.ts",
+    "storage:copy": "node --no-deprecation --import tsx/esm scripts/copy-storage.ts",
     "sample:artist": "cross-env NODE_OPTIONS=--no-deprecation node --import tsx/esm --import ./scripts/allow-server-only.mjs scripts/sample-artist.ts"
   },
   "dependencies": {
