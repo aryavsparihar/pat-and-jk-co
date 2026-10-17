@@ -11,6 +11,7 @@ import {
   readSession,
   revokeSession,
 } from '@/security/memberSession'
+import { sessionHintHeader } from '@/utilities/sessionHint'
 
 export const dynamic = 'force-dynamic'
 
@@ -30,5 +31,13 @@ export async function POST(request: Request) {
     })
   }
 
-  return reply({ ok: true }, { headers: { 'Set-Cookie': clearedCookieHeader() } })
+  return reply(
+    { ok: true },
+    {
+      headers: [
+        ['Set-Cookie', clearedCookieHeader()],
+        ['Set-Cookie', sessionHintHeader(null)],
+      ],
+    },
+  )
 }

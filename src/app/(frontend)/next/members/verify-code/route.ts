@@ -20,6 +20,7 @@ import {
   sessionCookieHeader,
 } from '@/security/memberSession'
 import { hitLimit, peekLimit } from '@/security/rateLimit'
+import { sessionHintHeader } from '@/utilities/sessionHint'
 
 export const dynamic = 'force-dynamic'
 
@@ -160,6 +161,12 @@ export async function POST(request: Request) {
 
   return reply(
     { ok: true, artistId: member.artistId ?? null, partnerId: member.partnerId ?? null },
-    { headers: { 'Set-Cookie': sessionCookieHeader(session.value, session.expiresAt) } },
+    {
+      headers: [
+        ['Set-Cookie', sessionCookieHeader(session.value, session.expiresAt)],
+        // Tells pages to ask who is signed in (src/utilities/sessionHint.ts)
+        ['Set-Cookie', sessionHintHeader('member')],
+      ],
+    },
   )
 }

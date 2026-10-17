@@ -7,6 +7,7 @@ import { cancelBankChangeByToken } from '@/kyc/service'
 import { clearedCookieHeader, revokeAllSessions } from '@/security/memberSession'
 import { hitLimit } from '@/security/rateLimit'
 import { clientIp } from '@/security/constants'
+import { sessionHintHeader } from '@/utilities/sessionHint'
 
 export const dynamic = 'force-dynamic'
 
@@ -45,5 +46,13 @@ export async function POST(request: Request) {
     })
   ).docs[0]
   await notifyStaffOfBankChange(payload, { reference: record?.reference, cancelled: true })
-  return reply({ ok: true }, { headers: { 'Set-Cookie': clearedCookieHeader() } })
+  return reply(
+    { ok: true },
+    {
+      headers: [
+        ['Set-Cookie', clearedCookieHeader()],
+        ['Set-Cookie', sessionHintHeader(null)],
+      ],
+    },
+  )
 }

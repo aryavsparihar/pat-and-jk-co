@@ -70,6 +70,8 @@ const ROUTES: Record<string, 'public' | 'member' | 'staff' | 'secret' | 'token'>
   '/next/members/request-code': 'public',
   '/next/members/verify-code': 'public',
   '/next/members/session': 'public',
+  // Who is signed in, for the header: member, staff or no one, never anything more
+  '/next/session': 'public',
   '/next/members/sign-out': 'public',
   '/next/members/sign-out-everywhere': 'member',
   '/next/members/kyc/bank-change/cancel': 'token',
