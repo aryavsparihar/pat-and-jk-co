@@ -91,6 +91,9 @@ Key: **R** required, **O** optional, **—** not used, *auto* set by Vercel.
 | `NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID` | Google's map style ID, which the draggable pin needs | no | O | O | — |
 | `BLOB_READ_WRITE_TOKEN` | The public media store | yes | auto, R | auto | — |
 | `BLOB_STORE_ID` | The public media store's ID, read only to keep KYC out of it | no | auto | auto | — |
+| `MEDIA_STORAGE`, `PRIVATE_STORAGE` | `s3` to keep public media, or private files, in an S3-compatible store instead of Vercel Blob ([COSTS.md](COSTS.md#moving-media-to-cloudflare-r2)) | no | O | O | — |
+| `S3_ENDPOINT`, `S3_REGION`, `S3_MEDIA_BUCKET`, `S3_PRIVATE_BUCKET` | The S3-compatible store and its buckets (R2: region `auto`) | no | O | O | — |
+| `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` | That store's access key, limited to those buckets | yes | O | O | — |
 | `KYC_ENCRYPTION_KEY` | Encrypts identity and bank details | yes | R | R (its own) | O (derived locally) |
 | `KYC_BLIND_INDEX_KEY` | Finds duplicate PANs and accounts | yes | R | R (its own) | O |
 | `KYC_ENCRYPTION_KEY_PREVIOUS` | Only while rotating the KYC key | yes | O | O | — |
