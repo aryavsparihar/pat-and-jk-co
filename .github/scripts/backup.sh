@@ -7,16 +7,17 @@
 #                                                 weekly/ on Sundays
 #   backup.sh prune                               keeps 14 daily and 8 weekly copies
 #
-# pg_dump runs in the official postgres image of the same major version as the database
-# (PG_MAJOR, 17 by default), since a pg_dump older than the server refuses to run. Nothing here
-# prints the connection string, and the plaintext dump is deleted as soon as it is encrypted.
+# pg_dump runs in the official postgres image (PG_MAJOR, 18 by default: Neon runs PostgreSQL 18).
+# A pg_dump older than the server refuses to run, and a newer one dumps older servers fine, so
+# this must be at least the database's version. Nothing here prints the connection string, and the
+# plaintext dump is deleted as soon as it is encrypted.
 #
 # Google Drive is reached by rclone with the drive.file scope: it can see and touch only the
 # files it created itself, nothing else in the account. Its settings come from the environment
 # (RCLONE_CONFIG_GDRIVE_*), set by the workflow from repository secrets.
 set -euo pipefail
 
-PG_MAJOR=${PG_MAJOR:-17}
+PG_MAJOR=${PG_MAJOR:-18}
 FOLDER=${BACKUP_FOLDER:-PJK database backups}
 # Nights apart, so a copy made exactly a fortnight (or eight weeks) ago is the oldest one kept
 DAILY_MIN_AGE=13d12h
@@ -30,9 +31,12 @@ pg() {
 
 case "${1:-}" in
   dump)
+    # A connection string pasted into a secret easily picks up a trailing space or line break,
+    # which libpq then reads as part of the last setting
+    url=$(printf '%s' "$2" | tr -d '[:space:]')
     out=$3
     # Custom format: compressed, and restorable one table at a time
-    PGURL=$2 pg sh -c 'pg_dump --format=custom --compress=9 --no-password --dbname="$PGURL" --file="$0"' "$out"
+    PGURL=$url pg sh -c 'pg_dump --format=custom --compress=9 --no-password --dbname="$PGURL" --file="$0"' "$out"
     # A dump that cannot be listed back is no backup at all
     PGURL='' pg pg_restore --list "$out" >/dev/null
     echo "Dump written and readable: $(du -h "$out" | cut -f1)"

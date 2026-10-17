@@ -107,8 +107,9 @@ production directly: restore into a throwaway branch, look, then copy back only 
 2. **Neon → Branches → Create branch** from `main` named `restore-check`. Then in that branch,
    **Databases → New database** named `restored`, owner `neondb_owner`. Copy its connection
    string (**Connect**, role `neondb_owner`, pooling **off**).
-3. On your computer, with your key file (the one `age-keygen` made) and the PostgreSQL 17 tools
-   (`brew install age libpq`), from the `website` folder:
+3. On your computer, with your key file (the one `age-keygen` made) and the PostgreSQL 18 tools
+   the backups are made with (`brew install age libpq`; the script finds Homebrew's libpq even if
+   an older PostgreSQL is installed), from the `website` folder:
 
    ```bash
    read -rs TARGET   # paste the connection string; it is not shown or saved
@@ -140,7 +141,8 @@ Once, in this order. Nothing here costs money.
    `main` can then read its secrets. In it add:
    - variable `BACKUP_AGE_RECIPIENT`: the `age1…` public key;
    - secret `BACKUP_DATABASE_URL`: Neon → **Connect**, branch `main`, role `neondb_owner`,
-     **pooling off**, `sslmode=verify-full`;
+     **pooling off**, copied exactly as Neon shows it (its `sslmode=require` is right for
+     `pg_dump`; `verify-full` would need certificates the backup job does not have);
    - secret `BACKUP_ALERT_RESEND_KEY`: Resend → API Keys → Create, *Sending access* only, domain
      `pjk.co.in`.
 3. **Google**, signed in to the Google account that should hold the backups (2-step verification

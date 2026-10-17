@@ -88,7 +88,8 @@ jobs:
     timeout-minutes: 10
     services:
       postgres:
-        image: postgres:17
+        # The version production runs (Neon), so the test restores what the nightly job makes
+        image: postgres:18
         env:
           POSTGRES_USER: pjk
           POSTGRES_PASSWORD: pjk
