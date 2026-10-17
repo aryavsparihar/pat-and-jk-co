@@ -7,6 +7,7 @@ import {
   requireMember,
   withRefresh,
 } from '@/members/http'
+import { memberIdsOf } from '@/collections/Members'
 import { notifyStaffOfDataRequest } from '@/members/emails'
 import { clientIp } from '@/security/constants'
 import { logSecurityEvent } from '@/security/events'
@@ -23,7 +24,8 @@ const KINDS = {
 /**
  * A member's request about their own data. Withdrawing consent takes effect at once: the KYC
  * record is marked, nothing further is processed, and `pnpm kyc:purge` deletes it unless the law
- * requires it to be kept. Deletion and copies are recorded for staff to carry out (docs/KYC.md).
+ * requires it to be kept. A deletion request is marked on their record, and staff carry it out with
+ * "Delete this person", the same erasure as any other. Copies are recorded for staff (docs/KYC.md).
  */
 export async function POST(request: Request) {
   if (!fromOurOrigin(request)) return refuseCrossSite()
@@ -59,6 +61,19 @@ export async function POST(request: Request) {
       email: member.email,
       ip: clientIp(request.headers),
     })
+  }
+  if (kind === 'delete') {
+    // Recorded on their record, where "Delete this person" in the admin carries it out: the same
+    // erasure as any deletion by staff (src/people/erase.ts)
+    const { recordDeletionRequest } = await import('@/people/erase')
+    if (await recordDeletionRequest(payload, member)) {
+      await logSecurityEvent(payload, {
+        event: 'deletion-requested',
+        email: member.email,
+        ip: clientIp(request.headers),
+        subject: memberIdsOf(member),
+      })
+    }
   }
   await logSecurityEvent(payload, {
     event: 'data-request',
