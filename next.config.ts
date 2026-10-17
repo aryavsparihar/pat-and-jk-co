@@ -150,6 +150,13 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       { source: '/:path*', headers: securityHeaders },
+      // Only pjk.co.in belongs in search results: previews, deployment addresses and any other
+      // host the site answers on ask not to be indexed, whatever their robots.txt says
+      {
+        source: '/:path*',
+        missing: [{ type: 'host', value: SITE_HOST.replaceAll('.', '\\.') }],
+        headers: [{ key: 'X-Robots-Tag', value: 'noindex' }],
+      },
       // The site-wide policy, everywhere except the member pages, which get a stricter per-request
       // policy with a nonce from src/proxy.ts (src/security/memberPagePolicy.ts)
       {

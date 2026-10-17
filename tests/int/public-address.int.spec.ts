@@ -4,7 +4,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 /*
  * One public address. A production build sends every *.vercel.app request on to pjk.co.in with a
  * permanent redirect that keeps the path, except Vercel's own cron calls; a preview build
- * redirects nothing (previews stay behind Vercel's login). Checked here against next.config.ts's rules, matched the way Next.js and
+ * redirects nothing (previews stay behind Vercel's login); and every host but pjk.co.in is told
+ * not to be indexed. Checked here against next.config.ts's rules, matched the way Next.js and
  * Vercel match them, and on the live site after each deployment (curl -I).
  */
 
@@ -15,6 +16,7 @@ type Rule = {
   missing?: Condition[]
   destination?: string
   permanent?: boolean
+  headers?: { key: string; value: string }[]
 }
 type Request = { host: string; userAgent?: string }
 
@@ -24,6 +26,7 @@ const load = async (vercelEnv?: string) => {
   const { default: config } = await import('../../next.config')
   return {
     redirects: ((await config.redirects?.()) ?? []) as Rule[],
+    headers: ((await config.headers?.()) ?? []) as Rule[],
   }
 }
 
@@ -76,5 +79,26 @@ describe('the public address', () => {
   it('redirects nothing in a preview build or on a developer’s machine', async () => {
     expect((await load('preview')).redirects).toEqual([])
     expect((await load()).redirects).toEqual([])
+  })
+
+  it('asks search engines to index pjk.co.in only', async () => {
+    const { headers } = await load('production')
+    const noindex = headers.filter((rule) =>
+      rule.headers?.some((h) => h.key === 'X-Robots-Tag' && h.value === 'noindex'),
+    )
+    expect(noindex).toHaveLength(1)
+    const [rule] = noindex
+    expect(rule.source).toBe('/:path*')
+    expect(applies(rule, { host: 'pjk.co.in' })).toBe(false)
+    for (const host of [
+      'pat-and-jk-co.vercel.app',
+      'pat-and-jk-co-git-some-branch-aryavsparihars-projects.vercel.app',
+      'www.pjk.co.in',
+      'pjk.co.in.example.com',
+      'pjkxco.in',
+      'localhost',
+    ]) {
+      expect(applies(rule, { host }), host).toBe(true)
+    }
   })
 })
