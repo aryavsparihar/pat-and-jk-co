@@ -161,8 +161,12 @@ jobs:
           pnpm vercel-build 2>&1 | tee build.log
           node scripts/check-build-log.mjs build.log
 
+      # The login role made above: tests that must hold for the live site run as it
+      # (tests/helpers/appRole.ts), since the owner is exempt from every permission and policy
       - if: needs.scope.outputs.heavy != 'false'
         name: Integration tests
+        env:
+          APP_DATABASE_URL: postgres://pjk_app_ci:pjk-app-ci@localhost:5432/pjk_ci
         run: pnpm test:int
 
   # The end-to-end tests (tests/e2e) in a real browser, against the app running on a throwaway
@@ -172,7 +176,10 @@ jobs:
     # Runs even if the scope job broke: then nothing says "skip", so everything runs
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # The suite takes about 25 minutes on a runner, and a slow first compile of a page can add a
+    # retry or two: 30 minutes cut runs off with one test to go. A run that is genuinely stuck still
+    # stops here rather than at GitHub's six hours
+    timeout-minutes: 40
 
     services:
       postgres:

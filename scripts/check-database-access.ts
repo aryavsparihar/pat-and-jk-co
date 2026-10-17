@@ -5,7 +5,9 @@
  *     group role, pjk_app_access, and no other role is given a policy;
  *   - pjk_app_access has only SELECT, INSERT, UPDATE and DELETE on tables (the security log only
  *     SELECT and INSERT, the migrations table only SELECT), only USAGE and SELECT on sequences, no
- *     CREATE on the schema, owns nothing, and is not a superuser, BYPASSRLS, CREATEROLE or CREATEDB.
+ *     CREATE on the schema, owns nothing, and is not a superuser, BYPASSRLS, CREATEROLE or CREATEDB;
+ *   - the only function it may call that runs with the owner's rights (SECURITY DEFINER) is
+ *     erase_from_security_log, with a fixed search path, and nobody else may call that.
  *
  * Run with the owner's connection (DATABASE_URL_MIGRATE, or DATABASE_URL where they are the same,
  * as in CI). With APP_DATABASE_URL, it also signs in as a login role in pjk_app_access and checks
@@ -17,6 +19,8 @@ import 'dotenv/config'
 import { Client } from 'pg'
 
 const APP = 'pjk_app_access'
+/** Functions that run with the owner's rights and that the app may call; nobody else may */
+const DEFINER_FUNCTIONS = ['erase_from_security_log']
 const TABLE_PRIVILEGES: Record<string, string[]> = {
   security_events: ['INSERT', 'SELECT'],
   payload_migrations: ['SELECT'],
@@ -105,6 +109,28 @@ const sequenceGrants = (
 for (const s of sequenceGrants)
   if (s.can_update) fail(`sequence ${s.name}: ${APP} may UPDATE (setval)`)
 
+const definers = (
+  await owner.query(
+    `SELECT p.proname AS name, has_function_privilege($1, p.oid, 'EXECUTE') AS app,
+            has_function_privilege('public', p.oid, 'EXECUTE') AS everyone,
+            coalesce(array_to_string(p.proconfig, ','), '') AS config
+     FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+     WHERE n.nspname = 'public' AND p.prosecdef`,
+    [APP],
+  )
+).rows as { name: string; app: boolean; everyone: boolean; config: string }[]
+for (const f of definers) {
+  if (!DEFINER_FUNCTIONS.includes(f.name)) {
+    if (f.app) fail(`function ${f.name} runs with the owner's rights and ${APP} may call it`)
+    continue
+  }
+  if (f.everyone) fail(`function ${f.name}: anyone may call it, not only ${APP}`)
+  if (!f.config.includes('search_path=')) fail(`function ${f.name} has no fixed search_path`)
+}
+for (const name of DEFINER_FUNCTIONS)
+  if (!definers.some((f) => f.name === name && f.app))
+    fail(`function ${name} is missing, or ${APP} may not call it`)
+
 const schema = (
   await owner.query(`SELECT has_schema_privilege($1, 'public', 'CREATE') AS can_create`, [APP])
 ).rows[0]
@@ -138,6 +164,11 @@ if (process.env.APP_DATABASE_URL) {
   await refused(`UPDATE public.security_events SET detail = 'changed'`, 'changing the security log')
   await refused('DELETE FROM public.security_events', 'deleting from the security log')
   await refused(`DELETE FROM public.payload_migrations`, 'changing the migrations table')
+  // The one way addresses leave the security log refuses anyone not actually deleted
+  await refused(
+    `SELECT public.erase_from_security_log(ARRAY['someone@example.test'], 'Deleted artist (AT999999)')`,
+    'erasing addresses from the security log for someone not deleted',
+  )
   await app.end()
 }
 
