@@ -2,6 +2,7 @@ import { sql } from '@payloadcms/db-postgres'
 import { type Page, expect, test } from '@playwright/test'
 
 import {
+  BASE,
   approveAs,
   cleanUp,
   fillEarlySteps,
@@ -296,7 +297,7 @@ test('pages with nothing to show say so, and never break', async ({ page, contex
     overrideAccess: true,
   })
   for (const path of ['/', '/ventures', '/journal', '/collaborate', '/about']) {
-    const response = await page.goto(`http://e2e-empty.localhost:3000${path}`)
+    const response = await page.goto(`http://e2e-empty.localhost:${new URL(BASE).port}${path}`)
     expect(response?.status(), path).toBeLessThan(500)
     await expect(page.getByText(/This page could not be shown/), path).toHaveCount(0)
   }
