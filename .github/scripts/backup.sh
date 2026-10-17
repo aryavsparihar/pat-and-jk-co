@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+# The nightly database backup (docs/RUNBOOK.md, "Backups"): dump, check, encrypt, upload, prune.
+#
+#   backup.sh dump <database url> <out file>      pg_dump in custom format, then check it reads back
+#   backup.sh encrypt <in file> <out file>        age, to the public key in BACKUP_AGE_RECIPIENT
+#   backup.sh upload <file> <yyyy-mm-dd>          to the Drive folder (BACKUP_FOLDER): daily/, and
+#                                                 weekly/ on Sundays
+#   backup.sh prune                               keeps 14 daily and 8 weekly copies
+#
+# pg_dump runs in the official postgres image of the same major version as the database
+# (PG_MAJOR, 17 by default), since a pg_dump older than the server refuses to run. Nothing here
+# prints the connection string, and the plaintext dump is deleted as soon as it is encrypted.
+#
+# Google Drive is reached by rclone with the drive.file scope: it can see and touch only the
+# files it created itself, nothing else in the account. Its settings come from the environment
+# (RCLONE_CONFIG_GDRIVE_*), set by the workflow from repository secrets.
+set -euo pipefail
+
+PG_MAJOR=${PG_MAJOR:-17}
+FOLDER=${BACKUP_FOLDER:-PJK database backups}
+# Nights apart, so a copy made exactly a fortnight (or eight weeks) ago is the oldest one kept
+DAILY_MIN_AGE=13d12h
+WEEKLY_MIN_AGE=55d12h
+
+pg() {
+  # As the runner's own user, so the files it writes can be shredded afterwards
+  docker run --rm --network host --user "$(id -u):$(id -g)" -e PGURL -v "$PWD:/work" -w /work \
+    "postgres:${PG_MAJOR}" "$@"
+}
+
+case "${1:-}" in
+  dump)
+    out=$3
+    # Custom format: compressed, and restorable one table at a time
+    PGURL=$2 pg sh -c 'pg_dump --format=custom --compress=9 --no-password --dbname="$PGURL" --file="$0"' "$out"
+    # A dump that cannot be listed back is no backup at all
+    PGURL='' pg pg_restore --list "$out" >/dev/null
+    echo "Dump written and readable: $(du -h "$out" | cut -f1)"
+    ;;
+  encrypt)
+    in=$2
+    out=$3
+    if [ -z "${BACKUP_AGE_RECIPIENT:-}" ]; then
+      echo "BACKUP_AGE_RECIPIENT is not set" >&2
+      exit 1
+    fi
+    age --encrypt --recipient "$BACKUP_AGE_RECIPIENT" --output "$out" "$in"
+    shred -u "$in" 2>/dev/null || rm -f "$in"
+    echo "Encrypted: $(du -h "$out" | cut -f1)"
+    ;;
+  upload)
+    file=$2
+    day=$3
+    rclone copyto "$file" "gdrive:$FOLDER/daily/pjk-$day.dump.age" --drive-use-trash=false
+    if [ "$(date -u -d "$day" +%u)" = 7 ]; then
+      rclone copyto "$file" "gdrive:$FOLDER/weekly/pjk-$day.dump.age" --drive-use-trash=false
+    fi
+    echo "Uploaded."
+    ;;
+  prune)
+    rclone mkdir "gdrive:$FOLDER/daily"
+    rclone mkdir "gdrive:$FOLDER/weekly"
+    # Deleted outright, not left in the bin, where they would still count against the quota
+    rclone delete "gdrive:$FOLDER/daily" --min-age "$DAILY_MIN_AGE" --drive-use-trash=false
+    rclone delete "gdrive:$FOLDER/weekly" --min-age "$WEEKLY_MIN_AGE" --drive-use-trash=false
+    echo "Kept: $(rclone lsf "gdrive:$FOLDER/daily" | wc -l) daily, $(rclone lsf "gdrive:$FOLDER/weekly" | wc -l) weekly."
+    ;;
+  *)
+    echo "usage: backup.sh dump|encrypt|upload|prune ..." >&2
+    exit 2
+    ;;
+esac

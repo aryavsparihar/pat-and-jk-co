@@ -1,0 +1,156 @@
+name: Backup
+
+# The production database, every night, encrypted, to a Google Drive folder that holds nothing
+# else (docs/RUNBOOK.md, "Backups"). Encrypted on the runner with a public key, so Drive and
+# GitHub only ever see ciphertext; the private key is kept offline and is needed to restore.
+#
+# In a pull request that changes the backup itself, it tests itself instead, with no secrets:
+# dump a throwaway database, encrypt it with a key made for the run, decrypt it, restore it into
+# a second database and check that everything came back.
+on:
+  schedule:
+    # 02:00 in India
+    - cron: '30 20 * * *'
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/backup.yml
+      - .github/scripts/backup.sh
+      - scripts/restore-backup.sh
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backup-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Its secrets (the database owner's connection string among them) live in this environment,
+    # which only the main branch may use (docs/RUNBOOK.md, "Setting up the backups")
+    environment: backups
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: .github/scripts
+
+      - name: Tools (Ubuntu's own signed packages)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends age rclone
+
+      - name: Dump the database
+        env:
+          DATABASE: ${{ secrets.BACKUP_DATABASE_URL }}
+        run: .github/scripts/backup.sh dump "$DATABASE" db.dump
+
+      - name: Encrypt
+        env:
+          BACKUP_AGE_RECIPIENT: ${{ vars.BACKUP_AGE_RECIPIENT }}
+        run: .github/scripts/backup.sh encrypt db.dump backup.age
+
+      - name: Upload, and keep 14 daily and 8 weekly
+        env:
+          RCLONE_CONFIG_GDRIVE_TYPE: drive
+          RCLONE_CONFIG_GDRIVE_SCOPE: drive.file
+          RCLONE_CONFIG_GDRIVE_CLIENT_ID: ${{ secrets.GDRIVE_CLIENT_ID }}
+          RCLONE_CONFIG_GDRIVE_CLIENT_SECRET: ${{ secrets.GDRIVE_CLIENT_SECRET }}
+          RCLONE_CONFIG_GDRIVE_TOKEN: ${{ secrets.GDRIVE_TOKEN }}
+          BACKUP_FOLDER: ${{ vars.BACKUP_FOLDER || 'PJK database backups' }}
+        run: |
+          day=$(TZ=Asia/Kolkata date +%F)
+          .github/scripts/backup.sh upload backup.age "$day"
+          .github/scripts/backup.sh prune
+
+      - name: Tell tech@pjk.co.in it failed
+        if: failure()
+        env:
+          RESEND_API_KEY: ${{ secrets.BACKUP_ALERT_RESEND_KEY }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          jq -n --arg run "$RUN" '{
+            from: "PJK backups <noreply@pjk.co.in>",
+            to: ["tech@pjk.co.in"],
+            subject: "The PJK database backup failed",
+            text: ("Last night'\''s database backup did not complete, so there is no new copy in Google Drive. The step that failed and why are here: " + $run + "\n\nThe earlier copies are untouched. docs/RUNBOOK.md, \"Backups\", says what to check.")
+          }' | curl -fsS https://api.resend.com/emails \
+            -H "Authorization: Bearer $RESEND_API_KEY" \
+            -H 'Content-Type: application/json' --data @-
+
+  self-test:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: pjk
+          POSTGRES_PASSWORD: pjk
+          POSTGRES_DB: original
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U pjk"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      ORIGINAL: postgres://pjk:pjk@localhost:5432/original
+      RESTORED: postgres://pjk:pjk@localhost:5432/restored
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends age
+
+      - name: A database shaped like ours, with a marker that must not leak
+        run: |
+          psql "$ORIGINAL" -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE ROLE pjk_app_access NOLOGIN;
+          CREATE SEQUENCE member_id_artist_seq;
+          SELECT setval('member_id_artist_seq', 41);
+          CREATE TABLE members (id serial PRIMARY KEY, email text NOT NULL, artist_id text UNIQUE);
+          CREATE TABLE applications (id serial PRIMARY KEY, member_id int NOT NULL REFERENCES members(id), reference text);
+          CREATE TABLE artworks (id serial PRIMARY KEY, owner_id int NOT NULL REFERENCES members(id), title text);
+          CREATE TABLE security_events (id serial PRIMARY KEY, event text, email text, created_at timestamptz DEFAULT now());
+          INSERT INTO members (email, artist_id) SELECT 'artist' || n || '@backup-marker.example.test', 'AT' || lpad(n::text, 6, '0') FROM generate_series(1, 41) n;
+          INSERT INTO applications (member_id, reference) SELECT id, 'A-' || id FROM members;
+          INSERT INTO artworks (owner_id, title) SELECT id, 'Work ' || id FROM members;
+          INSERT INTO security_events (event, email) SELECT 'member-signed-in', email FROM members;
+          ALTER TABLE security_events ENABLE ROW LEVEL SECURITY;
+          CREATE POLICY pjk_app ON security_events FOR SELECT TO pjk_app_access USING (true);
+          GRANT SELECT, INSERT ON security_events TO pjk_app_access;
+          CREATE FUNCTION erase_from_security_log(addresses text[], placeholder text) RETURNS integer
+            LANGUAGE sql SECURITY DEFINER SET search_path = pg_catalog, public AS 'SELECT 0';
+          SQL
+
+      - name: Back up and encrypt, as the nightly job does
+        run: |
+          age-keygen -o key.txt 2>/dev/null
+          .github/scripts/backup.sh dump "$ORIGINAL" db.dump
+          BACKUP_AGE_RECIPIENT=$(age-keygen -y key.txt) .github/scripts/backup.sh encrypt db.dump backup.age
+          test ! -e db.dump || { echo "The plaintext dump was left behind"; exit 1; }
+          if grep -a -q 'backup-marker' backup.age; then echo "The backup is not encrypted"; exit 1; fi
+
+      - name: Restore into an empty database and compare
+        run: |
+          psql "$ORIGINAL" -c 'CREATE DATABASE restored'
+          PG_DOCKER=1 scripts/restore-backup.sh backup.age key.txt "$RESTORED"
+          compare() { [ "$(psql "$ORIGINAL" -tAc "$1")" = "$(psql "$RESTORED" -tAc "$1")" ] || { echo "Differs: $1"; exit 1; }; }
+          for table in members applications artworks security_events; do
+            compare "SELECT md5(string_agg(t::text, ',' ORDER BY t::text)) FROM $table t"
+          done
+          compare "SELECT last_value FROM member_id_artist_seq"
+          compare "SELECT relrowsecurity FROM pg_class WHERE relname = 'security_events'"
+          compare "SELECT count(*) FROM pg_policies WHERE tablename = 'security_events'"
+          compare "SELECT prosecdef FROM pg_proc WHERE proname = 'erase_from_security_log'"
+          echo "Everything came back."

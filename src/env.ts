@@ -125,6 +125,23 @@ const schema = z.object({
   // Set by Vercel with the public media store; read only to make sure KYC never uses it
   BLOB_STORE_ID: optional(z.string().trim()),
 
+  // Where files are kept (src/storage/objectStore.ts): Vercel Blob unless set to s3, for an
+  // S3-compatible store such as Cloudflare R2 (docs/COSTS.md, "Moving media to Cloudflare R2")
+  MEDIA_STORAGE: optional(z.enum(['vercel-blob', 's3'])),
+  PRIVATE_STORAGE: optional(z.enum(['vercel-blob', 's3'])),
+  S3_ENDPOINT: optional(
+    z.url({ error: 'must be the store’s https:// endpoint' }).startsWith('https://'),
+  ),
+  S3_REGION: optional(z.string().trim().min(2)),
+  S3_ACCESS_KEY_ID: optional(z.string().trim().min(8)),
+  S3_SECRET_ACCESS_KEY: optional(z.string().trim().min(16)),
+  S3_MEDIA_BUCKET: optional(
+    z.string().regex(/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/, 'must be a bucket name'),
+  ),
+  S3_PRIVATE_BUCKET: optional(
+    z.string().regex(/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/, 'must be a bucket name'),
+  ),
+
   // Logging (src/observability/logger.ts)
   LOG_LEVEL: optional(z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal', 'silent'])),
   DISABLE_LOGGING: optional(z.enum(['true', 'false'])),
@@ -153,21 +170,38 @@ const productionRequirements: { key: keyof Env; why: string }[] = [
     why: 'member sessions are signed with it',
   },
   {
-    key: 'BLOB_READ_WRITE_TOKEN',
-    why: 'without it, uploads are written to a serverless disk that is thrown away',
-  },
-  {
     key: 'NEXT_PUBLIC_TURNSTILE_SITE_KEY',
     why: 'the forms show the Cloudflare Turnstile check with it',
   },
   { key: 'TURNSTILE_SECRET_KEY', why: 'the server checks Turnstile tokens with it' },
   { key: 'KYC_ENCRYPTION_KEY', why: 'identity and bank details are encrypted with it' },
   { key: 'KYC_BLIND_INDEX_KEY', why: 'duplicate PANs and accounts are found with it' },
-  {
-    key: 'KYC_STORE_ID',
-    why: 'identity documents are kept in the private Blob store pjk-kyc, never the public one',
-  },
 ]
+
+/** What each choice of storage needs, wherever it runs (production also needs the default's) */
+const storageProblems = (env: Env, production: boolean): string[] => {
+  const problems: string[] = []
+  const s3 = env.MEDIA_STORAGE === 's3' || env.PRIVATE_STORAGE === 's3'
+  if (s3) {
+    for (const key of ['S3_ENDPOINT', 'S3_ACCESS_KEY_ID', 'S3_SECRET_ACCESS_KEY'] as const)
+      if (!env[key]) problems.push(`${key} is required when files are kept in S3 storage`)
+  }
+  if (env.MEDIA_STORAGE === 's3' && !env.S3_MEDIA_BUCKET)
+    problems.push('S3_MEDIA_BUCKET is required when MEDIA_STORAGE is s3')
+  if (env.PRIVATE_STORAGE === 's3' && !env.S3_PRIVATE_BUCKET)
+    problems.push('S3_PRIVATE_BUCKET is required when PRIVATE_STORAGE is s3')
+  if (env.S3_PRIVATE_BUCKET && env.S3_PRIVATE_BUCKET === env.S3_MEDIA_BUCKET)
+    problems.push('S3_PRIVATE_BUCKET must be a private bucket of its own, not the media bucket')
+  if (production && env.MEDIA_STORAGE !== 's3' && !env.BLOB_READ_WRITE_TOKEN)
+    problems.push(
+      'BLOB_READ_WRITE_TOKEN is required in production: without it, uploads are written to a serverless disk that is thrown away',
+    )
+  if (production && env.PRIVATE_STORAGE !== 's3' && !env.KYC_STORE_ID)
+    problems.push(
+      'KYC_STORE_ID is required in production: identity documents are kept in the private Blob store pjk-kyc, never the public one',
+    )
+  return problems
+}
 
 export type EnvResult = { env: Env; problems: string[]; warnings: string[] }
 
@@ -188,6 +222,7 @@ export const parseEnv = (source: Record<string, string | undefined>): EnvResult 
     for (const { key, why } of productionRequirements) {
       if (!env[key]) problems.push(`${key} is required in production: ${why}`)
     }
+    problems.push(...storageProblems(env, true))
     if (env.NEXT_PUBLIC_SERVER_URL && !env.NEXT_PUBLIC_SERVER_URL.startsWith('https://')) {
       problems.push('NEXT_PUBLIC_SERVER_URL must use https:// in production')
     }
@@ -202,6 +237,10 @@ export const parseEnv = (source: Record<string, string | undefined>): EnvResult 
         "NEXT_PUBLIC_TURNSTILE_SITE_KEY is one of Cloudflare's test keys; production needs the real one",
       )
     }
+  }
+
+  if (parsed.success && env.VERCEL_ENV !== 'production') {
+    problems.push(...storageProblems(env, false))
   }
 
   if (parsed.success) {

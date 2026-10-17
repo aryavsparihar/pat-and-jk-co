@@ -1,22 +1,15 @@
 import 'server-only'
 
-import { del, get, put } from '@vercel/blob'
-import { getVercelOidcToken } from '@vercel/oidc'
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
-import path from 'node:path'
+import { storeFor } from '@/storage/objectStore'
 
 /**
  * Where encrypted KYC documents are kept. Everything stored here is already ciphertext
  * (src/kyc/crypto.ts), so even a leaked file is unreadable without the master key.
  *
- *   on Vercel            the private Blob store pjk-kyc (KYC_STORE_ID), reached with the
- *                        deployment's OIDC token; nothing in it has a public URL
- *   local development    .uploads/kyc on disk, outside public/, git-ignored
- *
- * The store is never chosen by fallback. @vercel/blob looks for credentials in a fixed order and
- * would fall back to BLOB_STORE_ID or BLOB_READ_WRITE_TOKEN, both of which belong to the *public*
- * media store, so every call here passes the OIDC token and the KYC store ID explicitly, and
- * refuses to run without them. A read-write token is never used.
+ * The private store (src/storage/objectStore.ts): on Vercel the private Blob store pjk-kyc
+ * (KYC_STORE_ID), reached with the deployment's OIDC token, never the public store's credentials;
+ * or an S3-compatible private bucket once PRIVATE_STORAGE says so; locally .uploads/kyc on disk,
+ * outside public/, git-ignored. Nothing in it has a public URL.
  *
  * Production and previews share the store, so each environment has its own folder (kyc/ for
  * production, preview/kyc/ for previews), and a document outside the current environment's folder
@@ -24,29 +17,11 @@ import path from 'node:path'
  * production, cannot touch production's files.
  */
 
-const LOCAL_ROOT = path.resolve(process.cwd(), '.uploads/kyc')
-
 export class KycStoreError extends Error {
   constructor(message: string) {
     super(message)
     this.name = 'KycStoreError'
   }
-}
-
-/** The store's ID without its "store_" prefix, lower-cased, as it appears in blob URLs */
-const normalise = (id: string | undefined) =>
-  (id ?? '')
-    .trim()
-    .replace(/^store_/i, '')
-    .toLowerCase()
-
-const kycStoreId = (): string | null => {
-  const id = process.env.KYC_STORE_ID?.trim()
-  if (!id) return null
-  if (normalise(id) === normalise(process.env.BLOB_STORE_ID)) {
-    throw new KycStoreError('KYC_STORE_ID is the public media store; refusing to use it')
-  }
-  return id
 }
 
 /** The folder for this environment: kyc/ in production, preview/kyc/ on previews */
@@ -62,83 +37,27 @@ const ownKey = (key: string): string => {
   return key
 }
 
-/** Credentials for the KYC store and nothing else, or a refusal */
-const credentials = async (storeId: string) => {
-  let oidcToken: string
-  try {
-    oidcToken = (await getVercelOidcToken()).trim()
-  } catch {
-    oidcToken = ''
-  }
-  if (!oidcToken) throw new KycStoreError('The KYC document store cannot be reached from here')
-  return { oidcToken, storeId }
-}
-
-const refuseWithoutStore = () => {
-  if (process.env.NODE_ENV === 'production') {
-    throw new KycStoreError('KYC_STORE_ID is not set; KYC documents cannot be stored')
-  }
-}
+const store = () => storeFor('private', { localRoot: '.uploads/kyc' })
 
 /** Stores ciphertext under a random name; returns the key to find it again */
 export const storeEncrypted = async (name: string, bytes: Buffer): Promise<string> => {
   const key = ownKey(`${kycPrefix()}${name}`)
-  const storeId = kycStoreId()
-  if (storeId) {
-    const auth = await credentials(storeId)
-    const result = await put(key, bytes, {
-      ...auth,
-      access: 'private',
-      contentType: 'application/octet-stream',
-      addRandomSuffix: false,
-      allowOverwrite: false,
-      cacheControlMaxAge: 60,
-    })
-    // Belt and braces: the file must have landed in a private store, and in this one
-    const host = new URL(result.url).hostname
-    if (
-      !host.endsWith('.private.blob.vercel-storage.com') ||
-      !host.startsWith(`${normalise(storeId)}.`)
-    ) {
-      await del(result.url, auth).catch(() => undefined)
-      throw new KycStoreError('A KYC document went to the wrong store and was removed')
-    }
-    return key
-  }
-  refuseWithoutStore()
-  const file = path.join(LOCAL_ROOT, key)
-  await mkdir(path.dirname(file), { recursive: true })
-  await writeFile(file, bytes, { mode: 0o600 })
+  await store().put(key, bytes, {
+    contentType: 'application/octet-stream',
+    overwrite: false,
+    cacheSeconds: 60,
+  })
   return key
 }
 
 export const readEncrypted = async (key: string): Promise<Buffer> => {
   ownKey(key)
-  const storeId = kycStoreId()
-  if (storeId) {
-    const result = await get(key, {
-      ...(await credentials(storeId)),
-      access: 'private',
-      useCache: false,
-    })
-    if (!result || result.statusCode !== 200 || !result.stream)
-      throw new KycStoreError('KYC document not found')
-    return Buffer.from(await new Response(result.stream).arrayBuffer())
-  }
-  refuseWithoutStore()
-  const file = path.join(LOCAL_ROOT, key)
-  if (!file.startsWith(LOCAL_ROOT)) throw new KycStoreError('Bad document key')
-  return readFile(file)
+  const bytes = await store().get(key)
+  if (!bytes) throw new KycStoreError('KYC document not found')
+  return bytes
 }
 
 export const deleteEncrypted = async (key: string): Promise<void> => {
   ownKey(key)
-  const storeId = kycStoreId()
-  if (storeId) {
-    await del(key, await credentials(storeId))
-    return
-  }
-  refuseWithoutStore()
-  const file = path.join(LOCAL_ROOT, key)
-  if (file.startsWith(LOCAL_ROOT)) await rm(file, { force: true })
+  await store().delete(key)
 }

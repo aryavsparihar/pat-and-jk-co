@@ -82,6 +82,86 @@ Before launch day and before any risky migration, take a snapshot: Neon → Bran
 branch from `main` at **Current data**, named like `snapshot-2026-11-07` (LAUNCH.md). It costs
 nothing while it sits unused, and it outlasts the history window.
 
+## 4a. Backups
+
+Every night at 02:00 India time, GitHub Actions (`.github/workflows/backup.yml`) takes a full
+`pg_dump` of production, checks it reads back, encrypts it with your **public** age key, and uploads
+it to the Google Drive folder **PJK database backups**: `daily/` keeps 14 nights, `weekly/` (each
+Sunday) keeps 8 weeks. Drive and GitHub only ever hold ciphertext; the private key is offline with
+you, and nothing can be restored without it. If a night fails, tech@pjk.co.in is emailed with a
+link to the run. The job takes about two minutes, roughly 60 Actions minutes a month.
+
+What a backup holds: the whole database, KYC records included (still encrypted with
+`KYC_ENCRYPTION_KEY`). It does not hold files: KYC documents and pictures live in Blob storage, and
+artists' originals in their Drive folders.
+
+Deleted data (an erased person, a purged KYC record) stays in the encrypted backups until they
+age out, at most 8 weeks; KYC.md and the privacy notice say so.
+
+### Restoring from a backup
+
+Use this when Neon's own history (section 4) no longer reaches back far enough. Never restore over
+production directly: restore into a throwaway branch, look, then copy back only what you need.
+
+1. Download the copy you want from Drive (**PJK database backups → daily** or **weekly**).
+2. **Neon → Branches → Create branch** from `main` named `restore-check`. Then in that branch,
+   **Databases → New database** named `restored`, owner `neondb_owner`. Copy its connection
+   string (**Connect**, role `neondb_owner`, pooling **off**).
+3. On your computer, with your key file (the one `age-keygen` made) and the PostgreSQL 17 tools
+   (`brew install age libpq`), from the `website` folder:
+
+   ```bash
+   read -rs TARGET   # paste the connection string; it is not shown or saved
+   scripts/restore-backup.sh ~/Downloads/pjk-2026-11-20.dump.age ~/path/to/pjk-backup-key.txt "$TARGET"
+   ```
+
+   It restores in one transaction (all or nothing) and prints how many tables, members,
+   applications, works and log entries came back, and the newest log entry.
+4. Look in the SQL Editor (branch `restore-check`, database `restored`), copy back what was lost
+   with SQL, then delete the branch.
+
+A backup still holds anyone deleted since it was made. Never copy such a person back: check the
+live security log for `member-erased` and `staff-erased` entries since the backup's date, and leave
+those people out (or erase them again with **Delete this person**).
+
+**Test a restore every three months**, and once now: steps 1–3 with last night's copy, checking the
+counts against the admin. A backup nobody has restored is a hope, not a backup.
+
+### Setting up the backups
+
+Once, in this order. Nothing here costs money.
+
+1. **Your key pair**, on your Mac: `brew install age`, then
+   `age-keygen -o ~/pjk-backup-key.txt`. It prints `Public key: age1…`. Keep the file **offline**:
+   in your password manager and on paper or a USB stick somewhere safe. Never upload it, email it
+   or put it in GitHub or Vercel. Lose it and the backups are unreadable; that is the point.
+2. **GitHub → the repository → Settings → Environments → New environment** `backups`. Under
+   **Deployment branches and tags** choose *Selected branches*, add `main`. Only the nightly job on
+   `main` can then read its secrets. In it add:
+   - variable `BACKUP_AGE_RECIPIENT`: the `age1…` public key;
+   - secret `BACKUP_DATABASE_URL`: Neon → **Connect**, branch `main`, role `neondb_owner`,
+     **pooling off**, `sslmode=verify-full`;
+   - secret `BACKUP_ALERT_RESEND_KEY`: Resend → API Keys → Create, *Sending access* only, domain
+     `pjk.co.in`.
+3. **Google**, signed in to the Google account that should hold the backups (2-step verification
+   on):
+   1. [console.cloud.google.com](https://console.cloud.google.com) → new project **PJK backups**.
+   2. **APIs & Services → Library → Google Drive API → Enable**.
+   3. **Google Auth Platform → Branding**: app name *PJK backups*, your email. **Audience**:
+      External. **Data access → Add scopes**: `…/auth/drive.file` only (it sees only the files it
+      creates). Then **Audience → Publish app**. Publishing matters: while an app is in *Testing*,
+      Google expires its access every 7 days and the backups would stop. `drive.file` needs no
+      verification by Google.
+   4. **Clients → Create client → Desktop app**. Copy the client ID and secret.
+   5. On your Mac: `brew install rclone`, then
+      `rclone config create gdrive drive client_id=<the ID> client_secret=<the secret> scope=drive.file`.
+      A browser opens; sign in and allow (Google may say the app is unverified: **Advanced → Go to
+      PJK backups**). Then `rclone config show gdrive` and copy the whole `token = {…}` value.
+   6. In the GitHub `backups` environment add secrets `GDRIVE_CLIENT_ID`, `GDRIVE_CLIENT_SECRET`
+      and `GDRIVE_TOKEN` (the `{…}` JSON). You can then delete the local rclone config.
+4. **Run it once**: GitHub → Actions → **Backup** → *Run workflow* on `main`. In about two minutes
+   **PJK database backups/daily** appears in Drive with one file. Then do the restore test above.
+
 ## 5. Switching applications off in an emergency
 
 If applications themselves are the problem (spam, a broken step, a data leak in progress):

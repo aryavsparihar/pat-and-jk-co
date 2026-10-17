@@ -213,8 +213,10 @@ purge above unless a legal hold is in force, in which case it stays, encrypted, 
 ends, and the record says why. A member record is never removed outright.
 
 **Backups.** Neon keeps point-in-time history for its plan's window (6 hours on Free, 7 days on
-Launch). A purged record survives in that history until the window passes; it is still encrypted
-there.
+Launch), and the nightly backups (RUNBOOK.md, "Backups") keep 14 daily and 8 weekly copies,
+encrypted with a key kept offline. A purged record survives in them until they age out, at most 8
+weeks; it is still encrypted there, twice over. Restoring a backup must not bring a purged record
+back into use: after any restore, run `pnpm kyc:purge --apply` again before the site uses it.
 
 ## The keys
 
@@ -230,7 +232,8 @@ blind-index key can be replaced, at the cost of rebuilding the indexes.
 2. Locally, with the production values: `pnpm kyc:rotate-key` (counts), then
    `pnpm kyc:rotate-key --apply`.
 3. When it reports nothing left and nothing failed, remove `KYC_ENCRYPTION_KEY_PREVIOUS` and
-   redeploy. Keep the old key offline until the backup window has passed.
+   redeploy. Keep the old key offline until the backups made before the rotation have aged out
+   (8 weeks): restoring one of them needs the old key.
 
 Rotation re-wraps the data keys; it does not re-encrypt the data. That is enough when a key is
 retired. If the master key **and** a copy of the database leaked together, the data keys in that
