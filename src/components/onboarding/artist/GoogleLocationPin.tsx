@@ -5,11 +5,41 @@ import React, { useEffect, useRef, useState } from 'react'
 import { STATE_CENTRES } from '@/members/forms/stateCentres'
 
 import { loadGoogleMaps, onGoogleMapsRefused } from './googleMaps'
-import { describeCoordinates, roundCoordinate, useMyLocation } from './useMyLocation'
+import { circleColour, type MapStyle, MapStyleToggle } from './MapStyleToggle'
+import {
+  CITY_ZOOM,
+  describeAccuracy,
+  describeCoordinates,
+  type Fix,
+  roundCoordinate,
+  useMyLocation,
+  zoomForAccuracy,
+} from './useMyLocation'
 
 const INDIA = { lat: 22.6, lng: 79.0 }
 /** Street level: close enough to tell one house from the next */
 const STREET_ZOOM = 18
+/** Satellite with road and place names, which makes a home easier to find than bare imagery */
+const MAP_TYPES: Record<MapStyle, string> = {
+  map: 'roadmap',
+  satellite: 'hybrid',
+  terrain: 'terrain',
+}
+
+/**
+ * How close to zoom for a place Google found, from the typed address or the search: the house or
+ * street when it found that; the neighbourhood or PIN code; the town (city level); the state.
+ */
+const zoomForPlace = (types: string[]): number | null => {
+  const is = (...wanted: string[]) => wanted.some((type) => types.includes(type))
+  if (is('street_address', 'premise', 'subpremise', 'route', 'plus_code', 'establishment'))
+    return 17
+  if (is('neighborhood', 'sublocality', 'sublocality_level_1', 'postal_code')) return 14
+  if (is('locality', 'administrative_area_level_3', 'administrative_area_level_2')) return CITY_ZOOM
+  if (is('administrative_area_level_1')) return 7
+  if (is('country')) return 5
+  return null
+}
 
 type Props = {
   apiKey: string
@@ -44,23 +74,49 @@ export const GoogleLocationPin: React.FC<Props> = ({
   const search = useRef<HTMLDivElement>(null)
   const map = useRef<google.maps.Map | null>(null)
   const marker = useRef<google.maps.marker.AdvancedMarkerElement | null>(null)
+  const circle = useRef<google.maps.Circle | null>(null)
   const locateAfterOpen = useRef(false)
+  const [style, setStyle] = useState<MapStyle>('map')
   const pinned = typeof latitude === 'number' && typeof longitude === 'number'
   const where = useMyLocation({ canSearch: true })
 
-  const place = (lat: number, lng: number, { zoom = true } = {}) => {
+  const place = (lat: number, lng: number, zoom = STREET_ZOOM) => {
     if (!map.current || !marker.current) return
     marker.current.position = { lat, lng }
     map.current.panTo({ lat, lng })
-    if (zoom) map.current.setZoom(STREET_ZOOM)
+    map.current.setZoom(zoom)
     setLive({ lat, lng })
     onValue(roundCoordinate(lat), roundCoordinate(lng))
   }
 
-  const locateMe = () =>
-    where.locate((lat, lng) => {
-      if (map.current) place(lat, lng)
-    })
+  const showFix = ({ latitude: lat, longitude: lng, accuracy }: Fix) => {
+    if (!map.current) return
+    place(lat, lng, zoomForAccuracy(accuracy))
+    if (circle.current) {
+      circle.current.setCenter({ lat, lng })
+      circle.current.setRadius(accuracy)
+    } else {
+      const colour = circleColour(element.current)
+      circle.current = new google.maps.Circle({
+        map: map.current,
+        center: { lat, lng },
+        radius: accuracy,
+        clickable: false,
+        strokeColor: colour,
+        strokeOpacity: 0.8,
+        strokeWeight: 2,
+        fillColor: colour,
+        fillOpacity: 0.15,
+      })
+    }
+  }
+
+  const locateMe = () => where.locate(showFix)
+
+  const showStyle = (next: MapStyle) => {
+    map.current?.setMapTypeId(MAP_TYPES[next])
+    setStyle(next)
+  }
 
   useEffect(() => {
     if (!open || !element.current || map.current) return
@@ -91,10 +147,11 @@ export const GoogleLocationPin: React.FC<Props> = ({
           const found = await new Geocoder()
             .geocode({ address, region: 'in', componentRestrictions: { country: 'IN' } })
             .catch(() => null)
-          const spot = found?.results[0]?.geometry.location
-          if (spot) {
-            center = spot.toJSON()
-            zoom = 16
+          const best = found?.results[0]
+          const closer = best ? zoomForPlace(best.types) : null
+          if (best && closer) {
+            center = best.geometry.location.toJSON()
+            zoom = closer
           }
         }
 
@@ -104,8 +161,13 @@ export const GoogleLocationPin: React.FC<Props> = ({
           mapId: process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID || 'DEMO_MAP_ID',
           clickableIcons: false,
           streetViewControl: false,
+          // Map, Satellite and Terrain are switched from our own buttons above the map
           mapTypeControl: false,
+          mapTypeId: MAP_TYPES[style],
           fullscreenControl: false,
+          // Big enough to press with a thumb
+          zoomControl: true,
+          controlSize: 44,
           gestureHandling: 'cooperative',
         })
         const pin = new AdvancedMarkerElement({
@@ -121,6 +183,8 @@ export const GoogleLocationPin: React.FC<Props> = ({
             ? { lat: (p as google.maps.LatLng).lat(), lng: (p as google.maps.LatLng).lng() }
             : (p as google.maps.LatLngLiteral)
         }
+        // Their own placing wins over a better fix still on its way
+        pin.addListener('dragstart', () => where.stop())
         pin.addListener('drag', () => setLive(at()))
         pin.addListener('dragend', () => {
           const p = at()
@@ -132,6 +196,7 @@ export const GoogleLocationPin: React.FC<Props> = ({
         // A tap on the map moves the pin there
         m.addListener('click', (event: google.maps.MapMouseEvent) => {
           if (!event.latLng) return
+          where.stop()
           pin.position = event.latLng
           setLive(event.latLng.toJSON())
           onValue(roundCoordinate(event.latLng.lat()), roundCoordinate(event.latLng.lng()))
@@ -145,8 +210,14 @@ export const GoogleLocationPin: React.FC<Props> = ({
           const chosen = (event as unknown as google.maps.places.PlacePredictionSelectEvent)
             .placePrediction
           const found = chosen.toPlace()
-          await found.fetchFields({ fields: ['location'] })
-          if (found.location) place(found.location.lat(), found.location.lng())
+          await found.fetchFields({ fields: ['location', 'types'] })
+          if (found.location) {
+            place(
+              found.location.lat(),
+              found.location.lng(),
+              zoomForPlace(found.types ?? []) ?? STREET_ZOOM - 1,
+            )
+          }
         })
         search.current?.replaceChildren(box)
 
@@ -171,6 +242,8 @@ export const GoogleLocationPin: React.FC<Props> = ({
   }, [open])
 
   const close = () => {
+    circle.current?.setMap(null)
+    circle.current = null
     map.current = null
     marker.current = null
     setOpen(false)
@@ -242,10 +315,13 @@ export const GoogleLocationPin: React.FC<Props> = ({
               {where.message}
             </p>
           )}
+          <div className="mt-4">
+            <MapStyleToggle disabled={loading} onChange={showStyle} value={style} />
+          </div>
           <div
             aria-describedby="location-pin-help"
             aria-label="Map"
-            className="location-map mt-4 h-[min(60vh,26rem)] w-full overflow-hidden border border-border bg-surface"
+            className="location-map mt-3 h-[min(60vh,26rem)] w-full overflow-hidden border border-border bg-surface"
             ref={element}
             role="region"
           />
@@ -256,6 +332,11 @@ export const GoogleLocationPin: React.FC<Props> = ({
                 ? `Pin at ${describeCoordinates(live.lat, live.lng)}`
                 : 'The pin is placed once you move it, search, or use your location.'}
           </p>
+          {where.fix && (
+            <p className="muted text-base">
+              Your device placed you {describeAccuracy(where.fix.accuracy)}: the shaded circle.
+            </p>
+          )}
           <div className="mt-3 flex flex-wrap gap-x-8">
             <button className="link link-caps min-h-11" onClick={close} type="button">
               Close the map
