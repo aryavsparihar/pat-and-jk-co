@@ -86,31 +86,41 @@ export const api = async <T = Record<string, unknown>>(
   }
 }
 
-/**
- * Sends a file as a form, telling `onProgress` how much has gone (0 to 1). fetch cannot report
- * upload progress, so this uses XMLHttpRequest; like `api`, it never throws and never waits for
- * ever, and it is never retried: a second attempt could add the picture twice.
- */
-export const uploadWithProgress = <T = Record<string, unknown>>(
+/** A dropped upload is tried again after this long, where trying again is safe */
+const UPLOAD_RETRY_DELAY_MS = 800
+
+/** One attempt, and whether any of the picture had gone when it failed */
+type Attempt<T> = { reply: ApiResult<T>; nothingSent: boolean }
+
+const sendOnce = <T>(
   url: string,
   form: FormData,
   onProgress: (fraction: number | null) => void,
-  /** Every byte has gone; the server is now working on it, until the reply */
   onSent?: () => void,
-): Promise<ApiResult<T>> =>
+): Promise<Attempt<T>> =>
   new Promise((resolve) => {
     const xhr = new XMLHttpRequest()
+    /** How much of the picture the browser says has gone */
+    let sent = 0
     xhr.open('POST', url)
     xhr.withCredentials = true
     xhr.timeout = UPLOAD_TIMEOUT_MS
     // A fraction only when the browser knows the total; otherwise null, and no number is shown
-    xhr.upload.onprogress = (event) =>
+    xhr.upload.onprogress = (event) => {
+      sent = event.loaded
       onProgress(event.lengthComputable && event.total > 0 ? event.loaded / event.total : null)
+    }
     xhr.upload.onload = () => onSent?.()
-    const fail = (message: string) =>
-      resolve({ ok: false, status: 0, data: { message } as ApiResult<T>['data'] })
-    xhr.onerror = () => fail(OFFLINE_MESSAGE)
+    const fail = (message: string, nothingSent = false) =>
+      resolve({
+        reply: { ok: false, status: 0, data: { message } as ApiResult<T>['data'] },
+        nothingSent,
+      })
+    xhr.onerror = () => fail(OFFLINE_MESSAGE, sent === 0)
     xhr.ontimeout = () => fail(TIMEOUT_MESSAGE)
+    // Nothing here calls abort, but a browser does when it tidies up a page that is going away;
+    // a form that hears nothing back would wait for ever
+    xhr.onabort = () => fail(OFFLINE_MESSAGE)
     xhr.onload = () => {
       let data = {} as ApiResult<T>['data']
       try {
@@ -118,7 +128,34 @@ export const uploadWithProgress = <T = Record<string, unknown>>(
       } catch {
         // Not JSON: the status speaks for itself
       }
-      resolve({ ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status, data })
+      resolve({
+        reply: { ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status, data },
+        nothingSent: false,
+      })
     }
     xhr.send(form)
   })
+
+/**
+ * Sends a file as a form, telling `onProgress` how much has gone (0 to 1). fetch cannot report
+ * upload progress, so this uses XMLHttpRequest; like `api`, it never throws and never waits for
+ * ever.
+ *
+ * An attempt that failed before a single byte of the picture had gone is made once more: the
+ * server cannot have kept a picture it was never sent, so no duplicate can follow. That is how a
+ * connection the browser believed was still open fails — a browser keeps one to hand and may find
+ * it closed at the other end — and it is the one upload failure worth repeating. Once bytes have
+ * gone it is never repeated: the picture may have arrived in full, with only the reply lost.
+ */
+export const uploadWithProgress = async <T = Record<string, unknown>>(
+  url: string,
+  form: FormData,
+  onProgress: (fraction: number | null) => void,
+  /** Every byte has gone; the server is now working on it, until the reply */
+  onSent?: () => void,
+): Promise<ApiResult<T>> => {
+  const first = await sendOnce<T>(url, form, onProgress, onSent)
+  if (!first.nothingSent) return first.reply
+  await new Promise((resolve) => setTimeout(resolve, UPLOAD_RETRY_DELAY_MS))
+  return (await sendOnce<T>(url, form, onProgress, onSent)).reply
+}

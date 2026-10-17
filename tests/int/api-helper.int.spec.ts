@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { api, OFFLINE_MESSAGE, TIMEOUT_MESSAGE } from '@/components/onboarding/api'
+import {
+  api,
+  OFFLINE_MESSAGE,
+  TIMEOUT_MESSAGE,
+  uploadWithProgress,
+} from '@/components/onboarding/api'
 
 /*
  * The browser's helper for every account and application form. A save that could not be sent,
@@ -87,5 +92,97 @@ describe('a request from the account and application forms', () => {
       status: 422,
       data: { message: 'A few things need another look.' },
     })
+  })
+})
+
+/** What the browser makes of one attempt, taken in the order the attempts are made */
+type Attempt =
+  | { fails: 'before any bytes go' }
+  | { fails: 'after some bytes have gone' }
+  | { fails: 'by being given up on' }
+  | { answers: number; body?: string }
+
+const someBytes = (loaded: number) =>
+  ({ lengthComputable: true, loaded, total: 1000 }) as unknown as ProgressEvent
+
+/**
+ * Stands in for the browser's XMLHttpRequest, as far as the upload helper uses it, so each attempt
+ * can be made to fail in its own way. The array that comes back holds every attempt actually sent.
+ */
+const uploadsThat = (attempts: Attempt[]) => {
+  const made: FormData[] = []
+  class FakeRequest {
+    status = 0
+    responseText = ''
+    timeout = 0
+    withCredentials = false
+    upload: {
+      onprogress: ((event: ProgressEvent) => void) | null
+      onload: (() => void) | null
+    } = { onprogress: null, onload: null }
+    onerror: (() => void) | null = null
+    ontimeout: (() => void) | null = null
+    onabort: (() => void) | null = null
+    onload: (() => void) | null = null
+    open() {
+      // The helper only needs it to be there
+    }
+    send(form: FormData) {
+      const attempt = attempts[made.length]
+      made.push(form)
+      setTimeout(() => {
+        // An attempt the test did not describe is left hanging, as a request with no answer would
+        // be: a helper that sent one too many never finishes, and the test says so
+        if (!attempt) return
+        if ('answers' in attempt) {
+          this.status = attempt.answers
+          this.responseText = attempt.body ?? '{}'
+          this.upload.onprogress?.(someBytes(1000))
+          this.upload.onload?.()
+          return this.onload?.()
+        }
+        if (attempt.fails === 'after some bytes have gone') this.upload.onprogress?.(someBytes(400))
+        if (attempt.fails === 'by being given up on') return this.onabort?.()
+        this.onerror?.()
+      })
+    }
+  }
+  vi.stubGlobal('XMLHttpRequest', FakeRequest)
+  return made
+}
+
+const onePicture = () => {
+  const form = new FormData()
+  form.append('file', new Blob(['a picture']), 'picture.jpg')
+  return form
+}
+
+describe('a picture on its way to the server', () => {
+  it('that got nowhere is sent again, and goes through on the second attempt', async () => {
+    const made = uploadsThat([
+      { fails: 'before any bytes go' },
+      { answers: 201, body: '{"image":{"id":7}}' },
+    ])
+    const result = await uploadWithProgress<{ image: { id: number } }>(
+      '/next/members/portfolio',
+      onePicture(),
+      () => {},
+    )
+    expect(made).toHaveLength(2)
+    expect(result).toEqual({ ok: true, status: 201, data: { image: { id: 7 } } })
+  })
+
+  it('that had begun to go is not sent again, so no artist ends up with it twice', async () => {
+    const made = uploadsThat([{ fails: 'after some bytes have gone' }, { answers: 201 }])
+    const result = await uploadWithProgress('/next/members/portfolio', onePicture(), () => {})
+    expect(made).toHaveLength(1)
+    expect(result).toEqual({ ok: false, status: 0, data: { message: OFFLINE_MESSAGE } })
+  })
+
+  it('that the browser gives up on still answers, instead of leaving the form waiting', async () => {
+    const made = uploadsThat([{ fails: 'by being given up on' }])
+    const result = await uploadWithProgress('/next/members/portfolio', onePicture(), () => {})
+    expect(made).toHaveLength(1)
+    expect(result).toEqual({ ok: false, status: 0, data: { message: OFFLINE_MESSAGE } })
   })
 })
