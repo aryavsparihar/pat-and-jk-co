@@ -114,6 +114,8 @@ export default buildConfig({
           ...schema.enums,
           member_id_artist_seq: pgSequence(MEMBER_ID_SEQUENCE.artist, { startWith: 1 }),
           member_id_partner_seq: pgSequence(MEMBER_ID_SEQUENCE.partner, { startWith: 1 }),
+          // Staff references (ST-0001), src/collections/Users
+          staff_ref_seq: pgSequence('staff_ref_seq', { startWith: 1 }),
         } as unknown as typeof schema.enums,
       }),
     ],

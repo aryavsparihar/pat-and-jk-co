@@ -475,6 +475,42 @@ export const notifyStaffOfDataRequest = async (
   )
 }
 
+/**
+ * Tells someone their account has been deleted: their details erased, and what, if anything, the
+ * law makes us keep. Sent to the address they had, after the erasure has gone through
+ */
+export const sendAccountErased = async (
+  payload: Payload,
+  { to, kept }: { to: string; kept?: string | null },
+): Promise<boolean> =>
+  send(
+    payload,
+    to,
+    buildEmail({
+      subject: 'Your PJK account has been deleted',
+      preheader: 'Your details have been erased.',
+      parts: [
+        {
+          kind: 'paragraph',
+          text: 'Your PAT and J.K. Co. account has been deleted, and the personal details on it erased: your name, contact details, address, profile, pictures and sign-in sessions. You can no longer sign in with this address.',
+        },
+        ...(kept
+          ? [
+              {
+                kind: 'paragraph' as const,
+                text: `The law requires us to keep a little for a while: ${kept} It is kept encrypted, used for nothing else, and deleted when that time is up.`,
+              },
+            ]
+          : []),
+        {
+          kind: 'note',
+          text: 'If you did not expect this, reply to this email and we will look into it.',
+        },
+      ],
+      footer: await emailFooter(payload),
+    }),
+  )
+
 /** Tells the old address that the account's email changed, with a way to report it */
 export const sendEmailChangedNotice = async (
   payload: Payload,

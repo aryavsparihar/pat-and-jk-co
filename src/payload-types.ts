@@ -1539,11 +1539,17 @@ export interface VisitorCount {
 export interface User {
   id: number;
   name: string;
+  staffRef?: string | null;
+  erasure?: {
+    at?: string | null;
+    by?: (number | null) | User;
+    reason?: string | null;
+  };
   roles: ('super-admin' | 'editor' | 'kyc-reviewer')[];
   /**
    * Suspending someone blocks sign-in immediately, without deleting their account or their work.
    */
-  status: 'active' | 'suspended';
+  status: 'active' | 'suspended' | 'erased';
   tenants?:
     | {
         tenant: number | Tenant;
@@ -1578,7 +1584,18 @@ export interface User {
  */
 export interface Member {
   id: number;
+  title?: string | null;
   email: string;
+  erasure?: {
+    at?: string | null;
+    by?: (number | null) | User;
+    source?: ('admin' | 'data-request') | null;
+    reason?: string | null;
+    kept?: string | null;
+  };
+  deletionRequest?: {
+    requestedAt?: string | null;
+  };
   /**
    * Issued when an artist application is approved. Never changes.
    */
@@ -1590,7 +1607,7 @@ export interface Member {
   /**
    * Suspending someone ends their sessions at once and stops them signing in.
    */
-  standing: 'active' | 'suspended';
+  standing: 'active' | 'suspended' | 'erased';
   partnerCategory?: ('placement' | 'design-technology' | 'partnership') | null;
   artistApprovedAt?: string | null;
   partnerApprovedAt?: string | null;
@@ -2192,7 +2209,11 @@ export interface SecurityEvent {
     | 'portal-approved'
     | 'portal-changes-requested'
     | 'member-email-changed'
-    | 'member-session-ended';
+    | 'member-session-ended'
+    | 'deletion-requested'
+    | 'member-erased'
+    | 'staff-erased'
+    | 'security-log-erased';
   email?: string | null;
   ip?: string | null;
   detail?: string | null;
@@ -3258,6 +3279,14 @@ export interface TenantsSelect<T extends boolean = true> {
  */
 export interface UsersSelect<T extends boolean = true> {
   name?: T;
+  staffRef?: T;
+  erasure?:
+    | T
+    | {
+        at?: T;
+        by?: T;
+        reason?: T;
+      };
   roles?: T;
   status?: T;
   tenants?:
@@ -3289,7 +3318,22 @@ export interface UsersSelect<T extends boolean = true> {
  * via the `definition` "members_select".
  */
 export interface MembersSelect<T extends boolean = true> {
+  title?: T;
   email?: T;
+  erasure?:
+    | T
+    | {
+        at?: T;
+        by?: T;
+        source?: T;
+        reason?: T;
+        kept?: T;
+      };
+  deletionRequest?:
+    | T
+    | {
+        requestedAt?: T;
+      };
   artistId?: T;
   partnerId?: T;
   standing?: T;

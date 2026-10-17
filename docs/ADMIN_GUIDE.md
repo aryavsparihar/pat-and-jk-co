@@ -130,7 +130,20 @@ Everything is shown masked, like `ABCxxxxx4F`. In the record's sidebar:
 
 **Consent and legal hold.** The dates in the sidebar cannot be edited. If an artist withdraws consent by letter or email rather than from their account, press **Record a withdrawal** and say how and when it reached you. If we must keep a record for longer (payment records for tax, say), press **Set a legal hold**, give the date, and say why; the same button changes or lifts it. Both go in the security log with your name and reason.
 
-If an artist asks for a copy of their data, or for it to be deleted, you are emailed. Tell the developer, who runs the deletion (see docs/KYC.md).
+If an artist asks for a copy of their data, you are emailed; tell the developer. If they ask for it to be deleted, see **Deleting someone** below.
+
+### Deleting someone
+
+Only a super admin can delete someone, member or staff, from the **Delete this person** panel in the sidebar of their record. The panel says exactly what will happen before anything does. You type their ID (AT000012, PT000003, an application reference like A-7K3Q9X, or a staff reference like ST-0007) and give the reason, which goes in the security log with your name. It cannot be undone.
+
+- **Their record stays, emptied.** Wherever they appear (applications, works, the security log, decisions they took if they were staff) they are shown as *Deleted artist (AT000012)* or *Deleted staff (ST-0007)*. Their ID is never given to anyone else.
+- **What goes:** name, email, phone, address, profile, portrait, every answer on their applications, sign-in sessions and codes, and messages they sent through the site's forms. They can no longer sign in, and a member is emailed that their account has been deleted.
+- **Works.** Works you approved are archived and kept, with their pictures, as the record of what was shown. **Take them off Shopify yourself** if they are there. Works never approved are removed.
+- **Identity and payout details (KYC)** are deleted, documents included, unless a legal hold is set. **If we have ever paid them, set a legal hold on their KYC first** (see *Consent and legal hold* above): the details then stay, encrypted, until the hold ends, and the record says why.
+- **When they ask themselves**, from **Account → Your data**, you are emailed and their record shows *Asked to be deleted* with the date. Delete them the same way, and say so in the reason. The law expects an answer within a reasonable time; do not leave it for long.
+- **Nobody can delete their own account**, or the last super admin.
+
+The **Delete** button Payload itself shows elsewhere is not offered for members or staff: removing a record outright would break everything that points at it.
 
 ### When an artist has lost access to their email
 

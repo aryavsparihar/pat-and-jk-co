@@ -106,8 +106,9 @@ export async function POST(request: Request) {
   const email = result.email
   let member = await findMember(payload, email)
 
-  if (member?.standing === 'suspended') {
-    await logSecurityEvent(payload, { event: 'member-blocked', email, ip, detail: 'suspended' })
+  // Suspended, or deleted (a deleted record no longer holds their address, so this is a second lock)
+  if (member && member.standing !== 'active') {
+    await logSecurityEvent(payload, { event: 'member-blocked', email, ip, detail: member.standing })
     return rejected()
   }
 
@@ -135,8 +136,8 @@ export async function POST(request: Request) {
 
   if (!member) return rejected()
 
-  if (member.standing === 'suspended') {
-    await logSecurityEvent(payload, { event: 'member-blocked', email, ip, detail: 'suspended' })
+  if (member.standing !== 'active') {
+    await logSecurityEvent(payload, { event: 'member-blocked', email, ip, detail: member.standing })
     return rejected()
   }
 

@@ -25,6 +25,7 @@ import { BlocksFeatureClient as BlocksFeatureClient_e70f5e05f09f93e00b997edb1ef0
 import { FolderTableCell as FolderTableCell_f9c02e79a4aed9a3924487c0cd4cafb1 } from '@payloadcms/next/rsc'
 import { FolderField as FolderField_f9c02e79a4aed9a3924487c0cd4cafb1 } from '@payloadcms/next/rsc'
 import { WatchTenantCollection as WatchTenantCollection_1d0591e3cf4f332c83a86da13a0de59a } from '@payloadcms/plugin-multi-tenant/client'
+import { ErasePanel as ErasePanel_c706ea81d3a0d117d980a8c611e44a77 } from '@/components/admin/ErasePanel'
 import { EmailRecoveryPanel as EmailRecoveryPanel_1e7b46736f74144de3026cf06fae8eb8 } from '@/components/admin/EmailRecoveryPanel'
 import { DriveFolderField as DriveFolderField_4f09c71a184dc0eba4abc468f50b20a8 } from '@/components/admin/DriveFolderField'
 import { ReviewPanel as ReviewPanel_caa7f039c39638b50465b2dc4034742a } from '@/components/admin/ReviewPanel'
@@ -74,6 +75,7 @@ export const importMap = {
   "@payloadcms/next/rsc#FolderTableCell": FolderTableCell_f9c02e79a4aed9a3924487c0cd4cafb1,
   "@payloadcms/next/rsc#FolderField": FolderField_f9c02e79a4aed9a3924487c0cd4cafb1,
   "@payloadcms/plugin-multi-tenant/client#WatchTenantCollection": WatchTenantCollection_1d0591e3cf4f332c83a86da13a0de59a,
+  "@/components/admin/ErasePanel#ErasePanel": ErasePanel_c706ea81d3a0d117d980a8c611e44a77,
   "@/components/admin/EmailRecoveryPanel#EmailRecoveryPanel": EmailRecoveryPanel_1e7b46736f74144de3026cf06fae8eb8,
   "@/components/admin/DriveFolderField#DriveFolderField": DriveFolderField_4f09c71a184dc0eba4abc468f50b20a8,
   "@/components/admin/ReviewPanel#ReviewPanel": ReviewPanel_caa7f039c39638b50465b2dc4034742a,

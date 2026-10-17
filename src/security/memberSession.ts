@@ -183,7 +183,8 @@ export const readSession = async (
   const member = await payload
     .findByID({ collection: 'members', id: memberId, depth: 0, overrideAccess: true })
     .catch(() => null)
-  if (!member || member.standing === 'suspended') return null
+  // Suspended or deleted: no session counts
+  if (!member || member.standing !== 'active') return null
 
   // Sliding expiry, written at most once a day rather than on every request
   let refreshCookie: string | undefined

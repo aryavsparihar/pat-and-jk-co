@@ -1,7 +1,7 @@
 import type { Access, CollectionConfig, Field, FieldAccess } from 'payload'
 import { publicError } from '@/utilities/publicError'
 
-import { isKycReviewer, isMember, isStaff } from '../access/roles'
+import { isKycReviewer, isMember, isStaff, isSuperAdmin } from '../access/roles'
 import { PARTNER_CATEGORIES } from '../members/categories'
 import { MEDIUMS } from '../members/forms/schemas'
 import { publishedFields, reviewGroup } from '../members/reviewFields'
@@ -64,14 +64,23 @@ export const Members: CollectionConfig = {
   },
   admin: {
     group: 'Members',
-    useAsTitle: 'email',
-    defaultColumns: ['email', 'artistId', 'partnerId', 'displayName', 'standing', 'createdAt'],
+    // "Deleted artist (AT000012)" once someone is deleted, their email until then
+    useAsTitle: 'title',
+    defaultColumns: ['title', 'artistId', 'partnerId', 'displayName', 'standing', 'createdAt'],
     description:
       'Artists and partners: one record per person, whatever they have applied for. They sign in at /collaborate/signin with a code sent to their email and never see this panel. Each member ID is issued when the application of that kind is approved.',
-    listSearchableFields: ['email', 'artistId', 'partnerId', 'displayName'],
+    listSearchableFields: ['title', 'email', 'artistId', 'partnerId', 'displayName'],
   },
   defaultSort: '-createdAt',
   fields: [
+    {
+      // What the admin shows wherever someone is linked: their email, or the placeholder once
+      // they are deleted. Worked out on every save (beforeChange), never typed
+      name: 'title',
+      type: 'text',
+      index: true,
+      admin: { hidden: true },
+    },
     {
       name: 'email',
       type: 'email',
@@ -83,6 +92,51 @@ export const Members: CollectionConfig = {
       // both addresses told). A plain edit here would hand the account to whoever typed it
       access: { update: () => false },
       admin: { readOnly: true },
+    },
+    {
+      // Delete and erase: super admins only (src/people/erase.ts)
+      name: 'erase',
+      type: 'ui',
+      admin: {
+        position: 'sidebar',
+        components: { Field: '@/components/admin/ErasePanel#ErasePanel' },
+      },
+    },
+    {
+      // Set when someone is deleted: when, by whom, why, at whose request, and what the law
+      // made us keep. Written only by the erasure, never by hand
+      name: 'erasure',
+      label: 'Deleted',
+      type: 'group',
+      access: { create: nobody, update: nobody },
+      admin: { readOnly: true, condition: (data) => Boolean(data?.erasure?.at) },
+      fields: [
+        { name: 'at', label: 'Deleted on', type: 'date' },
+        { name: 'by', label: 'Deleted by', type: 'relationship', relationTo: 'users' },
+        {
+          name: 'source',
+          type: 'select',
+          options: [
+            { label: 'By staff', value: 'admin' },
+            { label: 'At their own request', value: 'data-request' },
+          ],
+        },
+        { name: 'reason', type: 'textarea' },
+        { name: 'kept', label: 'Kept because the law requires it', type: 'textarea' },
+      ],
+    },
+    {
+      // A member's own request to be deleted, from their account (/next/members/data-request)
+      name: 'deletionRequest',
+      label: 'Asked to be deleted',
+      type: 'group',
+      access: { create: nobody, update: nobody },
+      admin: {
+        readOnly: true,
+        position: 'sidebar',
+        condition: (data) => Boolean(data?.deletionRequest?.requestedAt),
+      },
+      fields: [{ name: 'requestedAt', label: 'Asked on', type: 'date' }],
     },
     {
       name: 'emailRecovery',
@@ -132,6 +186,8 @@ export const Members: CollectionConfig = {
       options: [
         { label: 'Active', value: 'active' },
         { label: 'Suspended: cannot sign in', value: 'suspended' },
+        // Only ever set by the erasure, which also empties the record
+        { label: 'Deleted: details erased', value: 'erased' },
       ],
       access: { update: staffOnlyField },
       admin: {
@@ -262,7 +318,19 @@ export const Members: CollectionConfig = {
   hooks: {
     beforeChange: [
       ({ data, originalDoc, operation, context }) => {
+        // A deleted person's record never changes again, and only the erasure deletes anyone
+        if (!context.erasing) {
+          if (originalDoc?.standing === 'erased') {
+            throw publicError('This person has been deleted; their record cannot change.', 409)
+          }
+          if (data.standing === 'erased') {
+            throw publicError('Use "Delete this person" to delete someone.', 400)
+          }
+        }
         if (data.email !== undefined) data.email = normaliseEmail(data.email)
+        const standing = data.standing ?? originalDoc?.standing
+        const email = data.email ?? originalDoc?.email
+        data.title = standing === 'erased' ? (data.displayName ?? originalDoc?.displayName) : email
 
         // Each member ID is written once, by an approval, and never again
         for (const [field, prefix] of Object.entries(MEMBER_ID_FIELDS)) {
@@ -295,6 +363,48 @@ export const Members: CollectionConfig = {
     ],
   },
   endpoints: [
+    {
+      // GET /api/members/:id/erase: what deleting them would do. POST { confirm, reason }: do it.
+      // Super admins only; logged (src/people/erase.ts)
+      path: '/:id/erase',
+      method: 'get',
+      handler: async (req) => {
+        if (!isSuperAdmin(req.user)) return refuse(req, 'Only a super admin can do this.')
+        const { memberErasurePreview } = await import('../people/erase')
+        const preview = await memberErasurePreview(req.payload, Number(req.routeParams?.id))
+        if (!preview) return Response.json({ message: 'There is no such member.' }, { status: 404 })
+        return Response.json(preview)
+      },
+    },
+    {
+      path: '/:id/erase',
+      method: 'post',
+      handler: async (req) => {
+        if (!isSuperAdmin(req.user)) return refuse(req, 'Only a super admin can do this.')
+        const body = (await req.json?.().catch(() => ({}))) as { confirm?: string; reason?: string }
+        const { ErasureError, eraseMember } = await import('../people/erase')
+        try {
+          const result = await eraseMember(req.payload, {
+            memberId: Number(req.routeParams?.id),
+            actor: req.user as never,
+            confirm: body?.confirm,
+            reason: body?.reason,
+          })
+          return Response.json({ ok: true, ...result })
+        } catch (error) {
+          if (error instanceof ErasureError)
+            return Response.json({ message: error.message }, { status: error.status })
+          req.payload.logger.error({ err: error, msg: 'Deleting a member failed' })
+          return Response.json(
+            {
+              message:
+                'Deleting them did not finish. Please try again: it carries on from where it stopped.',
+            },
+            { status: 500 },
+          )
+        }
+      },
+    },
     {
       // POST /api/members/:id/change-email  { email, reason }. KYC reviewers only; logged
       path: '/:id/change-email',

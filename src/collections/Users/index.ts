@@ -2,7 +2,12 @@ import type { CollectionConfig } from 'payload'
 import { publicError } from '@/utilities/publicError'
 
 import { authenticated } from '../../access/authenticated'
-import { superAdminOnly, superAdminOnlyField, superAdminOrSelf } from '../../access/roles'
+import {
+  isSuperAdmin,
+  superAdminOnly,
+  superAdminOnlyField,
+  superAdminOrSelf,
+} from '../../access/roles'
 import {
   clientIp,
   COMPANY_EMAIL_DOMAIN,
@@ -15,6 +20,7 @@ import { emailFooter } from '../../email/footer'
 import { notifyStaffLockout } from '../../security/email'
 import { logSecurityEvent } from '../../security/events'
 import { readGateToken } from '../../security/gateToken'
+import { refuse } from '../../security/refused'
 import { hitLimit } from '../../security/rateLimit'
 import { getServerSideURL } from '../../utilities/getURL'
 import { BREACHED_MESSAGE, isBreachedPassword } from '../../security/breachedPassword'
@@ -69,12 +75,14 @@ export const Users: CollectionConfig = {
   access: {
     admin: authenticated,
     create: superAdminOnly,
-    delete: superAdminOnly,
+    // Never outright: an account is deleted by erasing it (POST /api/users/:id/erase), so the
+    // records that name who did what keep pointing at "Deleted staff (ST-0007)"
+    delete: () => false,
     read: superAdminOrSelf,
     update: superAdminOrSelf,
   },
   admin: {
-    defaultColumns: ['name', 'email', 'roles', 'status'],
+    defaultColumns: ['name', 'staffRef', 'email', 'roles', 'status'],
     group: 'Administration',
     description: `Everyone who can sign in. Accounts must use an @${COMPANY_EMAIL_DOMAIN} address, and only super admins can create them or change what they can do.`,
     useAsTitle: 'name',
@@ -117,6 +125,38 @@ export const Users: CollectionConfig = {
       required: true,
     },
     {
+      // ST-0007: given when the account is made, from a sequence, and never reused, so a deleted
+      // account can still be told apart from every other (src/people/erase.ts)
+      name: 'staffRef',
+      label: 'Staff reference',
+      type: 'text',
+      unique: true,
+      index: true,
+      access: { create: () => false, update: () => false },
+      admin: { position: 'sidebar', readOnly: true },
+    },
+    {
+      // Delete and erase: super admins only, never their own account or the last super admin
+      name: 'erase',
+      type: 'ui',
+      admin: {
+        position: 'sidebar',
+        components: { Field: '@/components/admin/ErasePanel#ErasePanel' },
+      },
+    },
+    {
+      name: 'erasure',
+      label: 'Deleted',
+      type: 'group',
+      access: { create: () => false, update: () => false },
+      admin: { readOnly: true, condition: (data) => Boolean(data?.erasure?.at) },
+      fields: [
+        { name: 'at', label: 'Deleted on', type: 'date' },
+        { name: 'by', label: 'Deleted by', type: 'relationship', relationTo: 'users' },
+        { name: 'reason', type: 'textarea' },
+      ],
+    },
+    {
       name: 'roles',
       type: 'select',
       hasMany: true,
@@ -149,6 +189,8 @@ export const Users: CollectionConfig = {
       options: [
         { label: 'Active — can sign in', value: 'active' },
         { label: 'Suspended — cannot sign in', value: 'suspended' },
+        // Only ever set by the erasure
+        { label: 'Deleted — details erased', value: 'erased' },
       ],
       access: {
         create: superAdminOnlyField,
@@ -215,8 +257,10 @@ export const Users: CollectionConfig = {
       },
     ],
     beforeValidate: [
-      async ({ data, req }) => {
+      async ({ data, req, context }) => {
         if (!data) return data
+        // Erasing an account writes a placeholder address and a password nobody knows
+        if (context.erasing) return data
 
         if (data.email !== undefined) {
           const email = normaliseEmail(data.email)
@@ -234,6 +278,29 @@ export const Users: CollectionConfig = {
           await checkStaffPassword(data.password, data.email ?? req.user?.email, req.payload.logger)
         }
 
+        return data
+      },
+    ],
+    beforeChange: [
+      async ({ data, operation, originalDoc, req, context }) => {
+        if (!context.erasing) {
+          if (originalDoc?.status === 'erased') {
+            throw publicError('This account has been deleted; it cannot change.', 409)
+          }
+          if (data.status === 'erased') {
+            throw publicError('Use "Delete this person" to delete an account.', 400)
+          }
+        }
+        if (operation === 'create') {
+          const { executeIn } = await import('../../utilities/sql')
+          const { sql } = await import('@payloadcms/db-postgres')
+          const [row] = await executeIn<{ n: string }>(
+            req.payload,
+            req,
+            sql`SELECT nextval('staff_ref_seq') AS n`,
+          )
+          data.staffRef = `ST-${String(row.n).padStart(4, '0')}`
+        }
         return data
       },
     ],
@@ -323,5 +390,53 @@ export const Users: CollectionConfig = {
       },
     ],
   },
+  endpoints: [
+    {
+      // GET /api/users/:id/erase: what deleting the account would do. POST { confirm, reason }:
+      // do it. Super admins only; logged (src/people/erase.ts)
+      path: '/:id/erase',
+      method: 'get',
+      handler: async (req) => {
+        if (!isSuperAdmin(req.user)) return refuse(req, 'Only a super admin can do this.')
+        const user = await req.payload
+          .findByID({ collection: 'users', id: Number(req.routeParams?.id), overrideAccess: true })
+          .catch(() => null)
+        if (!user) return Response.json({ message: 'There is no such account.' }, { status: 404 })
+        const { staffPlaceholder } = await import('../../people/erase')
+        return Response.json({
+          erased: user.status === 'erased',
+          confirm: user.staffRef,
+          placeholder: user.staffRef ? staffPlaceholder(user.staffRef) : null,
+          self: user.id === req.user?.id,
+        })
+      },
+    },
+    {
+      path: '/:id/erase',
+      method: 'post',
+      handler: async (req) => {
+        if (!isSuperAdmin(req.user)) return refuse(req, 'Only a super admin can do this.')
+        const body = (await req.json?.().catch(() => ({}))) as { confirm?: string; reason?: string }
+        const { ErasureError, eraseStaff } = await import('../../people/erase')
+        try {
+          const result = await eraseStaff(req.payload, {
+            userId: Number(req.routeParams?.id),
+            actor: req.user as never,
+            confirm: body?.confirm,
+            reason: body?.reason,
+          })
+          return Response.json({ ok: true, ...result })
+        } catch (error) {
+          if (error instanceof ErasureError)
+            return Response.json({ message: error.message }, { status: error.status })
+          req.payload.logger.error({ err: error, msg: 'Deleting a staff account failed' })
+          return Response.json(
+            { message: 'The account could not be deleted. Nothing has changed; please try again.' },
+            { status: 500 },
+          )
+        }
+      },
+    },
+  ],
   timestamps: true,
 }

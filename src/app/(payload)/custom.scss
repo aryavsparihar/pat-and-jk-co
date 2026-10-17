@@ -55,3 +55,27 @@ html[data-theme='dark'] .login__brand {
     margin-left: 0.15rem;
   }
 }
+
+// Buttons for actions that are hard to undo (delete someone, reveal identity details). Payload has
+// no style of its own for these, so without this they showed as plain text. A fixed dark red: white
+// on it is 6.5:1 (WCAG AA) in the light and dark themes alike
+.btn.pjk-btn-danger {
+  background: #b42318;
+  border: 1px solid #b42318;
+  color: #fff;
+
+  &:hover:not(:disabled) {
+    background: #912018;
+    border-color: #912018;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #f97066;
+    outline-offset: 2px;
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}
