@@ -120,7 +120,7 @@ export const ErasePanel: React.FC = () => {
         <p style={{ margin: 0, opacity: 0.75 }}>You cannot delete your own account.</p>
       ) : (
         <button
-          className="btn btn--style-error btn--size-small"
+          className="btn btn--size-small pjk-btn-danger"
           disabled={busy}
           onClick={() => void erase()}
           type="button"

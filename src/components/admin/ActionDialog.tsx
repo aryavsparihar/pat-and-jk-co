@@ -263,7 +263,7 @@ const ActionDialog: React.FC<{
             Cancel
           </button>
           <button
-            className={`btn btn--size-medium ${request.danger ? 'btn--style-error' : 'btn--style-primary'}`}
+            className={`btn btn--size-medium ${request.danger ? 'pjk-btn-danger' : 'btn--style-primary'}`}
             disabled={!ready}
             onClick={submit}
             style={ready ? undefined : { opacity: 0.45, cursor: 'not-allowed' }}
