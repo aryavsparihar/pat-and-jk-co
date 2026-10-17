@@ -206,9 +206,11 @@ hold** / **Change the legal hold**. Both ask for a reason and write it to the se
 **Withdrawing consent and deletion.** A member can withdraw consent or ask for their data or its
 deletion from **Account → Your data** (`/account/settings`, through `/next/members/data-request`). Withdrawal takes effect at
 once: the record is marked, an application cannot be sent until consent is given again, and the
-next purge deletes it. Every request is logged and emailed to staff. A member record is never
-removed outright: their applications, sessions, pictures, KYC and works all belong to it, so the
-database refuses, and the admin does not offer it.
+next purge deletes it. Every request is logged and emailed to staff. A deletion request is marked
+on the member's record, and a super admin carries it out with **Delete this person**, the same
+erasure as any deletion (docs/SECURITY.md, "Deleting someone"): their KYC is purged with the
+purge above unless a legal hold is in force, in which case it stays, encrypted, until the hold
+ends, and the record says why. A member record is never removed outright.
 
 **Backups.** Neon keeps point-in-time history for its plan's window (6 hours on Free, 7 days on
 Launch). A purged record survives in that history until the window passes; it is still encrypted

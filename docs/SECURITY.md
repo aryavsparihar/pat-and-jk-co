@@ -287,6 +287,39 @@ the role up is in [SETUP.md](SETUP.md#database-roles); `pnpm check:database` che
 CI. FORCE RLS is not used: it would bind the owner too and stop migrations, and the owner is only
 used by the build.
 
+## Deleting someone
+
+Nobody is removed outright: a member's applications, sessions, pictures, KYC and works, and a staff
+member's decisions, all point at them, and removing the row would break those records (the
+database refuses for members). Deleting someone erases their personal details and keeps the record
+(`src/people/erase.ts`), so every link stays valid and shows a placeholder: *Deleted artist
+(AT000012)*, *Deleted partner (PT000003)*, *Deleted applicant (A-7K3Q9X)*, *Deleted staff
+(ST-0007)*. IDs come from sequences and the erased record keeps its own, so none is ever issued
+again.
+
+- Only a super admin, from the record's **Delete this person** panel, with the ID typed out and a
+  reason (`POST /api/members/:id/erase`, `/api/users/:id/erase`); never their own account or the
+  last super admin. A member's own request (`/next/members/data-request`) is recorded on their
+  record and carried out the same way, so admin deletions and DPDP requests behave identically.
+- Erased: name, email (replaced by an `@erased.invalid` address, which cannot receive mail), phone,
+  addresses, profile, portrait, every application answer, sessions, sign-in codes and form
+  messages; for staff, the password, brands and sessions. Approved works are archived and kept,
+  with their pictures and approved snapshot, as the record; works never approved are removed.
+- KYC is purged with the existing purge (files, then rows) unless a legal hold is in force; then
+  it stays, encrypted, and the record says what was kept and why.
+- The database writes happen in one transaction; the member is emailed only once it has gone
+  through. An erased record can never be edited again, and an erased member or account can never
+  sign in.
+- The security log is append-only for the app. One function, `erase_from_security_log`, may
+  replace a deleted person's addresses in it with their placeholder: it runs with the owner's
+  rights, refuses anyone whose record is not actually erased, never removes an entry, and adds its
+  own entry (`security-log-erased`) every time. `pnpm check:database` fails if any other such
+  function is callable by the app, or if anyone else may call this one.
+
+The tests (`tests/int/deletion.int.spec.ts`) run as the live site's database role, not the owner,
+and search every text column in the database for the deleted person's name, email, phone and
+address afterwards.
+
 ## The gatekeeper
 
 Two settings make sure nothing reaches pjk.co.in without passing every check. Both are by hand,
@@ -352,7 +385,8 @@ configured, the code is printed in the terminal running `pnpm dev`.
 - **Email is down, so no code arrives:** with access to the server environment, run
   `ADMIN_EMAIL=you@pjk.co.in pnpm gate-token` and follow the printed instructions. It replaces only
   the code; the password is still required.
-- **Someone has left:** suspend their account (do not delete it, so their edit history stays intact).
+- **Someone has left:** suspend their account. If they must be deleted, a super admin uses **Delete
+  this person**: their edit history stays, under *Deleted staff (ST-0007)*.
 - **You suspect a break-in:** suspend the account, rotate `PAYLOAD_SECRET` in Vercel (this
   invalidates every gate cookie and session at once), then redeploy and check the security log.
 
