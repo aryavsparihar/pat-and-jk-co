@@ -2,7 +2,7 @@ import type { PathsBlock as PathsBlockProps } from '@/payload-types'
 
 import { RowArrow } from '@/components/RowArrow'
 import { Section, SectionHeading } from '@/components/Typography'
-import Link from 'next/link'
+import Link from '@/components/IntentLink'
 import React from 'react'
 
 const HREF = { artists: '/collaborate/artists', partners: '/collaborate/partners' } as const
