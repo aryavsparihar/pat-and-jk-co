@@ -256,9 +256,10 @@ panic: a busy launch day can trip the rate-limit one.
 What the site keeps only for a while is deleted by the weekly cron (`/next/cron/kyc-purge`), which
 records each run in the security log: KYC under the rules in [KYC.md](KYC.md#retention); sign-in
 codes 30 days after they expire; member sessions 90 days after they end
-(`src/security/housekeeping.ts`); rate-limit counters as they lapse. The security log itself is not
-trimmed: it is the record of what happened. **[decide]** how long to keep it (two years is
-common); until then it is kept.
+(`src/security/housekeeping.ts`); rate-limit counters as they lapse. The security log, the record
+of what happened, is kept for **two years** (decided 17 October 2026). Its first entries reach that
+age in October 2028; the weekly purge is to delete older entries before then, through a function
+like `erase_from_security_log`, since the app cannot delete from the log itself.
 
 ## Cookies
 

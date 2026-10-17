@@ -139,6 +139,10 @@ Changing provider is a change to the email adapter and three DNS records, half a
 
 ## The plan
 
+**Decisions, 17 October 2026.** PJK stays on Vercel Hobby: you treat it as non-commercial, since it
+takes no payments and Phulhaar, a separate site, does the selling. Files move from Vercel Blob to
+Cloudflare R2 (below), which removes the 1 GB lockout. Everything else stays as recommended.
+
 **For launch (before 8 November).** Nothing here moves hosting, the database or email without your
 explicit OK.
 
