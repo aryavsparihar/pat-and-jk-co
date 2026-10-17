@@ -32,6 +32,7 @@ import * as migration_20261014_033632_security_monitoring_events from './2026101
 import * as migration_20261014_105526_declined_applications from './20261014_105526_declined_applications';
 import * as migration_20261016_182639_private_media_prefix from './20261016_182639_private_media_prefix';
 import * as migration_20261016_183108_works_folder from './20261016_183108_works_folder';
+import * as migration_20261017_093800_erase_people from './20261017_093800_erase_people';
 
 export const migrations = [
   {
@@ -202,6 +203,11 @@ export const migrations = [
   {
     up: migration_20261016_183108_works_folder.up,
     down: migration_20261016_183108_works_folder.down,
-    name: '20261016_183108_works_folder'
+    name: '20261016_183108_works_folder',
+  },
+  {
+    up: migration_20261017_093800_erase_people.up,
+    down: migration_20261017_093800_erase_people.down,
+    name: '20261017_093800_erase_people'
   },
 ];

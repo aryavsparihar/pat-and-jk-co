@@ -56,6 +56,12 @@ export const securityEventTypes = [
   'portal-changes-requested',
   'member-email-changed',
   'member-session-ended',
+  // Deleting someone (src/people/erase.ts)
+  'deletion-requested',
+  'member-erased',
+  'staff-erased',
+  // Written by the database itself whenever addresses are erased from this log
+  'security-log-erased',
 ] as const
 
 /**
