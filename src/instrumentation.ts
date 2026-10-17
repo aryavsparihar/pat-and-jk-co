@@ -13,6 +13,14 @@ export const onRequestError: Instrumentation.onRequestError = async (error, requ
   const { redact } = await import('./observability/redact')
   const err = error as Error & { digest?: string }
 
+  const { reportServerError } = await import('./observability/errorAlerts')
+  reportServerError({
+    message: String(redact(err.message ?? '')),
+    name: err.name,
+    route: context.routePath,
+    digest: err.digest,
+  })
+
   console.error(
     JSON.stringify({
       level: 'error',

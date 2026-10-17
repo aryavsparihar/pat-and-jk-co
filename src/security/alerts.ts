@@ -28,6 +28,7 @@ export const ALERTS: Record<string, Kind> = {
   },
   lockouts: { label: 'locked accounts', events: ['staff-locked', 'member-locked'], threshold: 3 },
   'access-refusals': { label: 'refused requests', events: ['access-refused'], threshold: 50 },
+  'bot-checks': { label: 'failed bot checks', events: ['bot-check-failed'], threshold: 30 },
 }
 
 const kindOf = (event: string) => Object.entries(ALERTS).find(([, k]) => k.events.includes(event))
@@ -73,32 +74,38 @@ export const watchForAbuse = async (payload: Payload, event: string): Promise<vo
   await sendAlert(payload, summary)
 }
 
-const sendAlert = async (payload: Payload, summary: string) => {
+/** Emails the technical inbox; never throws. Shared with src/observability/errorAlerts.ts */
+export const sendTechnicalAlert = async (
+  payload: Payload,
+  { subject, lines, note }: { subject: string; lines: string[]; note?: string },
+) => {
   const to = process.env.TECHNICAL_INBOX || 'tech@pjk.co.in'
-  const subject = `PJK security alert: ${summary}`
   if (!canSendEmail(payload)) {
     payload.logger.warn({ msg: `[alert] ${subject}` })
     return
   }
   const built = buildEmail({
     subject,
-    preheader: 'Look at the security log.',
+    preheader: lines[0]?.slice(0, 120) ?? subject,
     parts: [
-      { kind: 'paragraph', text: `The site has recorded ${summary}.` },
-      {
-        kind: 'paragraph',
-        text: 'This may be someone trying passwords or codes, or a script hammering the site. Look at Admin → Administration → Security log for who and where, and at docs/RUNBOOK.md if you need to act.',
-      },
-      {
-        kind: 'note',
-        text: 'You will not hear about this kind of trouble again for an hour, however much more there is.',
-      },
+      ...lines.map((text) => ({ kind: 'paragraph' as const, text })),
+      ...(note ? [{ kind: 'note' as const, text: note }] : []),
     ],
     footer: await emailFooter(payload),
   })
   try {
     await payload.sendEmail({ to, subject, text: built.text, html: built.html })
   } catch (error) {
-    payload.logger.error({ err: error, msg: 'Could not send a security alert' })
+    payload.logger.warn({ err: error, msg: 'Could not send a technical alert' })
   }
 }
+
+const sendAlert = (payload: Payload, summary: string) =>
+  sendTechnicalAlert(payload, {
+    subject: `PJK security alert: ${summary}`,
+    lines: [
+      `The site has recorded ${summary}.`,
+      'This may be someone trying passwords or codes, or a script hammering the site. Look at Admin → Administration → Security log for who and where, and at docs/RUNBOOK.md if you need to act.',
+    ],
+    note: 'You will not hear about this kind of trouble again for an hour, however much more there is.',
+  })

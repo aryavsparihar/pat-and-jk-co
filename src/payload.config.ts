@@ -30,6 +30,7 @@ import { Ventures } from './collections/Ventures'
 import { VisitorCounts } from './collections/VisitorCounts'
 import { loadEnv } from './env'
 import { MEMBER_ID_SEQUENCE } from './members/ids'
+import { reportErrorsTo } from './observability/errorAlerts'
 import { createLogger } from './observability/logger'
 import { plugins } from './plugins'
 import { guardMemberAccess } from './access/memberGuard'
@@ -194,6 +195,8 @@ export default buildConfig({
   },
   onInit: async (payload) => {
     putStaffSessionFirst(payload)
+    // Server errors are kept and reported beyond the log's one hour
+    reportErrorsTo(payload)
     // Never the database's owner at runtime (src/security/databaseRole.ts)
     await checkDatabaseRole(payload)
   },
