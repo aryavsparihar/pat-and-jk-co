@@ -117,7 +117,7 @@ export async function POST(request: Request) {
   }
 
   const member = await findMember(payload, email)
-  const suspended = member?.standing === 'suspended'
+  const suspended = Boolean(member && member.standing !== 'active')
   const deliverable = !suspended && (purpose !== 'signin' || Boolean(member))
 
   const challenge = await issueChallenge(payload, {
