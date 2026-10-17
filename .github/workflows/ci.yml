@@ -250,6 +250,17 @@ jobs:
         env:
           NODE_ENV: production
 
+      # The development server's compile cache (Turbopack keeps it in .next/dev/cache), restored
+      # from the last run: without it every page is compiled from nothing the first time a test
+      # opens it, which is most of this job's time. A pull request can only restore what main
+      # saved, so main's runs keep it fresh
+      - if: needs.scope.outputs.heavy != 'false'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .next/dev/cache
+          key: next-dev-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: next-dev-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+
       - if: needs.scope.outputs.heavy != 'false'
         name: End-to-end tests
         run: pnpm test:e2e
