@@ -25,7 +25,14 @@ These need a lawyer or a CA, so start them first.
       a handwritten code, their name and date of birth, taken in the page or uploaded, and a PAN
       card photo with the face visible, and the wording around both ([KYC.md](KYC.md)).
 - [ ] **The map pin.** The lawyer approves the privacy notice's note that opening the optional map
-      lets OpenStreetMap's servers see the artist's internet address.
+      lets OpenStreetMap's servers see the artist's internet address (and Esri's or OpenTopoMap's,
+      if they choose Satellite or Terrain), and that the town they typed is sent to OpenStreetMap's
+      place search to open the map there.
+- [ ] **Esri's satellite pictures.** The OpenStreetMap map's Satellite view uses Esri's World
+      Imagery without an account. Esri's terms expect an ArcGIS account for its basemaps, even
+      free ones; create the free ArcGIS Location Platform account and send the key through Vercel,
+      or ask for Satellite to be taken off the OpenStreetMap map. Google's map, once its key is
+      set, has its own Satellite view and is unaffected.
 - [ ] **Artists' Terms & Conditions.** The lawyer approves the PDF; upload it in **Site settings →
       Applications → Artists' Terms & Conditions**. Until it is there, artists are not asked to
       agree to any terms.
