@@ -40,12 +40,24 @@ const totalFor = async (payload: Payload, tenantId: number): Promise<number> => 
   return found.docs[0]?.total ?? 0
 }
 
+/**
+ * The total is the same for everyone, so the CDN keeps it for five minutes (per host, as Vercel's
+ * cache keys on the host): a visitor reading it on page after page no longer starts a function
+ * or wakes the database each time. A footer five minutes behind is still a visitor count.
+ */
+const SHARED_FOR_FIVE_MINUTES = {
+  'Cache-Control': 'public, max-age=0, s-maxage=300, stale-while-revalidate=3600',
+}
+
 export async function GET(request: Request) {
   const payload = await getPayload({ config: configPromise })
   const tenant = await getTenantByHost(request.headers.get('host') ?? '')
-  if (!tenant) return Response.json({ total: 0 })
+  if (!tenant) return Response.json({ total: 0 }, { headers: SHARED_FOR_FIVE_MINUTES })
 
-  return Response.json({ total: await totalFor(payload, tenant.id) })
+  return Response.json(
+    { total: await totalFor(payload, tenant.id) },
+    { headers: SHARED_FOR_FIVE_MINUTES },
+  )
 }
 
 export async function POST(request: Request) {
