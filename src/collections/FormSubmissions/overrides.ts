@@ -5,6 +5,7 @@ import { getTenantAccess } from '@payloadcms/plugin-multi-tenant/utilities'
 
 import { isStaff, isSuperAdmin } from '@/access/roles'
 import { clientIp } from '@/security/constants'
+import { logSecurityEvent } from '@/security/events'
 import { hitLimit } from '@/security/rateLimit'
 import {
   requestHostname,
@@ -45,6 +46,11 @@ export const protectSubmission: CollectionBeforeChangeHook = async ({ data, oper
     })
     if (!human.ok) {
       req.payload.logger.warn(`Form submission refused by the bot check: ${human.reason}`)
+      await logSecurityEvent(req.payload, {
+        event: 'bot-check-failed',
+        ip: clientIp(req.headers),
+        detail: `contact form: ${human.reason}`,
+      })
       throw publicError(TURNSTILE_REFUSED, 400)
     }
     if (human.note) req.payload.logger.warn(`Bot check skipped (form): ${human.note}`)
@@ -55,6 +61,11 @@ export const protectSubmission: CollectionBeforeChangeHook = async ({ data, oper
       ...RATE_LIMIT,
     })
     if (!allowed) {
+      await logSecurityEvent(req.payload, {
+        event: 'rate-limited',
+        ip: clientIp(req.headers),
+        detail: 'contact form',
+      })
       throw publicError(
         'Too many messages in a short time — please try again in a few minutes.',
         429,
