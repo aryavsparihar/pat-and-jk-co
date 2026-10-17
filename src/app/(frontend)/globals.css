@@ -907,6 +907,23 @@
 .location-map .leaflet-control-attribution {
   font-size: 0.75rem;
 }
+/* Zoom buttons big enough to press with a thumb, and plain to see. Leaflet's own stylesheet
+   loads after this one, with the map, so these need the extra class to win */
+.location-map .leaflet-bar.leaflet-control-zoom a {
+  width: 44px;
+  height: 44px;
+  line-height: 44px;
+  font-size: 1.5rem;
+  color: var(--foreground);
+}
+/* Where the device thinks it is: the shaded circle around a "Use my location" fix */
+.location-map .location-accuracy {
+  stroke: var(--accent, var(--primary));
+  stroke-width: 2;
+  stroke-opacity: 0.8;
+  fill: var(--accent, var(--primary));
+  fill-opacity: 0.15;
+}
 
 /* Pictures being added (src/components/onboarding/artist/Portfolio.tsx): the bar fills smoothly,
    breathes while the server checks the picture, and the finished work settles into place */
