@@ -103,6 +103,15 @@ export const Members: CollectionConfig = {
       },
     },
     {
+      // Their own entries from the security log, for super admins
+      name: 'securityLog',
+      type: 'ui',
+      admin: {
+        position: 'sidebar',
+        components: { Field: '@/components/admin/MemberLogPanel#MemberLogPanel' },
+      },
+    },
+    {
       // Set when someone is deleted: when, by whom, why, at whose request, and what the law
       // made us keep. Written only by the erasure, never by hand
       name: 'erasure',
@@ -348,7 +357,19 @@ export const Members: CollectionConfig = {
       },
     ],
     afterChange: [
-      async ({ doc, previousDoc, req, operation }) => {
+      async ({ doc, previousDoc, req, operation, context }) => {
+        if (operation === 'update' && !context.erasing && doc.standing !== previousDoc?.standing) {
+          const { logSecurityEvent } = await import('../security/events')
+          const actor = req.user as { id?: number; email?: string; collection?: string } | null
+          await logSecurityEvent(req.payload, {
+            event: 'member-standing-changed',
+            email: doc.email,
+            subject: memberIdsOf(doc),
+            actor: actor?.collection === 'users' ? (actor.id ?? null) : null,
+            detail: `${previousDoc?.standing} → ${doc.standing}${actor?.email ? ` by ${actor.email}` : ''}`,
+            req,
+          })
+        }
         // Suspension takes effect at once: every session ends
         if (
           operation === 'update' &&

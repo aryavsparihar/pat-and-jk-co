@@ -226,15 +226,39 @@ Outside the app, one Vercel Firewall rule (the most Hobby allows) adds a coarse 
 The security log (**Administration → Security log**, super admins only) records staff sign-ins,
 failed sign-ins and lockouts; every code requested, sent, verified or refused; member sign-ins and
 sign-outs; every reveal of identity details and every identity document opened; every refusal of a
-signed-in person by an access rule (`access-refused`, with the path); and the first hit of each
-rate limit in its window (`rate-limited`). The app can add to it but never change or delete it
-(the database itself enforces that for the app's role).
+signed-in person by an access rule (`access-refused`, with the path); the first hit of each
+rate limit in its window (`rate-limited`); every failed bot check (`bot-check-failed`); everything a
+member saves in their account (`portal-saved`, with the endpoint); every staff account created and
+every change to someone's roles, brands or status, with who made it (`staff-account-created`,
+`staff-account-changed`); staff suspending or reinstating a member (`member-standing-changed`);
+deletions (`member-erased`, `staff-erased`); each weekly purge run (`scheduled-task-ran`); and
+server errors (`server-error`, below). The app can add to it but never change or delete it (the
+database itself enforces that for the app's role; the one exception is erasing a deleted person's
+addresses, under "Deleting someone"). A member's own entries are also listed on their record in
+the admin, found by their address, IDs and application references.
+
+**Server errors outlive the logs.** Vercel's free plan keeps runtime logs for an hour, so an error
+that happened overnight used to leave no trace. Every error-level log line, every failed page or
+route and every 500 from Payload's API is also recorded as `server-error` (redacted, with Next's
+error reference), at most once a minute for the same error, and emailed to tech@pjk.co.in at most
+once an hour for the same error and ten times a day in all, so alerts never use up the email
+allowance that sign-in codes need (`src/observability/errorAlerts.ts`). Production only.
 
 `src/security/alerts.ts` emails tech@pjk.co.in (or `TECHNICAL_INBOX`) when, within an hour, there
-are more than 20 failed staff sign-ins, 30 rate-limit hits, 3 lockouts or 50 refused requests. At
+are more than 20 failed staff sign-ins, 30 rate-limit hits, 3 lockouts, 50 refused requests or 30
+failed bot checks. At
 most one email an hour for each kind, through Resend, which the site already uses: nothing to sign
 up for. Each alert is itself logged (`alert-sent`). An alert means look at the security log, not
 panic: a busy launch day can trip the rate-limit one.
+
+## Retention
+
+What the site keeps only for a while is deleted by the weekly cron (`/next/cron/kyc-purge`), which
+records each run in the security log: KYC under the rules in [KYC.md](KYC.md#retention); sign-in
+codes 30 days after they expire; member sessions 90 days after they end
+(`src/security/housekeeping.ts`); rate-limit counters as they lapse. The security log itself is not
+trimmed: it is the record of what happened. **[decide]** how long to keep it (two years is
+common); until then it is kept.
 
 ## Cookies
 

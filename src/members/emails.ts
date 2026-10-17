@@ -623,7 +623,6 @@ export const sendReviewDecision = async (
     }),
   )
 
-/** Staff hear that something is waiting for review; no details beyond what and whose */
 /** Tells staff an artist has given or changed their Google Drive works folder */
 export const notifyStaffOfWorksFolder = async (
   payload: Payload,
@@ -653,6 +652,7 @@ export const notifyStaffOfWorksFolder = async (
   )
 }
 
+/** Staff hear that something is waiting for review; no details beyond what and whose */
 export const notifyStaffOfReview = async (
   payload: Payload,
   { what, memberId, adminPath }: { what: string; memberId: string; adminPath: string },

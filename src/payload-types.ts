@@ -2151,7 +2151,7 @@ export interface AccessRequest {
   createdAt: string;
 }
 /**
- * Every sign-in attempt, access request and decision on a member, staff and members alike. Read-only.
+ * Every sign-in attempt, access request and decision, staff and members alike, what members save in their accounts, changes to staff accounts, and server errors. Read-only. A member’s own entries are also listed on their record.
  *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "security-events".
@@ -2213,7 +2213,14 @@ export interface SecurityEvent {
     | 'deletion-requested'
     | 'member-erased'
     | 'staff-erased'
-    | 'security-log-erased';
+    | 'security-log-erased'
+    | 'server-error'
+    | 'bot-check-failed'
+    | 'portal-saved'
+    | 'staff-account-created'
+    | 'staff-account-changed'
+    | 'member-standing-changed'
+    | 'scheduled-task-ran';
   email?: string | null;
   ip?: string | null;
   detail?: string | null;

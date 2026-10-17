@@ -304,6 +304,52 @@ export const Users: CollectionConfig = {
         return data
       },
     ],
+    afterChange: [
+      // Who can do what is the most sensitive thing in the admin: every new account and every
+      // change to someone's roles, brands or status goes in the security log, with who did it
+      async ({ doc, previousDoc, operation, req, context }) => {
+        if (context.erasing) return doc
+        const actor = (req.user as { id?: number; email?: string } | null) ?? null
+        const by = actor?.email ? ` by ${actor.email}` : ' by the server'
+        const brands = (u: unknown) =>
+          ((u as { tenants?: { tenant?: unknown }[] } | null)?.tenants ?? [])
+            .map((t) =>
+              typeof t.tenant === 'object' ? (t.tenant as { id?: number })?.id : t.tenant,
+            )
+            .filter(Boolean)
+            .sort()
+            .join(',')
+        if (operation === 'create') {
+          await logSecurityEvent(req.payload, {
+            event: 'staff-account-created',
+            email: doc.email,
+            subject: doc.staffRef ?? undefined,
+            actor: actor?.id ?? null,
+            detail: `Roles ${(doc.roles ?? []).join(', ')}; ${doc.status}${by}`,
+            req,
+          })
+          return doc
+        }
+        const changes = [
+          (doc.roles ?? []).join(',') !== (previousDoc?.roles ?? []).join(',') &&
+            `roles ${(previousDoc?.roles ?? []).join(', ') || 'none'} → ${(doc.roles ?? []).join(', ')}`,
+          doc.status !== previousDoc?.status && `status ${previousDoc?.status} → ${doc.status}`,
+          brands(doc) !== brands(previousDoc) &&
+            `brands ${brands(previousDoc) || 'none'} → ${brands(doc) || 'none'}`,
+        ].filter(Boolean)
+        if (changes.length) {
+          await logSecurityEvent(req.payload, {
+            event: 'staff-account-changed',
+            email: doc.email,
+            subject: doc.staffRef ?? undefined,
+            actor: actor?.id ?? null,
+            detail: `${changes.join('; ')}${by}`,
+            req,
+          })
+        }
+        return doc
+      },
+    ],
     afterLogin: [
       async ({ req, user }) => {
         if (req.payloadAPI === 'local') return user

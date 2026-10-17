@@ -1,6 +1,7 @@
 import { defaultLoggerOptions } from 'payload'
 import { pino, type DestinationStream, type Logger } from 'pino'
 
+import { reportFromLogArgs } from './errorAlerts'
 import { redact } from './redact'
 
 /**
@@ -19,8 +20,11 @@ export const createLogger = (destination?: DestinationStream): Logger => {
       enabled: process.env.DISABLE_LOGGING !== 'true',
       base: production ? { env: process.env.VERCEL_ENV ?? 'production' } : undefined,
       hooks: {
-        logMethod(args, method) {
-          return method.apply(this, args.map((arg) => redact(arg)) as Parameters<typeof method>)
+        logMethod(args, method, level) {
+          const clean = args.map((arg) => redact(arg))
+          // Errors are also kept beyond the log's short life (src/observability/errorAlerts.ts)
+          if (level >= 50) reportFromLogArgs(clean)
+          return method.apply(this, clean as Parameters<typeof method>)
         },
       },
     },

@@ -74,6 +74,12 @@ export async function POST(request: Request) {
   )
   if (!human.ok) {
     payload.logger.warn(`Code request refused by the bot check (${purpose}): ${human.reason}`)
+    await logSecurityEvent(payload, {
+      event: 'bot-check-failed',
+      email,
+      ip,
+      detail: `${purpose}: ${human.reason}`,
+    })
     return reply(
       {
         message: TURNSTILE_REFUSED,
