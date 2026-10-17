@@ -348,7 +348,19 @@ export const Members: CollectionConfig = {
       },
     ],
     afterChange: [
-      async ({ doc, previousDoc, req, operation }) => {
+      async ({ doc, previousDoc, req, operation, context }) => {
+        if (operation === 'update' && !context.erasing && doc.standing !== previousDoc?.standing) {
+          const { logSecurityEvent } = await import('../security/events')
+          const actor = req.user as { id?: number; email?: string; collection?: string } | null
+          await logSecurityEvent(req.payload, {
+            event: 'member-standing-changed',
+            email: doc.email,
+            subject: memberIdsOf(doc),
+            actor: actor?.collection === 'users' ? (actor.id ?? null) : null,
+            detail: `${previousDoc?.standing} → ${doc.standing}${actor?.email ? ` by ${actor.email}` : ''}`,
+            req,
+          })
+        }
         // Suspension takes effect at once: every session ends
         if (
           operation === 'update' &&
