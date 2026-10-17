@@ -228,8 +228,6 @@ Wherever it runs, CI spends only where it proves something:
 - **Security:** the secret scan runs every time. The dependency and code scans run when code or
   dependencies changed, and in full every Monday.
 - **Dependabot:** one pull request a month for all npm updates, one a month for all GitHub Actions.
-- **The browser tests keep Next.js's compile cache** (`.next/dev/cache`) between runs, so pages
-  already compiled on main are not compiled again from nothing.
 
 `.github/scripts/scope.sh` makes these decisions, and it fails safe. Every required job (verify,
 e2e, Secret scan, Dependency, secret and config scan, Code scan (Semgrep)) still runs and reports
