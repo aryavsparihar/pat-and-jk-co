@@ -277,7 +277,7 @@ Editors can schedule pages and posts to publish later. `vercel.json` runs Payloa
 - **Google Search Console** — add `pjk.co.in`, verify with a DNS `TXT` record, and submit `https://pjk.co.in/sitemap.xml`.
 - **Analytics** — enable Vercel Web Analytics (cookie-free, no consent banner needed).
 - **Performance** — run <https://pagespeed.web.dev> against the live site.
-- **Backups** — Neon keeps point-in-time history (length depends on plan). For extra safety, run a periodic `pg_dump` of the database.
+- **Backups** — Neon keeps point-in-time history (length depends on plan), and a nightly encrypted `pg_dump` goes to Google Drive: setting it up and restoring are in [RUNBOOK.md](RUNBOOK.md#4a-backups).
 - **Privacy policy** — the seeded `/privacy` page is a starting draft; have it reviewed before launch.
 
 ## Environments at a glance

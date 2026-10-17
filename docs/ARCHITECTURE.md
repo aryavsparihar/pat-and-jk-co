@@ -117,6 +117,13 @@ origin, rate limited), never Payload's API, which members cannot reach for `artw
 public (`publicArtworksOf`). The pattern lives in `src/members/reviewFields.ts`; it is not
 Payload's drafts, so no field is called `status`.
 
+**One interface for every file.** Public media, KYC documents and artists' private pictures all go
+through `src/storage/objectStore.ts`: Vercel Blob today, an S3-compatible store (Cloudflare R2,
+Backblaze B2) by setting (`MEDIA_STORAGE`, `PRIVATE_STORAGE`), local disk in development. The public
+`media` collection uses Payload's own Vercel Blob or S3 plugin accordingly
+(`src/storage/mediaPlugin.ts`); both add the same fields and both upload components are always in
+the import map, so the switch is configuration plus `pnpm storage:copy` (COSTS.md).
+
 **Pictures are private.** Artists' pictures (portfolio images, works and portraits) are kept in the
 private Blob store, in a `media/` folder beside KYC's `kyc/` one, reached with the deployment's own
 OIDC token (`src/storage/privateMedia.ts`, `memberMediaAdapter.ts`). Locally they live in
