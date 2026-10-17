@@ -103,6 +103,15 @@ export const Members: CollectionConfig = {
       },
     },
     {
+      // Their own entries from the security log, for super admins
+      name: 'securityLog',
+      type: 'ui',
+      admin: {
+        position: 'sidebar',
+        components: { Field: '@/components/admin/MemberLogPanel#MemberLogPanel' },
+      },
+    },
+    {
       // Set when someone is deleted: when, by whom, why, at whose request, and what the law
       // made us keep. Written only by the erasure, never by hand
       name: 'erasure',
