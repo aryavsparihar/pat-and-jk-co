@@ -150,6 +150,15 @@ describe('where it is checked', () => {
     const refused = await ask({ email: `nobody${DOMAIN}` })
     expect(refused.status).toBe(400)
     expect((await refused.json()).retryCheck).toBe(true)
+    // And the refusal is in the security log, not only in a log that lasts an hour
+    const logged = await payload.count({
+      collection: 'security-events',
+      where: {
+        and: [{ event: { equals: 'bot-check-failed' } }, { email: { equals: `nobody${DOMAIN}` } }],
+      },
+      overrideAccess: true,
+    })
+    expect(logged.totalDocs).toBe(1)
 
     const passed = await ask({ email: `somebody${DOMAIN}`, [TURNSTILE_FIELD]: 'token' })
     expect(passed.status).toBe(200)
