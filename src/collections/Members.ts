@@ -1,7 +1,7 @@
 import type { Access, CollectionConfig, Field, FieldAccess } from 'payload'
 import { publicError } from '@/utilities/publicError'
 
-import { isKycReviewer, isMember, isStaff, superAdminOnly } from '../access/roles'
+import { isKycReviewer, isMember, isStaff } from '../access/roles'
 import { PARTNER_CATEGORIES } from '../members/categories'
 import { MEDIUMS } from '../members/forms/schemas'
 import { publishedFields, reviewGroup } from '../members/reviewFields'
@@ -57,7 +57,10 @@ export const Members: CollectionConfig = {
       if (isMember(user)) return { id: { equals: user.id } }
       return false
     },
-    delete: superAdminOnly,
+    // Never outright: a member's applications, sessions, pictures, KYC and works all belong to
+    // them, so the database refuses to remove the row, and the admin could only say "Something
+    // went wrong". Someone is deleted by erasing their personal details and keeping the record
+    delete: () => false,
   },
   admin: {
     group: 'Members',
