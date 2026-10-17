@@ -8,8 +8,9 @@
 # The key file is the private key made with age-keygen, kept offline; it never goes anywhere
 # else. The decrypted dump exists only in a temporary folder and is deleted at the end.
 #
-# Needs age and the PostgreSQL 17 client tools (brew install age libpq). With PG_DOCKER=1 the
-# Postgres tools run in the official postgres image instead, as in CI.
+# Needs age and the PostgreSQL 18 client tools, as the backups are made with them: brew install age
+# libpq (Homebrew's libpq is used even if an older PostgreSQL is installed too). With PG_DOCKER=1
+# the Postgres tools run in the official postgres image instead, as in CI.
 set -euo pipefail
 
 if [ $# -ne 3 ]; then
@@ -18,8 +19,12 @@ if [ $# -ne 3 ]; then
 fi
 backup=$1
 key=$2
-target=$3
-PG_MAJOR=${PG_MAJOR:-17}
+target=$(printf '%s' "$3" | tr -d '[:space:]')
+# Homebrew's libpq keeps its tools off the PATH; prefer them over an older PostgreSQL's
+for dir in /opt/homebrew/opt/libpq/bin /usr/local/opt/libpq/bin; do
+  [ -x "$dir/pg_restore" ] && PATH="$dir:$PATH"
+done
+PG_MAJOR=${PG_MAJOR:-18}
 
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
