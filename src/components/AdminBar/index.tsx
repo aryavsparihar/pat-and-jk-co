@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation'
 
 import './index.scss'
 
+import { useSession } from '@/components/session/sessionStore'
 import { getClientSideURL } from '@/utilities/getURL'
 
 const collectionLabels = {
@@ -20,8 +21,20 @@ const collectionLabels = {
 
 const Title: React.FC = () => <span>Admin</span>
 
-/** A slim bar shown only to signed-in editors, with quick links back into the admin panel. */
+/**
+ * A slim bar shown only to signed-in editors, with quick links back into the admin panel. Mounted
+ * only once the page knows a member of staff is signed in (or in a draft preview), so the
+ * Payload bar's own check (/api/users/me) is never made for anyone else, on any page.
+ */
 export const AdminBar: React.FC<{
+  adminBarProps?: PayloadAdminBarProps
+}> = (props) => {
+  const session = useSession()
+  if (session !== 'staff' && !props?.adminBarProps?.preview) return null
+  return <StaffAdminBar {...props} />
+}
+
+const StaffAdminBar: React.FC<{
   adminBarProps?: PayloadAdminBarProps
 }> = (props) => {
   const { adminBarProps } = props || {}
