@@ -58,8 +58,12 @@ export default buildConfig({
     // (src/storage/mediaPlugin.ts)
     dependencies: MEDIA_UPLOAD_HANDLERS,
     components: {
-      // Tells the public site's header when staff sign in or out (src/utilities/sessionHint.ts)
-      providers: ['@/components/admin/SessionHintProvider#SessionHintProvider'],
+      providers: [
+        // Tells the public site's header when staff sign in or out (src/utilities/sessionHint.ts)
+        '@/components/admin/SessionHintProvider#SessionHintProvider',
+        // Signs out a panel nobody has touched for fifteen minutes, after asking
+        '@/components/admin/IdleSignOut#IdleSignOut',
+      ],
       beforeLogin: ['@/components/admin/BeforeLogin'],
       beforeDashboard: ['@/components/admin/Welcome'],
       afterNavLinks: ['@/components/admin/GuideNavLink'],

@@ -5,6 +5,7 @@ vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }))
 import { revalidatePath } from 'next/cache'
 
 import { isSuperAdmin } from '@/access/roles'
+import { afkState } from '@/components/session/afk'
 import { readSubmissions } from '@/collections/FormSubmissions/overrides'
 import { revalidateFrontend } from '@/hooks/revalidateFrontend'
 import { docPath, referenceHref } from '@/utilities/docHref'
@@ -89,5 +90,45 @@ describe('revalidateFrontend', () => {
     const req = { context: { disableRevalidate: true }, payload: { logger: { debug: vi.fn() } } }
     revalidateFrontend({ doc: {}, req } as never)
     expect(revalidatePath).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * The away-from-the-keyboard clock (src/components/session/afk.ts). Only the timings are
+ * checked here; the dialog and the sign-out itself are driven in a browser
+ * (tests/e2e/session-idle.e2e.spec.ts).
+ */
+describe('away from the keyboard', () => {
+  it('waits quietly until the last minute', () => {
+    expect(afkState(0)).toEqual({ checkInMs: 30_000, phase: 'active' })
+    expect(afkState(10 * 60_000)).toEqual({ checkInMs: 30_000, phase: 'active' })
+    // Close to the warning it wakes exactly on it, rather than up to half a minute late
+    expect(afkState(13 * 60_000 + 50_000)).toEqual({ checkInMs: 10_000, phase: 'active' })
+  })
+
+  it('counts down the last minute, a second at a time', () => {
+    expect(afkState(14 * 60_000)).toEqual({ checkInMs: 1000, phase: 'warning', secondsLeft: 60 })
+    expect(afkState(14 * 60_000 + 30_500)).toEqual({
+      checkInMs: 1000,
+      phase: 'warning',
+      secondsLeft: 30,
+    })
+    expect(afkState(15 * 60_000 - 400)).toEqual({
+      checkInMs: 400,
+      phase: 'warning',
+      secondsLeft: 1,
+    })
+  })
+
+  it('is over at the limit, and stays over however long the tab slept', () => {
+    expect(afkState(15 * 60_000)).toEqual({ phase: 'over' })
+    expect(afkState(9 * 60 * 60_000)).toEqual({ phase: 'over' })
+  })
+
+  /** A test may shorten the limit to seconds; the dialog still gets a share of it to be seen in */
+  it('keeps a warning when the limit is shortened', () => {
+    expect(afkState(2000, 6000)).toEqual({ checkInMs: 1000, phase: 'active' })
+    expect(afkState(3000, 6000)).toEqual({ checkInMs: 1000, phase: 'warning', secondsLeft: 3 })
+    expect(afkState(6000, 6000)).toEqual({ phase: 'over' })
   })
 })

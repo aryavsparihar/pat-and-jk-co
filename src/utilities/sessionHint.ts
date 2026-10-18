@@ -40,3 +40,30 @@ export const readSessionHint = (cookieHeader: string | null | undefined): Sessio
     ?.slice(SESSION_HINT_COOKIE.length + 1)
   return value === 'member' || value === 'staff' ? value : null
 }
+
+/** The channel and key every tab watches, to be told to ask again who is signed in */
+export const SESSION_CHANNEL = 'pjk-session'
+export const SESSION_PING_KEY = 'pjk-session-ping'
+
+/**
+ * The hint, written by the browser. Server replies set it with Set-Cookie (sessionHintHeader
+ * above); the admin panel signs in and out through Payload's own endpoints, so it has no reply of
+ * its own to ride on and writes the hint here. Secure follows the page's own protocol, since the
+ * admin runs on http://localhost in development.
+ */
+export const writeSessionHint = (kind: SessionKind | null, maxAgeSeconds = 30 * 86_400) => {
+  const flag = window.location.protocol === 'https:' ? '; Secure' : ''
+  document.cookie = `${SESSION_HINT_COOKIE}=${kind ?? ''}; Path=/; SameSite=Lax; Max-Age=${
+    kind ? maxAgeSeconds : 0
+  }${flag}`
+}
+
+/** Tells every other open tab of the site to ask again who is signed in */
+export const pingSessionTabs = () => {
+  try {
+    new BroadcastChannel(SESSION_CHANNEL).postMessage('changed')
+    window.localStorage.setItem(SESSION_PING_KEY, String(Date.now()))
+  } catch {
+    // An old browser or storage turned off: the site's tabs ask again when next shown
+  }
+}

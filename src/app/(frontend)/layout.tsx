@@ -5,6 +5,7 @@ import { draftMode } from 'next/headers'
 import React from 'react'
 
 import { AdminBar } from '@/components/AdminBar'
+import { IdleSignOut } from '@/components/session/IdleSignOut'
 import { getServerSideURL } from '@/utilities/getURL'
 import { cn } from '@/utilities/ui'
 
@@ -77,6 +78,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body>
         <AdminBar adminBarProps={{ preview: isEnabled }} />
         {children}
+        {/* Asks, then signs out, a signed-in browser nobody has touched for fifteen minutes */}
+        <IdleSignOut />
       </body>
     </html>
   )

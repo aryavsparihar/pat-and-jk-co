@@ -2,7 +2,12 @@
 
 import { useSyncExternalStore } from 'react'
 
-import { readSessionHint, type SessionKind } from '@/utilities/sessionHint'
+import {
+  readSessionHint,
+  SESSION_CHANNEL,
+  SESSION_PING_KEY,
+  type SessionKind,
+} from '@/utilities/sessionHint'
 
 /**
  * Who is signed in, as the header sees it: one answer per page, shared by every place that shows
@@ -30,8 +35,6 @@ export type SessionState = SessionKind | 'none' | 'unknown'
 /** Fired in this tab by anything that signs someone in or out without loading a new page */
 export const SESSION_CHANGED = 'pjk:session-changed'
 
-const CHANNEL = 'pjk-session'
-const PING_KEY = 'pjk-session-ping'
 const ASKED_KEY = 'pjk-session-asked'
 const RECHECK_MS = 5 * 60_000
 
@@ -102,7 +105,7 @@ const check = () => {
 export const announceSessionChange = () => {
   window.dispatchEvent(new Event(SESSION_CHANGED))
   channel?.postMessage('changed')
-  storage.set(PING_KEY, String(Date.now()))
+  storage.set(SESSION_PING_KEY, String(Date.now()))
 }
 
 const start = () => {
@@ -111,12 +114,12 @@ const start = () => {
   check()
   window.addEventListener(SESSION_CHANGED, () => void refreshSession())
   if ('BroadcastChannel' in window) {
-    channel = new BroadcastChannel(CHANNEL)
+    channel = new BroadcastChannel(SESSION_CHANNEL)
     channel.onmessage = () => void refreshSession()
   }
   // Where BroadcastChannel is missing; harmless where it is not (one more check)
   window.addEventListener('storage', (event) => {
-    if (event.key === PING_KEY) void refreshSession()
+    if (event.key === SESSION_PING_KEY) void refreshSession()
   })
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') check()
