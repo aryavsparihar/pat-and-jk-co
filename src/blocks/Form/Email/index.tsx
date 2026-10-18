@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input'
 import React from 'react'
 
 import { FieldShell } from '../FieldShell'
+import { isEmailShaped } from '@/utilities/emailShape'
 
 export const Email: React.FC<
   EmailField & {
@@ -28,10 +29,8 @@ export const Email: React.FC<
         inputMode="email"
         type="email"
         {...register(name, {
-          pattern: {
-            value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
-            message: 'Please enter a valid email address',
-          },
+          validate: (value: string) =>
+            !value || isEmailShaped(value.trim()) || 'Please enter a valid email address',
           required: Boolean(required),
         })}
       />

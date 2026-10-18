@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useCallback, useEffect, useId, useRef, useState } from 'react'
+import { isEmailShaped } from '@/utilities/emailShape'
 
 export type DialogRequest = {
   title: string
@@ -23,8 +24,6 @@ export type DialogRequest = {
 }
 
 export type DialogAnswer = { reason: string; date: string; email: string; typed: string }
-
-const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 
 const MIN_REASON = 10
 
@@ -96,7 +95,7 @@ const ActionDialog: React.FC<{
     !request.date ||
     (request.date.optional && date.trim() === '') ||
     /^\d{4}-\d{2}-\d{2}$/.test(date.trim())
-  const emailOk = !request.email || EMAIL.test(email.trim())
+  const emailOk = !request.email || isEmailShaped(email.trim(), { tld: true })
   const typedOk =
     !request.typed || typed.trim().toUpperCase() === request.typed.expect.toUpperCase()
   const ready = reasonOk && dateOk && emailOk && typedOk && (!request.attest || attested)

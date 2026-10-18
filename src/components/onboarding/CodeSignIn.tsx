@@ -10,6 +10,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { api } from './api'
 import { fieldClass } from './fields'
 import { Sending } from './Sending'
+import { isEmailShaped } from '@/utilities/emailShape'
 
 type Purpose = 'signin' | 'apply-artist' | 'apply-partner'
 
@@ -30,7 +31,7 @@ const COPY: Record<Purpose, { intro: string; button: string }> = {
   },
 }
 
-const looksLikeEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value.trim())
+const looksLikeEmail = (value: string) => isEmailShaped(value.trim(), { tld: true })
 
 /**
  * Email, then the six-digit code sent to it. Used to sign in, and as the first step of both

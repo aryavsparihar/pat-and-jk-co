@@ -1,3 +1,5 @@
+import { isEmailShaped } from '@/utilities/emailShape'
+
 /**
  * Admin access rules, in one place.
  *
@@ -31,15 +33,13 @@ export const OTP_MAX_PER_EMAIL_PER_HOUR = 5
 export const OTP_MAX_PER_IP_PER_HOUR = 20
 export const ACCESS_REQUESTS_PER_IP_PER_DAY = 3
 
-const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
 export const normaliseEmail = (email: unknown): string =>
   typeof email === 'string' ? email.trim().toLowerCase() : ''
 
 /** True only for a well-formed address at the company domain. */
 export const isCompanyEmail = (email: unknown): boolean => {
   const value = normaliseEmail(email)
-  return EMAIL_SHAPE.test(value) && value.endsWith(`@${COMPANY_EMAIL_DOMAIN}`)
+  return isEmailShaped(value) && value.endsWith(`@${COMPANY_EMAIL_DOMAIN}`)
 }
 
 /** Best-effort client address, used for rate limiting and the audit log. */
@@ -75,10 +75,5 @@ export const MEMBER_VERIFY_PER_IP_PER_HOUR = 30
 /** Wrong codes for one address in an hour before that address is locked for the hour */
 export const MEMBER_FAILURES_BEFORE_LOCK = 10
 
-const ANY_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
 /** A plausible email address of any domain, at most 254 characters */
-export const isEmail = (email: unknown): boolean => {
-  const value = normaliseEmail(email)
-  return value.length <= 254 && ANY_EMAIL.test(value)
-}
+export const isEmail = (email: unknown): boolean => isEmailShaped(normaliseEmail(email))
