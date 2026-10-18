@@ -53,6 +53,19 @@ export default defineConfig({
           : {},
       },
     },
+    // The sign-in control behaves differently by browser (Safari and Firefox restore pages from
+    // their back/forward cache), so it is also run in WebKit and Firefox, on phones and an iPad,
+    // when asked: E2E_ALL_BROWSERS=1 pnpm test:e2e session-menu. CI runs Chromium only, to save
+    // Actions minutes
+    ...(process.env.E2E_ALL_BROWSERS
+      ? [
+          { name: 'webkit', use: { ...devices['Desktop Safari'] } },
+          { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
+          { name: 'iphone', use: { ...devices['iPhone 15'] } },
+          { name: 'ipad', use: { ...devices['iPad Pro 11'] } },
+          { name: 'android', use: { ...devices['Pixel 7'] } },
+        ].map((project) => ({ ...project, testMatch: /session-menu\.e2e\.spec\.ts/ }))
+      : []),
   ],
   webServer: {
     command: `pnpm dev --port ${port}`,
