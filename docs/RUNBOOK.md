@@ -198,6 +198,12 @@ CI runs on a GitHub Actions runner on the founder's Mac (docs/ARCHITECTURE.md, "
 is installed in `~/actions-runner-pjk` as `pjk-mac`, and starts by itself when the founder logs in.
 It needs the Mac awake and Homebrew's PostgreSQL 17 running (`brew services start postgresql@17`).
 
+**Sleep.** While a job runs, the runner keeps the Mac awake (`.github/runner/job-started.sh`,
+copied to `~/actions-runner-pjk/hooks/` and named in the runner's `.env` as
+`ACTIONS_RUNNER_HOOK_JOB_STARTED`), and lets it sleep again when the job ends. Closing the lid still
+sleeps it, and GitHub then fails the job after ten minutes ("lost communication with the server");
+re-run it once the Mac is open. If the hook script changes, copy it to the hooks folder again.
+
 **Is it running?** GitHub → the repository → Settings → Actions → Runners shows `pjk-mac` as Idle
 or Active. Or:
 
@@ -226,6 +232,12 @@ SHA-256 against the release notes, unpack it into an empty `~/actions-runner-pjk
 
 ```bash
 cd ~/actions-runner-pjk && ./config.sh --url https://github.com/aryavsparihar/pat-and-jk-co --token "$(gh api -X POST repos/aryavsparihar/pat-and-jk-co/actions/runners/registration-token -q .token)" --name pjk-mac --labels pjk-mac --work _work --unattended --replace && ./svc.sh install && ./svc.sh start
+```
+
+Then put the keep-awake hook back (from a checkout of the repository):
+
+```bash
+mkdir -p ~/actions-runner-pjk/hooks && cp .github/runner/job-started.sh ~/actions-runner-pjk/hooks/ && echo "ACTIONS_RUNNER_HOOK_JOB_STARTED=$HOME/actions-runner-pjk/hooks/job-started.sh" >> ~/actions-runner-pjk/.env && cd ~/actions-runner-pjk && ./svc.sh stop && ./svc.sh start
 ```
 
 The Mac also needs gitleaks 8.30.1 and Trivy 0.75.0 (Homebrew) and Semgrep 1.180.0
