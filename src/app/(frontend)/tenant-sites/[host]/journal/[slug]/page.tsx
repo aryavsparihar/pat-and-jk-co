@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 
 import { draftMode } from 'next/headers'
 import { notFound } from 'next/navigation'
-import Link from 'next/link'
+import Link from '@/components/IntentLink'
 import React from 'react'
 
 import { LivePreviewListener } from '@/components/LivePreviewListener'

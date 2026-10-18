@@ -36,7 +36,10 @@ export const PhulhaarPage: React.FC<{
                 'h-auto w-[7.5rem] lg:w-56 xl:w-64',
               )}
               height={1200}
-              src="/brand/ventures/phulhaar-garland.webp"
+              // 120 to 256 pixels wide, so the browser picks the smallest copy that is sharp enough
+              sizes="(min-width: 1280px) 256px, (min-width: 1024px) 224px, 120px"
+              src="/brand/ventures/phulhaar-garland-288.webp"
+              srcSet="/brand/ventures/phulhaar-garland-144.webp 144w, /brand/ventures/phulhaar-garland-288.webp 288w, /brand/ventures/phulhaar-garland-512.webp 512w, /brand/ventures/phulhaar-garland.webp 795w"
               width={795}
             />
           </div>

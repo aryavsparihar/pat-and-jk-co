@@ -5,7 +5,7 @@ import { isOpeningAhead, OpeningNotice } from '@/components/OpeningNotice'
 import { RowArrow } from '@/components/RowArrow'
 import { docPath } from '@/utilities/docHref'
 import { cn } from '@/utilities/ui'
-import Link from 'next/link'
+import Link from '@/components/IntentLink'
 import React from 'react'
 
 export const ventureStageLabel: Record<Venture['stage'], string> = {
