@@ -20,9 +20,10 @@ set -euo pipefail
 
 PG_MAJOR=${PG_MAJOR:-18}
 FOLDER=${BACKUP_FOLDER:-PJK database backups}
-# Nights apart, so a copy made exactly a fortnight (or eight weeks) ago is the oldest one kept
-DAILY_MIN_AGE=13d12h
-WEEKLY_MIN_AGE=55d12h
+# Nights apart, so a copy made exactly a fortnight (or eight weeks) ago is the oldest one kept:
+# 13.5 and 55.5 days, in hours, as older rclone releases (Ubuntu's) read no other unit with days
+DAILY_MIN_AGE=324h
+WEEKLY_MIN_AGE=1332h
 
 # Homebrew's client tools, where they are (the Mac): libpq is not linked onto the PATH
 for bin in /opt/homebrew/opt/libpq/bin /usr/local/opt/libpq/bin; do
