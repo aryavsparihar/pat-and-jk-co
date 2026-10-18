@@ -192,33 +192,41 @@ If applications themselves are the problem (spam, a broken step, a data leak in 
 Write down, as you go, what happened and when: the security log (Admin → Administration →
 Security log) and Vercel's logs fill in the rest afterwards.
 
-## 7. The CI runner on the Mac
+## 7. The CI runners on the Mac
 
-CI runs on a GitHub Actions runner on the founder's Mac (docs/ARCHITECTURE.md, "CI minutes"). It
-is installed in `~/actions-runner-pjk` as `pjk-mac`, and starts by itself when the founder logs in.
-It needs the Mac awake and Homebrew's PostgreSQL 17 running (`brew services start postgresql@17`).
+CI runs on two GitHub Actions runners on the founder's Mac (docs/ARCHITECTURE.md, "CI minutes"),
+so two jobs run side by side: `pjk-mac` in `~/actions-runner-pjk` and `pjk-mac-2` in
+`~/actions-runner-pjk-2`, both labelled `pjk-mac`. They start by themselves when the founder logs
+in. They need the Mac awake and Homebrew's PostgreSQL 17 running (`brew services start
+postgresql@17`).
 
-**Sleep.** While a job runs, the runner keeps the Mac awake (`.github/runner/job-started.sh`,
-copied to `~/actions-runner-pjk/hooks/` and named in the runner's `.env` as
-`ACTIONS_RUNNER_HOOK_JOB_STARTED`), and lets it sleep again when the job ends. Closing the lid still
-sleeps it, and GitHub then fails the job after ten minutes ("lost communication with the server");
-re-run it once the Mac is open. If the hook script changes, copy it to the hooks folder again.
+**Hooks.** Both runners run `.github/runner/job-started.sh` and `job-completed.sh`, copied to
+`~/actions-runner-pjk/hooks/` and named in each runner's `.env` (`ACTIONS_RUNNER_HOOK_JOB_STARTED`,
+`ACTIONS_RUNNER_HOOK_JOB_COMPLETED`). If either script changes, copy it to that folder again; it is
+read afresh for every job. They do two things:
 
-**Is it running?** GitHub → the repository → Settings → Actions → Runners shows `pjk-mac` as Idle
-or Active. Or:
+- **Sleep.** While a job runs, the Mac is kept awake, and may sleep again when the job ends.
+  Closing the lid still sleeps it, and GitHub then fails the job after ten minutes ("lost
+  communication with the server"); re-run it once the Mac is open.
+- **One browser-test job at a time.** Every e2e job runs the app on the same port, so they take
+  turns: the second waits ("Another browser-test job is running on this Mac") while everything else
+  runs alongside. A lock left by a job that died is cleared by the next one.
+
+**Are they running?** GitHub → the repository → Settings → Actions → Runners shows them as Idle or
+Active. Or:
 
 ```bash
 gh api repos/aryavsparihar/pat-and-jk-co/actions/runners -q '.runners[] | "\(.name) \(.status)"'
 ```
 
-**Stop it, or start it again:**
+**Stop them, or start them again** (stopping cancels a job in progress):
 
 ```bash
-cd ~/actions-runner-pjk && ./svc.sh stop
+for r in ~/actions-runner-pjk ~/actions-runner-pjk-2; do (cd "$r" && ./svc.sh stop); done
 ```
 
 ```bash
-cd ~/actions-runner-pjk && ./svc.sh start
+for r in ~/actions-runner-pjk ~/actions-runner-pjk-2; do (cd "$r" && ./svc.sh start); done
 ```
 
 **Checks waiting while the Mac is away?** Either wake the Mac, or send everything to GitHub's
@@ -226,23 +234,28 @@ runners for a while by deleting the `CI_RUNS_ON` variable (Settings → Secrets 
 Actions → Variables). That uses GitHub's minutes; put the variable back afterwards, with the value
 `["self-hosted","pjk-mac"]`.
 
-**Set it up again** (a new Mac, or after removing it): download the macOS ARM64 runner from
+**Set one up again** (a new Mac, or after removing it): download the macOS ARM64 runner from
 [github.com/actions/runner/releases](https://github.com/actions/runner/releases) and check its
-SHA-256 against the release notes, unpack it into an empty `~/actions-runner-pjk`, then:
+SHA-256 against the release notes, unpack it into an empty folder (`~/actions-runner-pjk`, or
+`-2` for the second, with `--name pjk-mac-2`), then, in that folder:
 
 ```bash
-cd ~/actions-runner-pjk && ./config.sh --url https://github.com/aryavsparihar/pat-and-jk-co --token "$(gh api -X POST repos/aryavsparihar/pat-and-jk-co/actions/runners/registration-token -q .token)" --name pjk-mac --labels pjk-mac --work _work --unattended --replace && ./svc.sh install && ./svc.sh start
+./config.sh --url https://github.com/aryavsparihar/pat-and-jk-co --token "$(gh api -X POST repos/aryavsparihar/pat-and-jk-co/actions/runners/registration-token -q .token)" --name pjk-mac --labels pjk-mac --work _work --unattended --replace && ./svc.sh install && ./svc.sh start
 ```
 
-Then put the keep-awake hook back (from a checkout of the repository):
+Then put the hooks back (from a checkout of the repository; the `.env` lines once per runner, then
+restart that runner):
 
 ```bash
-mkdir -p ~/actions-runner-pjk/hooks && cp .github/runner/job-started.sh ~/actions-runner-pjk/hooks/ && echo "ACTIONS_RUNNER_HOOK_JOB_STARTED=$HOME/actions-runner-pjk/hooks/job-started.sh" >> ~/actions-runner-pjk/.env && cd ~/actions-runner-pjk && ./svc.sh stop && ./svc.sh start
+mkdir -p ~/actions-runner-pjk/hooks && cp .github/runner/job-*.sh ~/actions-runner-pjk/hooks/
+```
+
+```bash
+printf 'ACTIONS_RUNNER_HOOK_JOB_STARTED=%s\nACTIONS_RUNNER_HOOK_JOB_COMPLETED=%s\n' ~/actions-runner-pjk/hooks/job-started.sh ~/actions-runner-pjk/hooks/job-completed.sh >> ~/actions-runner-pjk/.env
 ```
 
 The Mac also needs gitleaks 8.30.1 and Trivy 0.75.0 (Homebrew) and Semgrep 1.180.0
 (`pipx install semgrep==1.180.0`): the security jobs refuse other versions.
 
-**Remove it for good:** `./svc.sh stop && ./svc.sh uninstall`, then remove the runner under
-Settings → Actions → Runners, and delete the `CI_RUNS_ON` variable.
-
+**Remove them for good:** `./svc.sh stop && ./svc.sh uninstall` in each folder, then remove the
+runners under Settings → Actions → Runners, and delete the `CI_RUNS_ON` variable.
