@@ -2,9 +2,10 @@
 
 import { useDocumentInfo, useFormFields } from '@payloadcms/ui'
 import { useRouter } from 'next/navigation'
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 
 import { useActionDialog } from './ActionDialog'
+import { useReveal } from './reveal'
 
 const LABELS: Record<string, string> = {
   pan: 'PAN',
@@ -71,26 +72,10 @@ export const KycPanel: React.FC = () => {
   }))
   const router = useRouter()
   const { dialog, ask: askDialog } = useActionDialog()
-  const [values, setValues] = useState<Record<string, string> | null>(null)
-  const [left, setLeft] = useState(0)
+  const { values, left, show, hide } = useReveal()
   const [kinds, setKinds] = useState<Record<number, string>>({})
   const [message, setMessage] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const timer = useRef<ReturnType<typeof setInterval> | null>(null)
-
-  const hide = () => {
-    if (timer.current) clearInterval(timer.current)
-    timer.current = null
-    setValues(null)
-    setLeft(0)
-  }
-
-  useEffect(
-    () => () => {
-      if (timer.current) clearInterval(timer.current)
-    },
-    [],
-  )
 
   const ids = documents.join(',')
   useEffect(() => {
@@ -139,18 +124,7 @@ export const KycPanel: React.FC = () => {
     setBusy(false)
     if (!response.ok || !body.values)
       return setMessage(body.message ?? 'The details could not be shown.')
-    setValues(body.values)
-    setLeft(body.hideAfterSeconds ?? 60)
-    if (timer.current) clearInterval(timer.current)
-    timer.current = setInterval(() => {
-      setLeft((s) => {
-        if (s <= 1) {
-          hide()
-          return 0
-        }
-        return s - 1
-      })
-    }, 1000)
+    show(body.values, body.hideAfterSeconds)
   }
 
   const download = async (documentId: number) => {
