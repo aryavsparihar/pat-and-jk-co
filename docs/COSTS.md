@@ -137,6 +137,30 @@ that is the expensive option, whatever the invoice says.
 
 Changing provider is a change to the email adapter and three DNS records, half a day with testing.
 
+## Vercel's function storage
+
+Function storage is not the app's size but the app's size **times the number of deployments
+kept**. Every deployment keeps its own copy of the server functions; in October 2026 each held
+four of them, about 53 MB in all (pages 17.8 MB, routes 19.5 MB, the weekly KYC purge 14.7 MB,
+the proxy 0.6 MB, compressed). With 172 deployments kept, that is about 9 GB at the peak; Vercel
+showed 7.7 GB, 75 % of the Hobby allowance.
+
+What keeps it down:
+
+- **Retention** (Vercel → Settings → Deployment Retention): previews are kept a week, cancelled
+  and failed deployments a day, production deployments a month. The 10 most recent production
+  deployments are always kept, whatever their age, so a rollback is always possible.
+- **No deployments nobody will open** (`scripts/vercel-ignore-build.sh`, run by Vercel before
+  each build): Dependabot's previews and changes to docs alone are skipped. CI still tests them,
+  and main is built after the merge.
+- **One function where one will do.** A route with its own `maxDuration`, memory or region is
+  packaged as a separate function, a whole extra copy of the app in every deployment. The KYC
+  purge had a 60-second limit and so cost 14.7 MB a deployment; it now shares the others' 300
+  seconds. Give a route its own limits only when it truly needs them.
+
+The functions are well inside Vercel's 250 MB limit (each is about 20 MB compressed), so there
+is nothing to gain from trimming the app itself.
+
 ## The plan
 
 **Decisions, 17 October 2026.** PJK stays on Vercel Hobby: you treat it as non-commercial, since it

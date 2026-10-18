@@ -2,7 +2,7 @@ import type { Post } from '@/payload-types'
 
 import { docPath } from '@/utilities/docHref'
 import { formatDate } from '@/utilities/formatDateTime'
-import Link from 'next/link'
+import Link from '@/components/IntentLink'
 import React from 'react'
 
 import { Media } from '../Media'
