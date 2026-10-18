@@ -8,7 +8,7 @@ import { Sending } from '../Sending'
 import { StepUpProvider, useStepUp } from '../StepUp'
 import { CameraCapture, type CameraProblem } from './identity/CameraCapture'
 import { FilePreview } from './identity/FilePreview'
-import { type Code, IdentityCode } from './identity/IdentityCode'
+import { type Code, codeLeft, IdentityCode } from './identity/IdentityCode'
 import { AGREE_PHRASE, PrivacyConsent } from './identity/PrivacyConsent'
 
 type Masked = {
@@ -239,17 +239,20 @@ const KycForm: React.FC<KycStepProps> = ({ onSaved, privacy, dateOfBirth }) => {
 
   const newCode = async () => {
     setCodeBusy(true)
-    const result = await guard(() => api<Code>('/next/members/kyc/identity-code', { body: {} }))
+    const result = await guard(() =>
+      api<Omit<Code, 'gotAt'>>('/next/members/kyc/identity-code', { body: {} }),
+    )
     setCodeBusy(false)
     if (!result.ok)
       return setPhotoNote(result.data.message ?? 'A code could not be given just now.')
-    setCode({ code: result.data.code, expiresAt: result.data.expiresAt })
+    // The ten minutes run from now, on this device's clock: see codeLeft
+    setCode({ code: result.data.code, minutes: result.data.minutes, gotAt: Date.now() })
     setPhotoNote(null)
   }
 
   const sendPhoto = async (blob: Blob, capturedWith: 'camera' | 'upload') => {
     setCamera(false)
-    if (!code || new Date(code.expiresAt).getTime() <= Date.now()) {
+    if (!code || codeLeft(code) <= 0) {
       return setPhotoNote(
         'Your code ran out before the photo was taken. Please get a new code and take it again.',
       )
