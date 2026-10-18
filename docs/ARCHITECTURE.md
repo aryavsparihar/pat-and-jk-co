@@ -197,9 +197,11 @@ collection or block changed without a migration; create one and commit it.
 ### CI minutes
 
 The repository is private, and GitHub's own runners bill by the minute once the month's included
-minutes are gone. Since October 2026, **CI runs on a GitHub runner on the founder's Mac**, which
-costs nothing. Each job gets a throwaway database in the Mac's PostgreSQL 17
-(`.github/scripts/ci-database.sh`), dropped when the job ends.
+minutes are gone. Since October 2026, **CI runs on two GitHub runners on the founder's Mac**, which
+cost nothing. Each job gets a throwaway database in the Mac's PostgreSQL 17
+(`.github/scripts/ci-database.sh`), dropped when the job ends. Two jobs run side by side, except
+that the browser tests take turns, as they share a port (`.github/runner/job-started.sh`); a code
+pull request takes about 15 minutes.
 
 - **Where jobs run** is one repository variable, `CI_RUNS_ON` (GitHub → Settings → Secrets and
   variables → Actions → Variables): `["self-hosted","pjk-mac"]` for the Mac. Delete it, and every
@@ -214,8 +216,8 @@ costs nothing. Each job gets a throwaway database in the Mac's PostgreSQL 17
   there, checked against the exact versions the workflow pins. Updating one means updating the pin
   and the Mac together.
 
-Setting the runner up again, stopping it, or moving it to another machine: RUNBOOK.md, "7. The CI
-runner on the Mac".
+Setting the runners up again, stopping them, or moving them to another machine: RUNBOOK.md, "7.
+The CI runners on the Mac".
 
 Wherever it runs, CI spends only where it proves something:
 

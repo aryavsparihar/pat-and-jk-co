@@ -1,6 +1,6 @@
 import { cn } from '@/utilities/ui'
 import { referenceHref } from '@/utilities/docHref'
-import Link from 'next/link'
+import Link from '@/components/IntentLink'
 import React from 'react'
 
 export type CMSLinkAppearance = 'inline' | 'default' | 'outline' | 'text'
