@@ -4,7 +4,26 @@ import React, { useEffect, useState } from 'react'
 
 import { Sending } from '../../Sending'
 
-export type Code = { code: string; expiresAt: string }
+export type Code = {
+  code: string
+  /** How many minutes the server gave it (src/kyc/identityCode.ts) */
+  minutes?: number
+  /** When it reached this device, by this device's own clock: what the countdown measures from */
+  gotAt: number
+}
+
+/** What a code lasts, when the server does not say: src/kyc/identityCode.ts */
+const LIFE_MINUTES = 10
+
+/**
+ * What a code has left, in milliseconds, measured by the one clock that matters here: this
+ * device's, from the moment the code arrived on it. Taking the server's expiry away from the
+ * device's "now" instead would mean a device clock running behind the server's stretched the ten
+ * minutes — and, clamped, froze the countdown at 10:00 while the server had already stopped
+ * taking the code.
+ */
+export const codeLeft = (code: Code, now = Date.now()): number =>
+  Math.min(code.minutes ?? LIFE_MINUTES, LIFE_MINUTES) * 60_000 - (now - code.gotAt)
 
 const clock = (ms: number) => {
   const s = Math.max(0, Math.ceil(ms / 1000))
@@ -31,7 +50,22 @@ export const IdentityCode: React.FC<{
     const tick = () => setNow(Date.now())
     queueMicrotask(tick)
     const timer = setInterval(tick, 1000)
-    return () => clearInterval(timer)
+    /*
+     * A tab in the background has its timers slowed to about one a minute, and one the browser has
+     * frozen, or kept to come back to, has none at all: what it last painted is what someone sees
+     * when they return to it. So the time left is worked out again the moment the page is looked
+     * at, rather than waiting for the next tick.
+     */
+    const events: [EventTarget, string][] = [
+      [document, 'visibilitychange'],
+      [window, 'focus'],
+      [window, 'pageshow'],
+    ]
+    for (const [target, event] of events) target.addEventListener(event, tick)
+    return () => {
+      clearInterval(timer)
+      for (const [target, event] of events) target.removeEventListener(event, tick)
+    }
   }, [code])
 
   if (!code) {
@@ -42,8 +76,7 @@ export const IdentityCode: React.FC<{
     )
   }
 
-  // Never more than the ten minutes a code lasts, whatever the device's clock says
-  const left = Math.min(new Date(code.expiresAt).getTime() - now, 10 * 60_000)
+  const left = codeLeft(code, now)
   const expired = left <= 0
   return (
     <div>
