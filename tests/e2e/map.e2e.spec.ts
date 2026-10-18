@@ -124,7 +124,7 @@ test.describe('with permission, on a phone-like fix', () => {
       'aria-pressed',
       'true',
     )
-    await expect(tiles.first()).toHaveAttribute('src', /tile\.openstreetmap\.org/)
+    await expect(tiles.first()).toHaveAttribute('src', /^https:\/\/tile\.openstreetmap\.org\//)
 
     await styles.getByRole('button', { name: 'Satellite' }).click()
     await expect(styles.getByRole('button', { name: 'Satellite' })).toHaveAttribute(
