@@ -24,6 +24,20 @@ describe('the member pages’ policy', () => {
     expect(script).not.toMatch(/unsafe-eval/)
   })
 
+  it('lets in OpenStreetMap’s map, its satellite and terrain tiles and its town search, as images and requests only', () => {
+    const policy = memberPagePolicy('n0nce')
+    const directive = (name: string) => policy.split('; ').find((d) => d.startsWith(name))!
+    for (const host of [
+      'https://tile.openstreetmap.org',
+      'https://server.arcgisonline.com',
+      'https://*.tile.opentopomap.org',
+    ]) {
+      expect(directive('img-src').split(' ')).toContain(host)
+    }
+    expect(directive('connect-src').split(' ')).toContain('https://nominatim.openstreetmap.org')
+    expect(directive('script-src')).not.toMatch(/openstreetmap|arcgis|opentopomap/)
+  })
+
   it('allows the camera and location on the artist application only, the same in both places', async () => {
     expect(CAMERA_PERMISSIONS).toMatch(/camera=\(self\)/)
     expect(CAMERA_PERMISSIONS).toMatch(/geolocation=\(self\)/)

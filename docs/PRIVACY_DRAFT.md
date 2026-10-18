@@ -27,9 +27,12 @@ yuvraj@pjk.co.in.
 address, and what you tell us about your work, with pictures of it. If you choose to, a pin on a
 map showing where you live. The map is Google's (or OpenStreetMap's), and it loads only if you open
 it; then that company's servers see your internet address, and Google also sees what you type in
-the map's address search and the address already in the form, to find it on the map. If you press
-"Use my location", your browser asks you first, and your device's position is used only to place
-the pin; it is kept only if you save the pin with the step. To consider your application and to work
+the map's address search and the address already in the form, to find it on the map. On
+OpenStreetMap's map, only the town, state and country you typed are sent to OpenStreetMap's place
+search, to open the map there, and if you choose Satellite or Terrain, Esri's or OpenTopoMap's
+servers also see your internet address. If you press "Use my location", your browser asks you
+first, and your device's position is used only to place the pin; it is kept only if you save the
+pin with the step. To consider your application and to work
 with you if we approve it.
 
 **Identity details (artists).** Your PAN and the name on it, which we ask of every artist. A second
@@ -80,6 +83,9 @@ We use these service providers, who process data for us and only on our instruct
 | Neon | The database | Singapore |
 | Resend | Sending email | United States |
 | Google (Google Maps Platform) | The optional map on the address step, its address search, and finding a typed address on it: it sees your IP address, browser details, and the address you search for or have typed, only if you open the map | United States, and wherever their nearest server is **[confirm]** |
+| OpenStreetMap Foundation | The optional map on the address step where Google's is not used, and finding the town you typed on it: it sees your IP address and browser details, and the town, state and country, only if you open the map | United Kingdom, and wherever their nearest server is **[confirm]** |
+| Esri | Satellite pictures on OpenStreetMap's map, only if you choose Satellite: it sees your IP address and browser details | United States **[confirm]** |
+| OpenTopoMap | The terrain view of OpenStreetMap's map, only if you choose Terrain: it sees your IP address and browser details | Germany **[confirm]** |
 | Cloudflare (Turnstile) | Telling people from automated programs when a form is sent: it sees your IP address and details of your browser and device, not what you type | United States, and wherever their nearest server is |
 | India Post (api.postalpincode.in) | Filling in your town, district and state from your PIN code: it is sent the PIN code only, by our server, never anything else | India |
 
