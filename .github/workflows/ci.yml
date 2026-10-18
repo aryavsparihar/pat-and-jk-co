@@ -78,12 +78,18 @@ jobs:
       # Reads the pnpm version from package.json "packageManager"
       - if: needs.scope.outputs.heavy != 'false'
         uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        # Each job its own copy: on the Mac two runners share a home folder, and two jobs installing
+        # pnpm into the default ~/setup-pnpm at once break each other
+        with:
+          dest: ${{ runner.temp }}/setup-pnpm
 
       - if: needs.scope.outputs.heavy != 'false'
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
-          cache: pnpm
+          # On GitHub's runners the package store is restored from GitHub's cache; on the Mac it is
+          # already on disk, and restoring and saving it cost about three minutes a job
+          cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
 
       - if: needs.scope.outputs.heavy != 'false'
         run: pnpm install --frozen-lockfile
@@ -178,10 +184,11 @@ jobs:
     # minutes"), else GitHub's runners. Dependabot's pull requests always run on GitHub's: package
     # code nobody has reviewed yet never runs on the Mac
     runs-on: ${{ fromJSON((github.event.pull_request.user.login || github.actor) != 'dependabot[bot]' && vars.CI_RUNS_ON || '"ubuntu-latest"') }}
-    # The suite takes about 25 minutes on a runner, and a slow first compile of a page can add a
-    # retry or two: 30 minutes cut runs off with one test to go. A run that is genuinely stuck still
-    # stops here rather than at GitHub's six hours
-    timeout-minutes: 40
+    # The suite takes about 13 minutes on the Mac and 25 on a GitHub runner, and a slow first compile
+    # of a page can add a retry or two. On the Mac it may also wait, first, for another pull
+    # request's browser tests to finish (.github/runner/job-started.sh), which counts against this.
+    # A run that is genuinely stuck still stops here rather than at GitHub's six hours
+    timeout-minutes: 60
 
     env:
       PAYLOAD_SECRET: ci-only-0000000000000000000000000000000000000000000000000000000000
@@ -203,12 +210,18 @@ jobs:
 
       - if: needs.scope.outputs.heavy != 'false'
         uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        # Each job its own copy: on the Mac two runners share a home folder, and two jobs installing
+        # pnpm into the default ~/setup-pnpm at once break each other
+        with:
+          dest: ${{ runner.temp }}/setup-pnpm
 
       - if: needs.scope.outputs.heavy != 'false'
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
-          cache: pnpm
+          # On GitHub's runners the package store is restored from GitHub's cache; on the Mac it is
+          # already on disk, and restoring and saving it cost about three minutes a job
+          cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
 
       - if: needs.scope.outputs.heavy != 'false'
         run: pnpm install --frozen-lockfile

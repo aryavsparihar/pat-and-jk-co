@@ -1,7 +1,7 @@
 'use client'
 
 import { cn } from '@/utilities/ui'
-import Link from 'next/link'
+import Link from '@/components/IntentLink'
 import { usePathname } from 'next/navigation'
 import React, { useEffect, useState, useSyncExternalStore } from 'react'
 

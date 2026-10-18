@@ -7,7 +7,9 @@ import { runHousekeeping } from '@/security/housekeeping'
 import { isCronRequest } from '@/security/secrets'
 
 export const dynamic = 'force-dynamic'
-export const maxDuration = 60
+// No maxDuration of its own: a route with different limits is packaged as a separate function,
+// and every deployment then stores another 15 MB copy of the app for one weekly job. It takes
+// seconds, well inside the shared 300-second limit
 
 /** Vercel Cron sends `Authorization: Bearer <CRON_SECRET>`; compared in constant time */
 const authorised = (request: Request): boolean => isCronRequest(request.headers)

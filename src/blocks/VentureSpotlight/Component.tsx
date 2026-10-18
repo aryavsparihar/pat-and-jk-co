@@ -6,7 +6,7 @@ import { OpeningNotice } from '@/components/OpeningNotice'
 import { Plate } from '@/components/Plate'
 import { Section } from '@/components/Typography'
 import { docPath } from '@/utilities/docHref'
-import Link from 'next/link'
+import Link from '@/components/IntentLink'
 import React from 'react'
 
 /**
