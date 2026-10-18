@@ -14,6 +14,7 @@ import {
   verifyTurnstile,
 } from '@/security/turnstile'
 import { HONEYPOT_FIELD } from '@/utilities/honeypot'
+import { isEmailShaped } from '@/utilities/emailShape'
 
 const MAX_FIELDS = 30
 const MAX_VALUE_LENGTH = 5000
@@ -117,7 +118,7 @@ export const protectSubmission: CollectionBeforeChangeHook = async ({ data, oper
     if (field.required && !value) {
       throw publicError(`Please fill in “${field.label || field.name}”.`, 400)
     }
-    if (field.blockType === 'email' && value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+    if (field.blockType === 'email' && value && !isEmailShaped(value)) {
       throw publicError('Please enter a valid email address.', 400)
     }
     // A dropdown may only ever come back with one of its own options, whatever the browser sent
