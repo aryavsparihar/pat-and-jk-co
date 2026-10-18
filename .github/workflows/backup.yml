@@ -9,8 +9,9 @@ name: Backup
 # a second database and check that everything came back.
 on:
   schedule:
-    # 02:00 in India
-    - cron: '30 20 * * *'
+    # 12:00 in India, when the Mac it runs on is usually awake. If it is asleep, GitHub keeps the
+    # job waiting for up to a day and it runs as soon as the Mac wakes
+    - cron: '30 6 * * *'
   workflow_dispatch:
   pull_request:
     paths:
@@ -28,7 +29,9 @@ concurrency:
 jobs:
   backup:
     if: github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
+    # The self-hosted Mac when CI_RUNS_ON names it (GitHub's runners need paid minutes), else
+    # GitHub's ubuntu-latest (docs/ARCHITECTURE.md, "CI minutes")
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 15
     # Its secrets (the database owner's connection string among them) live in this environment,
     # which only the main branch may use (docs/RUNBOOK.md, "Setting up the backups")
@@ -39,10 +42,17 @@ jobs:
           persist-credentials: false
           sparse-checkout: .github/scripts
 
-      - name: Tools (Ubuntu's own signed packages)
+      # Ubuntu's own signed packages; on the Mac, the copies installed there with Homebrew
+      - name: Tools
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq --no-install-recommends age rclone
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq --no-install-recommends age rclone
+          else
+            for tool in age rclone jq; do
+              command -v "$tool" >/dev/null || { echo "::error::The Mac needs $tool (brew install $tool)"; exit 1; }
+            done
+          fi
 
       - name: Dump the database
         env:
@@ -77,7 +87,7 @@ jobs:
             from: "PJK backups <noreply@pjk.co.in>",
             to: ["tech@pjk.co.in"],
             subject: "The PJK database backup failed",
-            text: ("Last night'\''s database backup did not complete, so there is no new copy in Google Drive. The step that failed and why are here: " + $run + "\n\nThe earlier copies are untouched. docs/RUNBOOK.md, \"Backups\", says what to check.")
+            text: ("Today'\''s database backup did not complete, so there is no new copy in Google Drive. The step that failed and why are here: " + $run + "\n\nThe earlier copies are untouched. docs/RUNBOOK.md, \"Backups\", says what to check.")
           }' | curl -fsS https://api.resend.com/emails \
             -H "Authorization: Bearer $RESEND_API_KEY" \
             -H 'Content-Type: application/json' --data @-
