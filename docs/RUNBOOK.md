@@ -191,3 +191,58 @@ If applications themselves are the problem (spam, a broken step, a data leak in 
 
 Write down, as you go, what happened and when: the security log (Admin → Administration →
 Security log) and Vercel's logs fill in the rest afterwards.
+
+## 7. The CI runner on the Mac
+
+CI runs on a GitHub Actions runner on the founder's Mac (docs/ARCHITECTURE.md, "CI minutes"). It
+is installed in `~/actions-runner-pjk` as `pjk-mac`, and starts by itself when the founder logs in.
+It needs the Mac awake and Homebrew's PostgreSQL 17 running (`brew services start postgresql@17`).
+
+**Sleep.** While a job runs, the runner keeps the Mac awake (`.github/runner/job-started.sh`,
+copied to `~/actions-runner-pjk/hooks/` and named in the runner's `.env` as
+`ACTIONS_RUNNER_HOOK_JOB_STARTED`), and lets it sleep again when the job ends. Closing the lid still
+sleeps it, and GitHub then fails the job after ten minutes ("lost communication with the server");
+re-run it once the Mac is open. If the hook script changes, copy it to the hooks folder again.
+
+**Is it running?** GitHub → the repository → Settings → Actions → Runners shows `pjk-mac` as Idle
+or Active. Or:
+
+```bash
+gh api repos/aryavsparihar/pat-and-jk-co/actions/runners -q '.runners[] | "\(.name) \(.status)"'
+```
+
+**Stop it, or start it again:**
+
+```bash
+cd ~/actions-runner-pjk && ./svc.sh stop
+```
+
+```bash
+cd ~/actions-runner-pjk && ./svc.sh start
+```
+
+**Checks waiting while the Mac is away?** Either wake the Mac, or send everything to GitHub's
+runners for a while by deleting the `CI_RUNS_ON` variable (Settings → Secrets and variables →
+Actions → Variables). That uses GitHub's minutes; put the variable back afterwards, with the value
+`["self-hosted","pjk-mac"]`.
+
+**Set it up again** (a new Mac, or after removing it): download the macOS ARM64 runner from
+[github.com/actions/runner/releases](https://github.com/actions/runner/releases) and check its
+SHA-256 against the release notes, unpack it into an empty `~/actions-runner-pjk`, then:
+
+```bash
+cd ~/actions-runner-pjk && ./config.sh --url https://github.com/aryavsparihar/pat-and-jk-co --token "$(gh api -X POST repos/aryavsparihar/pat-and-jk-co/actions/runners/registration-token -q .token)" --name pjk-mac --labels pjk-mac --work _work --unattended --replace && ./svc.sh install && ./svc.sh start
+```
+
+Then put the keep-awake hook back (from a checkout of the repository):
+
+```bash
+mkdir -p ~/actions-runner-pjk/hooks && cp .github/runner/job-started.sh ~/actions-runner-pjk/hooks/ && echo "ACTIONS_RUNNER_HOOK_JOB_STARTED=$HOME/actions-runner-pjk/hooks/job-started.sh" >> ~/actions-runner-pjk/.env && cd ~/actions-runner-pjk && ./svc.sh stop && ./svc.sh start
+```
+
+The Mac also needs gitleaks 8.30.1 and Trivy 0.75.0 (Homebrew) and Semgrep 1.180.0
+(`pipx install semgrep==1.180.0`): the security jobs refuse other versions.
+
+**Remove it for good:** `./svc.sh stop && ./svc.sh uninstall`, then remove the runner under
+Settings → Actions → Runners, and delete the `CI_RUNS_ON` variable.
+

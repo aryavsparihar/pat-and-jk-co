@@ -25,7 +25,9 @@ concurrency:
 
 jobs:
   scope:
-    runs-on: ubuntu-latest
+    # The self-hosted Mac when CI_RUNS_ON names it, else GitHub's runners; Dependabot's pull
+    # requests always on GitHub's (ci.yml, docs/ARCHITECTURE.md "CI minutes")
+    runs-on: ${{ fromJSON((github.event.pull_request.user.login || github.actor) != 'dependabot[bot]' && vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 5
     permissions:
       contents: read
@@ -50,27 +52,38 @@ jobs:
 
   secrets:
     name: Secret scan
-    runs-on: ubuntu-latest
+    # The self-hosted Mac when CI_RUNS_ON names it, else GitHub's runners; Dependabot's pull
+    # requests always on GitHub's (ci.yml, docs/ARCHITECTURE.md "CI minutes")
+    runs-on: ${{ fromJSON((github.event.pull_request.user.login || github.actor) != 'dependabot[bot]' && vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0 # the whole history: a secret removed later was still committed
 
+      # On the Mac, the copy installed there (Homebrew), only if it is exactly this version
       - name: gitleaks, every commit
         run: |
-          curl -sSfL -o gitleaks.tar.gz \
-            https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz
-          echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  gitleaks.tar.gz" | sha256sum -c -
-          tar -xzf gitleaks.tar.gz gitleaks
-          ./gitleaks git --redact --no-banner --exit-code 1 .
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            curl -sSfL -o gitleaks.tar.gz \
+              https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz
+            echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  gitleaks.tar.gz" | sha256sum -c -
+            tar -xzf gitleaks.tar.gz gitleaks
+            GITLEAKS=./gitleaks
+          else
+            GITLEAKS=$(command -v gitleaks)
+            [ "$($GITLEAKS version)" = "8.30.1" ] || { echo "::error::The Mac needs gitleaks 8.30.1"; exit 1; }
+          fi
+          $GITLEAKS git --redact --no-banner --exit-code 1 .
 
   dependencies:
     name: Dependency, secret and config scan
     needs: scope
     # Runs even if the scope job broke: then nothing says "skip", so everything runs
     if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
+    # The self-hosted Mac when CI_RUNS_ON names it, else GitHub's runners; Dependabot's pull
+    # requests always on GitHub's (ci.yml, docs/ARCHITECTURE.md "CI minutes")
+    runs-on: ${{ fromJSON((github.event.pull_request.user.login || github.actor) != 'dependabot[bot]' && vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 15
     steps:
       - if: needs.scope.outputs.heavy == 'false'
@@ -94,11 +107,17 @@ jobs:
 
       - if: needs.scope.outputs.heavy != 'false'
         name: Install Trivy
+        # On the Mac, the copy installed there (Homebrew), only if it is exactly this version
         run: |
-          curl -sSfL -o trivy.tar.gz \
-            https://github.com/aquasecurity/trivy/releases/download/v0.75.0/trivy_0.75.0_Linux-64bit.tar.gz
-          echo "c6e65abddb348e25f10549df887045629cf28cc72453cd1c63acb717316b3f3f  trivy.tar.gz" | sha256sum -c -
-          tar -xzf trivy.tar.gz trivy
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            curl -sSfL -o trivy.tar.gz \
+              https://github.com/aquasecurity/trivy/releases/download/v0.75.0/trivy_0.75.0_Linux-64bit.tar.gz
+            echo "c6e65abddb348e25f10549df887045629cf28cc72453cd1c63acb717316b3f3f  trivy.tar.gz" | sha256sum -c -
+            tar -xzf trivy.tar.gz trivy
+          else
+            trivy --version | grep -qx 'Version: 0.75.0' || { echo "::error::The Mac needs Trivy 0.75.0"; exit 1; }
+            ln -sf "$(command -v trivy)" trivy
+          fi
 
       # Dependencies, secrets in the working tree, and configuration (workflows, vercel.json,
       # next.config). Anything that cannot be fixed must be listed in .trivyignore.yaml with a
@@ -125,7 +144,9 @@ jobs:
     needs: scope
     # Runs even if the scope job broke: then nothing says "skip", so everything runs
     if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
+    # The self-hosted Mac when CI_RUNS_ON names it, else GitHub's runners; Dependabot's pull
+    # requests always on GitHub's (ci.yml, docs/ARCHITECTURE.md "CI minutes")
+    runs-on: ${{ fromJSON((github.event.pull_request.user.login || github.actor) != 'dependabot[bot]' && vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 15
     steps:
       - if: needs.scope.outputs.heavy == 'false'
@@ -141,7 +162,10 @@ jobs:
       - if: needs.scope.outputs.heavy != 'false'
         name: Semgrep
         run: |
-          pipx install semgrep==1.180.0
+          # On the Mac, the copy installed there with pipx, only if it is exactly this version
+          if [ "$(semgrep --version 2>/dev/null)" != "1.180.0" ]; then
+            pipx install --force semgrep==1.180.0
+          fi
           semgrep scan --metrics=off --error \
             --config p/default --config p/typescript --config p/nextjs --config p/react \
             --exclude node_modules --exclude src/migrations --exclude src/payload-types.ts \
