@@ -43,6 +43,7 @@ import { default as default_3a9cca97fda07c2c15aaac4087f744f7 } from '@/component
 import { default as default_89344134860f9bc63867ffefbf33f214 } from '@/components/admin/BeforeLogin'
 import { TenantSelector as TenantSelector_d6d5f193a167989e2ee7d14202901e62 } from '@payloadcms/plugin-multi-tenant/rsc'
 import { SessionHintProvider as SessionHintProvider_ed318605cb2edb5cf05d7b1ccf3c61b5 } from '@/components/admin/SessionHintProvider'
+import { IdleSignOut as IdleSignOut_498d4fbcafc2fec417e8827c8fccf092 } from '@/components/admin/IdleSignOut'
 import { TenantSelectionProvider as TenantSelectionProvider_d6d5f193a167989e2ee7d14202901e62 } from '@payloadcms/plugin-multi-tenant/rsc'
 import { GuideView as GuideView_d0ae5dc84a6cd6685f90d82bd3364f2f } from '@/components/admin/GuideView'
 import { CollectionCards as CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1 } from '@payloadcms/next/rsc'
@@ -96,6 +97,7 @@ export const importMap = {
   "@/components/admin/BeforeLogin#default": default_89344134860f9bc63867ffefbf33f214,
   "@payloadcms/plugin-multi-tenant/rsc#TenantSelector": TenantSelector_d6d5f193a167989e2ee7d14202901e62,
   "@/components/admin/SessionHintProvider#SessionHintProvider": SessionHintProvider_ed318605cb2edb5cf05d7b1ccf3c61b5,
+  "@/components/admin/IdleSignOut#IdleSignOut": IdleSignOut_498d4fbcafc2fec417e8827c8fccf092,
   "@payloadcms/plugin-multi-tenant/rsc#TenantSelectionProvider": TenantSelectionProvider_d6d5f193a167989e2ee7d14202901e62,
   "@/components/admin/GuideView#GuideView": GuideView_d0ae5dc84a6cd6685f90d82bd3364f2f,
   "@payloadcms/next/rsc#CollectionCards": CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1,

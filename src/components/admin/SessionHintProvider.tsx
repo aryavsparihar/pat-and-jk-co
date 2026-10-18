@@ -3,7 +3,7 @@
 import { useAuth } from '@payloadcms/ui'
 import React, { useEffect, useRef } from 'react'
 
-import { readSessionHint, SESSION_HINT_COOKIE } from '@/utilities/sessionHint'
+import { pingSessionTabs, readSessionHint, writeSessionHint } from '@/utilities/sessionHint'
 
 /** Twelve hours, the longest a staff session can last (src/collections/Users) */
 const STAFF_HINT_SECONDS = 12 * 60 * 60
@@ -23,19 +23,9 @@ export const SessionHintProvider: React.FC<{ children?: React.ReactNode }> = ({ 
     if (known.current === signedIn) return
     const changed = known.current !== null
     known.current = signedIn
-    const secure = window.location.protocol === 'https:' ? '; Secure' : ''
-    if (signedIn) {
-      document.cookie = `${SESSION_HINT_COOKIE}=staff; Path=/; SameSite=Lax; Max-Age=${STAFF_HINT_SECONDS}${secure}`
-    } else if (readSessionHint(document.cookie) === 'staff') {
-      document.cookie = `${SESSION_HINT_COOKIE}=; Path=/; SameSite=Lax; Max-Age=0${secure}`
-    }
-    if (!changed) return
-    try {
-      new BroadcastChannel('pjk-session').postMessage('changed')
-      window.localStorage.setItem('pjk-session-ping', String(Date.now()))
-    } catch {
-      // An old browser or storage turned off: the site's tabs ask again when next shown
-    }
+    if (signedIn) writeSessionHint('staff', STAFF_HINT_SECONDS)
+    else if (readSessionHint(document.cookie) === 'staff') writeSessionHint(null)
+    if (changed) pingSessionTabs()
   }, [user])
 
   return <>{children}</>

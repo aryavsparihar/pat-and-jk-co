@@ -28,6 +28,7 @@ How the admin panel is protected, and what to do when something goes wrong.
 | Password resets | The link works once, for an hour, and ends every session. 3 requests an hour per address, 10 per IP; an unknown address gets the same answer and nothing is sent |
 | Wrong passwords | Account locks for 15 minutes after 5 attempts (Payload). Every failed sign-in is logged; the lock is logged once and the account holder is emailed |
 | Sessions | The gate closes after 30 minutes without activity and after 12 hours at most; the admin session ends after 30 minutes without activity and is never extended past 12 hours from sign-in |
+| Away from the keyboard | A panel nobody touches for 15 minutes asks whether to stay, then signs out ([below](#away-from-the-keyboard)) |
 | Cookies | httpOnly, SameSite=Strict, Secure in production ([every cookie](#cookies)) |
 | Suspending someone | **Administration → Users → Status: Suspended.** Blocks sign-in at once, keeps their work |
 | Audit | Every request, failure, approval and block is written to **Administration → Security log** (read-only, super admins only) |
@@ -115,6 +116,7 @@ The endpoints live under `/next/members/`.
 | Enumeration | A sign-in request gets the same reply whether or not the address is registered; an application request always sends a code, so it reveals nothing either |
 | Sessions | `pjk_member` cookie: httpOnly, SameSite=Lax, Secure in production, signed with `MEMBER_SESSION_SECRET`. A day from last use, never more than 30 days. A new session on every sign-in (the old one is ended). Signing out marks the session ended in the database, so the cookie is useless even if kept |
 | Recent sign-in | Identity details, payout details, changing the email address and data requests need a sign-in within the last 30 minutes. Otherwise the page asks for a fresh code, sent to the member's own address, and carries on where it was The database holds only a keyed hash of the session secret, and no IP address |
+| Away from the keyboard | A signed-in page nobody touches for 15 minutes asks whether to stay, then signs out ([below](#away-from-the-keyboard)) |
 | Sign out everywhere | Ends every session of the member at once. Suspending a member does the same |
 | Origin | Every state-changing member endpoint refuses requests whose `Origin` is not the site's own |
 | Admin | Members can never reach `/admin`: their collection refuses admin access, the member guard refuses it again, and the staff gate stands in front of it |
@@ -288,6 +290,28 @@ on returning to a tab, on a page restored from the back/forward cache, and every
 signed in. The build fails if any public page stops being prerendered
 (`scripts/check-build-log.mjs`), so a header, cookie or nonce can never quietly make one dynamic.
 The nonce-based CSP stays on the dynamic member pages only (`src/security/memberPagePolicy.ts`).
+
+### Away from the keyboard
+
+**A signed-in browser nobody has touched for fifteen minutes is signed out.** A minute before
+that, a dialog asks whether to stay: unanswered, the minute runs out, the member's session is
+revoked in the database or the staff cookie cleared by Payload's own logout, and the page reloads,
+so neither the session nor anything the page held about the account survives. A member is taken to
+the sign-in page, which says why; staff are taken back to the admin's sign-in.
+
+Both sessions already end by themselves when they are not used, but "used" means a request, and an
+open tab keeps making them: the site's header asks `/next/session` every few minutes, and the admin
+panel refreshes its own token. So a tab left open on a borrowed or shared screen stayed signed in
+for as long as it was open, which is what this closes. Only the browser can tell that nobody is
+there, so the limit lives there (`src/components/session/afk.ts`), with the dialogs in
+`src/components/session/IdleSignOut.tsx` and `src/components/admin/IdleSignOut.tsx`. It is a
+convenience, not a boundary: the limits that do not depend on the browser are the session's own,
+above. Touching, scrolling, typing or moving a pointer counts; while the dialog is up only its
+buttons do, so a nudged mouse cannot keep a session going. Every open tab shares one clock in
+`localStorage` (`pjk-session-afk`), so reading in one tab keeps the others signed in, and a tab
+that was hidden or asleep through the limit signs out as soon as it is seen again. The timings are
+checked in `tests/int/units.int.spec.ts` and driven in a browser, at seconds rather than minutes,
+in `tests/e2e/session-idle.e2e.spec.ts`.
 
 ## Every route
 

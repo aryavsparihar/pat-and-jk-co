@@ -15,6 +15,7 @@ Changes you **Publish** appear on the live site within a few seconds. Inside the
 - **Schedule.** Next to Publish, choose **Schedule publish** to publish at a later date.
 - **Versions.** Every published version is kept. Open the **Versions** tab on any page to compare or restore an older one.
 - **Italics in headings.** Wrap words in asterisks to set them in italics: `A *quiet* revolution` → A *quiet* revolution.
+- **Left alone, the panel signs you out.** After fifteen minutes without a click or a keystroke it asks whether you are still there, and a minute later signs you out. Anything unsaved is lost, so press **Save** before you walk away. Working in another tab of the site counts as being there.
 
 ## Pages
 
