@@ -19,8 +19,11 @@ on:
 permissions:
   contents: read
 
+# A pull request's newer push replaces its older run. On main every commit keeps its own run: Vercel
+# releases a commit only once its checks pass, and GitHub cancels a waiting run when a newer one
+# joins the same group, which left releases waiting for checks that never ran
 concurrency:
-  group: security-${{ github.ref }}
+  group: security-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
