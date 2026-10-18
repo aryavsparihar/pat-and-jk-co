@@ -16,7 +16,8 @@ jobs:
     if: >-
       github.event.deployment_status.state == 'success' &&
       github.event.deployment.environment == 'Production'
-    runs-on: ubuntu-latest
+    # The self-hosted Mac when CI_RUNS_ON names it, else GitHub's runners (ci.yml)
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 5
     permissions:
       contents: write # to push the tag and create the release, nothing else
