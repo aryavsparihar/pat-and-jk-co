@@ -21,7 +21,7 @@ export interface LoginOptions {
  */
 export async function login({
   page,
-  serverURL = 'http://localhost:3000',
+  serverURL = process.env.E2E_BASE_URL || 'http://localhost:3000',
   user,
 }: LoginOptions): Promise<void> {
   const { token } = createGateToken(user.email)

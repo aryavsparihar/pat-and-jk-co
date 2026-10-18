@@ -3,7 +3,7 @@ import type { JournalFeedBlock as JournalFeedBlockProps } from '@/payload-types'
 import { PostRow } from '@/components/cards/PostCard'
 import { Section, SectionHeading } from '@/components/Typography'
 import { getPosts } from '@/utilities/queries'
-import Link from 'next/link'
+import Link from '@/components/IntentLink'
 import React from 'react'
 
 import type { BlockContext } from '../types'

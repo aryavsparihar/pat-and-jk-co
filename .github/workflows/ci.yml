@@ -23,7 +23,10 @@ concurrency:
 
 jobs:
   scope:
-    runs-on: ubuntu-latest
+    # The self-hosted Mac when the CI_RUNS_ON variable names it (docs/ARCHITECTURE.md, "CI
+    # minutes"), else GitHub's runners. Dependabot's pull requests always run on GitHub's: package
+    # code nobody has reviewed yet never runs on the Mac
+    runs-on: ${{ fromJSON((github.event.pull_request.user.login || github.actor) != 'dependabot[bot]' && vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 5
     permissions:
       contents: read
@@ -50,26 +53,14 @@ jobs:
     needs: scope
     # Runs even if the scope job broke: then nothing says "skip", so everything runs
     if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
+    # The self-hosted Mac when the CI_RUNS_ON variable names it (docs/ARCHITECTURE.md, "CI
+    # minutes"), else GitHub's runners. Dependabot's pull requests always run on GitHub's: package
+    # code nobody has reviewed yet never runs on the Mac
+    runs-on: ${{ fromJSON((github.event.pull_request.user.login || github.actor) != 'dependabot[bot]' && vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 20
-
-    services:
-      postgres:
-        image: postgres:17
-        env:
-          POSTGRES_USER: pjk
-          POSTGRES_PASSWORD: pjk
-          POSTGRES_DB: pjk_ci
-        ports: ['5432:5432']
-        options: >-
-          --health-cmd "pg_isready -U pjk"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
 
     # Throwaway values for a throwaway database. Nothing here is a real secret.
     env:
-      DATABASE_URL: postgres://pjk:pjk@localhost:5432/pjk_ci
       PAYLOAD_SECRET: ci-only-0000000000000000000000000000000000000000000000000000000000
       PREVIEW_SECRET: ci-only-preview-secret-00000000000000000000
       CRON_SECRET: ci-only-cron-secret-0000000000000000000000000
@@ -87,15 +78,26 @@ jobs:
       # Reads the pnpm version from package.json "packageManager"
       - if: needs.scope.outputs.heavy != 'false'
         uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        # Each job its own copy: on the Mac two runners share a home folder, and two jobs installing
+        # pnpm into the default ~/setup-pnpm at once break each other
+        with:
+          dest: ${{ runner.temp }}/setup-pnpm
 
       - if: needs.scope.outputs.heavy != 'false'
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
-          cache: pnpm
+          # On GitHub's runners the package store is restored from GitHub's cache; on the Mac it is
+          # already on disk, and restoring and saving it cost about three minutes a job
+          cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
 
       - if: needs.scope.outputs.heavy != 'false'
         run: pnpm install --frozen-lockfile
+
+      # A throwaway database: a container on GitHub's runners, a database of its own on the Mac
+      - if: needs.scope.outputs.heavy != 'false'
+        name: A throwaway database
+        run: .github/scripts/ci-database.sh create pjk_ci
 
       - if: needs.scope.outputs.heavy != 'false'
         name: Lint
@@ -123,11 +125,12 @@ jobs:
         name: The database gives the site no more than it needs
         # A login role in the app's group, as in production (docs/SETUP.md, "Database roles"),
         # so the check also tries, from the inside, what the site must not be able to do
-        env:
-          APP_DATABASE_URL: postgres://pjk_app_ci:pjk-app-ci@localhost:5432/pjk_ci
+        # The role is shared by every database on the Mac, so it is made only once
         run: |
-          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
-            -c "CREATE ROLE pjk_app_ci LOGIN PASSWORD 'pjk-app-ci' IN ROLE pjk_app_access"
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -c "DO \$\$ BEGIN
+            IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'pjk_app_ci') THEN
+              CREATE ROLE pjk_app_ci LOGIN PASSWORD 'pjk-app-ci' IN ROLE pjk_app_access;
+            END IF; END \$\$"
           pnpm check:database
 
       - if: needs.scope.outputs.heavy != 'false'
@@ -165,9 +168,11 @@ jobs:
       # (tests/helpers/appRole.ts), since the owner is exempt from every permission and policy
       - if: needs.scope.outputs.heavy != 'false'
         name: Integration tests
-        env:
-          APP_DATABASE_URL: postgres://pjk_app_ci:pjk-app-ci@localhost:5432/pjk_ci
         run: pnpm test:int
+
+      - if: always() && needs.scope.outputs.heavy != 'false'
+        name: Drop the throwaway database
+        run: .github/scripts/ci-database.sh drop
 
   # The end-to-end tests (tests/e2e) in a real browser, against the app running on a throwaway
   # database that is migrated and seeded first. Nothing here is a real secret or a real person.
@@ -175,32 +180,23 @@ jobs:
     needs: scope
     # Runs even if the scope job broke: then nothing says "skip", so everything runs
     if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
-    # The suite takes about 25 minutes on a runner, and a slow first compile of a page can add a
-    # retry or two: 30 minutes cut runs off with one test to go. A run that is genuinely stuck still
-    # stops here rather than at GitHub's six hours
-    timeout-minutes: 40
-
-    services:
-      postgres:
-        image: postgres:17
-        env:
-          POSTGRES_USER: pjk
-          POSTGRES_PASSWORD: pjk
-          POSTGRES_DB: pjk_e2e
-        ports: ['5432:5432']
-        options: >-
-          --health-cmd "pg_isready -U pjk"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
+    # The self-hosted Mac when the CI_RUNS_ON variable names it (docs/ARCHITECTURE.md, "CI
+    # minutes"), else GitHub's runners. Dependabot's pull requests always run on GitHub's: package
+    # code nobody has reviewed yet never runs on the Mac
+    runs-on: ${{ fromJSON((github.event.pull_request.user.login || github.actor) != 'dependabot[bot]' && vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    # The suite takes about 13 minutes on the Mac and 25 on a GitHub runner, and a slow first compile
+    # of a page can add a retry or two. On the Mac it may also wait, first, for another pull
+    # request's browser tests to finish (.github/runner/job-started.sh), which counts against this.
+    # A run that is genuinely stuck still stops here rather than at GitHub's six hours
+    timeout-minutes: 60
 
     env:
-      DATABASE_URL: postgres://pjk:pjk@localhost:5432/pjk_e2e
       PAYLOAD_SECRET: ci-only-0000000000000000000000000000000000000000000000000000000000
       PREVIEW_SECRET: ci-only-preview-secret-00000000000000000000
       CRON_SECRET: ci-only-cron-secret-0000000000000000000000000
-      NEXT_PUBLIC_SERVER_URL: http://localhost:3000
+      # Its own port, so a development server already running on the Mac is never in the way
+      E2E_PORT: '3210'
+      NEXT_PUBLIC_SERVER_URL: http://localhost:3210
       DEFAULT_TENANT_SLUG: pjk
       NEXT_TELEMETRY_DISABLED: '1'
       CI: 'true'
@@ -214,19 +210,30 @@ jobs:
 
       - if: needs.scope.outputs.heavy != 'false'
         uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        # Each job its own copy: on the Mac two runners share a home folder, and two jobs installing
+        # pnpm into the default ~/setup-pnpm at once break each other
+        with:
+          dest: ${{ runner.temp }}/setup-pnpm
 
       - if: needs.scope.outputs.heavy != 'false'
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
-          cache: pnpm
+          # On GitHub's runners the package store is restored from GitHub's cache; on the Mac it is
+          # already on disk, and restoring and saving it cost about three minutes a job
+          cache: ${{ runner.environment == 'github-hosted' && 'pnpm' || '' }}
 
       - if: needs.scope.outputs.heavy != 'false'
         run: pnpm install --frozen-lockfile
 
+      # A throwaway database: a container on GitHub's runners, a database of its own on the Mac
+      - if: needs.scope.outputs.heavy != 'false'
+        name: A throwaway database
+        run: .github/scripts/ci-database.sh create pjk_e2e
+
       # Playwright's browser, kept until the Playwright version changes; its system libraries are
       # installed each time, as they live outside the cache
-      - if: needs.scope.outputs.heavy != 'false'
+      - if: needs.scope.outputs.heavy != 'false' && runner.os == 'Linux'
         id: browsers
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -236,7 +243,9 @@ jobs:
       - if: needs.scope.outputs.heavy != 'false'
         name: Install the browser
         run: |
-          if [ "${{ steps.browsers.outputs.cache-hit }}" = "true" ]; then
+          if [ "$RUNNER_OS" != "Linux" ]; then
+            pnpm exec playwright install chromium
+          elif [ "${{ steps.browsers.outputs.cache-hit }}" = "true" ]; then
             pnpm exec playwright install-deps chromium
           else
             pnpm exec playwright install --with-deps chromium
@@ -253,6 +262,10 @@ jobs:
       - if: needs.scope.outputs.heavy != 'false'
         name: End-to-end tests
         run: pnpm test:e2e
+
+      - if: always() && needs.scope.outputs.heavy != 'false'
+        name: Drop the throwaway database
+        run: .github/scripts/ci-database.sh drop
 
       - name: Keep the report when something fails
         if: failure()

@@ -14,20 +14,26 @@ import './globals.css'
  * Both faces are served from the repository (src/app/(frontend)/fonts, Latin subset, SIL Open
  * Font License) rather than fetched from Google at build time. Google Fonts sometimes answers
  * with URLs Turbopack's font loader cannot parse, which fails the build at random
- * (vercel/next.js#99114). The files are Google's own, byte for byte, so nothing looks different.
+ * (vercel/next.js#99114). The designs are Google's own, so nothing looks different.
  */
 
-// next/font needs every value written out literally, so the six files of each face are listed
+// Each face is one variable font per style (upright and italic), which carries every weight the
+// site uses (400 to 600) in a single file: four files to preload instead of twelve, and about 40 %
+// fewer bytes. The same Google Fonts designs, from Fontsource's variable builds (5.3.0)
 
 // Display face: high-contrast Garamond that matches the letterforms of the PJK logo
 const display = localFont({
   src: [
-    { path: './fonts/cormorant-garamond-latin-400-normal.woff2', weight: '400', style: 'normal' },
-    { path: './fonts/cormorant-garamond-latin-400-italic.woff2', weight: '400', style: 'italic' },
-    { path: './fonts/cormorant-garamond-latin-500-normal.woff2', weight: '500', style: 'normal' },
-    { path: './fonts/cormorant-garamond-latin-500-italic.woff2', weight: '500', style: 'italic' },
-    { path: './fonts/cormorant-garamond-latin-600-normal.woff2', weight: '600', style: 'normal' },
-    { path: './fonts/cormorant-garamond-latin-600-italic.woff2', weight: '600', style: 'italic' },
+    {
+      path: './fonts/cormorant-garamond-latin-wght-normal.woff2',
+      weight: '300 700',
+      style: 'normal',
+    },
+    {
+      path: './fonts/cormorant-garamond-latin-wght-italic.woff2',
+      weight: '300 700',
+      style: 'italic',
+    },
   ],
   variable: '--font-cormorant',
   display: 'swap',
@@ -37,12 +43,8 @@ const display = localFont({
 // Text face: a sturdier Garamond for reading, with true small capitals for labels and navigation
 const text = localFont({
   src: [
-    { path: './fonts/eb-garamond-latin-400-normal.woff2', weight: '400', style: 'normal' },
-    { path: './fonts/eb-garamond-latin-400-italic.woff2', weight: '400', style: 'italic' },
-    { path: './fonts/eb-garamond-latin-500-normal.woff2', weight: '500', style: 'normal' },
-    { path: './fonts/eb-garamond-latin-500-italic.woff2', weight: '500', style: 'italic' },
-    { path: './fonts/eb-garamond-latin-600-normal.woff2', weight: '600', style: 'normal' },
-    { path: './fonts/eb-garamond-latin-600-italic.woff2', weight: '600', style: 'italic' },
+    { path: './fonts/eb-garamond-latin-wght-normal.woff2', weight: '400 800', style: 'normal' },
+    { path: './fonts/eb-garamond-latin-wght-italic.woff2', weight: '400 800', style: 'italic' },
   ],
   variable: '--font-eb-garamond',
   display: 'swap',

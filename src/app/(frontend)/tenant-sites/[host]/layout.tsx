@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import type { CSSProperties } from 'react'
 
 import configPromise from '@payload-config'
-import Link from 'next/link'
+import Link from '@/components/IntentLink'
 import { getPayload } from 'payload'
 import React from 'react'
 

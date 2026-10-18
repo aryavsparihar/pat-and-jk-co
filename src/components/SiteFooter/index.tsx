@@ -3,7 +3,7 @@ import type { SiteSetting, Venture } from '@/payload-types'
 import { CMSLink } from '@/components/Link'
 import { officeLines } from '@/utilities/address'
 import { docPath } from '@/utilities/docHref'
-import Link from 'next/link'
+import Link from '@/components/IntentLink'
 import React from 'react'
 
 import { BrandLogo } from '../BrandLogo'

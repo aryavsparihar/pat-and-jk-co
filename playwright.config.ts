@@ -18,6 +18,12 @@ process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY = ''
  * The app runs as `pnpm dev`: emails are written to the log rather than sent, which is what lets
  * a test sign in with a code it set itself.
  */
+// CI uses its own port (E2E_PORT), so a development server already running on the same machine,
+// the self-hosted Mac, is never in the way
+const port = Number(process.env.E2E_PORT) || 3000
+// The tests' helpers address the app by this, so they follow the port too
+process.env.E2E_BASE_URL ||= `http://localhost:${port}`
+
 export default defineConfig({
   testDir: './tests/e2e',
   // One at a time: the tests share one database and one applications switch
@@ -30,7 +36,7 @@ export default defineConfig({
   expect: { timeout: 20_000 },
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
   use: {
-    baseURL: process.env.E2E_BASE_URL || 'http://localhost:3000',
+    baseURL: process.env.E2E_BASE_URL,
     navigationTimeout: 90_000,
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
@@ -62,9 +68,9 @@ export default defineConfig({
       : []),
   ],
   webServer: {
-    command: 'pnpm dev',
+    command: `pnpm dev --port ${port}`,
     reuseExistingServer: !process.env.CI,
-    url: 'http://localhost:3000',
+    url: `http://localhost:${port}`,
     timeout: 240_000,
     // The app's log in the test output: emails written there instead of sent, and any errors
     stdout: 'pipe',
