@@ -84,12 +84,18 @@ nothing while it sits unused, and it outlasts the history window.
 
 ## 4a. Backups
 
-Every night at 02:00 India time, GitHub Actions (`.github/workflows/backup.yml`) takes a full
+Every day at 12:00 India time, GitHub Actions (`.github/workflows/backup.yml`) takes a full
 `pg_dump` of production, checks it reads back, encrypts it with your **public** age key, and uploads
-it to the Google Drive folder **PJK database backups**: `daily/` keeps 14 nights, `weekly/` (each
+it to the Google Drive folder **PJK database backups**: `daily/` keeps 14 days, `weekly/` (each
 Sunday) keeps 8 weeks. Drive and GitHub only ever hold ciphertext; the private key is offline with
-you, and nothing can be restored without it. If a night fails, tech@pjk.co.in is emailed with a
-link to the run. The job takes about two minutes, roughly 60 Actions minutes a month.
+you, and nothing can be restored without it. If a day fails, tech@pjk.co.in is emailed with a
+link to the run. The job takes about two minutes.
+
+It runs on the CI runner on the founder's Mac (section 7), since GitHub's own runners need paid
+minutes, using the Mac's `pg_dump` 18, `age` and `rclone` (Homebrew). If the Mac is asleep at noon,
+the job waits, for up to a day, and runs as soon as it wakes; the unencrypted dump exists on the Mac
+only for the seconds between dumping and encrypting. Deleting the `CI_RUNS_ON` variable moves it
+back to GitHub's runners with everything else.
 
 What a backup holds: the whole database, KYC records included (still encrypted with
 `KYC_ENCRYPTION_KEY`). It does not hold files: KYC documents and pictures live in Blob storage, and

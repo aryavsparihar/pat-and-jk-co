@@ -208,8 +208,8 @@ pull request takes about 15 minutes.
   job runs on GitHub's `ubuntu-latest` again, unchanged. The workflows work on both.
 - **Dependabot's pull requests always run on GitHub's runners**, never on the Mac: they install
   package code nobody has reviewed yet. They come once a month, within the free minutes.
-- **The nightly backup** stays on GitHub's runners too: it must run while the Mac sleeps. It uses
-  about 30 of the free minutes a month.
+- **The daily backup** runs on the Mac too, at noon India time rather than at night, when the Mac
+  is usually awake; if it is not, the job waits for it (RUNBOOK.md, "Backups").
 - **The Mac must be awake** for a pull request to be checked; until then its checks wait in the
   queue (GitHub gives up after a day), and so does Vercel's release, which waits for them.
 - The scanners the security jobs use on the Mac (gitleaks, Trivy, Semgrep) are the copies installed

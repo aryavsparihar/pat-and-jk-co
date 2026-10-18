@@ -7,9 +7,10 @@
 #                                                 weekly/ on Sundays
 #   backup.sh prune                               keeps 14 daily and 8 weekly copies
 #
-# pg_dump runs in the official postgres image (PG_MAJOR, 18 by default: Neon runs PostgreSQL 18).
-# A pg_dump older than the server refuses to run, and a newer one dumps older servers fine, so
-# this must be at least the database's version. Nothing here prints the connection string, and the
+# pg_dump runs in the official postgres image (PG_MAJOR, 18 by default: Neon runs PostgreSQL 18),
+# or, where there is no Docker (the self-hosted Mac), the machine's own pg_dump if it is at least
+# that version. A pg_dump older than the server refuses to run, and a newer one dumps older
+# servers fine, so this must be at least the database's version. Nothing here prints the connection string, and the
 # plaintext dump is deleted as soon as it is encrypted.
 #
 # Google Drive is reached by rclone with the drive.file scope: it can see and touch only the
@@ -23,7 +24,26 @@ FOLDER=${BACKUP_FOLDER:-PJK database backups}
 DAILY_MIN_AGE=13d12h
 WEEKLY_MIN_AGE=55d12h
 
+# Homebrew's client tools, where they are (the Mac): libpq is not linked onto the PATH
+for bin in /opt/homebrew/opt/libpq/bin /usr/local/opt/libpq/bin; do
+  [ -x "$bin/pg_dump" ] && PATH="$bin:$PATH"
+done
+
+native_pg() {
+  ! command -v docker >/dev/null 2>&1 || ! docker info >/dev/null 2>&1
+}
+
 pg() {
+  if native_pg; then
+    local major
+    major=$(pg_dump --version | sed -E 's/.* ([0-9]+)\..*/\1/')
+    if [ "$major" -lt "$PG_MAJOR" ]; then
+      echo "This machine's pg_dump is version $major; the database needs $PG_MAJOR or later" >&2
+      exit 1
+    fi
+    "$@"
+    return
+  fi
   # As the runner's own user, so the files it writes can be shredded afterwards
   docker run --rm --network host --user "$(id -u):$(id -g)" -e PGURL -v "$PWD:/work" -w /work \
     "postgres:${PG_MAJOR}" "$@"
@@ -56,7 +76,9 @@ case "${1:-}" in
     file=$2
     day=$3
     rclone copyto "$file" "gdrive:$FOLDER/daily/pjk-$day.dump.age" --drive-use-trash=false
-    if [ "$(date -u -d "$day" +%u)" = 7 ]; then
+    # GNU date (Linux), else BSD date (macOS)
+    weekday=$(date -u -d "$day" +%u 2>/dev/null || date -u -j -f %F "$day" +%u)
+    if [ "$weekday" = 7 ]; then
       rclone copyto "$file" "gdrive:$FOLDER/weekly/pjk-$day.dump.age" --drive-use-trash=false
     fi
     echo "Uploaded."
