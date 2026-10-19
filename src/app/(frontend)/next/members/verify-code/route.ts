@@ -3,6 +3,7 @@ import { getPayload } from 'payload'
 
 import { memberIdsOf } from '@/collections/Members'
 import { ensureApplication, findMember } from '@/members/accounts'
+import { canChange, canSignIn } from '@/members/standing'
 import { applicationsOpenness } from '@/members/openness'
 import { fromOurOrigin, readJson, refuseCrossSite, reply } from '@/members/http'
 import { challengeEmail, checkChallenge } from '@/security/challenges'
@@ -108,14 +109,16 @@ export async function POST(request: Request) {
   let member = await findMember(payload, email)
 
   // Suspended, or deleted (a deleted record no longer holds their address, so this is a second lock)
-  if (member && member.standing !== 'active') {
+  if (member && !canSignIn(member.standing)) {
     await logSecurityEvent(payload, { event: 'member-blocked', email, ip, detail: member.standing })
     return rejected()
   }
 
-  // A code issued just before applications closed may still sign someone in, but starts nothing
+  // A code issued just before applications closed may still sign someone in, but starts nothing;
+  // nor does one for an account on hold, which changes nothing until it is released
   const applying =
     (result.purpose === 'apply-artist' || result.purpose === 'apply-partner') &&
+    (!member || canChange(member.standing)) &&
     (await applicationsOpenness(payload)).open
 
   if (applying && (result.purpose === 'apply-artist' || result.purpose === 'apply-partner')) {
@@ -137,7 +140,7 @@ export async function POST(request: Request) {
 
   if (!member) return rejected()
 
-  if (member.standing !== 'active') {
+  if (!canSignIn(member.standing)) {
     await logSecurityEvent(payload, { event: 'member-blocked', email, ip, detail: member.standing })
     return rejected()
   }

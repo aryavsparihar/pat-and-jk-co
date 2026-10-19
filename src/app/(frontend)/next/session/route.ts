@@ -1,3 +1,4 @@
+import { canSignIn, type Standing } from '@/members/standing'
 import { MEMBER_COOKIE } from '@/security/constants'
 import { type SessionKind, sessionHintHeader } from '@/utilities/sessionHint'
 
@@ -42,7 +43,8 @@ export async function GET(request: Request) {
     })
     const signedIn = user as { collection?: string; status?: string; standing?: string } | null
     if (signedIn?.collection === 'users' && signedIn.status === 'active') as = 'staff'
-    else if (signedIn?.collection === 'members' && signedIn.standing === 'active') as = 'member'
+    else if (signedIn?.collection === 'members' && canSignIn(signedIn.standing as Standing))
+      as = 'member'
     responseHeaders?.forEach((value, key) => {
       if (key.toLowerCase() === 'set-cookie') headers.append('Set-Cookie', value)
     })

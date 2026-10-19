@@ -54,7 +54,7 @@ to the other.
 **Access is decided by collection, never by "signed in".** Use `isStaff(user)` or
 `isMember(user)` from `src/access/roles.ts`. `src/access/memberGuard.ts` wraps every collection
 not listed in `MEMBER_COLLECTIONS`, so a member gets a visitor's access there; collections built
-for members (`members`, `applications`, later `artworks`) are in that list and must check
+for members (`members`, `applications`, `portfolio-images`) are in that list and must check
 ownership in their own rules. **A new member-owned collection must be added to the list and given
 owner-only rules, with a test in `tests/int/members.int.spec.ts`.**
 
@@ -110,11 +110,10 @@ An approved artist's account (`/account`, `/account/profile`, `/account/works`, 
 `/account/settings`); an approved partner sees their standing, PT ID and contact details; an
 applicant sees only their applications. Pages load the member with `src/members/accountPage.ts`;
 every write goes through `/next/members/portal/*` (`src/members/portalHttp.ts`: signed in, same
-origin, rate limited), never Payload's API, which members cannot reach for `artworks` at all.
+origin, rate limited, and refused with 423 while the account is on hold), never Payload's API.
 
-**Review before public.** Members edit a working copy; staff approval publishes a snapshot
-(`published` on a work, `publicProfile` on a member), and only snapshots are ever read for the
-public (`publicArtworksOf`). The pattern lives in `src/members/reviewFields.ts`; it is not
+**Review before public.** Members edit a working copy of their profile; staff approval publishes
+a snapshot (`publicProfile`), and only the snapshot is ever read for the public. The pattern lives in `src/members/reviewFields.ts`; it is not
 Payload's drafts, so no field is called `status`.
 
 **One interface for every file.** Public media, KYC documents and artists' private pictures all go
@@ -140,13 +139,20 @@ this move from the public store the first time they are asked for, or all at onc
 **Works come by Google Drive.** To stay on the free plan, artists upload no works here. Each
 approved artist gives one Google Drive folder link (`worksFolder` on the member, set through
 `/next/members/portal/works-folder`, only ever as a canonical `drive.google.com/drive/folders/<id>`
-link) and describes each work in the portal. Staff download a work's pictures from the folder and
-add them in the admin, where `PortfolioImages`' `beforeOperation` hook cleans them as the portal's
-upload did. File names follow the work's name, so a work's name leaves out what a file name cannot
-hold (`artworkSchema`).
+link). Everything about a work, its pictures, video and description, is in a folder named after
+it inside that one; the site keeps no works collection (the old `artworks` table is left in the
+database until a later release drops it, so a rollback still runs). Pictures staff add in the
+admin are cleaned by `PortfolioImages`' `beforeOperation` hook as the portal's uploads are.
 
-`public` on a picture still marks those an approved, unarchived work or approved portrait uses
-(`syncPublicImages`, after every approval and archive). It no longer makes them readable: anything
+**Every write is in the security log.** `src/security/audit.ts`, the last plugin, adds
+`afterChange` and `afterDelete` hooks to every collection but the log's own bookkeeping, writing
+`record-created`, `record-changed` (field names only; choices as "from → to") and `record-deleted`
+with who did it: `req.user`, or, for a server write made on someone's behalf with
+`overrideAccess`, `context: actingFor(member, 'members')`. Pass that context on any new write made
+for a member or a member of staff, or the log says "by the site".
+
+`public` on a picture still marks the approved portrait (`syncPublicImages`, after every profile
+approval). It no longer makes them readable: anything
 shown to the public will be a copy made when it is published.
 
 ## Admin access

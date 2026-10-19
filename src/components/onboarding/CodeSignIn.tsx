@@ -58,6 +58,8 @@ export const CodeSignIn: React.FC<{
   const [honeypot, setHoneypot] = useState('')
   const [resendIn, setResendIn] = useState(0)
   const [refused, setRefused] = useState(false)
+  // Signing in with an address nobody has applied with: say so, and where to apply
+  const [notRegistered, setNotRegistered] = useState(false)
   const codeRef = useRef<HTMLInputElement>(null)
   const bot = useVisibleTurnstile(purpose)
 
@@ -76,22 +78,25 @@ export const CodeSignIn: React.FC<{
     setBusy(true)
     setError(null)
     setRefused(false)
-    const result = await api<{ challengeId: number; retryCheck?: boolean }>(
-      '/next/members/request-code',
-      {
-        body: {
-          email,
-          purpose,
-          formToken,
-          [HONEYPOT_FIELD]: honeypot,
-          [TURNSTILE_FIELD]: bot.token,
-        },
+    setNotRegistered(false)
+    const result = await api<{
+      challengeId: number
+      retryCheck?: boolean
+      notRegistered?: boolean
+    }>('/next/members/request-code', {
+      body: {
+        email,
+        purpose,
+        formToken,
+        [HONEYPOT_FIELD]: honeypot,
+        [TURNSTILE_FIELD]: bot.token,
       },
-    )
+    })
     // A token is good for one request: the check runs again for the next
     bot.reset()
     setBusy(false)
     if (!result.ok && result.data.retryCheck) return setRefused(true)
+    if (!result.ok && result.data.notRegistered) return setNotRegistered(true)
     if (!result.ok)
       return setError(result.data.message ?? 'Something went wrong. Please try again.')
     setChallengeId(result.data.challengeId ?? null)
@@ -188,17 +193,34 @@ export const CodeSignIn: React.FC<{
             Email address
           </label>
           <input
-            aria-describedby={error ? 'member-email-error' : undefined}
-            aria-invalid={error ? true : undefined}
+            aria-describedby={error || notRegistered ? 'member-email-error' : undefined}
+            aria-invalid={error || notRegistered ? true : undefined}
             autoComplete="email"
             className={fieldClass}
             id="member-email"
             inputMode="email"
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => {
+              setEmail(e.target.value)
+              setNotRegistered(false)
+            }}
             required
             type="email"
             value={email}
           />
+          {notRegistered && (
+            <p
+              className="mt-2 text-base italic text-destructive"
+              id="member-email-error"
+              role="alert"
+            >
+              That email address is not registered with us. To work with us, apply as an artist or a
+              partner on our{' '}
+              <a className="link not-italic" href="/collaborate">
+                Collaborate page
+              </a>
+              .
+            </p>
+          )}
           {error && (
             <p
               className="mt-2 text-base italic text-destructive"

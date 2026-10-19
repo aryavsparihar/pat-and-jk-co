@@ -3,6 +3,7 @@ import { getPayload, type Payload } from 'payload'
 
 import type { Member, MemberSession } from '@/payload-types'
 import { readMemberCookie, readSession } from '@/security/memberSession'
+import { canChange, ON_HOLD_MESSAGE } from './standing'
 import { trustedOrigins } from '@/utilities/getURL'
 import { HONEYPOT_FIELD } from '@/utilities/honeypot'
 
@@ -49,14 +50,21 @@ export const readJson = async <T extends object>(request: Request): Promise<Part
 export const filledHoneypot = (body: Record<string, unknown> | null): boolean =>
   Boolean(body && String(body[HONEYPOT_FIELD] ?? '').trim())
 
-/**
- * The signed-in member for a request, or a 401 to return. Passes on a refreshed cookie when the
- * session slid forward, so callers can attach it to their reply.
- */
+/** What someone whose account is on hold may still do: end sessions, and their data rights */
+const ALLOWED_ON_HOLD = [
+  '/next/members/portal/sessions',
+  '/next/members/data-request',
+  '/next/members/step-up',
+]
+
 /** When the database cannot be reached; what was saved before is still there */
 export const UNAVAILABLE =
   'We could not reach our records just now, so nothing was changed. Please try again in a minute: what you typed is still here.'
 
+/**
+ * The signed-in member for a request, or a 401 to return. Passes on a refreshed cookie when the
+ * session slid forward, so callers can attach it to their reply.
+ */
 export const requireMember = async (
   request: Request,
 ): Promise<
@@ -74,6 +82,15 @@ export const requireMember = async (
   }
   if (!active) {
     return { ok: false, response: reply({ message: 'Please sign in again.' }, { status: 401 }) }
+  }
+  // An account on hold reads, and changes nothing: every change is refused here, so no endpoint
+  // can forget to, except signing out of other devices and asking for their data
+  if (
+    !canChange(active.member.standing) &&
+    request.method !== 'GET' &&
+    !ALLOWED_ON_HOLD.some((path) => new URL(request.url).pathname.startsWith(path))
+  ) {
+    return { ok: false, response: reply({ message: ON_HOLD_MESSAGE }, { status: 423 }) }
   }
   return {
     ok: true,

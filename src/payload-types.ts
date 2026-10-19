@@ -82,7 +82,6 @@ export interface Config {
     members: Member;
     applications: Application;
     'portfolio-images': PortfolioImage;
-    artworks: Artwork;
     'kyc-records': KycRecord;
     'kyc-documents': KycDocument;
     'access-requests': AccessRequest;
@@ -120,7 +119,6 @@ export interface Config {
     members: MembersSelect<false> | MembersSelect<true>;
     applications: ApplicationsSelect<false> | ApplicationsSelect<true>;
     'portfolio-images': PortfolioImagesSelect<false> | PortfolioImagesSelect<true>;
-    artworks: ArtworksSelect<false> | ArtworksSelect<true>;
     'kyc-records': KycRecordsSelect<false> | KycRecordsSelect<true>;
     'kyc-documents': KycDocumentsSelect<false> | KycDocumentsSelect<true>;
     'access-requests': AccessRequestsSelect<false> | AccessRequestsSelect<true>;
@@ -1604,10 +1602,9 @@ export interface Member {
    * Issued when a partner application is approved. Never changes.
    */
   partnerId?: string | null;
-  /**
-   * Suspending someone ends their sessions at once and stops them signing in.
-   */
-  standing: 'active' | 'suspended' | 'erased';
+  standing: 'active' | 'on-hold' | 'suspended' | 'erased';
+  standingReason?: string | null;
+  standingChangedAt?: string | null;
   partnerCategory?: ('placement' | 'design-technology' | 'partnership') | null;
   artistApprovedAt?: string | null;
   partnerApprovedAt?: string | null;
@@ -1709,7 +1706,7 @@ export interface Member {
   collection: 'members';
 }
 /**
- * Pictures sent with artist applications, and approved artists’ works. Public only once staff approve the work or portrait that uses them.
+ * Pictures sent with artist applications, and approved artists’ portraits. Public only once staff approve the profile that uses them.
  *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "portfolio-images".
@@ -1948,69 +1945,6 @@ export interface Application {
   createdAt: string;
 }
 /**
- * Works approved artists add from their account. New and edited works wait for review: filter by Review › State is "Waiting for review", and approve them from the sidebar to make them public.
- *
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "artworks".
- */
-export interface Artwork {
-  id: number;
-  owner: number | Member;
-  venture?: (number | null) | Venture;
-  review?: {
-    state?: ('none' | 'pending' | 'approved' | 'changes-requested') | null;
-    /**
-     * Sent to the member.
-     */
-    note?: string | null;
-    submittedAt?: string | null;
-    reviewedAt?: string | null;
-    reviewedBy?: (number | null) | User;
-  };
-  title: string;
-  year?: number | null;
-  medium?: string | null;
-  /**
-   * Canvas, paper, wood panel…
-   */
-  surface?: string | null;
-  widthCm?: number | null;
-  heightCm?: number | null;
-  depthCm?: number | null;
-  /**
-   * "Unique", or e.g. "3 of 10".
-   */
-  edition?: string | null;
-  forSale?: boolean | null;
-  priceInr?: number | null;
-  availability?: ('available' | 'reserved' | 'sold' | 'not-available') | null;
-  description?: string | null;
-  /**
-   * The first is the one shown in lists.
-   */
-  images?: (number | PortfolioImage)[] | null;
-  sortOrder?: number | null;
-  /**
-   * Archived works are never shown.
-   */
-  archived?: boolean | null;
-  /**
-   * What the public sees: the last version staff approved.
-   */
-  published?:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  publishedAt?: string | null;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
  * Identity and bank details. Values are encrypted and shown masked; revealing one asks for a reason and is recorded in the security log.
  *
  * This interface was referenced by `Config`'s JSON-Schema
@@ -2151,7 +2085,7 @@ export interface AccessRequest {
   createdAt: string;
 }
 /**
- * Every sign-in attempt, access request and decision, staff and members alike, what members save in their accounts, changes to staff accounts, and server errors. Read-only. A member’s own entries are also listed on their record.
+ * Every sign-in attempt, access request and decision, staff and members alike; every record added, changed or deleted anywhere on the site, and by whom; changes to staff accounts; and server errors. Read-only. A member’s own entries are also listed on their record.
  *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "security-events".
@@ -2220,7 +2154,10 @@ export interface SecurityEvent {
     | 'staff-account-created'
     | 'staff-account-changed'
     | 'member-standing-changed'
-    | 'scheduled-task-ran';
+    | 'scheduled-task-ran'
+    | 'record-created'
+    | 'record-changed'
+    | 'record-deleted';
   email?: string | null;
   ip?: string | null;
   detail?: string | null;
@@ -2498,10 +2435,6 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'portfolio-images';
         value: number | PortfolioImage;
-      } | null)
-    | ({
-        relationTo: 'artworks';
-        value: number | Artwork;
       } | null)
     | ({
         relationTo: 'kyc-records';
@@ -3344,6 +3277,8 @@ export interface MembersSelect<T extends boolean = true> {
   artistId?: T;
   partnerId?: T;
   standing?: T;
+  standingReason?: T;
+  standingChangedAt?: T;
   partnerCategory?: T;
   artistApprovedAt?: T;
   partnerApprovedAt?: T;
@@ -3611,42 +3546,6 @@ export interface PortfolioImagesSelect<T extends boolean = true> {
               filename?: T;
             };
       };
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "artworks_select".
- */
-export interface ArtworksSelect<T extends boolean = true> {
-  owner?: T;
-  venture?: T;
-  review?:
-    | T
-    | {
-        state?: T;
-        note?: T;
-        submittedAt?: T;
-        reviewedAt?: T;
-        reviewedBy?: T;
-      };
-  title?: T;
-  year?: T;
-  medium?: T;
-  surface?: T;
-  widthCm?: T;
-  heightCm?: T;
-  depthCm?: T;
-  edition?: T;
-  forSale?: T;
-  priceInr?: T;
-  availability?: T;
-  description?: T;
-  images?: T;
-  sortOrder?: T;
-  archived?: T;
-  published?: T;
-  publishedAt?: T;
-  updatedAt?: T;
-  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

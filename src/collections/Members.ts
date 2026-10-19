@@ -187,6 +187,15 @@ export const Members: CollectionConfig = {
       ],
     },
     {
+      // Suspend, put on hold, restore: each with a reason, logged (src/members/standing.ts)
+      name: 'standingActions',
+      type: 'ui',
+      admin: {
+        position: 'sidebar',
+        components: { Field: '@/components/admin/StandingPanel#StandingPanel' },
+      },
+    },
+    {
       // Not "status": avoids any clash with Payload's own field names, here and in future
       name: 'standing',
       type: 'select',
@@ -194,14 +203,37 @@ export const Members: CollectionConfig = {
       defaultValue: 'active',
       options: [
         { label: 'Active', value: 'active' },
+        { label: 'On hold: can sign in, cannot change anything; payouts paused', value: 'on-hold' },
         { label: 'Suspended: cannot sign in', value: 'suspended' },
         // Only ever set by the erasure, which also empties the record
         { label: 'Deleted: details erased', value: 'erased' },
       ],
       access: { update: staffOnlyField },
+      // Changed only with the buttons above it, which ask for a reason (src/members/standing.ts)
+      admin: { position: 'sidebar', readOnly: true },
+    },
+    {
+      name: 'standingReason',
+      label: 'Why',
+      type: 'textarea',
+      maxLength: 1000,
+      access: { create: nobody, update: nobody },
       admin: {
         position: 'sidebar',
-        description: 'Suspending someone ends their sessions at once and stops them signing in.',
+        readOnly: true,
+        condition: (data) => data?.standing === 'on-hold' || data?.standing === 'suspended',
+      },
+    },
+    {
+      name: 'standingChangedAt',
+      label: 'Since',
+      type: 'date',
+      access: { create: nobody, update: nobody },
+      admin: {
+        position: 'sidebar',
+        readOnly: true,
+        date: { pickerAppearance: 'dayAndTime' },
+        condition: (data) => data?.standing === 'on-hold' || data?.standing === 'suspended',
       },
     },
     {
@@ -366,7 +398,7 @@ export const Members: CollectionConfig = {
             email: doc.email,
             subject: memberIdsOf(doc),
             actor: actor?.collection === 'users' ? (actor.id ?? null) : null,
-            detail: `${previousDoc?.standing} → ${doc.standing}${actor?.email ? ` by ${actor.email}` : ''}`,
+            detail: `${previousDoc?.standing} → ${doc.standing}${actor?.email ? ` by ${actor.email}` : ''}${context.standingReason ? `: ${context.standingReason}` : ''}`,
             req,
           })
         }
@@ -427,6 +459,34 @@ export const Members: CollectionConfig = {
       },
     },
     {
+      // POST /api/members/:id/standing  { standing: 'active' | 'on-hold' | 'suspended', reason }.
+      // Staff only; logged with the reason (src/members/standing.ts)
+      path: '/:id/standing',
+      method: 'post',
+      handler: async (req) => {
+        if (!isStaff(req.user)) return refuse(req, 'Not allowed.')
+        const body = (await req.json?.().catch(() => ({}))) as {
+          standing?: string
+          reason?: string
+        }
+        const { StandingError, changeStanding } = await import('../members/standing')
+        try {
+          const member = await changeStanding(req.payload, {
+            memberId: Number(req.routeParams?.id),
+            standing: body?.standing,
+            reason: body?.reason,
+            req,
+          })
+          return Response.json({ ok: true, standing: member.standing })
+        } catch (error) {
+          if (error instanceof StandingError)
+            return Response.json({ message: error.message }, { status: error.status })
+          req.payload.logger.error({ err: error, msg: 'Changing a member’s standing failed' })
+          return Response.json({ message: 'The change could not be saved.' }, { status: 500 })
+        }
+      },
+    },
+    {
       // POST /api/members/:id/change-email  { email, reason }. KYC reviewers only; logged
       path: '/:id/change-email',
       method: 'post',
@@ -436,7 +496,7 @@ export const Members: CollectionConfig = {
         }
         const body = (await req.json?.().catch(() => ({}))) as { email?: string; reason?: string }
         const { changeEmailByStaff } = await import('../members/account')
-        const { PortalError } = await import('../members/artworks')
+        const { PortalError } = await import('../members/profile')
         try {
           const result = await changeEmailByStaff(req.payload, {
             memberId: Number(req.routeParams?.id),
@@ -463,7 +523,7 @@ export const Members: CollectionConfig = {
         if (body?.decision !== 'approve' && body?.decision !== 'request-changes') {
           return Response.json({ message: 'Approve, or ask for changes?' }, { status: 400 })
         }
-        const { PortalError, decideProfile } = await import('../members/artworks')
+        const { PortalError, decideProfile } = await import('../members/profile')
         try {
           await decideProfile(req.payload, {
             memberId: Number(req.routeParams?.id),

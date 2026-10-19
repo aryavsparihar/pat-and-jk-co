@@ -5,6 +5,7 @@ import type { Payload, Where } from 'payload'
 import sharp from 'sharp'
 
 import type { KycDocument, KycRecord, Member, User } from '@/payload-types'
+import { PAYOUTS_PAUSED_MESSAGE, canChange } from '@/members/standing'
 import { logSecurityEvent } from '@/security/events'
 
 import {
@@ -24,6 +25,7 @@ import { deleteEncrypted, kycPrefix, readEncrypted, storeEncrypted } from './doc
 import { AADHAAR_CHECK_MODE } from './settings'
 import type { BankInput, KycDocumentKind, KycInput } from './schema'
 import { maskAadhaar, maskAccount, maskIfsc, maskPan, namesPlausiblyMatch } from './values'
+import { actingFor } from '@/security/audit'
 
 /**
  * Everything that reads or writes KYC data goes through here; nothing else imports the crypto.
@@ -212,13 +214,13 @@ export const saveKyc = async (
         id: existing.id,
         data: data as never,
         overrideAccess: true,
-        context: { disableRevalidate: true },
+        context: { disableRevalidate: true, ...actingFor(member, 'members') },
       })
     : await payload.create({
         collection: 'kyc-records',
         data: data as never,
         overrideAccess: true,
-        context: { disableRevalidate: true },
+        context: { disableRevalidate: true, ...actingFor(member, 'members') },
       })
 
   await logSecurityEvent(payload, {
@@ -396,7 +398,7 @@ export const storeKycDocument = async (
         : {}),
     } as never,
     overrideAccess: true,
-    context: { disableRevalidate: true },
+    context: { disableRevalidate: true, ...actingFor(member, 'members') },
   })
 }
 
@@ -689,7 +691,7 @@ export const requestBankChange = async (
       },
     } as never,
     overrideAccess: true,
-    context: { disableRevalidate: true },
+    context: { disableRevalidate: true, ...actingFor(member, 'members') },
   })
   await logSecurityEvent(payload, {
     event: 'kyc-bank-change-requested',
@@ -762,6 +764,7 @@ export const approveBankChange = async (
   if (!pending.requestedAt || !pending.pendingAccountNumberSealed)
     throw new KycError('There is no change of bank details waiting.', 409)
   const memberId = typeof record.member === 'object' ? record.member.id : record.member
+  await refuseWhilePaused(payload, memberId)
   const { key } = dataKeyFor(record, memberId)
   const accountNumber = openField(
     key,
@@ -804,7 +807,7 @@ export const approveBankChange = async (
       ...clearPending,
     } as never,
     overrideAccess: true,
-    context: { disableRevalidate: true },
+    context: { disableRevalidate: true, ...actingFor(actor, 'users') },
   })
   await logSecurityEvent(payload, {
     event: 'kyc-bank-change-approved',
@@ -813,6 +816,18 @@ export const approveBankChange = async (
     detail: `Approved by ${actor.email}`,
   })
   return updated
+}
+
+/** Payouts, and anything that leads to one, wait while an account is on hold or suspended */
+const refuseWhilePaused = async (payload: Payload, memberId: number) => {
+  const member = await payload.findByID({
+    collection: 'members',
+    id: memberId,
+    depth: 0,
+    overrideAccess: true,
+    select: { standing: true },
+  })
+  if (!canChange(member.standing)) throw new KycError(PAYOUTS_PAUSED_MESSAGE, 423)
 }
 
 /**
@@ -839,6 +854,7 @@ export const requestPayoutDetails = async (
   })
   if (!member.artistId)
     throw new KycError('Payout details are asked for once the artist is approved.', 409)
+  if (!canChange(member.standing)) throw new KycError(PAYOUTS_PAUSED_MESSAGE, 423)
   if (record.pendingBank?.requestedAt)
     throw new KycError('Their payout details are already waiting for your check.', 409)
   if (record.accountMasked)
@@ -852,7 +868,7 @@ export const requestPayoutDetails = async (
     id: record.id,
     data: { payoutRequestedAt: new Date().toISOString() } as never,
     overrideAccess: true,
-    context: { disableRevalidate: true },
+    context: { disableRevalidate: true, ...actingFor(actor, 'users') },
   })
   await logSecurityEvent(payload, {
     event: 'kyc-payout-details-requested',
@@ -1005,7 +1021,7 @@ export const recordConsentWithdrawal = async (
     id: recordId,
     data: { consentWithdrawnAt: new Date().toISOString() },
     overrideAccess: true,
-    context: { disableRevalidate: true },
+    context: { disableRevalidate: true, ...actingFor(actor, 'users') },
   })
   await logSecurityEvent(payload, {
     event: 'kyc-consent-withdrawn',
@@ -1054,7 +1070,7 @@ export const setLegalHold = async (
     id: recordId,
     data: { legalHoldUntil: next },
     overrideAccess: true,
-    context: { disableRevalidate: true },
+    context: { disableRevalidate: true, ...actingFor(actor, 'users') },
   })
   const show = (v?: string | null) => (v ? v.slice(0, 10) : 'none')
   await logSecurityEvent(payload, {

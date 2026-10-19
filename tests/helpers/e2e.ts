@@ -313,7 +313,6 @@ export const cleanUp = async () => {
   const members = sql`SELECT id FROM members WHERE email LIKE ${like}`
   await execute(p, sql`DELETE FROM kyc_records WHERE member_id IN (${members})`)
   await execute(p, sql`DELETE FROM kyc_documents WHERE member_id IN (${members})`)
-  await execute(p, sql`DELETE FROM artworks WHERE owner_id IN (${members})`)
   await execute(p, sql`DELETE FROM portfolio_images WHERE owner_id IN (${members})`)
   await execute(p, sql`DELETE FROM member_sessions WHERE member_id IN (${members})`)
   await execute(p, sql`DELETE FROM applications WHERE member_id IN (${members})`)

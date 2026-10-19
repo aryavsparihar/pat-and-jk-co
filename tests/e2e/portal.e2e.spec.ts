@@ -35,7 +35,7 @@ const artist = async (approved = true) => {
   return { email, member, application }
 }
 
-test('an approved artist gives their Drive folder and describes a work, which waits for review', async ({
+test('an approved artist gives their Drive folder, and is shown how to set it out', async ({
   page,
   context,
 }) => {
@@ -54,33 +54,9 @@ test('an approved artist gives their Drive folder and describes a work, which wa
   await expect(folder).toHaveValue('https://drive.google.com/drive/folders/1AbCdEfGhIjKlMnOp')
   await expect(page.getByRole('heading', { name: 'How to set out your folder' })).toBeVisible()
 
-  // A work: its name says how to name its folder and files, and it needs a description
-  await page.getByRole('link', { name: 'Describe a work' }).click()
-  // Typed again until the page is ready for it: under load, a value typed before the page has
-  // finished loading is not seen
-  await expect(async () => {
-    await page.getByLabel('Name of the work', { exact: true }).fill('River at Dusk')
-    await expect(page.getByText('River at Dusk - 1.jpg')).toBeVisible({ timeout: 2000 })
-  }).toPass()
-  await page.getByLabel(/^Year/).fill('2024')
-  await page.getByLabel(/^Medium/).fill('Oil')
-  await page.getByLabel(/^Surface/).fill('Canvas')
-  await page.getByLabel(/^Width/).fill('60')
-  await page.getByLabel(/^Height/).fill('90')
-  await page.getByLabel('Price (₹)').fill('45000')
-  await page.getByRole('button', { name: 'Save and send for review' }).click()
-  await expect(
-    page.getByText(/Please describe the work, in at least 80 characters/).first(),
-  ).toBeVisible()
-  await page
-    .getByLabel('Description', { exact: true })
-    .fill(
-      'The river below the town at dusk, painted outdoors over three evenings in early winter, in oil on a primed canvas.',
-    )
-  await page.getByRole('button', { name: 'Save and send for review' }).click()
-  await expect(page).toHaveURL(/\/account\/works\?saved=1/)
-  await expect(page.getByRole('link', { name: 'Edit River at Dusk' })).toBeVisible()
-  await expect(page.getByText('Waiting for our review').first()).toBeVisible()
+  // Each work is described in its own folder in Drive, not on the site
+  await expect(page.getByText('River at Dusk - description')).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Describe a work' })).toHaveCount(0)
 })
 
 test('a pending artist has no portfolio', async ({ page, context }) => {
@@ -88,7 +64,10 @@ test('a pending artist has no portfolio', async ({ page, context }) => {
   await signInAs(context, member.id)
   await page.goto('/account/works')
   await expect(page).toHaveURL(/\/account$/)
-  const api = await page.request.get('/next/members/portal/artworks')
+  const api = await page.request.post('/next/members/portal/works-folder', {
+    data: { url: 'https://drive.google.com/drive/folders/1AbCdEfGhIjKlMnOp' },
+    headers: { origin: new URL(page.url()).origin },
+  })
   expect(api.status()).toBe(403)
 })
 

@@ -12,6 +12,7 @@ import { notifyStaffOfDataRequest } from '@/members/emails'
 import { clientIp } from '@/security/constants'
 import { logSecurityEvent } from '@/security/events'
 import { hitLimit } from '@/security/rateLimit'
+import { actingFor } from '@/security/audit'
 
 export const dynamic = 'force-dynamic'
 
@@ -54,7 +55,7 @@ export async function POST(request: Request) {
       where: { member: { equals: member.id } },
       data: { consentWithdrawnAt: new Date().toISOString() },
       overrideAccess: true,
-      context: { disableRevalidate: true },
+      context: { disableRevalidate: true, ...actingFor(member, 'members') },
     })
     await logSecurityEvent(payload, {
       event: 'kyc-consent-withdrawn',

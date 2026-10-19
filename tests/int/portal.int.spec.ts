@@ -8,13 +8,6 @@ import config from '@/payload.config'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
-import { POST as archiveRoute } from '@/app/(frontend)/next/members/portal/artworks/[id]/archive/route'
-import { PATCH as updateRoute } from '@/app/(frontend)/next/members/portal/artworks/[id]/route'
-import { POST as orderRoute } from '@/app/(frontend)/next/members/portal/artworks/order/route'
-import {
-  GET as listRoute,
-  POST as createRoute,
-} from '@/app/(frontend)/next/members/portal/artworks/route'
 import { POST as contactRoute } from '@/app/(frontend)/next/members/portal/contact/route'
 import { POST as emailConfirmRoute } from '@/app/(frontend)/next/members/portal/email/confirm/route'
 import { POST as emailRoute } from '@/app/(frontend)/next/members/portal/email/route'
@@ -24,7 +17,6 @@ import { GET as sessionsRoute } from '@/app/(frontend)/next/members/portal/sessi
 import { POST as worksFolderRoute } from '@/app/(frontend)/next/members/portal/works-folder/route'
 import { DELETE as deletePicture } from '@/app/(frontend)/next/members/portfolio/route'
 import { ensureApplication } from '@/members/accounts'
-import { publicArtworksOf } from '@/members/artworks'
 import { ingestPortfolioImage } from '@/members/portfolio'
 import type { Member, User } from '@/payload-types'
 import { MEMBER_COOKIE } from '@/security/constants'
@@ -33,8 +25,9 @@ import { hashOtp } from '@/security/otp'
 import { execute } from '@/utilities/sql'
 
 /*
- * The member portal, through its real route handlers: works and the profile through review to
- * the public, archiving, ordering, contact details, devices, and changing the email address.
+ * The member portal, through its real route handlers: the works folder in Google Drive, the
+ * profile through review to the public, contact details, devices, and changing the email address.
+ * The works themselves are only ever in the artist's Drive folder: there is no works collection.
  * Everyone here is made up (@portal.example.test).
  */
 
@@ -109,48 +102,18 @@ const picture = async (member: Member) => {
   return ingestPortfolioImage(payload, member, bytes)
 }
 
-/** A work as the artist describes it: its pictures are in their Google Drive folder */
-const work = (title = 'River at dusk') => ({
-  title,
-  year: 2024,
-  medium: 'Oil',
-  surface: 'Canvas',
-  widthCm: 60,
-  heightCm: 90,
-  forSale: true,
-  priceInr: 45000,
-  availability: 'available',
-  description:
-    'The river below the town at dusk, painted outdoors over three evenings in early winter, in oil on a primed canvas.',
-})
+const reviewEndpoint = (path: string) =>
+  (payload.collections.members.config.endpoints || []).find((e) => e.path === path)!.handler
 
-/** Staff add a work's pictures, from the artist's Google Drive folder, in the admin */
-const staffAddsPictures = (id: number, images: number[]) =>
-  payload.update({
-    collection: 'artworks',
-    id,
-    data: { images },
-    overrideAccess: true,
-    context: { disableRevalidate: true },
-  })
-
-const reviewEndpoint = (collection: 'artworks' | 'members', path: string) =>
-  payload.collections[collection].config.endpoints
-    ? (payload.collections[collection].config.endpoints || []).find((e) => e.path === path)!.handler
-    : null!
-
-const decide = (collection: 'artworks' | 'members', id: number, decision: string, note?: string) =>
-  reviewEndpoint(
-    collection,
-    collection === 'artworks' ? '/:id/review' : '/:id/profile-review',
-  )({
+const decide = (collection: 'members', id: number, decision: string, note?: string) =>
+  reviewEndpoint('/:id/profile-review')({
     user: staff,
     payload,
     routeParams: { id: String(id) },
     json: async () => ({ decision, note }),
   } as never)
 
-/** Whether an approved work or portrait uses the picture (its `public` mark) */
+/** Whether an approved portrait uses the picture (its `public` mark) */
 const isPublicImage = async (id: number) =>
   Boolean(
     (await payload.findByID({ collection: 'portfolio-images', id, overrideAccess: true, depth: 0 }))
@@ -174,7 +137,6 @@ const visitorCanRead = async (id: number) =>
 const cleanup = async () => {
   const like = `%${DOMAIN}`
   const members = sql`SELECT id FROM members WHERE email LIKE ${like}`
-  await execute(payload, sql`DELETE FROM artworks WHERE owner_id IN (${members})`)
   await execute(payload, sql`DELETE FROM portfolio_images WHERE owner_id IN (${members})`)
   await execute(payload, sql`DELETE FROM member_sessions WHERE member_id IN (${members})`)
   await execute(payload, sql`DELETE FROM applications WHERE member_id IN (${members})`)
@@ -224,203 +186,14 @@ describe('who has a portfolio', () => {
   it('only an approved artist: an applicant and a partner are refused', async () => {
     for (const kind of ['applicant', 'partner'] as const) {
       const { cookie } = await someone(kind)
-      expect((await listRoute(request('GET', cookie))).status, kind).toBe(403)
-      expect((await createRoute(request('POST', cookie, work()))).status, kind).toBe(403)
       expect((await profileRoute(request('POST', cookie, { displayName: 'X' }))).status, kind).toBe(
         403,
       )
     }
   })
 
-  it('members cannot reach artworks through Payload’s API', async () => {
-    const { member } = await someone('artist')
-    await expect(
-      payload.find({
-        collection: 'artworks',
-        user: { ...member, collection: 'members' } as never,
-        overrideAccess: false,
-      }),
-    ).rejects.toThrow()
-  })
-})
-
-describe('a work, from the artist to the public', () => {
-  it('waits for review, then is public with its pictures, and edits wait again', async () => {
-    const { member, cookie } = await someone('artist')
-    const image = await picture(member)
-
-    const created = await createRoute(request('POST', cookie, work()))
-    expect(created.status).toBe(200)
-    const { artwork } = await json<{ artwork: { id: number; review: { state: string } } }>(created)
-    expect(artwork.review.state).toBe('pending')
-    await staffAddsPictures(artwork.id, [image.id])
-    expect(await publicArtworksOf(payload, member.id)).toEqual([])
-    expect(await isPublicImage(image.id)).toBe(false)
-
-    expect((await decide('artworks', artwork.id, 'approve')).status).toBe(200)
-    const shown = await publicArtworksOf(payload, member.id)
-    expect(shown).toHaveLength(1)
-    expect(shown[0]).toMatchObject({ title: 'River at dusk', priceInr: 45000, images: [image.id] })
-    expect(await isPublicImage(image.id)).toBe(true)
-    // Approved, and still private: the public get copies made when a work is published
-    expect(await visitorCanRead(image.id)).toBe(false)
-
-    // An edit waits for review; the approved version stays public meanwhile
-    const edited = await updateRoute(
-      request('PATCH', cookie, work('River at night')),
-      params(artwork.id),
-    )
-    expect(edited.status).toBe(200)
-    expect((await publicArtworksOf(payload, member.id))[0]?.title).toBe('River at dusk')
-    // The artist's edit leaves the pictures staff added as they were
-    const kept = await payload.findByID({
-      collection: 'artworks',
-      id: artwork.id,
-      overrideAccess: true,
-      depth: 0,
-    })
-    expect(kept.images).toEqual([image.id])
-
-    // Asking for changes needs a note, which the artist then sees
-    expect((await decide('artworks', artwork.id, 'request-changes')).status).toBe(422)
-    expect(
-      (await decide('artworks', artwork.id, 'request-changes', 'A better photo, please.')).status,
-    ).toBe(200)
-    const listed = await json<{ artworks: { review: { state: string; note: string } }[] }>(
-      await listRoute(request('GET', cookie)),
-    )
-    expect(listed.artworks[0]?.review).toEqual({
-      state: 'changes-requested',
-      note: 'A better photo, please.',
-    })
-  })
-
-  it('needs a price unless not for sale, a description, and a name a file can hold', async () => {
-    const { member, cookie } = await someone('artist')
-    const mine = await picture(member)
-    const errorsOf = async (body: Record<string, unknown>) =>
-      (
-        await json<{ errors?: Record<string, string> }>(
-          await createRoute(request('POST', cookie, body)),
-        )
-      ).errors ?? {}
-
-    expect(await errorsOf({ ...work(), priceInr: undefined })).toHaveProperty('priceInr')
-    expect(
-      (
-        await createRoute(
-          request('POST', cookie, { ...work(), priceInr: undefined, forSale: false }),
-        )
-      ).status,
-    ).toBe(200)
-    expect(await errorsOf({ ...work(), description: undefined })).toHaveProperty('description')
-    expect(await errorsOf({ ...work(), description: 'Too short to say much.' })).toHaveProperty(
-      'description',
-    )
-    expect(await errorsOf({ ...work(), description: 'x'.repeat(3001) })).toHaveProperty(
-      'description',
-    )
-    for (const title of ['River/Dusk', 'Dusk: river', 'What?', 'A "quoted" name'])
-      expect(await errorsOf(work(title)), title).toHaveProperty('title')
-
-    // Pictures are staff's to add: any the artist sends are ignored
-    const { artwork } = await json<{ artwork: { id: number } }>(
-      await createRoute(request('POST', cookie, { ...work('With pictures'), images: [mine.id] })),
-    )
-    const stored = await payload.findByID({
-      collection: 'artworks',
-      id: artwork.id,
-      overrideAccess: true,
-      depth: 0,
-    })
-    expect(stored.images ?? []).toEqual([])
-  })
-
-  it('takes empty fields as the form sends them, and an edit that empties one clears it', async () => {
-    const { cookie } = await someone('artist')
-    // The browser's form sends every field, an empty one as null
-    const created = await createRoute(
-      request('POST', cookie, {
-        ...work(),
-        edition: 'One of three',
-        depthCm: null,
-      }),
-    )
-    expect(created.status).toBe(200)
-    const { artwork } = await json<{ artwork: { id: number } }>(created)
-
-    const edited = await updateRoute(
-      request('PATCH', cookie, {
-        ...work(),
-        edition: null,
-        forSale: false,
-        priceInr: null,
-        depthCm: null,
-      }),
-      params(artwork.id),
-    )
-    expect(edited.status).toBe(200)
-    const stored = await payload.findByID({
-      collection: 'artworks',
-      id: artwork.id,
-      overrideAccess: true,
-    })
-    expect(stored.edition ?? null).toBeNull()
-    expect(stored.priceInr ?? null).toBeNull()
-  })
-
-  it('archiving hides a work and its pictures at once; bringing it back shows it again', async () => {
-    const { member, cookie } = await someone('artist')
-    const image = await picture(member)
-    const { artwork } = await json<{ artwork: { id: number } }>(
-      await createRoute(request('POST', cookie, work())),
-    )
-    await staffAddsPictures(artwork.id, [image.id])
-    await decide('artworks', artwork.id, 'approve')
-
-    expect(
-      (await archiveRoute(request('POST', cookie, { archived: true }), params(artwork.id))).status,
-    ).toBe(200)
-    expect(await publicArtworksOf(payload, member.id)).toEqual([])
-    expect(await isPublicImage(image.id)).toBe(false)
-
-    await archiveRoute(request('POST', cookie, { archived: false }), params(artwork.id))
-    expect(await publicArtworksOf(payload, member.id)).toHaveLength(1)
-    expect(await isPublicImage(image.id)).toBe(true)
-
-    // A picture in use cannot be deleted from under the work
-    const del = await deletePicture(
-      new Request(`${ORIGIN}/next/members/portfolio?id=${image.id}`, {
-        method: 'DELETE',
-        headers: { cookie, origin: ORIGIN },
-      }),
-    )
-    expect(del.status).toBe(409)
-  })
-
-  it('keeps the artist’s order, and refuses another member’s works', async () => {
-    const { cookie } = await someone('artist')
-    const intruder = await someone('artist')
-    const ids: number[] = []
-    for (const title of ['First', 'Second', 'Third']) {
-      const { artwork } = await json<{ artwork: { id: number } }>(
-        await createRoute(request('POST', cookie, work(title))),
-      )
-      ids.push(artwork.id)
-    }
-    const reordered = await json<{ artworks: { title: string }[] }>(
-      await orderRoute(request('POST', cookie, { ids: [ids[2], ids[0], ids[1]] })),
-    )
-    expect(reordered.artworks.map((w) => w.title)).toEqual(['Third', 'First', 'Second'])
-    expect((await orderRoute(request('POST', cookie, { ids: [ids[0]] }))).status).toBe(409)
-
-    expect(
-      (await updateRoute(request('PATCH', intruder.cookie, work()), params(ids[0]!))).status,
-    ).toBe(404)
-    expect(
-      (await archiveRoute(request('POST', intruder.cookie, { archived: true }), params(ids[0]!)))
-        .status,
-    ).toBe(404)
+  it('there is no works collection: works are in the artist’s Google Drive folder', async () => {
+    expect(Object.keys(payload.collections)).not.toContain('artworks')
   })
 })
 
@@ -549,6 +322,17 @@ describe('the profile and contact details', () => {
       portrait: portrait.id,
     })
     expect(await isPublicImage(portrait.id)).toBe(true)
+    // Approved, and still private: the public get copies made when a profile is published
+    expect(await visitorCanRead(portrait.id)).toBe(false)
+
+    // A portrait in use cannot be deleted from under the profile
+    const del = await deletePicture(
+      new Request(`${ORIGIN}/next/members/portfolio?id=${portrait.id}`, {
+        method: 'DELETE',
+        headers: { cookie, origin: ORIGIN },
+      }),
+    )
+    expect(del.status).toBe(409)
   })
 
   it('contact details change at once, for artists and partners, not applicants', async () => {

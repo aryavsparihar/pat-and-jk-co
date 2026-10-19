@@ -587,7 +587,7 @@ export const sendStaffEmailChangeNotices = async (
   )
 }
 
-/** The member hears what staff decided about a work or their profile */
+/** The member hears what staff decided about their profile */
 export const sendReviewDecision = async (
   payload: Payload,
   {
@@ -639,7 +639,7 @@ export const notifyStaffOfWorksFolder = async (
       parts: [
         {
           kind: 'paragraph',
-          text: `${memberId} has given or changed the Google Drive folder their works are in. Each work is in a folder named after it, with the descriptions under their works in the admin.`,
+          text: `${memberId} has given or changed the Google Drive folder their works are in. Each work is in a folder named after it, with its photos, any video and its description.`,
         },
         {
           kind: 'link',

@@ -96,13 +96,23 @@ Open an application to read it. In the sidebar, under **Decision**:
 
 Every decision is recorded under **Administration → Security log**, with your name against it. Applications themselves cannot be edited here: they are the applicant's words. Use **Notes for staff** for anything the team should know; the applicant never sees it.
 
-**Members → Members** lists everyone who has applied, with their member IDs. To stop someone signing in, set **Standing** to *Suspended*; every device they were signed in on is signed out at once.
+**Members → Members** lists everyone who has applied, with their member IDs.
+
+### Suspending someone, or putting them on hold
+
+Open their record in **Members → Members**. Under **Account** in the sidebar:
+
+- **Put on hold**: they can still sign in and read their account, but cannot change anything (profile, works folder, contact details, applications, bank details), and payouts are paused: **Request payout details** and **Approve the details** are refused while the hold lasts. A notice at the top of their account tells them so and gives hello@pjk.co.in. Use it while you look into something, such as a disputed sale.
+- **Suspend**: they are signed out of every device at once and cannot sign in. Signing in tells them the account is suspended and to write to hello@pjk.co.in.
+- **Restore the account** undoes either.
+
+Each asks why. Your reason shows on their record (**Why** and **Since**) for the rest of the team, and goes in the security log with your name. The **Standing** field itself cannot be edited: these buttons are the only way to change it, so there is always a reason. Neither is emailed to them; tell them yourself if you want them to know.
 
 ### Identity and payout details
 
 Artists give their PAN and a second ID with their address (a masked e-Aadhaar with its last four digits, or, if they prefer, a passport, voter ID or driving licence) as part of their application. They do not give bank details then: those are asked for only when a sale needs a payout (below). You see all of these under **Members → KYC records**, but only if you are a super admin or have the **KYC reviewer** role (given under **Users**). Editors never see them.
 
-Everything is shown masked, like `ABCxxxxx4F`. In the record's sidebar:
+Everything is shown masked, like `ABCxxxxx4F`. The documents (PAN card, ID, identity photo, cheque or passbook) are listed in the record's sidebar under **Documents**, with what each is, its size and when it was sent; there is no separate list of them, as a document on its own holds nothing you can read. **Download** asks why, and goes in the security log. In the record's sidebar:
 
 - **Reveal full details.** You are asked why. The full values appear for one minute, then disappear. Your name and your reason go in the security log every time, so give a real reason ("Checking the account before the first payment").
 - **Download** a document, again with a reason. It downloads to your computer: delete it when you are done, and never forward it.
@@ -178,17 +188,16 @@ Once approved, an artist has a portal at /account: their profile, their works, w
 **Artists' works: Google Drive, and a description here.** Artists do not upload their works' photos or videos to the site; it would cost too much to keep them. Instead:
 
 - Each artist gives **one Google Drive folder** for all their works, under **Your works** in their account. You are emailed when they first give it or change it. It is on the artist's record in **Members → Members**, in the sidebar, as **Works folder (Google Drive)**: **Open the artist's folder**. You can correct the link there if it is wrong.
-- Inside it is **a folder for each work, named exactly as the work**, for example *River at Dusk*. In it: the photos, named *River at Dusk - 1.jpg*, *River at Dusk - 2.jpg* and so on, the whole work from the front first; and any video, *River at Dusk - video.mp4*.
-- The artist **describes each work in their account**: its name, year, medium, size, price and a description of at least 80 characters. That is what you review.
+- Inside it is **a folder for each work, named exactly as the work**, for example *River at Dusk*. In it: the photos, named *River at Dusk - 1.jpg*, *River at Dusk - 2.jpg* and so on, the whole work from the front first; any video, *River at Dusk - video.mp4*; and the description, *River at Dusk - description* (a Google Doc or a text file): year, medium and surface, size in centimetres, edition, price in rupees or not for sale, and a few lines about the work.
+- **Nothing about the works is kept on this site**: there is no list of works in the admin. Everything is read from the artist's folder.
 - If a folder cannot be opened, the artist has not shared it: ask them, by email, to set it to *Anyone with the link* as a *Viewer*. Questions about works go by email, to and from hello@pjk.co.in.
 
-**Reviewing a work.** **Members → Artworks** lists every work. Use **Filters → Review › State is "Waiting for review"** to see what needs looking at. Open a work: the sidebar says which folder its pictures are in, under **Pictures and video**. Check the description and facts against the folder. To show the work with pictures, download them from the folder and add them under **Images** (**Add new**): upload each picture and choose the artist as its owner. Pictures are cleaned as you upload them (location and camera details removed, made at most 2400 px). Each must be under about 4 MB, as larger uploads are refused; if a photo from Drive is bigger, make it smaller first (on a Mac, open it in Preview and choose *Tools → Adjust Size*). Then press **Approve and publish**, or write a note and press **Ask for changes**. The artist is emailed either way, and when they edit a work, the pictures you added stay.
-- **Profiles** are reviewed the same way, from the artist's record in **Members → Members**, under **Profile review** in the sidebar.
+**Reviewing works.** Open the artist's folder from their record, and check each work's description against its photos and video. Questions and changes go by email. When a work is ready, it is added to Phulhaar from the folder.
+- **Profiles** are reviewed from the artist's record in **Members → Members**, under **Profile review** in the sidebar.
 - When an artist changes something already public, the version you approved stays up until you approve the change.
-- An artist can **archive** a work themselves; it disappears from the public at once, with no review.
 - Contact details (phone, postal address) change straight away: they are never shown to the public.
 
-You are emailed whenever something is sent for review. Every approval and request for changes is in the security log with your name.
+You are emailed whenever a profile is sent for review, and when an artist first gives or changes their folder. Every approval and request for changes is in the security log with your name.
 
 ### The collaborate page
 
@@ -243,4 +252,4 @@ If a page's address changes, add a redirect under **Website → Redirects** from
 
 - **Someone new:** ask them to open `/admin-access` and press **Request access**. Their request appears under **Administration → Access requests**; set it to *Approved* and the account is created and emailed a link to choose a password.
 - **Someone leaving:** open their account and set **Status → Suspended**. They can no longer sign in, and nothing they made is lost.
-- **Security log:** every sign-in attempt and access request is listed under **Administration → Security log**.
+- **Security log:** every sign-in attempt and access request is listed under **Administration → Security log**, and so is every record added, changed or deleted anywhere in the admin or by members from their accounts: what kind of record, which fields changed (never what was typed in them), and who did it. A choice that changed, such as a stage or a standing, shows what it was and what it became. A member's own entries also show on their record.

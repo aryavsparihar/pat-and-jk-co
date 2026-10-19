@@ -19,11 +19,7 @@ import { decideApplication } from '@/members/decide'
 import { decisionEmail } from '@/members/emails'
 import { allowReapplyNow } from '@/members/reapply'
 import { checkFormToken, createFormToken } from '@/members/formToken'
-import {
-  cleanImage,
-  PORTFOLIO_MIN_LONG_SIDE,
-  PortfolioError,
-} from '@/members/portfolio'
+import { cleanImage, PORTFOLIO_MIN_LONG_SIDE, PortfolioError } from '@/members/portfolio'
 import { createSession } from '@/security/memberSession'
 import { MEMBER_COOKIE } from '@/security/constants'
 import type { User } from '@/payload-types'
@@ -598,7 +594,7 @@ describe('while applications are closed', () => {
   }
 
   it('refuses to start or send anything, but still lets members sign in', async () => {
-    const { cookie } = await applicant('partner')
+    const { cookie, member } = await applicant('partner')
     await setOpen(false)
     try {
       const token = createFormToken(Date.now() - 10_000)
@@ -611,7 +607,7 @@ describe('while applications are closed', () => {
       expect(((await apply.json()) as { message: string }).message).toMatch(/open soon/)
 
       const signin = await call(requestCode, '', {
-        email: unique('closed'),
+        email: member.email,
         purpose: 'signin',
         formToken: token,
       })

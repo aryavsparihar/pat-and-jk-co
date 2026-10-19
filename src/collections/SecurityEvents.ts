@@ -72,6 +72,10 @@ export const securityEventTypes = [
   'staff-account-changed',
   'member-standing-changed',
   'scheduled-task-ran',
+  // Every record added, changed or deleted, in every collection, and by whom (src/security/audit.ts)
+  'record-created',
+  'record-changed',
+  'record-deleted',
 ] as const
 
 /**
@@ -91,7 +95,7 @@ export const SecurityEvents: CollectionConfig = {
     group: 'Administration',
     defaultColumns: ['event', 'email', 'subject', 'actor', 'createdAt'],
     description:
-      'Every sign-in attempt, access request and decision, staff and members alike, what members save in their accounts, changes to staff accounts, and server errors. Read-only. A member’s own entries are also listed on their record.',
+      'Every sign-in attempt, access request and decision, staff and members alike; every record added, changed or deleted anywhere on the site, and by whom; changes to staff accounts; and server errors. Read-only. A member’s own entries are also listed on their record.',
     hidden: ({ user }) => !isSuperAdmin(user as never),
   },
   defaultSort: '-createdAt',

@@ -6,6 +6,7 @@ import { publicError } from '@/utilities/publicError'
 
 import type { MemberKind } from './ids'
 import { WITHDRAWABLE } from './stages'
+import { actingFor } from '@/security/audit'
 
 /**
  * The applicant withdraws their current application of a kind, at any point before it is decided.
@@ -29,7 +30,7 @@ export const withdrawApplication = async (
     id: application.id,
     data: { stage: 'withdrawn', withdrawnAt: new Date().toISOString() } as never,
     overrideAccess: true,
-    context: { disableRevalidate: true },
+    context: { disableRevalidate: true, ...actingFor(member, 'members') },
   })
   if (type === 'artist') {
     const { purgeKyc } = await import('@/kyc/service')

@@ -16,8 +16,6 @@ type Preview = {
   requestedAt?: string | null
   kyc?: 'purged' | 'kept' | 'none'
   holdUntil?: string | null
-  worksArchived?: number
-  worksRemoved?: number
 }
 
 const day = (iso: string) =>
@@ -59,10 +57,7 @@ export const ErasePanel: React.FC = () => {
   const consequences = member
     ? [
         'Their name, email, phone, address, profile, portrait and sessions are erased, and they can no longer sign in. Their answers on every application are emptied; the references, decisions and dates stay.',
-        preview.worksArchived
-          ? `${preview.worksArchived} approved work(s) are archived and kept as the record of what was shown. Take them off Shopify if they are there.`
-          : null,
-        preview.worksRemoved ? `${preview.worksRemoved} work(s) never approved are removed.` : null,
+        'Their works are in their own Google Drive folder, which is theirs: take any of them off Phulhaar and Shopify by hand if they are there.',
         preview.kyc === 'kept'
           ? `Their identity and payout details stay, encrypted, under the legal hold until ${day(preview.holdUntil!)}.`
           : preview.kyc === 'purged'

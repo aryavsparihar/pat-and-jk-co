@@ -32,7 +32,7 @@ How the admin panel is protected, and what to do when something goes wrong.
 | Cookies | httpOnly, SameSite=Strict, Secure in production ([every cookie](#cookies)) |
 | Suspending someone | **Administration → Users → Status: Suspended.** Blocks sign-in at once, keeps their work |
 | Audit | Every request, failure, approval and block is written to **Administration → Security log** (read-only, super admins only) |
-| Account enumeration | Asking for a code returns the same answer whether or not the address exists |
+| Account enumeration | Staff: asking for a code returns the same answer whether or not the address exists |
 
 Roles stay as before: **super admin** (everything, including users and domains) and **editor**
 (content for their brands only). Only a super admin can change a role, a status, or a brand
@@ -113,11 +113,12 @@ The endpoints live under `/next/members/`.
 | Codes | The same implementation as the staff gate (`src/security/challenges.ts`): 6 digits, 10 minutes, single use, 5 attempts, keyed hash salted per challenge, constant-time compare. Attempts are reserved atomically before comparing, so parallel guesses cannot exceed five |
 | Code requests | 5 per address and 20 per IP per hour, counted in Postgres |
 | Verification | 30 per IP per hour; an address with 10 wrong codes in an hour is **locked** for the rest of the hour, even against the right code, and the lockout is logged |
-| Enumeration | A sign-in request gets the same reply whether or not the address is registered; an application request always sends a code, so it reveals nothing either |
+| Enumeration | By choice, signing in with an address nobody has applied with says so and links to /collaborate, and a suspended account is told it is suspended: a person who mistypes, or never applied, is not left waiting for a code that never comes. The cost is that the sign-in form says whether an address is registered; it can only be asked behind the bot check and the per-address and per-IP limits, and every answer is in the security log (`member-code-requested`, "not registered"). An application request always sends a code |
 | Sessions | `pjk_member` cookie: httpOnly, SameSite=Lax, Secure in production, signed with `MEMBER_SESSION_SECRET`. A day from last use, never more than 30 days. A new session on every sign-in (the old one is ended). Signing out marks the session ended in the database, so the cookie is useless even if kept |
 | Recent sign-in | Identity details, payout details, changing the email address and data requests need a sign-in within the last 30 minutes. Otherwise the page asks for a fresh code, sent to the member's own address, and carries on where it was The database holds only a keyed hash of the session secret, and no IP address |
 | Away from the keyboard | A signed-in page nobody touches for 15 minutes asks whether to stay, then signs out ([below](#away-from-the-keyboard)) |
 | Sign out everywhere | Ends every session of the member at once. Suspending a member does the same |
+| Hold | An account on hold signs in and reads, but `requireMember` refuses every change (423) except ending sessions, step-up and data requests, and KYC payout actions are refused for it (`src/members/standing.ts`). Staff change standing only through `POST /api/members/:id/standing`, with a reason |
 | Origin | Every state-changing member endpoint refuses requests whose `Origin` is not the site's own |
 | Admin | Members can never reach `/admin`: their collection refuses admin access, the member guard refuses it again, and the staff gate stands in front of it |
 | Audit | Code requests, sends, failures, lockouts, sign-ins, sign-outs, creations, decisions and issued member IDs all go to the security log; decisions record the staff member who took them |
@@ -165,8 +166,9 @@ Offline Verification Seeking Entity, and that is a decision for the business and
 
 ## The member portal
 
-- Approved artists edit their profile and works through `/next/members/portal/*` only; the
-  `artworks` collection refuses members outright.
+- Approved artists edit their profile, contact details and works folder through
+  `/next/members/portal/*` only. Their works are only in their own Google Drive folder; the site
+  keeps no works collection.
 - Artists' pictures are private: kept in the private Blob store (never the public one), readable by
   staff and their owner only, approved or not, and served only through Payload's file route with
   `Cache-Control: private` and a sandboxing policy. Uploads are made smaller in the browser and
@@ -232,7 +234,10 @@ signed-in person by an access rule (`access-refused`, with the path); the first 
 rate limit in its window (`rate-limited`); every failed bot check (`bot-check-failed`); everything a
 member saves in their account (`portal-saved`, with the endpoint); every staff account created and
 every change to someone's roles, brands or status, with who made it (`staff-account-created`,
-`staff-account-changed`); staff suspending or reinstating a member (`member-standing-changed`);
+`staff-account-changed`); staff suspending, holding or reinstating a member, with the reason (`member-standing-changed`);
+every record added, changed or deleted in any collection, with who did it and the names of the
+fields that changed, never their values (`record-created`, `record-changed`, `record-deleted`;
+`src/security/audit.ts`);
 deletions (`member-erased`, `staff-erased`); each weekly purge run (`scheduled-task-ran`); and
 server errors (`server-error`, below). The app can add to it but never change or delete it (the
 database itself enforces that for the app's role; the one exception is erasing a deleted person's
@@ -328,7 +333,7 @@ it to the table fails the test too.
 | `GET /api/<public collection>` (pages, posts, ventures, people, media, settings, forms) | read only, published content only, `maxDepth` 4, GraphQL off |
 | `POST /api/form-submissions` (contact and enquiry forms) | Turnstile, honeypot, 5 per IP per 10 minutes, fields checked against the form and capped (`src/collections/FormSubmissions/overrides.ts`) |
 | `/api/health` | database ping only; the `?deep=1` content check is staff only |
-| `/next/members/request-code` | origin check, Turnstile, honeypot, form-start token, 5 per address and 20 per IP an hour; same reply whether or not the address exists |
+| `/next/members/request-code` | origin check, Turnstile, honeypot, form-start token, 5 per address and 20 per IP an hour; signing in says when an address is not registered, by choice (Enumeration, above); applying gets the same reply for any address |
 | `/next/members/verify-code` | origin check, 5 tries a code, 30 per IP an hour, address locked after 10 wrong codes in an hour |
 | `/next/members/session`, `/next/members/sign-out` | read or end only the caller's own session |
 | `/next/members/kyc/bank-change/cancel` | a single-use token from the email, valid once |

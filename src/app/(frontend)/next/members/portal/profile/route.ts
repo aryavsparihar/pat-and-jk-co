@@ -1,4 +1,4 @@
-import { profileView, requireArtist, saveProfile } from '@/members/artworks'
+import { profileView, requireArtist, saveProfile } from '@/members/profile'
 import { profileSchema } from '@/members/forms/portal'
 import { parseBody, portalHandler } from '@/members/portalHttp'
 

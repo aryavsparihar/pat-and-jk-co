@@ -7,7 +7,7 @@ import { clientIp } from '@/security/constants'
 import { logSecurityEvent } from '@/security/events'
 import { hitLimit } from '@/security/rateLimit'
 
-import { PortalError } from './artworks'
+import { PortalError } from './profile'
 import { fieldErrors } from './forms/schemas'
 import { fromOurOrigin, readJson, refuseCrossSite, reply, requireMember, withRefresh } from './http'
 import { requireRecentSignIn } from './recent'

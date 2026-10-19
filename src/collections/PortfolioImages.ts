@@ -56,12 +56,12 @@ export const PortfolioImages: CollectionConfig = {
     hidden: ({ user }) => !isStaff(user),
     defaultColumns: ['filename', 'owner', 'createdAt'],
     description:
-      'Pictures sent with artist applications, and approved artists’ works. Public only once staff approve the work or portrait that uses them.',
+      'Pictures sent with artist applications, and approved artists’ portraits. Public only once staff approve the profile that uses them.',
   },
   fields: [
     {
-      // Set only by the server when staff approve a work or a portrait that uses this image, and
-      // cleared when nothing approved uses it any more (src/members/artworks.ts). It no longer makes
+      // Set only by the server when staff approve a portrait that uses this image, and cleared
+      // when nothing approved uses it any more (src/members/profile.ts). It no longer makes
       // the picture readable by anyone: publishing copies public versions out instead
       name: 'public',
       type: 'checkbox',

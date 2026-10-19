@@ -18,7 +18,6 @@ import { Media } from './collections/Media'
 import { Openings } from './collections/Openings'
 import { Pages } from './collections/Pages'
 import { People } from './collections/People'
-import { Artworks } from './collections/Artworks'
 import { PortfolioImages } from './collections/PortfolioImages'
 import { RateLimits } from './collections/RateLimits'
 import { Posts } from './collections/Posts'
@@ -26,6 +25,7 @@ import { SecurityEvents } from './collections/SecurityEvents'
 import { SiteSettings } from './collections/SiteSettings'
 import { Tenants } from './collections/Tenants'
 import { Users } from './collections/Users'
+import { auditTrail } from './security/audit'
 import { Ventures } from './collections/Ventures'
 import { VisitorCounts } from './collections/VisitorCounts'
 import { loadEnv } from './env'
@@ -150,7 +150,6 @@ export default buildConfig({
     Members,
     Applications,
     PortfolioImages,
-    Artworks,
     KycRecords,
     KycDocuments,
     AccessRequests,
@@ -210,7 +209,8 @@ export default buildConfig({
     // Never the database's owner at runtime (src/security/databaseRole.ts)
     await checkDatabaseRole(payload)
   },
-  plugins,
+  // The audit trail goes last, so it reaches every collection the other plugins add
+  plugins: [...plugins, auditTrail()],
   secret: env.PAYLOAD_SECRET,
   sharp,
   typescript: {

@@ -1,5 +1,5 @@
 import { findOwnApplication } from '@/members/application'
-import { imageInUseByPortal } from '@/members/artworks'
+import { imageInUseByPortal } from '@/members/profile'
 import { fromOurOrigin, refuseCrossSite, reply, requireMember, withRefresh } from '@/members/http'
 import {
   canAddPictures,
@@ -8,6 +8,7 @@ import {
   PORTFOLIO_MAX_BYTES,
 } from '@/members/portfolio'
 import { hitLimit } from '@/security/rateLimit'
+import { actingFor } from '@/security/audit'
 
 export const dynamic = 'force-dynamic'
 
@@ -121,17 +122,14 @@ export async function DELETE(request: Request) {
   if (inUse)
     return reply({ message: 'Remove that work from your portfolio first.' }, { status: 409 })
   if (await imageInUseByPortal(payload, member.id, id)) {
-    return reply(
-      { message: 'That picture is used by one of your works or your profile.' },
-      { status: 409 },
-    )
+    return reply({ message: 'That picture is used by your profile.' }, { status: 409 })
   }
 
   const result = await payload.delete({
     collection: 'portfolio-images',
     where: { and: [{ id: { equals: id } }, { owner: { equals: member.id } }] },
     overrideAccess: true,
-    context: { disableRevalidate: true },
+    context: { disableRevalidate: true, ...actingFor(member, 'members') },
   })
   if (result.docs.length === 0)
     return reply({ message: 'That picture was not found.' }, { status: 404 })
