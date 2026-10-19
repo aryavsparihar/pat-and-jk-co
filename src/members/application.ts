@@ -14,7 +14,12 @@ import {
 } from './forms/schemas'
 import type { MemberKind } from './ids'
 import { stepValues } from './forms/values'
-import { kycProblems } from '@/kyc/service'
+import { identityFingerprint } from '@/kyc/identityCode'
+import { partnerKycSchema, type PartnerKycInput } from '@/kyc/schema'
+import { identityPhotoFacts, kycProblems, partnerKycProblems, savePartnerKyc } from '@/kyc/service'
+import { actingFor } from '@/security/audit'
+
+import { partnerAgreement } from './partnerAgreement'
 
 /**
  * Reading, saving and submitting an applicant's own application.
@@ -263,11 +268,28 @@ export const submitArtistApplication = async (
   return { ok: true, application: await submit(payload, member, application, ip) }
 }
 
-/** Saves and sends a partner application in one go: the form is a single page. */
+/** What the partner form sends: its answers, identity details unless already given, agreement */
+export type PartnerSubmission = {
+  data?: unknown
+  /** Omitted when the identity details given before are kept as they are */
+  kyc?: unknown
+  agreement?: { readToEnd?: unknown; typed?: unknown; version?: unknown }
+}
+
+export const AGREEMENT_NOT_READY =
+  'The Partner/Trade Program agreement is not ready yet, so applications cannot be sent for now. Please come back in a little while.'
+
+/**
+ * Saves and sends a partner application in one go: the form is a single page. Everything is
+ * checked first, and every problem is listed at once: the answers, the identity details (PAN, the
+ * PAN card and the photo with its code and name, unless kept from before), and agreement to the
+ * Partner/Trade Program, read to its end, I AGREE typed, and the version still the one published.
+ * Only then are the identity details encrypted and kept, and the application sent.
+ */
 export const submitPartnerApplication = async (
   payload: Payload,
   member: Member,
-  data: unknown,
+  submission: PartnerSubmission | null,
   ip: string,
 ): Promise<SaveResult> => {
   const application = await findOwnApplication(payload, member, 'partner', 0)
@@ -276,23 +298,89 @@ export const submitPartnerApplication = async (
   if (!EDITABLE.includes(application.stage)) {
     return { ok: false, status: 409, message: 'This application has already been sent.' }
   }
-  const parsed = partnerSchema.safeParse(data)
-  if (!parsed.success) {
-    return {
-      ok: false,
-      status: 422,
-      message: 'A few things need another look.',
-      errors: fieldErrors(parsed.error),
+  // Nothing can be sent until the agreement is published (Site settings → Applications)
+  const agreement = await partnerAgreement(payload)
+  if (!agreement) return { ok: false, status: 409, message: AGREEMENT_NOT_READY }
+
+  const errors: Record<string, string> = {}
+  const parsed = partnerSchema.safeParse(submission?.data)
+  if (!parsed.success) Object.assign(errors, fieldErrors(parsed.error))
+
+  // Identity: given now, or kept from before and still complete
+  let kyc: PartnerKycInput | null = null
+  let photo: Awaited<ReturnType<typeof identityPhotoFacts>> = null
+  if (submission?.kyc !== undefined) {
+    const given = partnerKycSchema.safeParse(submission.kyc)
+    if (!given.success) Object.assign(errors, fieldErrors(given.error))
+    else if (given.data.noticeVersion !== PRIVACY_NOTICE_VERSION)
+      errors.consent = 'The privacy notice has changed since you read it. Please read it again.'
+    else {
+      kyc = given.data
+      // The photo must show the name given now: the paper in it has the code and that name
+      photo = await identityPhotoFacts(payload, {
+        memberId: member.id,
+        documentId: kyc.documents['identity-photo']!,
+      })
+      if (!photo || photo.fingerprint !== identityFingerprint(kyc.panName, null))
+        errors['documents.identity-photo'] =
+          'Your name has changed since this photo was taken. Please get a new code and take it again.'
     }
+  } else {
+    const missing = await partnerKycProblems(payload, member.id)
+    if (missing.length) errors.kyc = missing[0]!
   }
+
+  const said = submission?.agreement
+  if (said?.version !== agreement.version)
+    errors.agreement = 'The agreement has changed since you read it. Please read it again.'
+  else if (said?.readToEnd !== true)
+    errors.agreement = 'Please read the agreement to the end, then confirm.'
+  else if (!agreedInWords(said?.typed))
+    errors.agreement = `Please type ${TERMS_PHRASE} to agree to the Partner/Trade Program.`
+
+  if (Object.keys(errors).length > 0 || !parsed.success) {
+    return { ok: false, status: 422, message: 'A few things need another look.', errors }
+  }
+
+  if (kyc) {
+    await savePartnerKyc(payload, {
+      member,
+      input: kyc,
+      reference: application.reference,
+      identityCode: photo,
+      consent: {
+        noticeVersion: PRIVACY_NOTICE_VERSION,
+        confirmation: 'Read the privacy notice to the end, confirmed, and typed I AGREE',
+      },
+    })
+  }
+
   const { category, ...partner } = parsed.data
-  const saved = await payload.update({
+  await payload.update({
     collection: 'applications',
     id: application.id,
     data: { partner, partnerCategory: category },
     depth: 0,
     ...asMember(member),
     context: { disableRevalidate: true },
+  })
+  // The partner may not write these themselves: the server records what was agreed, and how
+  const saved = await payload.update({
+    collection: 'applications',
+    id: application.id,
+    data: {
+      partnerDeclarations: {
+        consentProcessing: true,
+        privacyNoticeVersion: PRIVACY_NOTICE_VERSION,
+        agreementVersion: agreement.version,
+        agreedAt: new Date().toISOString(),
+        agreementConfirmation: 'Read the agreement to the end, confirmed, and typed I AGREE',
+        agreementDigest: agreement.digest,
+      },
+    },
+    depth: 0,
+    overrideAccess: true,
+    context: { disableRevalidate: true, ...actingFor(member, 'members') },
   })
   return { ok: true, application: await submit(payload, member, saved, ip) }
 }
