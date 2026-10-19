@@ -333,7 +333,7 @@ it to the table fails the test too.
 | `GET /api/<public collection>` (pages, posts, ventures, people, media, settings, forms) | read only, published content only, `maxDepth` 4, GraphQL off |
 | `POST /api/form-submissions` (contact and enquiry forms) | Turnstile, honeypot, 5 per IP per 10 minutes, fields checked against the form and capped (`src/collections/FormSubmissions/overrides.ts`) |
 | `/api/health` | database ping only; the `?deep=1` content check is staff only |
-| `/next/members/request-code` | origin check, Turnstile, honeypot, form-start token, 5 per address and 20 per IP an hour; same reply whether or not the address exists |
+| `/next/members/request-code` | origin check, Turnstile, honeypot, form-start token, 5 per address and 20 per IP an hour; signing in says when an address is not registered, by choice (Enumeration, above); applying gets the same reply for any address |
 | `/next/members/verify-code` | origin check, 5 tries a code, 30 per IP an hour, address locked after 10 wrong codes in an hour |
 | `/next/members/session`, `/next/members/sign-out` | read or end only the caller's own session |
 | `/next/members/kyc/bank-change/cancel` | a single-use token from the email, valid once |
