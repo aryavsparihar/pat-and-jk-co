@@ -3,6 +3,7 @@ import { getPayload } from 'payload'
 
 import { memberIdsOf } from '@/collections/Members'
 import { findMember } from '@/members/accounts'
+import { canSignIn } from '@/members/standing'
 import { checkFormToken } from '@/members/formToken'
 import { applicationsOpenness, closedReply } from '@/members/openness'
 import { sendMemberCode } from '@/members/emails'
@@ -29,15 +30,21 @@ export const dynamic = 'force-dynamic'
 
 const PURPOSES = ['signin', 'apply-artist', 'apply-partner'] satisfies (Purpose & TurnstileAction)[]
 
-/** The same words whatever happened, so the answer never says whether an address is registered */
-const SIGN_IN_REPLY = 'If that address is registered, a code is on its way.'
+const SIGN_IN_REPLY = 'A code is on its way to that address.'
 const APPLY_REPLY = 'A code is on its way to that address.'
+/** Signing in with an address nobody has applied with: the form links to /collaborate */
+const NOT_REGISTERED = 'That email address is not registered with us.'
+const SUSPENDED =
+  'This account is suspended, so it cannot sign in. Please write to hello@pjk.co.in.'
 
 /**
  * Step one for a member: email a one-time code.
  *
- *   purpose "signin"         only an existing, unsuspended member is actually sent a code; anyone
- *                            else gets the identical reply and a challenge that can never succeed
+ *   purpose "signin"         only an existing, unsuspended member is sent a code; an address
+ *                            nobody has applied with is told it is not registered, and pointed to
+ *                            /collaborate to apply. This says which addresses are registered, by
+ *                            choice: it is behind the bot check and the per-address and per-IP
+ *                            limits above it, so it cannot be asked at any speed
  *   purpose "apply-…"        anyone may be sent a code (that is how an application begins), so
  *                            the reply is the same for a new address and a known one
  *
@@ -123,8 +130,22 @@ export async function POST(request: Request) {
   }
 
   const member = await findMember(payload, email)
-  const suspended = Boolean(member && member.standing !== 'active')
+  const suspended = Boolean(member && !canSignIn(member.standing))
   const deliverable = !suspended && (purpose !== 'signin' || Boolean(member))
+
+  if (purpose === 'signin' && !deliverable) {
+    await logSecurityEvent(payload, {
+      event: 'member-code-requested',
+      email,
+      ip,
+      subject: member ? memberIdsOf(member) : undefined,
+      detail: `signin: ${member ? `refused, ${member.standing}` : 'not registered'}`,
+    })
+    // A deleted record no longer holds anyone's address, so it reads as not registered
+    return member && member.standing === 'suspended'
+      ? reply({ message: SUSPENDED }, { status: 403 })
+      : reply({ message: NOT_REGISTERED, notRegistered: true }, { status: 404 })
+  }
 
   const challenge = await issueChallenge(payload, {
     email,

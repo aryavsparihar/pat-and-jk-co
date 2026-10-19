@@ -296,28 +296,47 @@ describe('asking for a code', () => {
     ).toBe(403)
   })
 
-  it('answers identically whether or not the address belongs to a member', async () => {
+  it('sends a member a code to sign in', async () => {
     const { email: known } = await applyAndSignIn('apply-artist')
-    const a = await post(requestCode, { email: known, purpose: 'signin' })
-    const b = await post(requestCode, { email: unique('stranger'), purpose: 'signin' })
-    expect(a.status).toBe(b.status)
-    const [bodyA, bodyB] = (await Promise.all([a.json(), b.json()])) as {
-      message: string
-      challengeId: number
-    }[]
-    expect(bodyA.message).toBe(bodyB.message)
-    expect(Object.keys(bodyA).sort()).toEqual(Object.keys(bodyB).sort())
-    expect(bodyA.message).toBe('If that address is registered, a code is on its way.')
+    const response = await post(requestCode, { email: known, purpose: 'signin' })
+    expect(response.status).toBe(200)
+    const body = (await response.json()) as { message: string; challengeId: number }
+    expect(body.message).toBe('A code is on its way to that address.')
+    expect(body.challengeId).toEqual(expect.any(Number))
   })
 
-  it('never lets a code for a stranger sign anyone in', async () => {
+  it('tells an address nobody has applied with that it is not registered, and sends nothing', async () => {
     const email = unique('stranger')
-    const ip = nextIp()
-    const { challengeId } = (await (
-      await post(requestCode, { email, purpose: 'signin' }, { ip })
-    ).json()) as { challengeId: number }
-    await setCode(challengeId, '135791')
-    expect((await post(verifyCode, { challengeId, code: '135791' }, { ip })).status).toBe(401)
+    const response = await post(requestCode, { email, purpose: 'signin' })
+    expect(response.status).toBe(404)
+    expect(await response.json()).toEqual({
+      message: 'That email address is not registered with us.',
+      notRegistered: true,
+    })
+    const challenges = await payload.count({
+      collection: 'login-challenges',
+      where: { email: { equals: email } },
+      overrideAccess: true,
+    })
+    expect(challenges.totalDocs).toBe(0)
+    // Recorded, so asking about many addresses shows in the log
+    const logged = await payload.find({
+      collection: 'security-events',
+      where: {
+        and: [{ event: { equals: 'member-code-requested' } }, { email: { equals: email } }],
+      },
+      overrideAccess: true,
+    })
+    expect(logged.docs[0]?.detail).toBe('signin: not registered')
+  })
+
+  it('still limits how often anyone may ask, registered or not', async () => {
+    const email = unique('prober')
+    const statuses: number[] = []
+    for (let i = 0; i < 6; i++)
+      statuses.push((await post(requestCode, { email, purpose: 'signin' })).status)
+    expect(statuses.slice(0, 5).every((s) => s === 404)).toBe(true)
+    expect(statuses[5]).toBe(429)
   })
 
   it('is limited per address', async () => {
@@ -428,6 +447,10 @@ describe('signing in', () => {
 
   it('refuses a suspended member, and suspending ends their sessions', async () => {
     const { email, member, cookie } = await applyAndSignIn('apply-artist')
+    // A code asked for just before the suspension
+    const { challengeId } = (await (
+      await post(requestCode, { email, purpose: 'signin' })
+    ).json()) as { challengeId: number }
     await payload.update({
       collection: 'members',
       id: member.id,
@@ -436,11 +459,34 @@ describe('signing in', () => {
     })
     expect(await readSession(payload, decodeURIComponent(cookie.split('=')[1]!))).toBeNull()
 
-    const { challengeId } = (await (
-      await post(requestCode, { email, purpose: 'signin' })
-    ).json()) as { challengeId: number }
     await setCode(challengeId, '445566')
     expect((await post(verifyCode, { challengeId, code: '445566' })).status).toBe(401)
+    // And asking again says why, and sends nothing
+    const again = await post(requestCode, { email, purpose: 'signin' })
+    expect(again.status).toBe(403)
+    expect(((await again.json()) as { message: string }).message).toMatch(/suspended/)
+  })
+
+  it('lets a member on hold sign in and read, but change nothing', async () => {
+    const { email, member } = await applyAndSignIn('apply-artist')
+    await payload.update({
+      collection: 'members',
+      id: member.id,
+      data: { standing: 'on-hold' },
+      overrideAccess: true,
+    })
+    const asked = await post(requestCode, { email, purpose: 'signin' })
+    expect(asked.status).toBe(200)
+    const { challengeId } = (await asked.json()) as { challengeId: number }
+    await setCode(challengeId, '556677')
+    const verified = await post(verifyCode, { challengeId, code: '556677' })
+    expect(verified.status).toBe(200)
+    const cookie = cookieFrom(verified)
+    expect(await readSession(payload, decodeURIComponent(cookie.split('=')[1]!))).not.toBeNull()
+    const info = await sessionInfo(
+      new Request(`${ORIGIN}/next/members/session`, { headers: { cookie } }),
+    )
+    expect(((await info.json()) as { signedIn: boolean }).signedIn).toBe(true)
   })
 })
 

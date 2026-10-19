@@ -32,10 +32,25 @@ const cleanup = async () => {
   await execute(payload, sql`DELETE FROM login_challenges WHERE email LIKE ${like}`)
   await execute(payload, sql`DELETE FROM security_events WHERE email LIKE ${like}`)
   await execute(payload, sql`DELETE FROM rate_limits WHERE key LIKE ${`member-%${DOMAIN}`}`)
+  await execute(payload, sql`DELETE FROM members WHERE email LIKE ${like}`)
+}
+
+/** A member, so signing in with their address reaches the sending of a code */
+const registered = async (email: string) => {
+  await payload.create({
+    collection: 'members',
+    data: { email, standing: 'active' } as never,
+    overrideAccess: true,
+    context: { disableRevalidate: true },
+  })
+  return email
 }
 
 beforeAll(async () => {
   payload = await getPayload({ config: await config })
+  await cleanup()
+  await registered(`somebody${DOMAIN}`)
+  await registered(`first${DOMAIN}`)
 })
 
 afterEach(() => {
