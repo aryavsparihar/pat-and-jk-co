@@ -1,5 +1,5 @@
 import { findOwnApplication } from '@/members/application'
-import { imageInUseByPortal } from '@/members/artworks'
+import { imageInUseByPortal } from '@/members/profile'
 import { fromOurOrigin, refuseCrossSite, reply, requireMember, withRefresh } from '@/members/http'
 import {
   canAddPictures,
@@ -122,10 +122,7 @@ export async function DELETE(request: Request) {
   if (inUse)
     return reply({ message: 'Remove that work from your portfolio first.' }, { status: 409 })
   if (await imageInUseByPortal(payload, member.id, id)) {
-    return reply(
-      { message: 'That picture is used by one of your works or your profile.' },
-      { status: 409 },
-    )
+    return reply({ message: 'That picture is used by your profile.' }, { status: 409 })
   }
 
   const result = await payload.delete({

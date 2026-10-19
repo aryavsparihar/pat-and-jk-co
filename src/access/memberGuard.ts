@@ -17,7 +17,7 @@ import { isStaff } from './roles'
  * sees published pages like anyone else); everything a visitor cannot do, a member cannot do.
  * Admin-panel access is refused outright.
  *
- * Collections built for members (their own record, application, artworks) are listed in
+ * Collections built for members (their own record, application, pictures) are listed in
  * MEMBER_COLLECTIONS and keep their own rules, which must decide for themselves what a member
  * may touch.
  */

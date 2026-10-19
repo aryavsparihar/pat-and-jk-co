@@ -16,7 +16,7 @@ export const DriveGuide: React.FC<{ example?: string }> = ({ example = 'River at
         <strong>Viewer</strong>.
       </li>
       <li>
-        Inside it, make a folder for each work, named exactly as you name the work here, for example{' '}
+        Inside it, make a folder for each work, named exactly as the work, for example{' '}
         <strong>{example}</strong>.
       </li>
       <li>
@@ -27,7 +27,12 @@ export const DriveGuide: React.FC<{ example?: string }> = ({ example = 'River at
       <li>
         A video, if you have one, goes in the same folder: <strong>{example} - video.mp4</strong>.
       </li>
-      <li>Describe each work below, under the same name.</li>
+      <li>
+        Describe the work in the same folder, in a Google Doc or a text file named{' '}
+        <strong>{example} - description</strong>: the year, the medium and surface, its size in
+        centimetres, the edition if there is one, the price in rupees or that it is not for sale,
+        and a few lines about the work in your own words.
+      </li>
     </ol>
     <p className="mt-4">
       Questions about your works? Write to us at{' '}

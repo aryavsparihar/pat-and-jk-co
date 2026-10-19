@@ -28,7 +28,6 @@ const optionalNumber = (min: number, max: number, message: string) =>
  * Characters a file or folder name cannot hold on Windows, macOS or Google Drive's download: the
  * work's name is also its folder and file names in the artist's Drive folder
  */
-const NOT_IN_FILE_NAMES = /[\\/:*?"<>|]/
 
 /** "https://drive.google.com/drive/folders/<id>", from any of the ways Drive writes a folder link */
 export const DRIVE_FOLDER =
@@ -48,54 +47,6 @@ export const driveFolderSchema = z.object({
       v ? `https://drive.google.com/drive/folders/${DRIVE_FOLDER.exec(v)![1]}` : null,
     ),
 })
-
-export const ARTWORK_AVAILABILITY_VALUES = [
-  'available',
-  'reserved',
-  'sold',
-  'not-available',
-] as const
-
-export const artworkSchema = z
-  .object({
-    // Also the name of its folder and files in the artist's Google Drive folder
-    title: z
-      .string({ error: 'Please give the work its name.' })
-      .trim()
-      .min(1, 'Please give the work its name.')
-      .max(120, 'Please keep the name under 120 characters.')
-      .refine(
-        (v) => !NOT_IN_FILE_NAMES.test(v),
-        'Please leave out \\ / : * ? " < > |, which a file name cannot hold.',
-      ),
-    year: optionalNumber(1900, new Date().getFullYear() + 1, 'Please give a year such as 2024.'),
-    medium: optionalText(120),
-    surface: optionalText(120),
-    widthCm: optionalNumber(0.1, 10000, 'Please give the width in centimetres.'),
-    heightCm: optionalNumber(0.1, 10000, 'Please give the height in centimetres.'),
-    depthCm: optionalNumber(0, 10000, 'Please give the depth in centimetres.'),
-    edition: optionalText(60),
-    forSale: z.boolean().default(true),
-    priceInr: optionalNumber(1, 1e9, 'Please give the price in rupees, as a number.'),
-    availability: z.enum(ARTWORK_AVAILABILITY_VALUES).default('available'),
-    description: z
-      .string({ error: 'Please describe the work, in at least 80 characters.' })
-      .trim()
-      .min(80, 'Please describe the work, in at least 80 characters.')
-      .max(3000, 'Please keep the description under 3,000 characters.'),
-  })
-  .superRefine((value, ctx) => {
-    if (value.forSale && value.priceInr == null) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['priceInr'],
-        message: 'Please give a price, or mark the work as not for sale.',
-      })
-    }
-  })
-  .transform((value) => ({ ...value, priceInr: value.forSale ? value.priceInr : null }))
-
-export type ArtworkInput = z.infer<typeof artworkSchema>
 
 const MEDIUM_VALUES = MEDIUMS.map((m) => m.value) as [string, ...string[]]
 

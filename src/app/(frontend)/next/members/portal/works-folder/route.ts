@@ -1,4 +1,4 @@
-import { saveWorksFolder } from '@/members/artworks'
+import { saveWorksFolder } from '@/members/profile'
 import { driveFolderSchema } from '@/members/forms/portal'
 import { parseBody, portalHandler } from '@/members/portalHttp'
 

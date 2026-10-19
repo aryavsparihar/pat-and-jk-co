@@ -88,7 +88,7 @@ const foundAnywhere = async (needle: string) => {
   return hits
 }
 
-/** A full artist: answers, approval, profile, contact details, KYC, works, pictures and a session */
+/** A full artist: answers, approval, profile, contact details, KYC, pictures and a session */
 const fullArtist = async ({ hold = false } = {}) => {
   const t = tag()
   const person = {
@@ -123,29 +123,6 @@ const fullArtist = async ({ hold = false } = {}) => {
       phone: person.phone,
       contactAddress: { line1: person.street },
       profile: { displayName: person.name, bio: `About ${person.name}`, portrait: portrait.id },
-    } as never,
-    overrideAccess: true,
-    context: { disableRevalidate: true },
-  })
-  const kept = await owner.create({
-    collection: 'artworks',
-    data: {
-      owner: member.id,
-      title: `River ${t}`,
-      description: 'A river at dusk, painted over three evenings, in oil on canvas.',
-      images: [shown.id],
-      review: { state: 'approved' },
-      published: { title: `River ${t}`, images: [shown.id] },
-    } as never,
-    overrideAccess: true,
-    context: { disableRevalidate: true },
-  })
-  const draft = await owner.create({
-    collection: 'artworks',
-    data: {
-      owner: member.id,
-      title: `Draft ${t}`,
-      description: 'An unfinished study, never sent for review, in pencil on paper.',
     } as never,
     overrideAccess: true,
     context: { disableRevalidate: true },
@@ -186,7 +163,7 @@ const fullArtist = async ({ hold = false } = {}) => {
     },
     overrideAccess: true,
   })
-  return { person, member: fresh, application, kept, draft, portrait, shown, record, session }
+  return { person, member: fresh, application, portrait, shown, record, session }
 }
 
 const cleanup = async () => {
@@ -194,7 +171,6 @@ const cleanup = async () => {
   const members = sql`SELECT id FROM members WHERE email LIKE ${like} OR (standing = 'erased' AND erasure_reason LIKE 'Deletion test%')`
   await execute(owner, sql`DELETE FROM kyc_documents WHERE member_id IN (${members})`)
   await execute(owner, sql`DELETE FROM kyc_records WHERE member_id IN (${members})`)
-  await execute(owner, sql`DELETE FROM artworks WHERE owner_id IN (${members})`)
   await execute(owner, sql`DELETE FROM portfolio_images WHERE owner_id IN (${members})`)
   await execute(owner, sql`DELETE FROM member_sessions WHERE member_id IN (${members})`)
   await execute(owner, sql`DELETE FROM applications WHERE member_id IN (${members})`)
@@ -278,9 +254,7 @@ describe.skipIf(!appRoleUrl())('deleting people, as the live site’s database r
       placeholder: `Deleted artist (${a.member.artistId})`,
       source: 'admin',
       kyc: 'purged',
-      worksArchived: 1,
-      worksRemoved: 1,
-      picturesDeleted: 1,
+      picturesDeleted: 2,
     })
 
     const member = (await owner.findByID({
@@ -315,30 +289,12 @@ describe.skipIf(!appRoleUrl())('deleting people, as the live site’s database r
     expect(application.member).toBe(a.member.id)
     expect(application.about?.legalName ?? null).toBeNull()
 
-    // The approved work stays, archived, with its picture; the draft and the portrait are gone
-    const kept = await owner.findByID({
-      collection: 'artworks',
-      id: a.kept.id,
-      overrideAccess: true,
-      depth: 0,
-    })
-    expect(kept.archived).toBe(true)
-    expect(kept.owner).toBe(a.member.id)
-    await expect(
-      owner.findByID({ collection: 'artworks', id: a.draft.id, overrideAccess: true }),
-    ).rejects.toBeTruthy()
-    await expect(
-      owner.findByID({ collection: 'portfolio-images', id: a.portrait.id, overrideAccess: true }),
-    ).rejects.toBeTruthy()
-    expect(
-      (
-        await owner.findByID({
-          collection: 'portfolio-images',
-          id: a.shown.id,
-          overrideAccess: true,
-        })
-      ).id,
-    ).toBe(a.shown.id)
+    // Every picture of theirs is gone, portrait and all
+    for (const id of [a.portrait.id, a.shown.id]) {
+      await expect(
+        owner.findByID({ collection: 'portfolio-images', id, overrideAccess: true }),
+      ).rejects.toBeTruthy()
+    }
 
     // KYC purged, documents included
     expect(
@@ -368,10 +324,12 @@ describe.skipIf(!appRoleUrl())('deleting people, as the live site’s database r
 
   it('keeps every security-log entry, under the placeholder, and records who deleted them and why', async () => {
     const a = await fullArtist()
-    const before = await owner.count({
+    const before = await owner.find({
       collection: 'security-events',
       where: { email: { equals: a.person.email } },
       overrideAccess: true,
+      limit: 100,
+      depth: 0,
     })
     expect(before.totalDocs).toBeGreaterThan(0)
     const { placeholder } = await eraseMember(app, {
@@ -386,7 +344,19 @@ describe.skipIf(!appRoleUrl())('deleting people, as the live site’s database r
       overrideAccess: true,
       limit: 50,
     })
-    expect(renamed.totalDocs).toBe(before.totalDocs)
+    // Every earlier entry, renamed; and the only new ones are the deletion of their KYC record
+    // and documents, logged as they happen (src/security/audit.ts) and renamed with the rest
+    const earlier = new Set(before.docs.map((d) => d.id))
+    expect(renamed.docs.filter((d) => earlier.has(d.id))).toHaveLength(before.totalDocs)
+    expect(
+      renamed.docs.filter((d) => !earlier.has(d.id)).map((d) => [d.event, d.detail?.split(' ')[1]]),
+    ).toEqual(
+      expect.arrayContaining([
+        ['record-deleted', 'record'],
+        ['record-deleted', 'document'],
+      ]),
+    )
+    expect(renamed.totalDocs).toBe(before.totalDocs + 2)
     for (const entry of renamed.docs) expect(entry.ip ?? null).toBeNull()
     const erased = await owner.find({
       collection: 'security-events',

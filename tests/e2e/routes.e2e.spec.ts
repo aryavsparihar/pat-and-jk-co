@@ -51,8 +51,6 @@ const ROUTES: Record<string, 'public' | 'member' | 'staff' | 'secret' | 'token'>
   '/account/settings': 'member',
   '/account/profile': 'member',
   '/account/works': 'member',
-  '/account/works/new': 'member',
-  '/account/works/[id]': 'member',
   '/account/payouts': 'member',
   // Reached from the "This was not me" link in an email; the token in the link is the key
   '/account/bank-change/cancel': 'token',
@@ -89,10 +87,6 @@ const ROUTES: Record<string, 'public' | 'member' | 'staff' | 'secret' | 'token'>
   '/next/members/kyc/identity-code': 'member',
   '/next/members/kyc/ifsc': 'member',
   '/next/members/pincode': 'member',
-  '/next/members/portal/artworks': 'member',
-  '/next/members/portal/artworks/[id]': 'member',
-  '/next/members/portal/artworks/[id]/archive': 'member',
-  '/next/members/portal/artworks/order': 'member',
   '/next/members/portal/contact': 'member',
   '/next/members/portal/email': 'member',
   '/next/members/portal/email/confirm': 'member',
@@ -129,7 +123,6 @@ const COLLECTIONS: Record<string, 'public' | 'own' | 'staff' | 'self' | 'admin' 
     applications: 'own',
     // Private: staff, and a member their own, approved or not (src/storage/privateMedia.ts)
     'portfolio-images': 'own',
-    artworks: 'staff',
     'kyc-records': 'kyc',
     'kyc-documents': 'kyc',
     'access-requests': 'admin',
@@ -151,7 +144,7 @@ const COLLECTIONS: Record<string, 'public' | 'own' | 'staff' | 'self' | 'admin' 
 const ACTIONS: { path: string; who: 'staff' | 'kyc' }[] = [
   { path: '/api/applications/999999999/decide', who: 'staff' },
   { path: '/api/applications/999999999/allow-reapply', who: 'staff' },
-  { path: '/api/artworks/999999999/review', who: 'staff' },
+  { path: '/api/members/999999999/standing', who: 'staff' },
   { path: '/api/members/999999999/profile-review', who: 'staff' },
   { path: '/api/members/999999999/change-email', who: 'kyc' },
   { path: '/api/kyc-records/999999999/reveal', who: 'kyc' },
@@ -181,7 +174,6 @@ const routeFiles = (dir = appDir): string[] =>
 
 let api: APIRequestContext
 const cookies: Record<Who, string> = {} as never
-let otherWork: { id: number; title: string }
 let otherApplication: { id: number; reference: string }
 let ownMemberId: number
 
@@ -212,13 +204,6 @@ test.beforeAll(async () => {
   const other = await ensureApplication(p, { email: uniqueEmail('routes-other'), type: 'artist' })
   await approveAs(other.member.id)
   otherApplication = { id: other.application.id, reference: other.application.reference }
-  const work = await p.create({
-    collection: 'artworks',
-    data: { owner: other.member.id, title: 'Not yours, Routes test' } as never,
-    overrideAccess: true,
-    context: { disableRevalidate: true },
-  })
-  otherWork = { id: work.id, title: 'Not yours, Routes test' }
 
   cookies.anonymous = ''
   cookies.member = await memberCookie(own.member.id)
@@ -275,7 +260,6 @@ test('account pages are for the signed-in member only, typed straight in or not'
     '/account/settings',
     '/account/profile',
     '/account/works',
-    '/account/works/new',
     '/account/payouts',
   ]) {
     for (const who of ['anonymous', 'expired', 'editor', 'admin'] as const) {
@@ -285,10 +269,9 @@ test('account pages are for the signed-in member only, typed straight in or not'
     }
     expect((await call('GET', url, 'member')).status(), `${url} as member`).toBe(200)
   }
-  // Another member's work, by its address: not found, and its title nowhere in the page
-  const theirs = await call('GET', `/account/works/${otherWork.id}`, 'member')
-  expect(theirs.status()).toBe(404)
-  expect(await theirs.text()).not.toContain(otherWork.title)
+  // Works are only in the artist's Google Drive folder: the old pages for them are gone
+  for (const url of ['/account/works/new', '/account/works/1'])
+    expect((await call('GET', url, 'member')).status(), url).toBe(404)
 })
 
 test('the admin is behind the gate for everyone but staff, record pages included', async () => {
@@ -421,10 +404,6 @@ test('nobody without the right role can create, change or delete through the API
   for (const [method, url] of [
     ['PATCH', `/api/applications/${otherApplication.id}`],
     ['DELETE', `/api/applications/${otherApplication.id}`],
-    ['PATCH', `/api/artworks/${otherWork.id}`],
-    ['DELETE', `/api/artworks/${otherWork.id}`],
-    ['PATCH', `/next/members/portal/artworks/${otherWork.id}`],
-    ['POST', `/next/members/portal/artworks/${otherWork.id}/archive`],
   ] as const) {
     // A body that passes every check but ownership, so the ownership check is what refuses it
     const response = await call(method, url, 'member', {
@@ -444,14 +423,6 @@ test('nobody without the right role can create, change or delete through the API
     overrideAccess: true,
   })
   expect(after.updatedAt).toBe((await before).updatedAt)
-  const work = await (
-    await payload()
-  ).findByID({
-    collection: 'artworks',
-    id: otherWork.id,
-    overrideAccess: true,
-  })
-  expect(work.title).toBe(otherWork.title)
 })
 
 test('staff actions refuse members, visitors and, for identity details, editors', async () => {

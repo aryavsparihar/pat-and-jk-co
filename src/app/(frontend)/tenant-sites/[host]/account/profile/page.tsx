@@ -4,7 +4,7 @@ import React from 'react'
 import { ContactForm, ProfileForm } from '@/components/portal/ProfileForm'
 import { PortalFrame } from '@/components/portal/PortalFrame'
 import { loadArtist } from '@/members/accountPage'
-import { profileView } from '@/members/artworks'
+import { profileView } from '@/members/profile'
 import { MEDIUMS } from '@/members/forms/schemas'
 
 export const dynamic = 'force-dynamic'

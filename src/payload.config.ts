@@ -18,7 +18,6 @@ import { Media } from './collections/Media'
 import { Openings } from './collections/Openings'
 import { Pages } from './collections/Pages'
 import { People } from './collections/People'
-import { Artworks } from './collections/Artworks'
 import { PortfolioImages } from './collections/PortfolioImages'
 import { RateLimits } from './collections/RateLimits'
 import { Posts } from './collections/Posts'
@@ -151,7 +150,6 @@ export default buildConfig({
     Members,
     Applications,
     PortfolioImages,
-    Artworks,
     KycRecords,
     KycDocuments,
     AccessRequests,

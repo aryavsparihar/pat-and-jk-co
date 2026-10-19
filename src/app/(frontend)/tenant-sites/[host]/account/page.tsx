@@ -16,7 +16,7 @@ import { STAGE_WORDS, WITHDRAWABLE } from '@/members/stages'
 import type { Application } from '@/payload-types'
 import { ContactForm } from '@/components/portal/ProfileForm'
 import { PortalFrame } from '@/components/portal/PortalFrame'
-import { listOwnArtworks, profileView } from '@/members/artworks'
+import { profileView } from '@/members/profile'
 import { OnboardingPage } from '@/components/onboarding/OnboardingPage'
 import { MEMBER_COOKIE } from '@/security/constants'
 import { readSession } from '@/security/memberSession'
@@ -175,10 +175,6 @@ export default async function AccountPage() {
   )
 
   if (member.artistId) {
-    const works = await listOwnArtworks(payload, member)
-    const waiting = works.filter((w) => w.review.state === 'pending').length
-    const changes = works.filter((w) => w.review.state === 'changes-requested').length
-    const shown = works.filter((w) => w.isPublic).length
     const profile = profileView(member)
     return (
       <PortalFrame
@@ -216,11 +212,12 @@ export default async function AccountPage() {
               </a>
             </li>
             <li>
-              Your works: {works.length === 0 ? 'none yet' : `${shown} public`}
-              {waiting ? `, ${waiting} waiting for review` : ''}
-              {changes ? `, ${changes} with changes asked for` : ''}.{' '}
-              <a className="link" href={works.length ? '/account/works' : '/account/works/new'}>
-                {works.length ? 'See them' : 'Add your first'}
+              Your works:{' '}
+              {member.worksFolder
+                ? 'in your Google Drive folder.'
+                : 'give us the Google Drive folder they are in.'}{' '}
+              <a className="link" href="/account/works">
+                {member.worksFolder ? 'See how to set it out' : 'Add your folder'}
               </a>
             </li>
           </ul>

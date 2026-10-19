@@ -10,8 +10,7 @@ import {
 
 import { isSuperAdmin } from '@/access/roles'
 import { memberIdsOf } from '@/collections/Members'
-import type { PublishedArtwork } from '@/members/artworks'
-import type { Artwork, Member, User } from '@/payload-types'
+import type { Member, User } from '@/payload-types'
 import { normaliseEmail } from '@/security/constants'
 import { logSecurityEvent } from '@/security/events'
 import { execute, executeIn } from '@/utilities/sql'
@@ -30,9 +29,8 @@ import { blankOf } from './blank'
  *     (AT000012)" wherever it is linked
  *   - their applications keep their reference, kind, stage, dates and decisions; every answer
  *     they gave is emptied
- *   - works staff approved are archived and kept, with their pictures and approved snapshot, as
- *     the record of what was shown; works never approved are removed, and every other picture
- *     of theirs (portrait, application portfolio) is deleted with its file
+ *   - every picture of theirs (portrait, application portfolio) is deleted with its file; their
+ *     works were only ever in their own Google Drive folder, which is theirs to keep or delete
  *   - identity and payout details (KYC) are purged, files included, with the existing purge,
  *     unless a legal hold is set, when they stay encrypted until it ends and the reason is kept
  *   - sessions, sign-in codes and contact-form messages from their addresses are deleted
@@ -124,9 +122,6 @@ const withTransaction = async <T>(payload: Payload, work: (req: PayloadRequest) 
   }
 }
 
-const idOf = (value: unknown): number | null =>
-  typeof value === 'number' ? value : ((value as { id?: number } | null)?.id ?? null)
-
 /* ─── Members ───────────────────────────────────────────────────────────── */
 
 export type MemberErasure = {
@@ -135,8 +130,6 @@ export type MemberErasure = {
   /** What the law makes us keep, in words for the person, or null */
   kept: string | null
   kyc: 'purged' | 'kept' | 'none'
-  worksArchived: number
-  worksRemoved: number
   picturesDeleted: number
   applications: number
   logEntries: number
@@ -287,25 +280,7 @@ export const eraseMember = async (
       kyc = 'purged'
   }
 
-  // Works: those staff approved stay, archived, as the record of what was shown; the rest go
-  const works = (
-    await payload.find({
-      collection: 'artworks',
-      where: { owner: { equals: member.id } },
-      limit: 0,
-      pagination: false,
-      depth: 0,
-      overrideAccess: true,
-    })
-  ).docs as Artwork[]
-  const wasApproved = (w: Artwork) => Boolean(w.published) || w.review?.state === 'approved'
-  const keptWorks = works.filter(wasApproved)
-  const goneWorks = works.filter((w) => !wasApproved(w))
-  const keptPictures = new Set<number>()
-  for (const w of keptWorks) {
-    for (const id of (w.images ?? []).map(idOf)) if (id) keptPictures.add(id)
-    for (const id of (w.published as PublishedArtwork | null)?.images ?? []) keptPictures.add(id)
-  }
+  // Every picture of theirs (portrait, application portfolio) goes, file and all
   const pictures = (
     await payload.find({
       collection: 'portfolio-images',
@@ -315,7 +290,7 @@ export const eraseMember = async (
       depth: 0,
       overrideAccess: true,
     })
-  ).docs.filter((p) => !keptPictures.has(p.id))
+  ).docs
 
   const membersConfig = payload.collections.members.config
   const applicationsConfig = payload.collections.applications.config
@@ -326,17 +301,6 @@ export const eraseMember = async (
       overrideAccess: true,
       req,
       context: { disableRevalidate: true, erasing: true },
-    }
-    for (const w of keptWorks) {
-      await payload.update({
-        collection: 'artworks',
-        id: w.id,
-        data: { archived: true },
-        ...common,
-      })
-    }
-    for (const w of goneWorks) {
-      await payload.delete({ collection: 'artworks', id: w.id, ...common })
     }
     // Each picture's file goes with its row (src/storage/memberMediaAdapter.ts)
     for (const p of pictures) {
@@ -393,7 +357,6 @@ export const eraseMember = async (
         source === 'data-request' ? 'At their request' : 'By staff',
         `by ${actor.email}: ${why}`,
         `KYC ${kyc}`,
-        `${keptWorks.length} work(s) archived, ${goneWorks.length} removed`,
         `${pictures.length} picture(s) deleted`,
       ].join('; '),
       req,
@@ -414,8 +377,6 @@ export const eraseMember = async (
     source,
     kept,
     kyc,
-    worksArchived: keptWorks.length,
-    worksRemoved: goneWorks.length,
     picturesDeleted: pictures.length,
     applications: applications.length,
     logEntries,
@@ -448,17 +409,6 @@ export const memberErasurePreview = async (payload: Payload, memberId: number) =
       overrideAccess: true,
     })
   ).docs[0]
-  const works = (
-    await payload.find({
-      collection: 'artworks',
-      where: { owner: { equals: member.id } },
-      limit: 0,
-      pagination: false,
-      depth: 0,
-      overrideAccess: true,
-    })
-  ).docs as Artwork[]
-  const approved = works.filter((w) => Boolean(w.published) || w.review?.state === 'approved')
   const holdUntil =
     record?.legalHoldUntil && new Date(record.legalHoldUntil) > new Date()
       ? record.legalHoldUntil
@@ -470,8 +420,6 @@ export const memberErasurePreview = async (payload: Payload, memberId: number) =
     requestedAt: member.deletionRequest?.requestedAt ?? null,
     kyc: record ? (holdUntil ? 'kept' : 'purged') : 'none',
     holdUntil,
-    worksArchived: approved.length,
-    worksRemoved: works.length - approved.length,
   }
 }
 

@@ -21,20 +21,3 @@ export const loadArtist = async () => {
   if (!loaded.member.artistId) redirect('/account')
   return loaded
 }
-
-/** Thumbnails of a member's own pictures, by id, for showing their works */
-export const thumbnailsOf = async (
-  payload: Awaited<ReturnType<typeof loadMember>>['payload'],
-  memberId: number,
-): Promise<Record<number, string | null>> => {
-  const images = await payload.find({
-    collection: 'portfolio-images',
-    where: { owner: { equals: memberId } },
-    limit: 2000,
-    depth: 0,
-    overrideAccess: true,
-  })
-  return Object.fromEntries(
-    images.docs.map((i) => [i.id, i.sizes?.thumbnail?.url ?? i.url ?? null]),
-  )
-}

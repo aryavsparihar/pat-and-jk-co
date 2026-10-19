@@ -33,7 +33,6 @@ import { DriveFolderField as DriveFolderField_4f09c71a184dc0eba4abc468f50b20a8 }
 import { ReviewPanel as ReviewPanel_caa7f039c39638b50465b2dc4034742a } from '@/components/admin/ReviewPanel'
 import { DecisionPanel as DecisionPanel_676fe2f15dcdfed9d10f593f564c78d0 } from '@/components/admin/DecisionPanel'
 import { ApplicationHistory as ApplicationHistory_f59f805df6b53acde3669a4489990560 } from '@/components/admin/ApplicationHistory'
-import { WorkFolderPanel as WorkFolderPanel_7ab215109363fb8600a11c4f06496035 } from '@/components/admin/WorkFolderPanel'
 import { KycPanel as KycPanel_0eb769a0ed0fcab70970f575327a3340 } from '@/components/admin/KycPanel'
 import { FolderTypeField as FolderTypeField_2b8867833a34864a02ddf429b0728a40 } from '@payloadcms/next/client'
 import { Icon as Icon_e60daefd9ca0ae7722c67ce9a39e1dd6 } from '@/components/admin/Graphics'
@@ -88,7 +87,6 @@ export const importMap = {
   "@/components/admin/ReviewPanel#ReviewPanel": ReviewPanel_caa7f039c39638b50465b2dc4034742a,
   "@/components/admin/DecisionPanel#DecisionPanel": DecisionPanel_676fe2f15dcdfed9d10f593f564c78d0,
   "@/components/admin/ApplicationHistory#ApplicationHistory": ApplicationHistory_f59f805df6b53acde3669a4489990560,
-  "@/components/admin/WorkFolderPanel#WorkFolderPanel": WorkFolderPanel_7ab215109363fb8600a11c4f06496035,
   "@/components/admin/KycPanel#KycPanel": KycPanel_0eb769a0ed0fcab70970f575327a3340,
   "@payloadcms/next/client#FolderTypeField": FolderTypeField_2b8867833a34864a02ddf429b0728a40,
   "@/components/admin/Graphics#Icon": Icon_e60daefd9ca0ae7722c67ce9a39e1dd6,

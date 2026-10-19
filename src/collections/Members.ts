@@ -496,7 +496,7 @@ export const Members: CollectionConfig = {
         }
         const body = (await req.json?.().catch(() => ({}))) as { email?: string; reason?: string }
         const { changeEmailByStaff } = await import('../members/account')
-        const { PortalError } = await import('../members/artworks')
+        const { PortalError } = await import('../members/profile')
         try {
           const result = await changeEmailByStaff(req.payload, {
             memberId: Number(req.routeParams?.id),
@@ -523,7 +523,7 @@ export const Members: CollectionConfig = {
         if (body?.decision !== 'approve' && body?.decision !== 'request-changes') {
           return Response.json({ message: 'Approve, or ask for changes?' }, { status: 400 })
         }
-        const { PortalError, decideProfile } = await import('../members/artworks')
+        const { PortalError, decideProfile } = await import('../members/profile')
         try {
           await decideProfile(req.payload, {
             memberId: Number(req.routeParams?.id),

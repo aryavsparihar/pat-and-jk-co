@@ -1,4 +1,4 @@
-import { PortalError, saveContact } from '@/members/artworks'
+import { PortalError, saveContact } from '@/members/profile'
 import { contactSchema } from '@/members/forms/portal'
 import { parseBody, portalHandler } from '@/members/portalHttp'
 

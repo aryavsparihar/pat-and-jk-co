@@ -9,7 +9,7 @@ import { revokeSession } from '@/security/memberSession'
 import { memberIdsOf } from '../collections/Members'
 import { findMember } from './accounts'
 import { sendEmailChangedNotice, sendMemberCode, sendStaffEmailChangeNotices } from './emails'
-import { PortalError } from './artworks'
+import { PortalError } from './profile'
 import { actingFor } from '@/security/audit'
 
 const ctx = { disableRevalidate: true }

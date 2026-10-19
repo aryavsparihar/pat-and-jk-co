@@ -108,10 +108,6 @@ const cleanup = async () => {
   await removeKycFor(payload, like)
   await execute(
     payload,
-    sql`DELETE FROM artworks WHERE owner_id IN (SELECT id FROM members WHERE email LIKE ${like})`,
-  )
-  await execute(
-    payload,
     sql`DELETE FROM portfolio_images WHERE owner_id IN (SELECT id FROM members WHERE email LIKE ${like})`,
   )
   await execute(

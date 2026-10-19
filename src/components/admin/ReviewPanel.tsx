@@ -12,9 +12,9 @@ const WORDS: Record<string, string> = {
 }
 
 /**
- * Staff review of what an artist wants to show the public: a work (artworks) or their profile
- * (members). Approving publishes the version shown in the form; asking for changes sends the note
- * to the artist. Both are recorded in the security log. Nothing is public until approved.
+ * Staff review of what an artist wants to show the public: their profile (members). Approving
+ * publishes the version shown in the form; asking for changes sends the note to the artist. Both
+ * are recorded in the security log. Nothing is public until approved.
  */
 export const ReviewPanel: React.FC = () => {
   const { id, collectionSlug } = useDocumentInfo()
