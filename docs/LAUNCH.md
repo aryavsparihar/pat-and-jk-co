@@ -36,6 +36,11 @@ These need a lawyer or a CA, so start them first.
 - [ ] **Artists' Terms & Conditions.** The lawyer approves the PDF; upload it in **Site settings →
       Applications → Artists' Terms & Conditions**. Until it is there, artists are not asked to
       agree to any terms.
+- [ ] **Partner/Trade Program agreement.** The founder supplies the text and the lawyer approves
+      it; paste it in **Site settings → Applications → Partner/Trade Program agreement** with a
+      version (ADMIN_GUIDE.md). **Until it is there, no partner application can be sent.**
+- [ ] **The partner identity photo.** The lawyer approves asking partners, as artists, for a photo
+      of their face holding a paper with a code and their name.
 - [ ] **Approved artists' KYC.** A CA confirms how many years after the last payment it must be
       kept. Put the number in [KYC.md](KYC.md) ("Retention") and in the privacy notice. Until a
       reviewer sets a legal hold, nothing about an approved artist is deleted automatically.

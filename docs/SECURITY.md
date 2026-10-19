@@ -63,7 +63,8 @@ If something in the admin panel ever fails to load, the CSP in `next.config.ts` 
 to check: the browser console names the directive that blocked it.
 
 **Cloudflare Turnstile** stands in front of the code request (signing in, and the start of
-both applications) and the public forms. The widget stays out of sight unless Cloudflare wants a
+both applications), the partner application's final step (`partner-submit`), and the public
+forms. The widget stays out of sight unless Cloudflare wants a
 box ticked; the server checks every token with Cloudflare's siteverify (`src/security/turnstile.ts`)
 and refuses one that is missing, forged, used before, older than five minutes, earned on a
 different form (the action), or earned on a different site (the hostname). Cloudflare spends a
@@ -334,6 +335,7 @@ it to the table fails the test too.
 | `POST /api/form-submissions` (contact and enquiry forms) | Turnstile, honeypot, 5 per IP per 10 minutes, fields checked against the form and capped (`src/collections/FormSubmissions/overrides.ts`) |
 | `/api/health` | database ping only; the `?deep=1` content check is staff only |
 | `/next/members/request-code` | origin check, Turnstile, honeypot, form-start token, 5 per address and 20 per IP an hour; signing in says when an address is not registered, by choice (Enumeration, above); applying gets the same reply for any address |
+| `/next/members/application/partner` | origin check, signed-in partner, honeypot, form-start token, Turnstile (`partner-submit`), 10 an hour; a sign-in within 30 minutes when identity details are sent; nothing kept unless the answers, the identity details and the agreement all pass |
 | `/next/members/verify-code` | origin check, 5 tries a code, 30 per IP an hour, address locked after 10 wrong codes in an hour |
 | `/next/members/session`, `/next/members/sign-out` | read or end only the caller's own session |
 | `/next/members/kyc/bank-change/cancel` | a single-use token from the email, valid once |

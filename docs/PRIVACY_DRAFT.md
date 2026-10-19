@@ -50,8 +50,20 @@ consent to this, after you have read this policy to its end, and we record when 
 which version of this policy, and that you typed I AGREE to confirm it. We use these details for
 nothing else.
 
+**Identity details (partners).** Your PAN and the name on it, a photo of your PAN card on which
+your face must be clearly visible, and a photo of your face holding a paper on which you have
+written a code we give you and your full name, taken or uploaded as an artist's is. We use them in
+the same way and for the same reason: to be sure of who we work with. We do not ask partners for
+a second ID, a proof of address or bank details. You consent to this in the same way, after
+reading this policy to its end, and we record it in the same way. If you have also applied as an
+artist, we keep one set of identity details for you, not two.
+
 **Your agreement to our terms (artists).** When you send your application we keep a record that you
 agreed to our Terms & Conditions, what you typed to confirm it, when, and which version.
+
+**Your agreement to the Partner/Trade Program (partners).** Before you send your application you
+read the agreement to its end and type I AGREE. We keep a record that you agreed, when, how, which
+version of the agreement, and a fingerprint of its exact words at that moment.
 
 **Payout details (artists we work with).** Your bank account: the account holder's name, the
 account number, the IFSC and the branch. We collect these only when a sale needs a payout, not

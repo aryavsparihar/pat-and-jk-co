@@ -1,8 +1,9 @@
 # KYC: identity and payout details
 
-Artists give us their identity details when they apply, so that we can be sure who we work with.
-Bank details (payout details) are not part of the application: we ask for them only when a sale
-needs a payout, and the artist adds them in their own account, never by email. This page is how
+Artists and partners give us their identity details when they apply, so that we can be sure who
+we work with; partners give less ([Partners](#partners)). Bank details (payout details) are not
+part of the application: we ask for them only when a sale needs a payout, and the artist adds them
+in their own account, never by email. Partners are never asked for them. This page is how
 those details are taken, kept, shown, changed and deleted, and what each part protects against.
 The code is in `src/kyc/`; nothing else touches a key.
 
@@ -63,6 +64,35 @@ joint accounts and initials are common.
 asks Razorpay's free public IFSC directory (`ifsc.razorpay.com`, no account, no key) for the bank
 and branch, caches the answer for 30 days, and fills them in. Only the IFSC is sent. The fields
 stay editable, and if the lookup fails the artist types them.
+
+## Partners
+
+A partner (curator, art dealer or consultant, designer, gallery, business) is not paid by us, so
+only who they are is checked. On the partner form, before it is sent:
+
+| | Required | Kept as |
+| --- | --- | --- |
+| PAN, and the name on it | **Required from every partner** | Encrypted, plus a masked copy, as for an artist |
+| PAN card | **Required**, as for an artist | Encrypted file |
+| Identity photo | **Required.** The same live check as an artist's: a code for ten minutes (**Show my code**), and a photo of their face holding a paper with the code and their full name as on the PAN. No date of birth is asked of a partner, so none is written | Encrypted file, as for an artist; the code is copied to the KYC record |
+| A second ID, proof of address, bank details | **Not asked** | None |
+
+Consent is given the same way, the privacy policy read to its end in a dialog, confirmed and
+I AGREE typed. Everything on the form (their details, these, and agreement to the
+Partner/Trade Program) goes in one request, checked together; nothing is kept unless all of it
+passes (`submitPartnerApplication` in `src/members/application.ts`, `savePartnerKyc` in
+`src/kyc/service.ts`). Identity details need a sign-in within the last 30 minutes, as for an
+artist. A partner sending their application again after changes were asked for may keep the
+details they gave.
+
+**One record per person.** Someone who applies as both an artist and a partner has one KYC
+record. The partner form replaces only the PAN, the name on it, the PAN card and the photo; an
+artist's second ID, address answer and Aadhaar check stay. The record keeps the reference it was
+first made under. Withdrawing, applying again or the weekly purge never delete what the other
+application is still being considered, or was approved, on (`kycNeededByOther`).
+
+The same encryption, storage, access and logging apply to a partner's details as to an artist's,
+and reviewers check them with the same checklist (ADMIN_GUIDE.md, "Checking a partner's identity").
 
 ## How it flows
 
@@ -180,10 +210,11 @@ The artist does all of this from **Payouts** in their account (`/account/payouts
 | KYC after consent is withdrawn | At the next purge, unless a legal hold applies |
 | An uploaded document never saved with the step | After 7 days |
 | Identity documents and photo of a declined artist who applies again | At once, when they press **Apply again**: the new application asks for them afresh. What they typed (PAN, the name on it, the last four digits) stays for the new application, if the 90-day rule has not already removed it |
-| KYC of an application the artist withdraws | At once, when they withdraw it |
+| KYC of an application the applicant withdraws | At once, when they withdraw it, unless their application of the other kind (artist or partner) still needs it |
+| KYC of someone who has applied as both an artist and a partner | Only once the current application of each kind is due, by the rules above |
 | KYC after a decline, once the person has applied again | Judged by their current application, not the declined one |
 | The identity code | Its hash is replaced by the next code; the code itself is kept only with the photo, and goes with it |
-| KYC of an approved artist | **[confirm with CA]** Kept while they work with us, then for **[N] years** after the last payment, as the Income Tax Act and GST rules require for payment records. Not deleted automatically until this is settled; a reviewer sets a legal hold on the record with **Set a legal hold** |
+| KYC of an approved artist or partner | **[confirm with CA]** Kept while they work with us, then for **[N] years** after the last payment, as the Income Tax Act and GST rules require for payment records. Not deleted automatically until this is settled; a reviewer sets a legal hold on the record with **Set a legal hold** |
 
 **Weekly purge.** Every Monday at 02:00 UTC, Vercel Cron calls `/next/cron/kyc-purge` (in
 `vercel.json`), authorised by `CRON_SECRET` and refused without it. It applies the rules above,
