@@ -30,9 +30,38 @@ const KIND_LABELS: Record<string, string> = {
   'identity-photo': 'Identity photo',
 }
 
+type DocumentInfo = {
+  id: number
+  kind: string
+  contentType?: string
+  size?: number | null
+  createdAt?: string
+  capturedWith?: string | null
+}
+
+/** "PDF, 412 KB, sent 12 Oct 2026" */
+const describeFile = (file: DocumentInfo) =>
+  [
+    file.contentType === 'application/pdf'
+      ? 'PDF'
+      : file.contentType?.startsWith('image/')
+        ? file.capturedWith === 'camera'
+          ? 'Photo taken on the page'
+          : 'Picture'
+        : file.contentType,
+    file.size ? `${Math.max(1, Math.round(file.size / 1024))} KB` : null,
+    file.createdAt
+      ? `sent ${new Date(file.createdAt).toLocaleDateString('en-IN', { dateStyle: 'medium' })}`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(', ')
+
 /**
  * The KYC record's sidebar: reveal the full values, open the documents, ask an approved artist
- * for payout details when a sale needs one, and approve payout details once checked. Every reveal and every document asks for a reason, which the server records. Revealed
+ * for payout details when a sale needs one, and approve payout details once checked. The only
+ * place the documents are listed: their own rows hold nothing readable, so they are not in the
+ * admin's menu. Every reveal and every document asks for a reason, which the server records. Revealed
  * values are held only in this component's memory and wiped after a minute, or when the page is
  * left; nothing is written to storage, and the responses are never cached.
  */
@@ -73,7 +102,7 @@ export const KycPanel: React.FC = () => {
   const router = useRouter()
   const { dialog, ask: askDialog } = useActionDialog()
   const { values, left, show, hide } = useReveal()
-  const [kinds, setKinds] = useState<Record<number, string>>({})
+  const [files, setFiles] = useState<Record<number, DocumentInfo>>({})
   const [message, setMessage] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -86,8 +115,8 @@ export const KycPanel: React.FC = () => {
       cache: 'no-store',
     })
       .then((r) => r.json())
-      .then((body: { docs?: { id: number; kind: string }[] }) => {
-        if (current) setKinds(Object.fromEntries((body.docs ?? []).map((d) => [d.id, d.kind])))
+      .then((body: { docs?: DocumentInfo[] }) => {
+        if (current) setFiles(Object.fromEntries((body.docs ?? []).map((d) => [d.id, d])))
       })
       .catch(() => undefined)
     return () => {
@@ -349,9 +378,14 @@ export const KycPanel: React.FC = () => {
                   onClick={() => download(documentId)}
                   type="button"
                 >
-                  Download {KIND_LABELS[kinds[documentId] ?? ''] ?? `document ${documentId}`}
+                  Download {KIND_LABELS[files[documentId]?.kind ?? ''] ?? `document ${documentId}`}
                 </button>
-                {kinds[documentId] === 'identity-photo' && identityCode && (
+                {files[documentId] && (
+                  <p style={{ margin: '0.2rem 0 0.6rem', opacity: 0.7 }}>
+                    {describeFile(files[documentId])}
+                  </p>
+                )}
+                {files[documentId]?.kind === 'identity-photo' && identityCode && (
                   // Beside the photo, so the reviewer can compare it with what is written
                   <p style={{ margin: '0.4rem 0 0.8rem' }}>
                     Code given: <strong style={{ letterSpacing: '0.12em' }}>{identityCode}</strong>

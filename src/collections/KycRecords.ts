@@ -217,12 +217,14 @@ export const KycRecords: CollectionConfig = {
     masked('duplicates', 'Also used by'),
 
     {
+      // Listed, and downloaded with a reason, in the sidebar (KycPanel); not shown as links to
+      // the documents' own rows, which hold nothing readable
       name: 'documents',
       type: 'relationship',
       relationTo: 'kyc-documents',
       hasMany: true,
       access: { create: nobody, update: nobody },
-      admin: { readOnly: true },
+      admin: { readOnly: true, hidden: true },
     },
 
     // Ready for an automatic check (penny drop, PAN verification) later; manual for now

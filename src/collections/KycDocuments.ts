@@ -10,6 +10,10 @@ const nobody: FieldAccess = () => false
  * file itself is encrypted on the server before it is stored (src/kyc/documentStore.ts), in a
  * private store, and is only ever served decrypted through a staff route that asks for a reason,
  * logs the opening, and sends it as a download that nothing caches.
+ *
+ * Not listed in the admin: a row here is only where the encrypted file is, with nothing a person
+ * can read. Each KYC record lists its documents in its sidebar, where they are downloaded (with a
+ * reason), so the record is the one place to look.
  */
 export const KycDocuments: CollectionConfig = {
   slug: 'kyc-documents',
@@ -24,7 +28,7 @@ export const KycDocuments: CollectionConfig = {
   },
   admin: {
     group: 'Members',
-    hidden: ({ user }) => !isKycReviewer(user),
+    hidden: true,
     defaultColumns: ['kind', 'member', 'contentType', 'createdAt'],
   },
   fields: [
