@@ -8,6 +8,7 @@ import {
   PORTFOLIO_MAX_BYTES,
 } from '@/members/portfolio'
 import { hitLimit } from '@/security/rateLimit'
+import { actingFor } from '@/security/audit'
 
 export const dynamic = 'force-dynamic'
 
@@ -131,7 +132,7 @@ export async function DELETE(request: Request) {
     collection: 'portfolio-images',
     where: { and: [{ id: { equals: id } }, { owner: { equals: member.id } }] },
     overrideAccess: true,
-    context: { disableRevalidate: true },
+    context: { disableRevalidate: true, ...actingFor(member, 'members') },
   })
   if (result.docs.length === 0)
     return reply({ message: 'That picture was not found.' }, { status: 404 })

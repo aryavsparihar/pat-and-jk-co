@@ -25,6 +25,7 @@ import { after } from 'next/server'
 import { hitLimit } from '@/security/rateLimit'
 import { identityFingerprint } from '@/kyc/identityCode'
 import { PRIVACY_NOTICE_VERSION } from '@/members/application'
+import { actingFor } from '@/security/audit'
 
 export const dynamic = 'force-dynamic'
 
@@ -194,7 +195,7 @@ export async function POST(request: Request) {
     id: application.id,
     data: { completedSteps: [...completed] },
     overrideAccess: true,
-    context: { disableRevalidate: true },
+    context: { disableRevalidate: true, ...actingFor(member, 'members') },
   })
 
   return withRefresh(

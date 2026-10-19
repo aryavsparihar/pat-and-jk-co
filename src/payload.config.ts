@@ -26,6 +26,7 @@ import { SecurityEvents } from './collections/SecurityEvents'
 import { SiteSettings } from './collections/SiteSettings'
 import { Tenants } from './collections/Tenants'
 import { Users } from './collections/Users'
+import { auditTrail } from './security/audit'
 import { Ventures } from './collections/Ventures'
 import { VisitorCounts } from './collections/VisitorCounts'
 import { loadEnv } from './env'
@@ -210,7 +211,8 @@ export default buildConfig({
     // Never the database's owner at runtime (src/security/databaseRole.ts)
     await checkDatabaseRole(payload)
   },
-  plugins,
+  // The audit trail goes last, so it reaches every collection the other plugins add
+  plugins: [...plugins, auditTrail()],
   secret: env.PAYLOAD_SECRET,
   sharp,
   typescript: {

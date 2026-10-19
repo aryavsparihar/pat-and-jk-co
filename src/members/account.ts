@@ -10,6 +10,7 @@ import { memberIdsOf } from '../collections/Members'
 import { findMember } from './accounts'
 import { sendEmailChangedNotice, sendMemberCode, sendStaffEmailChangeNotices } from './emails'
 import { PortalError } from './artworks'
+import { actingFor } from '@/security/audit'
 
 const ctx = { disableRevalidate: true }
 
@@ -91,7 +92,7 @@ export const requestEmailChange = async (
       },
     } as never,
     overrideAccess: true,
-    context: ctx,
+    context: { ...ctx, ...actingFor(member, 'members') },
   })
   const sent = await sendMemberCode(payload, {
     email: next,
@@ -144,7 +145,7 @@ export const confirmEmailChange = async (
       emailChange: { pendingEmail: null, challengeId: null, requestedAt: null },
     } as never,
     overrideAccess: true,
-    context: ctx,
+    context: { ...ctx, ...actingFor(member, 'members') },
   })
   // Every other device is signed out; this one stays signed in
   const others = await payload.find({
@@ -228,7 +229,7 @@ export const changeEmailByStaff = async (
       emailChange: { pendingEmail: null, challengeId: null, requestedAt: null },
     } as never,
     overrideAccess: true,
-    context: ctx,
+    context: { ...ctx, ...actingFor(actor, 'users') },
   })
   const sessions = await payload.find({
     collection: 'member-sessions',

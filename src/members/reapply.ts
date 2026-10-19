@@ -13,6 +13,7 @@ import { publicError } from '@/utilities/publicError'
 import { currentSlot } from './accounts'
 import { newApplicationReference, type MemberKind } from './ids'
 import { defaultSiteSettings } from './openness'
+import { actingFor } from '@/security/audit'
 
 /**
  * Applying again, after a decline (once the wait is over) or a withdrawal (at any time). Each
@@ -72,7 +73,7 @@ export const allowReapplyNow = async (
     id: application.id,
     data: { reapplyFrom: new Date().toISOString() } as never,
     overrideAccess: true,
-    context: { disableRevalidate: true },
+    context: { disableRevalidate: true, ...actingFor(actor, 'users') },
   })
   await logSecurityEvent(payload, {
     event: 'application-reapply-allowed',
@@ -167,7 +168,7 @@ export const applyAgain = async (
         data: { currentSlot: null } as never,
         overrideAccess: true,
         req,
-        context: { disableRevalidate: true },
+        context: { disableRevalidate: true, ...actingFor(member, 'members') },
       })
       created = await payload.create({
         collection: 'applications',
@@ -182,7 +183,7 @@ export const applyAgain = async (
         } as never,
         overrideAccess: true,
         req,
-        context: { disableRevalidate: true },
+        context: { disableRevalidate: true, ...actingFor(member, 'members') },
       })
       await commitTransaction(req)
     } catch (error) {

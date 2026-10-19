@@ -3,7 +3,7 @@ import type { Payload } from 'payload'
 import sharp, { type Metadata } from 'sharp'
 
 import type { Member, PortfolioImage } from '@/payload-types'
-
+import { actingFor } from '@/security/audit'
 
 /**
  * Every picture an artist sends passes through here before it is kept:
@@ -133,6 +133,6 @@ export const ingestPortfolioImage = async (
       size: data.length,
     },
     overrideAccess: true,
-    context: { disableRevalidate: true },
+    context: { disableRevalidate: true, ...actingFor(member, 'members') },
   })
 }

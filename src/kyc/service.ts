@@ -24,6 +24,7 @@ import { deleteEncrypted, kycPrefix, readEncrypted, storeEncrypted } from './doc
 import { AADHAAR_CHECK_MODE } from './settings'
 import type { BankInput, KycDocumentKind, KycInput } from './schema'
 import { maskAadhaar, maskAccount, maskIfsc, maskPan, namesPlausiblyMatch } from './values'
+import { actingFor } from '@/security/audit'
 
 /**
  * Everything that reads or writes KYC data goes through here; nothing else imports the crypto.
@@ -212,13 +213,13 @@ export const saveKyc = async (
         id: existing.id,
         data: data as never,
         overrideAccess: true,
-        context: { disableRevalidate: true },
+        context: { disableRevalidate: true, ...actingFor(member, 'members') },
       })
     : await payload.create({
         collection: 'kyc-records',
         data: data as never,
         overrideAccess: true,
-        context: { disableRevalidate: true },
+        context: { disableRevalidate: true, ...actingFor(member, 'members') },
       })
 
   await logSecurityEvent(payload, {
@@ -396,7 +397,7 @@ export const storeKycDocument = async (
         : {}),
     } as never,
     overrideAccess: true,
-    context: { disableRevalidate: true },
+    context: { disableRevalidate: true, ...actingFor(member, 'members') },
   })
 }
 
@@ -689,7 +690,7 @@ export const requestBankChange = async (
       },
     } as never,
     overrideAccess: true,
-    context: { disableRevalidate: true },
+    context: { disableRevalidate: true, ...actingFor(member, 'members') },
   })
   await logSecurityEvent(payload, {
     event: 'kyc-bank-change-requested',
@@ -804,7 +805,7 @@ export const approveBankChange = async (
       ...clearPending,
     } as never,
     overrideAccess: true,
-    context: { disableRevalidate: true },
+    context: { disableRevalidate: true, ...actingFor(actor, 'users') },
   })
   await logSecurityEvent(payload, {
     event: 'kyc-bank-change-approved',
@@ -852,7 +853,7 @@ export const requestPayoutDetails = async (
     id: record.id,
     data: { payoutRequestedAt: new Date().toISOString() } as never,
     overrideAccess: true,
-    context: { disableRevalidate: true },
+    context: { disableRevalidate: true, ...actingFor(actor, 'users') },
   })
   await logSecurityEvent(payload, {
     event: 'kyc-payout-details-requested',
@@ -1005,7 +1006,7 @@ export const recordConsentWithdrawal = async (
     id: recordId,
     data: { consentWithdrawnAt: new Date().toISOString() },
     overrideAccess: true,
-    context: { disableRevalidate: true },
+    context: { disableRevalidate: true, ...actingFor(actor, 'users') },
   })
   await logSecurityEvent(payload, {
     event: 'kyc-consent-withdrawn',
@@ -1054,7 +1055,7 @@ export const setLegalHold = async (
     id: recordId,
     data: { legalHoldUntil: next },
     overrideAccess: true,
-    context: { disableRevalidate: true },
+    context: { disableRevalidate: true, ...actingFor(actor, 'users') },
   })
   const show = (v?: string | null) => (v ? v.slice(0, 10) : 'none')
   await logSecurityEvent(payload, {
