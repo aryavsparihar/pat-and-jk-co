@@ -26,7 +26,8 @@ import type { User } from '@/payload-types'
 import { execute } from '@/utilities/sql'
 
 import { openApplicationsForTests } from '../helpers/applicationsOpen'
-import { goodKyc, identityPhotos, removeKycFor } from '../helpers/kyc'
+import { goodKyc, goodPartnerKyc, identityPhotos, removeKycFor } from '../helpers/kyc'
+import { setPartnerAgreement } from '../helpers/partnerAgreement'
 import { storeKycDocument } from '@/kyc/service'
 
 /*
@@ -526,6 +527,19 @@ describe('applying again after a decline', () => {
 })
 
 describe('a partner application', () => {
+  // Sending needs the Partner/Trade Program agreement published (tests/int/partner-onboarding)
+  let restoreAgreement: () => Promise<void>
+  beforeAll(async () => {
+    restoreAgreement = await setPartnerAgreement(payload, {
+      version: 'test',
+      words: 'The terms, for the tests.',
+    })
+  })
+  afterAll(async () => {
+    await restoreAgreement()
+  })
+  const agreement = { version: 'test', readToEnd: true, typed: 'I AGREE' }
+
   const partner = {
     category: 'placement',
     subType: 'Interior designer',
@@ -557,6 +571,8 @@ describe('a partner application', () => {
 
     const sent = await call(savePartner, cookie, {
       data: partner,
+      kyc: goodPartnerKyc(await identityPhotos(payload, member, { dateOfBirth: '' })),
+      agreement,
       formToken: createFormToken(Date.now() - 30_000),
     })
     expect(sent.status).toBe(200)
