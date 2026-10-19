@@ -246,7 +246,7 @@ export default async function AccountPage() {
             <dd className="tracking-wider">{member.partnerId}</dd>
             <dt className="label pt-1">Standing</dt>
             <dd>
-              {member.standing === 'active' ? 'Approved partner' : 'Suspended'}
+              {member.standing === 'on-hold' ? 'Approved partner, on hold' : 'Approved partner'}
               {member.partnerApprovedAt
                 ? `, since ${new Date(member.partnerApprovedAt).toLocaleDateString('en-IN', { dateStyle: 'long' })}`
                 : ''}

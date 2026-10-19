@@ -5,6 +5,7 @@ import type { Payload, Where } from 'payload'
 import sharp from 'sharp'
 
 import type { KycDocument, KycRecord, Member, User } from '@/payload-types'
+import { PAYOUTS_PAUSED_MESSAGE, canChange } from '@/members/standing'
 import { logSecurityEvent } from '@/security/events'
 
 import {
@@ -763,6 +764,7 @@ export const approveBankChange = async (
   if (!pending.requestedAt || !pending.pendingAccountNumberSealed)
     throw new KycError('There is no change of bank details waiting.', 409)
   const memberId = typeof record.member === 'object' ? record.member.id : record.member
+  await refuseWhilePaused(payload, memberId)
   const { key } = dataKeyFor(record, memberId)
   const accountNumber = openField(
     key,
@@ -816,6 +818,18 @@ export const approveBankChange = async (
   return updated
 }
 
+/** Payouts, and anything that leads to one, wait while an account is on hold or suspended */
+const refuseWhilePaused = async (payload: Payload, memberId: number) => {
+  const member = await payload.findByID({
+    collection: 'members',
+    id: memberId,
+    depth: 0,
+    overrideAccess: true,
+    select: { standing: true },
+  })
+  if (!canChange(member.standing)) throw new KycError(PAYOUTS_PAUSED_MESSAGE, 423)
+}
+
 /**
  * Staff ask an approved artist for payout details, when a sale needs a payout. Only the request
  * is recorded here; the artist adds the details themselves in their account (requestBankChange),
@@ -840,6 +854,7 @@ export const requestPayoutDetails = async (
   })
   if (!member.artistId)
     throw new KycError('Payout details are asked for once the artist is approved.', 409)
+  if (!canChange(member.standing)) throw new KycError(PAYOUTS_PAUSED_MESSAGE, 423)
   if (record.pendingBank?.requestedAt)
     throw new KycError('Their payout details are already waiting for your check.', 409)
   if (record.accountMasked)
