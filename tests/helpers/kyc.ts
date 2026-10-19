@@ -105,3 +105,14 @@ export const identityPhotos = async (
   })
   return { 'pan-card': panCard.id, 'identity-photo': photo.id }
 }
+
+/** A partner's identity details: the PAN, the name on it, and the two photos (partnerKycSchema) */
+export const goodPartnerKyc = (documents: Record<string, number> = {}) => ({
+  consent: true,
+  consentReadToEnd: true,
+  consentTyped: 'I AGREE',
+  noticeVersion: PRIVACY_NOTICE_VERSION,
+  pan: FAKE.pan,
+  panName: FAKE.panName,
+  documents,
+})

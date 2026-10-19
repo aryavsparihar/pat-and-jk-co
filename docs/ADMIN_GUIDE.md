@@ -128,6 +128,18 @@ Everything is shown masked, like `ABCxxxxx4F`. The documents (PAN card, ID, iden
 5. **The identity photo.** It shows a real person's face, holding a handwritten paper with the code given (shown beside the photo in the sidebar, with when it was given), their full name as on the PAN, and their date of birth as in "About you", all legible. The face is the face on the PAN card and the ID. *Taken with* says whether it came from the camera in the page or was uploaded; an upload deserves a closer look. If anything is off (a different code, a missing name or date, a printed rather than handwritten paper, a photo of a screen), ask for changes and say what to retake.
 6. **Read the "Identity document" box in the sidebar.** *Verified* means UIDAI's signature and the details all checked out. *Could not verify* gives the reason (a changed file, digits that do not match). *Needs a check by hand* means the check could not finish (a photo or scan, no password); do the checks above with extra care. A passport, voter ID or driving licence is always checked by hand.
 
+### Checking a partner's identity
+
+Partners give their PAN, a photo of the PAN card and the same identity photo as an artist (holding a paper with the code and their full name, but no date of birth). They give no second ID, no address proof and no bank details. Their KYC record is under **Members → KYC records** like an artist's, with the same reveal, download and log. Someone who has applied as both has one record.
+
+**Before you approve a partner**, check each of these:
+
+1. The name on the PAN is the partner's name on the application. Small differences are fine (an initial, a middle name); a different person is not.
+2. The PAN card shows the PAN that was typed in, and the face in its photograph can be seen clearly.
+3. Nothing under **Possible duplicates**, or you know why.
+4. **The identity photo.** It shows a real person's face, holding a handwritten paper with the code given (beside the photo in the sidebar) and their full name as on the PAN, both legible. The face is the face on the PAN card. An upload, rather than a photo taken in the page, deserves a closer look. If anything is off, ask for changes and say what to retake.
+5. **Consent and agreement**, on the application under **Consent and agreement**: they consented to their identity details being checked, and agreed to the Partner/Trade Program, with the version and the date. If the version is not the current one, they agreed before it last changed; that is fine unless the change matters to them.
+
 **Payout details, when a work sells.** Open the artist's KYC record and press **Request payout details**. The artist is emailed a link to their account, where they add the account themselves after a code we email them; the email never asks for bank details and never contains any. The date you asked shows on the record, and you can ask again if needed. When they have added the details, you are emailed. Then:
 
 1. Reveal the details (reason: "Checking the account before the first payment").
@@ -221,6 +233,15 @@ The page at /collaborate is an ordinary page, built from blocks. **Ways to work 
 - **Navigation** — header links and the header button.
 - **Footer** — the short description, footer links, legal links, and whether to show the visitor count.
 - **Contact & social** — the general, business and technical enquiry addresses, phone, social profiles, and the **Registered office**.
+- **Applications** — whether applications are open, the note shown while they are closed, the wait before someone declined may apply again, the artists' Terms & Conditions, and the **Partner/Trade Program agreement**.
+
+### The Partner/Trade Program agreement
+
+Every partner reads it to the end and types I AGREE before sending their application. Until it is published here, partners can fill in the form but cannot send it, and the form says the agreement is being finalised.
+
+To publish it, under **Website → Site settings → Applications → Partner/Trade Program agreement**: write or paste the text in **The agreement**, give it a **Version** (for example `2026-11`), and save. The title is what partners see above it.
+
+**Whenever you change the text, change the version too.** A partner who read the earlier version is asked to read it again before sending. Each partner's application keeps the version they agreed to, when, and a fingerprint of the exact words, so a later edit never changes what someone agreed to.
 
 ### The registered office
 

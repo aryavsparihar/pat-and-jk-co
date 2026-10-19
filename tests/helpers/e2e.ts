@@ -12,6 +12,7 @@ import { createGateToken } from '../../src/security/gateToken.js'
 import { hashOtp } from '../../src/security/otp.js'
 import { execute } from '../../src/utilities/sql.js'
 import { openApplicationsForTests } from './applicationsOpen.js'
+import { setPartnerAgreement } from './partnerAgreement.js'
 
 /*
  * Helpers for the end-to-end tests. They talk to the same database as the app under test, to do
@@ -35,8 +36,25 @@ export const payload = () => (cached ??= getPayload({ config }))
 
 export const uniqueEmail = (label: string) => `${label}-${randomUUID().slice(0, 8)}${DOMAIN}`
 
-/** Opens applications for the run; returns the function that puts the switch back */
-export const openApplications = async () => openApplicationsForTests(await payload())
+/**
+ * Opens applications for the run, with a Partner/Trade Program agreement published so partners can
+ * send theirs; returns the function that puts both back
+ */
+export const openApplications = async () => {
+  const p = await payload()
+  const close = await openApplicationsForTests(p)
+  const restoreAgreement = await setPartnerAgreement(p, E2E_AGREEMENT)
+  return async () => {
+    await restoreAgreement()
+    await close()
+  }
+}
+
+/** The agreement partners read in the browser tests */
+export const E2E_AGREEMENT = {
+  version: 'e2e',
+  words: 'These are the terms on which PJK works with partners, for the browser tests only.',
+}
 
 /**
  * "Reads the email": once the app has issued a code to this address, sets it to a known one, the

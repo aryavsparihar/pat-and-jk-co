@@ -285,6 +285,35 @@ export const SiteSettings: CollectionConfig = {
                   'Linked on the last step of the artist application. While a document is here, an artist must tick that they agree and type I AGREE before sending, and which document they agreed to is kept with their application. Upload a new one to change the terms; earlier agreements stay linked to the version agreed to.',
               },
             },
+            {
+              // Read by src/members/partnerAgreement.ts; nothing is public until text and version
+              // are both given
+              name: 'partnerAgreement',
+              label: 'Partner/Trade Program agreement',
+              type: 'group',
+              admin: {
+                description:
+                  'Shown to every partner before they send their application: they read it to the end and type I AGREE. Until both the text and its version are given here, partners can fill in their application but cannot send it.',
+              },
+              fields: [
+                {
+                  name: 'title',
+                  type: 'text',
+                  defaultValue: 'Partner/Trade Program agreement',
+                  maxLength: 120,
+                },
+                {
+                  name: 'version',
+                  type: 'text',
+                  maxLength: 40,
+                  admin: {
+                    description:
+                      'Change it whenever the text changes, for example 2026-11 or 1.1. Each partner’s application keeps the version they agreed to.',
+                  },
+                },
+                { name: 'text', label: 'The agreement', type: 'richText' },
+              ],
+            },
           ],
         },
         {

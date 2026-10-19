@@ -434,9 +434,25 @@ export const ARTIST_STEP_SCHEMAS = {
 /* ─── Partner ────────────────────────────────────────────────────────────── */
 
 export const PARTNER_SUBTYPES: Record<(typeof PARTNER_CATEGORIES)[number]['value'], string[]> = {
-  placement: ['Curator', 'Interior designer', 'Decorator', 'Architect', 'Stylist', 'Other'],
+  placement: [
+    'Curator',
+    'Art dealer / art consultant',
+    'Interior designer',
+    'Decorator',
+    'Architect',
+    'Stylist',
+    'Other',
+  ],
   'design-technology': ['Designer', 'Engineer', 'Photographer', 'Writer', 'Other'],
-  partnership: ['Gallery', 'Institution', 'Business', 'Retail client', 'Hospitality', 'Other'],
+  partnership: [
+    'Gallery',
+    'Art dealer / art consultant',
+    'Institution',
+    'Business',
+    'Retail client',
+    'Hospitality',
+    'Other',
+  ],
 }
 
 export const partnerSchema = z

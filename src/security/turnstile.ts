@@ -1,6 +1,6 @@
 /**
  * Cloudflare Turnstile, checked on the server: the code request (signing in, and the start of both
- * applications) and the public forms. The browser earns a token from the widget; this asks
+ * applications), the partner application's final step, and the public forms. The browser earns a token from the widget; this asks
  * Cloudflare (siteverify) whether it is genuine, unused and unexpired, was earned on the same form
  * (the action), and on the same site the request came to (the hostname). Cloudflare spends a token
  * the first time it is verified and refuses it after five minutes, so a token works once.
@@ -23,7 +23,8 @@ export const TURNSTILE_REFUSED =
   'We could not confirm this came from a person, so nothing was sent. If you use Brave Shields or a privacy extension, allow challenges.cloudflare.com for this site, then try again.'
 
 /** One per form, so a token earned on one cannot be spent on another */
-export type TurnstileAction = 'signin' | 'apply-artist' | 'apply-partner' | 'contact'
+export type TurnstileAction =
+  'signin' | 'apply-artist' | 'apply-partner' | 'partner-submit' | 'contact'
 
 /**
  * Cloudflare's published test secrets (always pass, always fail, already spent). Their answers

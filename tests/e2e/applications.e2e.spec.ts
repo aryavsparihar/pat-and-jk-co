@@ -7,6 +7,7 @@ import sharp from 'sharp'
 import {
   CODE,
   cleanUp,
+  E2E_AGREEMENT,
   fillEarlySteps,
   findMember,
   knowCode,
@@ -64,6 +65,10 @@ const uploadIdentityPhoto = async (page: Page) => {
     buffer: await picture(4),
   })
   await expect(page.getByRole('img', { name: 'Preview: the photo of you' })).toBeVisible()
+  // The preview shows at once; the photo has reached the server only when it says so
+  await expect(
+    page.locator('#field-documents-identity-photo').getByText('Received, and encrypted.'),
+  ).toBeVisible()
 }
 
 /** Consent: the policy opens in a dialog, is read to the end, confirmed, and I AGREE typed */
@@ -310,39 +315,88 @@ test('PAN is required, and a masked e-Aadhaar goes through the check', async ({ 
     .toBe('not-verified')
 })
 
-test('a partner applies in one go', async ({ page }) => {
+/** A document read to its end in its dialog, confirmed, and I AGREE typed */
+const readAndAgree = async (page: Page, box: RegExp, dialogName: string, region: string) => {
+  await page.getByLabel(box).click()
+  const dialog = page.getByRole('dialog', { name: dialogName })
+  await expect(dialog).toBeVisible()
+  await dialog
+    .getByRole('region', { name: region })
+    .evaluate((el) => el.scrollTo({ top: el.scrollHeight }))
+  await dialog.getByLabel(`I have read ${region.toLowerCase()} to the end.`).check()
+  await dialog.getByLabel('Type I AGREE to confirm').fill('I AGREE')
+  await dialog.getByRole('button', { name: 'Agree' }).click()
+  await expect(dialog).toBeHidden()
+  await expect(page.getByLabel(box)).toBeChecked()
+}
+
+test('a partner applies in one go, with their identity and the agreement', async ({ page }) => {
   const email = uniqueEmail('partner')
   await page.goto('/collaborate/partners')
   await signInWithCode(page, email)
-  await page.getByLabel('How would you like to work with us?').selectOption({ index: 1 })
-  await page.getByLabel('What describes you best?').selectOption({ index: 1 })
-  await page.getByLabel('Your full name').fill('Ravi Example')
-  await page.getByLabel('Your role').fill('Founder')
-  await page.getByLabel('Organisation').fill('Example Interiors')
+  await page.getByLabel('How would you like to work with us?').selectOption('placement')
+  await page.getByLabel('What describes you best?').selectOption('Art dealer / art consultant')
+  await page.getByLabel('Your full name').fill('Asha Example')
+  await page.getByLabel('Your role').fill('Art consultant')
+  await page.getByLabel('Organisation').fill('Example Art Advisory')
   await page.getByLabel('Phone').fill('98765 43210')
   await page.getByLabel('City').fill('Jammu')
   await page.getByLabel('State or union territory').selectOption('Jammu and Kashmir')
   await page
     .getByLabel('What would you like to do together?')
-    .fill('Place works in the homes we design.')
+    .fill('Find original work for the collectors I advise.')
   await page
     .getByLabel('Message')
-    .fill('We design homes in Jammu and would like to show local artists in them.')
+    .fill('I advise private collectors in Jammu and Delhi on contemporary work.')
+
+  // Identity: the PAN, its card, and the photo with the code and their name; no second ID
+  await page.getByLabel('PAN', { exact: true }).fill('ABCPE1234F')
+  await page.getByLabel('Name as on your PAN').fill('Asha Example')
+  await uploadPanCard(page)
+  await uploadIdentityPhoto(page)
+  await expect(page.getByText('Received, and encrypted.')).toHaveCount(2)
+  await expect(page.getByLabel('I’d rather use another ID')).toHaveCount(0)
+  await expect(page.getByLabel('Account number', { exact: true })).toHaveCount(0)
+  await readAndAgree(
+    page,
+    /I agree to PAT and J\.K\. Co\. processing/,
+    'Privacy policy',
+    'The privacy policy',
+  )
+
+  // The agreement, as published in Site settings, read to its end
+  await expect(page.getByText(E2E_AGREEMENT.words)).toBeAttached()
+  await readAndAgree(
+    page,
+    /I have read the Partner\/Trade Program agreement and I agree/,
+    'Partner/Trade Program agreement',
+    'The agreement',
+  )
+
   await page.waitForTimeout(2200)
   await page.getByRole('button', { name: /Send/ }).click()
-  await expect(page.getByText(/Thank you/).first()).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Thank you. We will be in touch.' })).toBeVisible()
   const member = await findMember(email)
+  const p = await payload()
   const application = (
-    await (
-      await payload()
-    ).find({
+    await p.find({
       collection: 'applications',
       where: { member: { equals: member.id } },
       overrideAccess: true,
     })
   ).docs[0]!
-  expect(application.type).toBe('partner')
-  expect(application.stage).toBe('submitted')
+  expect(application).toMatchObject({
+    type: 'partner',
+    stage: 'submitted',
+    partner: { subType: 'Art dealer / art consultant' },
+    partnerDeclarations: { agreementVersion: E2E_AGREEMENT.version, consentProcessing: true },
+  })
+  const records = await p.count({
+    collection: 'kyc-records',
+    where: { member: { equals: member.id } },
+    overrideAccess: true,
+  })
+  expect(records.totalDocs).toBe(1)
 })
 
 test('a member signs in again with a code, and a wrong code is refused', async ({ page }) => {

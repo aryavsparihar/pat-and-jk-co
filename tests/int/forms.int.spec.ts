@@ -288,6 +288,25 @@ describe('step schemas', () => {
     expect(partnerSchema.safeParse({ ...partner, gstin: '27AAPFU0939F1ZW' }).success).toBe(false)
     expect(partnerSchema.safeParse({ ...partner, subType: 'Gallery' }).success).toBe(false)
   })
+
+  it('offer art dealers and art consultants among curators and among partners', () => {
+    const partner = {
+      category: 'placement',
+      subType: 'Art dealer / art consultant',
+      fullName: 'Meera Example',
+      role: 'Art consultant',
+      phone: '+91 98765 43210',
+      city: 'Jammu',
+      state: 'Jammu and Kashmir',
+      interest: 'Finding original work for collectors I advise.',
+      message: 'I advise private collectors in Jammu and Delhi on contemporary work.',
+    }
+    expect(partnerSchema.safeParse(partner).success).toBe(true)
+    expect(partnerSchema.safeParse({ ...partner, category: 'partnership' }).success).toBe(true)
+    expect(partnerSchema.safeParse({ ...partner, category: 'design-technology' }).success).toBe(
+      false,
+    )
+  })
 })
 
 describe('identity details', () => {

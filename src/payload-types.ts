@@ -1429,6 +1429,31 @@ export interface SiteSetting {
    * Linked on the last step of the artist application. While a document is here, an artist must tick that they agree and type I AGREE before sending, and which document they agreed to is kept with their application. Upload a new one to change the terms; earlier agreements stay linked to the version agreed to.
    */
   artistTerms?: (number | null) | Media;
+  /**
+   * Shown to every partner before they send their application: they read it to the end and type I AGREE. Until both the text and its version are given here, partners can fill in their application but cannot send it.
+   */
+  partnerAgreement?: {
+    title?: string | null;
+    /**
+     * Change it whenever the text changes, for example 2026-11 or 1.1. Each partner’s application keeps the version they agreed to.
+     */
+    version?: string | null;
+    text?: {
+      root: {
+        type: string;
+        children: {
+          type: any;
+          version: number;
+          [k: string]: unknown;
+        }[];
+        direction: ('ltr' | 'rtl') | null;
+        format: 'left' | 'start' | 'center' | 'right' | 'end' | 'justify' | '';
+        indent: number;
+        version: number;
+      };
+      [k: string]: unknown;
+    } | null;
+  };
   email?: string | null;
   phone?: string | null;
   /**
@@ -1912,6 +1937,20 @@ export interface Application {
     gstin?: string | null;
     interest?: string | null;
     message?: string | null;
+  };
+  partnerDeclarations?: {
+    consentProcessing?: boolean | null;
+    /**
+     * The privacy notice they agreed to.
+     */
+    privacyNoticeVersion?: string | null;
+    agreementVersion?: string | null;
+    agreedAt?: string | null;
+    agreementConfirmation?: string | null;
+    /**
+     * SHA-256 of the agreement’s words when they agreed, so the exact text can be told apart from a later edit.
+     */
+    agreementDigest?: string | null;
   };
   completedSteps?: ('about' | 'address' | 'practice' | 'portfolio' | 'kyc' | 'review')[] | null;
   /**
@@ -3070,6 +3109,13 @@ export interface SiteSettingsSelect<T extends boolean = true> {
   reapplyAfterDays?: T;
   reapplyAfterMonths?: T;
   artistTerms?: T;
+  partnerAgreement?:
+    | T
+    | {
+        title?: T;
+        version?: T;
+        text?: T;
+      };
   email?: T;
   phone?: T;
   businessEmail?: T;
@@ -3481,6 +3527,16 @@ export interface ApplicationsSelect<T extends boolean = true> {
         gstin?: T;
         interest?: T;
         message?: T;
+      };
+  partnerDeclarations?:
+    | T
+    | {
+        consentProcessing?: T;
+        privacyNoticeVersion?: T;
+        agreementVersion?: T;
+        agreedAt?: T;
+        agreementConfirmation?: T;
+        agreementDigest?: T;
       };
   completedSteps?: T;
   decisionNote?: T;
