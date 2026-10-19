@@ -1,15 +1,23 @@
 import { requireRecentSignIn } from '@/members/recent'
 import { IDENTITY_CODE_MINUTES, issueIdentityCode } from '@/kyc/identityCode'
 import { EDITABLE, findOwnApplication } from '@/members/application'
-import { fromOurOrigin, refuseCrossSite, reply, requireMember, withRefresh } from '@/members/http'
+import {
+  fromOurOrigin,
+  readJson,
+  refuseCrossSite,
+  reply,
+  requireMember,
+  withRefresh,
+} from '@/members/http'
 import { applicationsOpenness, closedReply } from '@/members/openness'
 import { hitLimit } from '@/security/rateLimit'
 
 export const dynamic = 'force-dynamic'
 
 /**
- * A new identity code, good for ten minutes. Any earlier code stops working at once. The code
- * comes back in this reply only; the server keeps a hash of it (src/kyc/identityCode.ts).
+ * A new identity code, good for ten minutes, for the artist's application or, with
+ * { type: 'partner' }, the partner's. Any earlier code stops working at once. The code comes back
+ * in this reply only; the server keeps a hash of it (src/kyc/identityCode.ts).
  */
 export async function POST(request: Request) {
   if (!fromOurOrigin(request)) return refuseCrossSite()
@@ -23,7 +31,9 @@ export async function POST(request: Request) {
   const { open, note } = await applicationsOpenness(payload)
   if (!open) return closedReply(note)
 
-  const application = await findOwnApplication(payload, member, 'artist', 0)
+  const body = await readJson<{ type?: unknown }>(request)
+  const type = body?.type === 'partner' ? 'partner' : 'artist'
+  const application = await findOwnApplication(payload, member, type, 0)
   if (!application || !EDITABLE.includes(application.stage)) {
     return reply(
       { message: 'A code can only be given while your application is open.' },

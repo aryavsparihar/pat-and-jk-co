@@ -2,6 +2,9 @@ import { requireRecentSignIn } from '@/members/recent'
 import { EDITABLE, findOwnApplication } from '@/members/application'
 import { fromOurOrigin, refuseCrossSite, reply, requireMember, withRefresh } from '@/members/http'
 import { KYC_DOCUMENT_KINDS, type KycDocumentKind } from '@/kyc/schema'
+
+/** What a partner's application asks for: no second ID, address or bank */
+const PARTNER_KINDS: KycDocumentKind[] = ['pan-card', 'identity-photo']
 import { CODE_PROBLEM, checkIdentityCode, identityFingerprint } from '@/kyc/identityCode'
 import {
   type IdentityPhotoFacts,
@@ -27,9 +30,17 @@ export async function POST(request: Request) {
   const stale = requireRecentSignIn(auth.session)
   if (stale) return stale
 
-  const application = await findOwnApplication(payload, member, 'artist', 0)
+  let form: FormData
+  try {
+    form = await request.formData()
+  } catch {
+    return reply({ message: 'Please choose a file.' }, { status: 400 })
+  }
+  // A partner gives only their PAN card and the photo of them, while their application is open
+  const type = form.get('type') === 'partner' ? 'partner' : 'artist'
+  const application = await findOwnApplication(payload, member, type, 0)
   const open = application && EDITABLE.includes(application.stage)
-  if (!open && !member.artistId) {
+  if (!open && (type === 'partner' || !member.artistId)) {
     return reply(
       { message: 'Documents can only be added while your application is open.' },
       { status: 409 },
@@ -45,22 +56,16 @@ export async function POST(request: Request) {
   if (!limit.allowed)
     return reply({ message: 'Please wait a little before uploading again.' }, { status: 429 })
 
-  let form: FormData
-  try {
-    form = await request.formData()
-  } catch {
-    return reply({ message: 'Please choose a file.' }, { status: 400 })
-  }
   const kind = String(form.get('kind') ?? '') as KycDocumentKind
   const file = form.get('file')
-  if (!KYC_DOCUMENT_KINDS.includes(kind))
+  if (!KYC_DOCUMENT_KINDS.includes(kind) || (type === 'partner' && !PARTNER_KINDS.includes(kind)))
     return reply({ message: 'What kind of document is this?' }, { status: 400 })
   if (!(file instanceof File)) return reply({ message: 'Please choose a file.' }, { status: 400 })
   if (file.size > KYC_DOCUMENT_MAX_BYTES)
     return reply({ message: 'That file is larger than 4 MB.' }, { status: 413 })
 
-  // The identity photo must be taken with the artist's current code, while it holds, and for
-  // the name and date of birth they have given; the code is kept with it for reviewers
+  // The identity photo must be taken with the current code, while it holds, and for the name (and,
+  // for an artist, the date of birth) they have given; the code is kept with it for reviewers
   let identity: IdentityPhotoFacts | undefined
   if (kind === 'identity-photo') {
     if (!application || !open) {
@@ -97,7 +102,8 @@ export async function POST(request: Request) {
       issuedAt: held.identityCodeIssuedAt!,
       expiresAt: held.identityCodeExpiresAt!,
       capturedWith: form.get('capturedWith') === 'camera' ? 'camera' : 'upload',
-      fingerprint: identityFingerprint(name, held.about?.dateOfBirth),
+      // A partner writes only the code and their name: no date of birth is asked of them
+      fingerprint: identityFingerprint(name, type === 'artist' ? held.about?.dateOfBirth : null),
     }
   }
 

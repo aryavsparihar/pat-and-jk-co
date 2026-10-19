@@ -205,3 +205,63 @@ export const kycSchema = z
   })
 
 export type KycInput = z.infer<typeof kycSchema>
+
+/**
+ * A partner's identity: the PAN, with the name as printed on it and a photo of the card, and the
+ * same live photo as an artist's, holding a paper with a ten-minute code and their name. No second
+ * ID, no address and no bank details: a partner is never paid by us, so only who they are is
+ * checked. Consent is given the same way, the privacy notice read to its end and I AGREE typed.
+ */
+export const partnerKycSchema = z
+  .object({
+    consent: z.literal(true, {
+      error: 'We need your consent before we can take your identity details.',
+    }),
+    consentReadToEnd: z.literal(true, {
+      error: 'Please read the privacy notice to the end, then confirm.',
+    }),
+    consentTyped: z.literal('I AGREE', {
+      error: 'Please type I AGREE, in capitals, to confirm.',
+    }),
+    noticeVersion: z.string().max(40).optional(),
+    pan: z.string({ error: 'Please give your PAN.' }).max(20, 'A PAN is ten characters.'),
+    panName: z.string().max(120, 'Please keep this under 120 characters.').optional(),
+    documents: z.object({ 'pan-card': documentId, 'identity-photo': documentId }).default({}),
+  })
+  .superRefine(
+    (value, ctx) => {
+      const documents = (value.documents ?? {}) as Partial<Record<KycDocumentKind, number>>
+      const issue = (path: (string | number)[], message: string) =>
+        ctx.addIssue({ code: 'custom', path, message })
+
+      const problem = panProblem(String(value.pan ?? ''))
+      if (problem === 'format') {
+        issue(['pan'], 'A PAN is ten characters: five letters, four digits, a letter.')
+      } else if (problem === 'not-individual') {
+        issue(['pan'], 'That looks like the PAN of a business. Please give your own, personal PAN.')
+      }
+      if (!String(value.panName ?? '').trim()) {
+        issue(['panName'], 'Please give your name exactly as it is on your PAN card.')
+      }
+      if (!documents['pan-card']) {
+        issue(
+          ['documents', 'pan-card'],
+          'Please add a photo of your PAN card, with your face on it clearly visible.',
+        )
+      }
+      if (!documents['identity-photo']) {
+        issue(
+          ['documents', 'identity-photo'],
+          'Please add the photo of you holding the paper with your code and name.',
+        )
+      }
+    },
+    { when: () => true },
+  )
+  .transform((value) => ({
+    ...value,
+    pan: normalisePan(value.pan),
+    panName: value.panName?.trim() ?? '',
+  }))
+
+export type PartnerKycInput = z.infer<typeof partnerKycSchema>
