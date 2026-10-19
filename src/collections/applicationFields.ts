@@ -305,6 +305,52 @@ export const partnerApplicationFields: Field[] = [
       { name: 'message', type: 'textarea' },
     ],
   },
+  {
+    // Written by the server when the application is sent (submitPartnerApplication), never by the
+    // partner: what they consented to, and which agreement they agreed to and how
+    name: 'partnerDeclarations',
+    label: 'Consent and agreement',
+    type: 'group',
+    access: { create: () => false, update: () => false },
+    admin: { condition: isPartner, readOnly: true },
+    fields: [
+      {
+        name: 'consentProcessing',
+        label: 'Consented to identity details being processed for verification',
+        type: 'checkbox',
+      },
+      {
+        name: 'privacyNoticeVersion',
+        type: 'text',
+        admin: { description: 'The privacy notice they agreed to.' },
+      },
+      {
+        name: 'agreementVersion',
+        label: 'Partner/Trade Program agreement: version agreed to',
+        type: 'text',
+      },
+      {
+        name: 'agreedAt',
+        label: 'Agreed on',
+        type: 'date',
+        admin: { date: { pickerAppearance: 'dayAndTime' } },
+      },
+      {
+        name: 'agreementConfirmation',
+        label: 'How they agreed',
+        type: 'text',
+      },
+      {
+        name: 'agreementDigest',
+        label: 'Digest of the text agreed to',
+        type: 'text',
+        admin: {
+          description:
+            'SHA-256 of the agreement’s words when they agreed, so the exact text can be told apart from a later edit.',
+        },
+      },
+    ],
+  },
 ]
 
 /** Where the applicant has got to: steps saved so far, and when they began */
