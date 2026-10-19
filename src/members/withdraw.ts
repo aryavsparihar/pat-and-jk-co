@@ -32,8 +32,9 @@ export const withdrawApplication = async (
     overrideAccess: true,
     context: { disableRevalidate: true, ...actingFor(member, 'members') },
   })
-  if (type === 'artist') {
-    const { purgeKyc } = await import('@/kyc/service')
+  // Identity details go with the application, unless the other kind still rests on them
+  const { kycNeededByOther, purgeKyc } = await import('@/kyc/service')
+  if (!(await kycNeededByOther(payload, member.id, type))) {
     await purgeKyc(payload, {
       memberId: member.id,
       reason: `Application ${application.reference} withdrawn by the applicant`,

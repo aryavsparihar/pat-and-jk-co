@@ -195,8 +195,9 @@ export const applyAgain = async (
     }
   }
 
-  if (type === 'artist') {
-    const { clearIdentityEvidence } = await import('@/kyc/service')
+  // Documents and the photo are given afresh, unless the other kind still rests on them
+  const { clearIdentityEvidence, kycNeededByOther } = await import('@/kyc/service')
+  if (!(await kycNeededByOther(payload, member.id, type))) {
     await clearIdentityEvidence(payload, {
       memberId: member.id,
       reason: `Applying again (${created!.reference}): documents and photo given afresh`,

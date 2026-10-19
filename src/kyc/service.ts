@@ -1003,6 +1003,36 @@ export const requestPayoutDetails = async (
 
 /* ─── Deletion ──────────────────────────────────────────────────────────── */
 
+/** Stages in which an application still rests on the identity details given with it */
+const NEEDS_KYC: string[] = ['draft', 'submitted', 'under-review', 'changes-requested', 'approved']
+
+/**
+ * Whether the member's current application of the other kind still needs their identity details.
+ * One record serves an artist and a partner application alike, so withdrawing or applying again as
+ * one never deletes what the other is still being considered, or was approved, on.
+ */
+export const kycNeededByOther = async (
+  payload: Payload,
+  memberId: number,
+  kind: 'artist' | 'partner',
+): Promise<boolean> => {
+  const other = await payload.find({
+    collection: 'applications',
+    where: {
+      and: [
+        { member: { equals: memberId } },
+        { type: { equals: kind === 'artist' ? 'partner' : 'artist' } },
+      ],
+    },
+    sort: '-createdAt',
+    limit: 1,
+    depth: 0,
+    overrideAccess: true,
+  })
+  const current = other.docs[0]
+  return Boolean(current && NEEDS_KYC.includes(current.stage))
+}
+
 /** Deletes a member's KYC record and every document, ciphertext included. */
 export const purgeKyc = async (
   payload: Payload,
@@ -1251,7 +1281,6 @@ export const kycPurgeCandidates = async (
         collection: 'applications',
         where: {
           and: [
-            { type: { equals: 'artist' } },
             { member: { in: [...byMember.keys()] } },
             {
               or: [
@@ -1276,21 +1305,17 @@ export const kycPurgeCandidates = async (
         depth: 0,
         overrideAccess: true,
       })
-  // Only a person's current application counts: an old declined one says nothing about the new
-  // application they have since started
-  const latest = new Map<number, number>()
+  // Only a person's current application of each kind counts: an old declined one says nothing
+  // about the new application they have since started. One record serves both kinds, so it goes
+  // only when the current application of every kind they have applied as is due
+  const latest = new Map<number, Map<string, number>>()
   if (stale.docs.length) {
     const theirs = await payload.find({
       collection: 'applications',
       where: {
-        and: [
-          { type: { equals: 'artist' } },
-          {
-            member: {
-              in: stale.docs.map((a) => (typeof a.member === 'object' ? a.member.id : a.member)),
-            },
-          },
-        ],
+        member: {
+          in: stale.docs.map((a) => (typeof a.member === 'object' ? a.member.id : a.member)),
+        },
       },
       sort: 'createdAt',
       limit: 0,
@@ -1298,13 +1323,18 @@ export const kycPurgeCandidates = async (
       depth: 0,
       overrideAccess: true,
     })
-    for (const a of theirs.docs)
-      latest.set(typeof a.member === 'object' ? a.member.id : a.member, a.id)
+    for (const a of theirs.docs) {
+      const memberId = typeof a.member === 'object' ? a.member.id : a.member
+      if (!latest.has(memberId)) latest.set(memberId, new Map())
+      latest.get(memberId)!.set(a.type, a.id)
+    }
   }
+  const staleIds = new Set(stale.docs.map((a) => a.id))
   for (const application of stale.docs) {
     const memberId =
       typeof application.member === 'object' ? application.member.id : application.member
-    if (latest.get(memberId) !== application.id) continue
+    const current = [...(latest.get(memberId)?.values() ?? [])]
+    if (!current.includes(application.id) || !current.every((id) => staleIds.has(id))) continue
     const record = byMember.get(memberId)
     if (!record || held(record) || due.has(memberId)) continue
     due.set(
