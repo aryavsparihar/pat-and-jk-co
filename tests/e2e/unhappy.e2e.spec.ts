@@ -302,7 +302,7 @@ test('pages with nothing to show say so, and never break', async ({ page, contex
     await expect(page.getByText(/This page could not be shown/), path).toHaveCount(0)
   }
 
-  // An approved artist with no works yet
+  // An approved artist who has not given their works folder yet
   const email = uniqueEmail('no-works')
   const member = await p.create({
     collection: 'members',
@@ -312,7 +312,8 @@ test('pages with nothing to show say so, and never break', async ({ page, contex
   await approveAs(member.id)
   await signInAs(context, member.id)
   await page.goto('/account/works')
-  await expect(page.getByText('You have not added any works yet.')).toBeVisible()
+  await expect(page.getByLabel('Your Google Drive folder')).toBeVisible()
+  await expect(page.getByText(/This page could not be shown/)).toHaveCount(0)
   // And no application of any kind
   await page.goto('/account')
   await expect(page.getByRole('heading').first()).toBeVisible()
