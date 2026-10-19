@@ -48,7 +48,7 @@ cat >"$work/check.sql" <<'SQL'
 SELECT count(*) || ' tables' FROM pg_tables WHERE schemaname = 'public';
 SELECT 'members: ' || count(*) FROM members;
 SELECT 'applications: ' || count(*) FROM applications;
-SELECT 'artworks: ' || count(*) FROM artworks;
+SELECT 'KYC records: ' || count(*) FROM kyc_records;
 SELECT 'security log entries: ' || count(*) FROM security_events;
 SELECT 'newest security log entry: ' || coalesce(max(created_at)::text, 'none') FROM security_events;
 SQL
