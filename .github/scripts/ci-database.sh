@@ -25,11 +25,16 @@ if [[ "$(uname -s)" == "Linux" ]]; then
   docker run -d --name pjk-postgres -p 5432:5432 \
     -e POSTGRES_USER="$owner" -e POSTGRES_PASSWORD="$password" -e POSTGRES_DB="$name" \
     postgres:17 >/dev/null
+  # Over TCP, not the Unix socket: the image's entrypoint first runs a temporary server on the
+  # socket alone to make the database, stops it and only then starts the real one, so a check
+  # over the socket can pass against the temporary server and the next one fail in the gap
+  # ("rejecting connections"). Only the real server listens on 127.0.0.1.
+  ready=(docker exec pjk-postgres pg_isready -h 127.0.0.1 -p 5432 -U "$owner" -d "$name")
   for _ in $(seq 1 60); do
-    docker exec pjk-postgres pg_isready -U "$owner" -d "$name" >/dev/null 2>&1 && break
+    "${ready[@]}" >/dev/null 2>&1 && break
     sleep 1
   done
-  docker exec pjk-postgres pg_isready -U "$owner" -d "$name"
+  "${ready[@]}"
   {
     echo "DATABASE_URL=postgres://$owner:$password@localhost:5432/$name"
     echo "APP_DATABASE_URL=postgres://pjk_app_ci:pjk-app-ci@localhost:5432/$name"
