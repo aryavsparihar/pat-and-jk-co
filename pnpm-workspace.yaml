@@ -11,12 +11,23 @@ minimumReleaseAge: 10080
 # Pull transitive dependencies up to patched releases. Each line names the advisory it answers;
 # remove one once the package that brings it in ships the fix itself (check with `pnpm why`).
 overrides:
-  # Admin code editor (monaco-editor): GHSA-p98j-92pf-mc4p
-  dompurify: ">=3.4.16"
+  # Admin code editor (monaco-editor): GHSA-p98j-92pf-mc4p, then the SAFE_FOR_TEMPLATES and IN_PLACE
+  # bypasses (GHSA-cg2g-xh64-v4q7) fixed in 3.4.17
+  dompurify: ">=3.4.17"
   # Build tooling
   esbuild: ">=0.25.0"
-  # payload: DoS, TLS validation bypass and cookie disclosure advisories fixed in 7.29.1
-  "undici@>=7.0.0 <7.29.1": "^7.29.1"
+  # payload: DoS, TLS validation bypass and cookie disclosure advisories fixed in 7.29.1, then a DoS
+  # from excessive content-encodings fixed in 7.30.1 and 6.29.1
+  "undici@>=7.0.0 <7.30.1": "^7.30.1"
+  "undici@>=6.0.0 <6.29.1": "^6.29.1"
+  # payload's rich text (@lexical/headless) and vitest: host code execution through an unsanitised
+  # import alias (incomplete fix for CVE-2026-33943), fixed in 21.0.4
+  "happy-dom@<21.0.4": "^21.0.4"
+  # vitest (development only): launch-editor's existence check bypass, fixed in vite 7.3.7
+  "vite@>=7.0.0 <7.3.7": "^7.3.7"
+  # @vercel/oidc (via @vercel/blob) and eslint-plugin-react-hooks: memory exhaustion validating
+  # oversized constrained collections, fixed in 4.6.6
+  "zod@>=4.0.0 <4.6.6": "^4.6.7"
   # payload → ajv: host case normalisation, fixed in 3.1.8
   "fast-uri@>=3.0.0 <3.1.8": "^3.1.8"
   # eslint → minimatch (development only): DoS via nested braces
