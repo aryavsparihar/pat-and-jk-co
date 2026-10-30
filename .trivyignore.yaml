@@ -9,3 +9,13 @@ vulnerabilities:
       deeply nested glob patterns. No fixed version exists; it only ever matches globs from our own
       build configuration, never anything a visitor sends.
     expired_at: 2026-12-01
+  - id: CVE-2026-115887
+    paths:
+      - pnpm-lock.yaml
+    statement: >-
+      graphql-scalars 1.22.2, through @payloadcms/graphql: a slow regular expression in the
+      PhoneNumber scalar. The fix is 2.0.1, a major version Payload 3.90 does not take. GraphQL is
+      switched off (src/payload.config.ts, graphQL.disable), /api/graphql refuses every request,
+      and nothing here uses that scalar, so no input ever reaches it. Look again when Payload
+      moves to graphql-scalars 2.
+    expired_at: 2026-12-15
