@@ -115,8 +115,9 @@ export const config = {
     '/api/users/:path*',
     '/api/graphql',
     '/api/graphql-playground',
-    // Brand pages: everything except the API, preview routes, framework paths and files.
+    // Brand pages: everything except the API, preview routes, framework paths, files, and
+    // /.well-known/ (the public key Phulhaar checks sign-in tokens with).
     // (Uploads to /api/media must not pass through here, so /api/ stays excluded.)
-    '/((?!admin|api/|next/|_next/|_vercel/|.*\\.(?:ico|png|jpe?g|gif|svg|webp|avif|woff2?|ttf|css|js|map|webmanifest|pdf|mp4|webm)$).*)',
+    '/((?!admin|api/|next/|_next/|_vercel/|\\.well-known/|.*\\.(?:ico|png|jpe?g|gif|svg|webp|avif|woff2?|ttf|css|js|map|webmanifest|pdf|mp4|webm)$).*)',
   ],
 }

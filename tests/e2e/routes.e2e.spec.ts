@@ -57,6 +57,11 @@ const ROUTES: Record<string, 'public' | 'member' | 'staff' | 'secret' | 'token'>
   '/admin/[[...segments]]': 'staff',
   '/api/[...slug]': 'staff', // Payload's REST API: collection by collection, below
   '/api/health': 'public',
+  '/.well-known/jwks.json': 'public',
+  '/next/phulhaar/sign-in/request': 'secret',
+  '/next/phulhaar/sign-in/verify': 'secret',
+  '/next/phulhaar/staff/sign-in/request': 'secret',
+  '/next/phulhaar/staff/sign-in/verify': 'secret',
   // Route handlers
   '/next/admin-gate/request-access': 'public',
   '/next/admin-gate/request-code': 'public',
