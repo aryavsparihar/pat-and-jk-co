@@ -41,6 +41,7 @@ describe('redacting personal data from text', () => {
       'Migrated: 20261002_155740_add_rate_limits (2ms)',
       'request took 1234ms on 2026-10-02 15:19:06',
       'member AT000042 approved; application APP-7K3Q9X',
+      'member AT-X63G8 approved',
       'the last four digits are 9012',
       'GET /api/pages?depth=2 200',
       'listening on 127.0.0.1:5432',

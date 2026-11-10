@@ -1,4 +1,3 @@
-import { sql } from '@payloadcms/db-postgres'
 import { publicError } from '@/utilities/publicError'
 import {
   commitTransaction,
@@ -14,7 +13,7 @@ import { logSecurityEvent } from '@/security/events'
 
 import { sendDecisionEmail } from './emails'
 import { reapplyDays, reapplyFrom } from './reapply'
-import { formatMemberId, MEMBER_ID_SEQUENCE, type MemberKind } from './ids'
+import { newMemberId, type MemberKind } from './ids'
 
 /**
  * Staff decisions on an application: start reviewing it, approve, reject, or ask for changes.
@@ -59,26 +58,28 @@ const EVENT: Record<
   'request-changes': 'application-changes-requested',
 }
 
-/** The transaction's own connection, so nextval and the updates share one transaction */
-const transactionDb = async (payload: Payload, req: PayloadRequest) => {
-  const adapter = payload.db as unknown as {
-    sessions: Record<string, { db: { execute: (q: unknown) => Promise<{ rows: unknown[] }> } }>
-    drizzle: { execute: (q: unknown) => Promise<{ rows: unknown[] }> }
-  }
-  const id = await req.transactionID
-  return (id && adapter.sessions[String(id)]?.db) || adapter.drizzle
-}
-
-/** Takes the next member number of a kind. Must be called inside the approval transaction. */
+/**
+ * Draws a new random member ID of a kind (AT-X63G8) that no one has, deleted people included.
+ * Must be called inside the approval transaction. With 20 million IDs of each kind a clash is
+ * rare; ten in a row means something is wrong, so the approval stops rather than loop.
+ */
 export const nextMemberId = async (
   payload: Payload,
   req: PayloadRequest,
   kind: MemberKind,
 ): Promise<string> => {
-  const db = await transactionDb(payload, req)
-  const result = await db.execute(sql`SELECT nextval(${MEMBER_ID_SEQUENCE[kind]}) AS n`)
-  const n = (result.rows[0] as { n: string | number }).n
-  return formatMemberId(kind, BigInt(n))
+  const field = kind === 'artist' ? 'artistId' : 'partnerId'
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const candidate = newMemberId(kind)
+    const taken = await payload.count({
+      collection: 'members',
+      where: { [field]: { equals: candidate } },
+      overrideAccess: true,
+      req,
+    })
+    if (taken.totalDocs === 0) return candidate
+  }
+  throw new Error(`Could not find an unused ${kind} member ID`)
 }
 
 export type DecisionResult = { application: Application; member: Member; memberId?: string }
