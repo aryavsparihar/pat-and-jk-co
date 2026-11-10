@@ -27,8 +27,15 @@ const internalDocToHref = ({ linkNode }: { linkNode: SerializedLinkNode }) => {
   return docPath(relationTo, (value as { slug?: string }).slug)
 }
 
+import { headingId, nodeText } from '@/utilities/headingId'
+
 const jsxConverters: JSXConvertersFunction<NodeTypes> = ({ defaultConverters }) => ({
   ...defaultConverters,
+  // Every heading can be linked to, which the contents panel of a long document relies on
+  heading: ({ node, nodesToJSX }) => {
+    const Tag = node.tag
+    return <Tag id={headingId(nodeText(node))}>{nodesToJSX({ nodes: node.children })}</Tag>
+  },
   ...LinkJSXConverter({ internalDocToHref }),
   blocks: {
     banner: ({ node }) => <BannerBlock className="my-8" {...node.fields} />,
