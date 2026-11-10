@@ -15,6 +15,7 @@ import {
   payload,
   signInWithCode,
   uniqueEmail,
+  agreeToNotice,
 } from '../helpers/e2e'
 
 /*
@@ -221,9 +222,7 @@ test('an artist applies step by step, stops halfway, and comes back', async ({ p
   await expect(page.getByText('ABCxxxxx4F')).toBeVisible()
   await page.getByLabel(/my own original work/).check()
   await page.getByLabel(/information I have given is accurate/).check()
-  await page
-    .getByLabel(/processing my identity details, including a photo of me, to verify who I am, and/)
-    .check()
+  await agreeToNotice(page)
   await page.getByRole('button', { name: 'Send my application' }).click()
   await expect(
     page.getByRole('heading', { name: 'Thank you. We have your application.' }),
@@ -357,12 +356,7 @@ test('a partner applies in one go, with their identity and the agreement', async
   await expect(page.getByText('Received, and encrypted.')).toHaveCount(2)
   await expect(page.getByLabel('I’d rather use another ID')).toHaveCount(0)
   await expect(page.getByLabel('Account number', { exact: true })).toHaveCount(0)
-  await readAndAgree(
-    page,
-    /I agree to PAT and J\.K\. Co\. processing/,
-    'Privacy policy',
-    'The privacy policy',
-  )
+  await agreeToNotice(page)
 
   // The agreement, as published in Site settings, read to its end
   await expect(page.getByText(E2E_AGREEMENT.words)).toBeAttached()

@@ -1,11 +1,12 @@
 'use client'
 
+import { DpdpConsent } from '../DpdpConsent'
 import React, { useEffect, useState } from 'react'
 
 import { LANGUAGES, MEDIUMS, PRICE_RANGES } from '@/members/forms/schemas'
 
 import { api } from '../api'
-import { Check, TextField } from '../fields'
+import { Check } from '../fields'
 import type { StepProps, Values } from './steps'
 
 type Section = { step: string; title: string; rows: [string, React.ReactNode][] }
@@ -39,8 +40,10 @@ export const ReviewStep: React.FC<
     onEdit: (step: string) => void
     /** The Terms & Conditions to agree to, while they are published in Site settings */
     terms?: { url: string; filename: string } | null
+    /** The privacy policy, rendered on the server, shown in full before the consent */
+    privacy?: React.ReactNode
   }
-> = ({ values, set, errors, all, onEdit, terms }) => {
+> = ({ values, set, errors, all, onEdit, terms, privacy }) => {
   const about = all.about ?? {}
   const address = all.address ?? {}
   const practice = all.practice ?? {}
@@ -203,25 +206,6 @@ export const ReviewStep: React.FC<
             name="accurate"
             onValue={(v) => set('accurate', v)}
           />
-          <Check
-            checked={Boolean(values.consentProcessing)}
-            error={errors.consentProcessing}
-            label={
-              <>
-                I agree to PAT and J.K. Co. processing my identity details, including a photo of me,
-                to verify who I am, and for nothing else. They are kept encrypted, seen only by the
-                few people at PJK who verify them, and kept no longer than the privacy notice says.
-                I can withdraw this consent at any time by writing to us. Read the{' '}
-                <a className="link" href="/privacy" rel="noopener" target="_blank">
-                  privacy notice
-                  <span className="sr-only"> (opens in a new tab)</span>
-                </a>
-                .
-              </>
-            }
-            name="consentProcessing"
-            onValue={(v) => set('consentProcessing', v)}
-          />
         </div>
       </fieldset>
 
@@ -245,21 +229,19 @@ export const ReviewStep: React.FC<
               name="agreeTerms"
               onValue={(v) => set('agreeTerms', v)}
             />
-            <TextField
-              autoCapitalize="characters"
-              autoComplete="off"
-              className="max-w-xs"
-              errors={errors}
-              hint="Type the words I AGREE, to confirm."
-              label="Type I AGREE"
-              name="agreeTyped"
-              onValue={(v) => set('agreeTyped', v)}
-              spellCheck={false}
-              value={values.agreeTyped}
-            />
           </div>
         </fieldset>
       )}
+
+      <DpdpConsent
+        checked={Boolean(values.consentProcessing)}
+        errors={{ checked: errors.consentProcessing, typed: errors.agreeTyped }}
+        id="consentProcessing"
+        onChecked={(v) => set('consentProcessing', v)}
+        onTyped={(v) => set('agreeTyped', v)}
+        privacy={privacy}
+        typed={values.agreeTyped ?? ''}
+      />
     </div>
   )
 }

@@ -31,7 +31,7 @@ import { partnerAgreement } from './partnerAgreement'
  */
 
 /** The privacy notice an applicant is agreeing to; bump it when the notice changes materially */
-export const PRIVACY_NOTICE_VERSION = '2026-10'
+export const PRIVACY_NOTICE_VERSION = '2026-11-04'
 
 export const EDITABLE: Application['stage'][] = ['draft', 'changes-requested']
 
@@ -146,21 +146,20 @@ export const saveArtistStep = async (
     }
   }
 
-  // While terms are published, the last step asks for agreement in so many words, and records
-  // which document was agreed to
+  // The last step asks for consent to the pre-submission notice in so many words (I AGREE typed),
+  // and, while terms are published, agreement to them too, recording which document it was
   let termsDocument: number | undefined
   if (name === 'review') {
     const terms = await artistTerms(payload)
-    if (terms) {
-      const review = parsed.data as { agreeTerms?: boolean; agreeTyped?: string }
-      const errors: Record<string, string> = {}
-      if (review.agreeTerms !== true) errors.agreeTerms = 'Please tick that you agree to the terms.'
-      if (!agreedInWords(review.agreeTyped))
-        errors.agreeTyped = `Please type ${TERMS_PHRASE} to confirm.`
-      if (Object.keys(errors).length > 0)
-        return { ok: false, status: 422, message: 'A few things need another look.', errors }
-      termsDocument = terms.id
-    }
+    const review = parsed.data as { agreeTerms?: boolean; agreeTyped?: string }
+    const errors: Record<string, string> = {}
+    if (terms && review.agreeTerms !== true)
+      errors.agreeTerms = 'Please tick that you agree to the terms.'
+    if (!agreedInWords(review.agreeTyped))
+      errors.agreeTyped = `Please type ${TERMS_PHRASE} to confirm.`
+    if (Object.keys(errors).length > 0)
+      return { ok: false, status: 422, message: 'A few things need another look.', errors }
+    if (terms) termsDocument = terms.id
   }
 
   const completed = new Set(application.completedSteps ?? [])
@@ -244,11 +243,14 @@ export const submitArtistApplication = async (
   const terms = await artistTerms(payload)
   const declarations = application.declarations as
     { agreeTerms?: boolean | null; agreeTyped?: string | null } | undefined
-  if (terms && !(declarations?.agreeTerms && agreedInWords(declarations.agreeTyped))) {
+  if (terms && !declarations?.agreeTerms) {
     problems.review = {
       ...problems.review,
       agreeTerms: 'Please agree to the terms and conditions.',
     }
+  }
+  if (!agreedInWords(declarations?.agreeTyped)) {
+    problems.review = { ...problems.review, agreeTyped: `Please type ${TERMS_PHRASE} to confirm.` }
   }
   const kyc = await kycProblems(payload, member.id)
   if (kyc.length > 0) problems.kyc = { _form: kyc[0]! }

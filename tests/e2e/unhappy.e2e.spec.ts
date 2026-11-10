@@ -13,6 +13,7 @@ import {
   signInAs,
   signInWithCode,
   uniqueEmail,
+  agreeToNotice,
 } from '../helpers/e2e'
 import { execute } from '../../src/utilities/sql.js'
 
@@ -191,7 +192,7 @@ test('a double click saves once, and sends an application once', async ({ page }
   await expect(page.getByRole('heading', { name: 'Review and send' })).toBeVisible()
   await page.getByLabel(/my own original work/).check()
   await page.getByLabel(/information I have given is accurate/).check()
-  await page.getByLabel(/processing my identity details/).check()
+  await agreeToNotice(page)
   await page.getByRole('button', { name: 'Send my application' }).dblclick()
   await expect(
     page.getByRole('heading', { name: 'Thank you. We have your application.' }),
