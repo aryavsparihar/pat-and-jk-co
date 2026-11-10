@@ -3,9 +3,11 @@ import { randomInt } from 'node:crypto'
 /**
  * The two kinds of identifier a member meets.
  *
- * Member IDs (AT000001, PT000001) are issued on approval from a Postgres sequence per kind, so
- * they are atomic under any amount of concurrency, never reused, and never worked out with
- * MAX()+1. A rejected application or a rolled-back approval may leave a gap; that is fine.
+ * Member IDs (AT-X63G8, PT-8GH37) are issued on approval: the prefix for the kind and five random
+ * characters, checked against every ID already given out (a deleted person keeps theirs), with
+ * the column's unique index as the backstop. Random rather than counted, so an ID says nothing
+ * about how many members there are. IDs issued before November 2026 (AT000001, from a Postgres
+ * sequence per kind) stay as they were.
  *
  * Application references exist from the first step and stay with the person for good: A-7K3Q9X
  * for an artist, PT-7K3Q9X for a partner (APP-7K3Q9X before October 2026, kept as they were).
@@ -22,16 +24,27 @@ export const MEMBER_ID_SEQUENCE: Record<MemberKind, string> = {
   partner: 'member_id_partner_seq',
 }
 
-/** AT000001. Six digits, growing to seven only after the millionth member of a kind. */
+/** AT000001: the format used before November 2026. Kept for those IDs and for tests. */
 export const formatMemberId = (kind: MemberKind, n: number | bigint): string => {
   const value = BigInt(n)
   if (value < 1n) throw new Error('Member numbers start at 1')
   return `${MEMBER_ID_PREFIX[kind]}${value.toString().padStart(6, '0')}`
 }
 
-export const MEMBER_ID_PATTERN = /^(AT|PT)\d{6,}$/
-
 const REFERENCE_ALPHABET = '23456789ABCDEFGHJKMNPQRSTWXYZ'
+
+/** AT-X63G8, or the older AT000001 */
+export const MEMBER_ID_PATTERN = new RegExp(`^(AT|PT)(\\d{6,}|-[${REFERENCE_ALPHABET}]{5})$`)
+
+const randomCode = (length: number): string => {
+  let code = ''
+  for (let i = 0; i < length; i++) code += REFERENCE_ALPHABET[randomInt(REFERENCE_ALPHABET.length)]
+  return code
+}
+
+/** AT-X63G8 or PT-8GH37: 29^5, about 20 million of each kind. The caller checks it is unused. */
+export const newMemberId = (kind: MemberKind): string =>
+  `${MEMBER_ID_PREFIX[kind]}-${randomCode(5)}`
 export const APPLICATION_REFERENCE_PREFIX: Record<MemberKind, string> = {
   artist: 'A',
   partner: 'PT',
@@ -44,14 +57,10 @@ export const APPLICATION_REFERENCE_PATTERN = new RegExp(`^(A|PT|APP)-[${REFERENC
  * the unambiguous alphabet, split for reading aloud and writing.
  */
 export const newIdentityCode = (): string => {
-  let code = ''
-  for (let i = 0; i < 6; i++) code += REFERENCE_ALPHABET[randomInt(REFERENCE_ALPHABET.length)]
+  const code = randomCode(6)
   return `${code.slice(0, 3)}-${code.slice(3)}`
 }
 
 /** A-7K3Q9X or PT-7K3Q9X: 29^6, about 600 million each, so a clash is rare and simply retried */
-export const newApplicationReference = (kind: MemberKind): string => {
-  let code = ''
-  for (let i = 0; i < 6; i++) code += REFERENCE_ALPHABET[randomInt(REFERENCE_ALPHABET.length)]
-  return `${APPLICATION_REFERENCE_PREFIX[kind]}-${code}`
-}
+export const newApplicationReference = (kind: MemberKind): string =>
+  `${APPLICATION_REFERENCE_PREFIX[kind]}-${randomCode(6)}`

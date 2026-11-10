@@ -148,8 +148,7 @@ the real email, Blob store, Turnstile keys and KYC encryption together.
       **Reveal** and **Download** ask for a reason and appear in the security log. The identity
       document box shows the e-Aadhaar check's result.
 - [ ] **Ask for changes, do not approve.** Write a short note and press **Ask for changes**, then
-      check that email arrives. Approving would use up `AT000001` for good (member IDs come from a
-      sequence and are never reused), and it is kept for the first real artist. Approval is
+      check that email arrives. Approving would issue a real member ID, which is never reused. Approval is
       covered by the end-to-end tests.
 - [ ] **Close applications.**
 - [ ] **Delete it.** Signed in as the test applicant, **Account → Your data**: withdraw consent and

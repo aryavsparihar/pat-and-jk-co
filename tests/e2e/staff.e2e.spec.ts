@@ -28,10 +28,10 @@ test('approving an application issues an artist ID', async ({ page, context }) =
   await page.goto(`/admin/collections/applications/${application.id}`)
   page.once('dialog', (dialog) => dialog.accept())
   await page.getByRole('button', { name: 'Approve', exact: true }).click()
-  await expect(page.getByText(/Approved\. Member ID AT\d{6}\./)).toBeVisible()
+  await expect(page.getByText(/Approved\. Member ID AT-[2-9A-Z]{5}\./)).toBeVisible()
 
   const after = await p.findByID({ collection: 'members', id: member.id, overrideAccess: true })
-  expect(after.artistId).toMatch(/^AT\d{6}$/)
+  expect(after.artistId).toMatch(/^AT-[2-9A-Z]{5}$/)
   const decided = await p.findByID({
     collection: 'applications',
     id: application.id,

@@ -15,6 +15,7 @@ import {
   APPLICATION_REFERENCE_PATTERN,
   formatMemberId,
   MEMBER_ID_PATTERN,
+  newMemberId,
   newApplicationReference,
 } from '@/members/ids'
 import { checkChallenge, issueChallenge } from '@/security/challenges'
@@ -170,6 +171,12 @@ describe('member IDs and application references', () => {
     expect(() => formatMemberId('artist', 0)).toThrow()
     expect(MEMBER_ID_PATTERN.test('AT000001')).toBe(true)
     expect(MEMBER_ID_PATTERN.test('AT00001')).toBe(false)
+    expect(MEMBER_ID_PATTERN.test('AT-X63G8')).toBe(true)
+    expect(MEMBER_ID_PATTERN.test('PT-8GH37')).toBe(true)
+    expect(MEMBER_ID_PATTERN.test('AT-X63G')).toBe(false)
+    expect(MEMBER_ID_PATTERN.test('AT-X63G0')).toBe(false)
+    expect(newMemberId('artist')).toMatch(/^AT-[2-9A-Z]{5}$/)
+    expect(newMemberId('partner')).toMatch(/^PT-[2-9A-Z]{5}$/)
   })
 
   it('gives applications random references people can read aloud', () => {
@@ -573,15 +580,15 @@ describe('approval and member IDs', () => {
       decision: 'approve',
       actor: staff,
     })
-    expect(a.member.artistId).toMatch(/^AT\d{6}$/)
+    expect(a.member.artistId).toMatch(/^AT-[2-9A-Z]{5}$/)
     expect(a.member.partnerId ?? null).toBeNull()
-    expect(p.member.partnerId).toMatch(/^PT\d{6}$/)
+    expect(p.member.partnerId).toMatch(/^PT-[2-9A-Z]{5}$/)
     expect(p.member.artistId ?? null).toBeNull()
     expect(a.application.stage).toBe('approved')
     expect(a.application.issuedId).toBe(a.member.artistId)
   })
 
-  it('gives every approval its own number when many happen at once', async () => {
+  it('gives every approval its own ID when many happen at once', async () => {
     const applicants = await Promise.all(Array.from({ length: 12 }, () => submitted('artist')))
     const results = await Promise.all(
       applicants.map(({ application }) =>
@@ -594,9 +601,7 @@ describe('approval and member IDs', () => {
     )
     const ids = results.map((r) => r.member.artistId!)
     expect(new Set(ids).size).toBe(12)
-    const numbers = ids.map((id) => Number(id.slice(2))).sort((x, y) => x - y)
-    // Gap-tolerant, but these twelve were taken back to back
-    expect(numbers[11]! - numbers[0]!).toBe(11)
+    for (const id of ids) expect(id).toMatch(MEMBER_ID_PATTERN)
   })
 
   it('does not spend a number on a rejection', async () => {
@@ -725,7 +730,7 @@ describe('approval and member IDs', () => {
     })
     expect(both.id).toBe(asArtist.id)
     expect(both.artistId).toBe(asArtist.artistId)
-    expect(both.partnerId).toMatch(/^PT\d{6}$/)
+    expect(both.partnerId).toMatch(/^PT-[2-9A-Z]{5}$/)
 
     // A second application of a kind is never made beside the current one: ensureApplication
     // returns it, and the database refuses a second however it is created
