@@ -20,6 +20,7 @@ const TENANT_SLUG = 'pjk'
 const CONTACT_INBOX = process.env.CONTACT_INBOX || 'hello@pjk.co.in'
 const BUSINESS_INBOX = process.env.BUSINESS_INBOX || 'business@pjk.co.in'
 const TECHNICAL_INBOX = process.env.TECHNICAL_INBOX || 'tech@pjk.co.in'
+/** Named on the Leadership page only, at the founder's request (10 November 2026) */
 const PROPRIETOR = 'Mr. Yuvraj Singh Pathania'
 const context = { disableRevalidate: true }
 
@@ -357,7 +358,7 @@ async function seed() {
       'Why we built an umbrella before we built a single shopfront, what the ventures beneath it share, and where Phulhaar Gallery fits.',
     content: root(
       p(
-        'PAT and J.K. Co. — PJK — is a sole proprietorship of Mr. Yuvraj Singh Pathania. It is not one shopfront with one thing to sell. It is the umbrella under which several ventures in art and craft are built, run and held to the same standard. This is the first entry in its journal, and the plainest statement we can make of what it is for.',
+        'PAT and J.K. Co. — PJK — is a sole proprietorship. It is not one shopfront with one thing to sell. It is the umbrella under which several ventures in art and craft are built, run and held to the same standard. This is the first entry in its journal, and the plainest statement we can make of what it is for.',
       ),
       h('h2', 'Why an umbrella'),
       p(
@@ -444,7 +445,6 @@ async function seed() {
     {
       blockType: 'hero',
       variant: 'brand',
-      eyebrow: `Prop. ${PROPRIETOR}`,
       heading: 'PAT and J.K. Co. is the *umbrella* our ventures in art and craft stand under.',
       subheading:
         'One house, several ventures — each trading under its own name, each beginning with everything the last one learned. The latest is Phulhaar Gallery by PJK, for fine and contemporary art.',
@@ -525,7 +525,7 @@ async function seed() {
         align: 'left',
         eyebrow: 'About',
         heading: 'About PAT and J.K. Co.',
-        intro: `A sole proprietorship of ${PROPRIETOR}, and the umbrella under which our ventures in art and craft are built and run.`,
+        intro: `A sole proprietorship, and the umbrella under which our ventures in art and craft are built and run.`,
       },
       {
         blockType: 'manifesto',
@@ -533,7 +533,7 @@ async function seed() {
         heading: 'How it started',
         content: root(
           p(
-            `PAT and J.K. Co. was founded by ${PROPRIETOR}, who is its proprietor and its creative director. The idea was to build a home for ventures that care about quality, and to give each of them the time and the support to get things right.`,
+            `PAT and J.K. Co. was founded to build a home for ventures that care about quality, and to give each of them the time and the support to get things right.`,
           ),
           p(
             'The latest of them is Phulhaar Gallery by PJK, a gallery for fine and contemporary art, which curates work and places it — alongside curators, interior designers, decorators and mood setters. More ventures will follow when they are ready, and not before.',
@@ -836,7 +836,7 @@ async function seed() {
             richText: root(
               h('h2', 'Who we are'),
               p(
-                `This website is run by PAT and J.K. Co. (“PJK”, “we”, “us”), a sole proprietorship of ${PROPRIETOR}. This policy explains what personal data we collect through it, why, and what choices you have.`,
+                `This website is run by PAT and J.K. Co. (“PJK”, “we”, “us”), a sole proprietorship. This policy explains what personal data we collect through it, why, and what choices you have.`,
               ),
               h('h2', 'What we collect'),
               p(
@@ -923,7 +923,7 @@ async function seed() {
       pageRef(contact.id, 'Contact'),
     ],
     legalLinks: [pageRef(privacy.id, 'Privacy policy')],
-    copyrightName: `PAT and J.K. Co. · Prop. ${PROPRIETOR}`,
+    copyrightName: 'PAT and J.K. Co.',
     showVisitorCount: true,
     email: CONTACT_INBOX,
     office: {
