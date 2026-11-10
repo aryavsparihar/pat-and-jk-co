@@ -1,14 +1,7 @@
 import { expect, test } from '@playwright/test'
 
 import { ensureApplication } from '../../src/members/accounts.js'
-import {
-  approveAs,
-  cleanUp,
-  payload,
-  signInAs,
-  signInAsStaff,
-  uniqueEmail,
-} from '../helpers/e2e'
+import { approveAs, cleanUp, payload, signInAs, signInAsStaff, uniqueEmail } from '../helpers/e2e'
 
 /*
  * Away from the keyboard (src/components/session/afk.ts): a signed-in page nobody touches

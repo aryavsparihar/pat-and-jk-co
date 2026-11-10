@@ -121,7 +121,7 @@ const goodSteps = {
       },
     ],
   },
-  review: { originalWork: true, accurate: true, consentProcessing: true },
+  review: { originalWork: true, accurate: true, consentProcessing: true, agreeTyped: 'I AGREE' },
 }
 
 const cleanup = async () => {

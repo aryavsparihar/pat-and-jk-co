@@ -6,6 +6,7 @@ import { Section } from '@/components/Typography'
 import type { ContentBlock as ContentBlockProps } from '@/payload-types'
 
 import { CMSLink } from '../../components/Link'
+import { SectionNav } from './SectionNav'
 
 const colSpan = {
   full: 'lg:col-span-9',
@@ -15,11 +16,11 @@ const colSpan = {
 }
 
 /** Written content set in the page's reading column. */
-export const ContentBlock: React.FC<ContentBlockProps> = ({ columns, width }) => {
+export const ContentBlock: React.FC<ContentBlockProps> = ({ columns, width, sectionNav }) => {
   if (!columns?.length) return null
 
   return (
-    <Section>
+    <Section aside={sectionNav ? <SectionNav data={columns[0]?.richText} /> : undefined}>
       <div className="grid grid-cols-1 gap-x-12 gap-y-10 lg:grid-cols-9">
         {columns.map((col, index) => {
           const { enableLink, link, richText, size } = col

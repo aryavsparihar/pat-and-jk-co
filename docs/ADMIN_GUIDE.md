@@ -47,6 +47,12 @@ The page with the slug **`home`** is the homepage. The **SEO** tab sets the titl
 
 **Links** in blocks can point to another page, a journal post or a venture (*Internal link*), or to any web address or email (*Custom URL*, e.g. `https://…` or `mailto:hello@pjk.co.in`).
 
+### The privacy policy
+
+**Pages → Privacy policy** holds the founder's Artist & Partner Onboarding Privacy Policy & Statutory Notice (effective 4 November 2026), word for word, in one **Text** block with **List the section headings in a panel on the left** ticked: each main heading becomes a group in the left margin and each numbered heading a link to its section. Tables are added from the editor's toolbar. Change the date under the page heading when the policy changes.
+
+Both application forms show this page's text in full, in a box the applicant scrolls through before the pre-submission notice, the consent box and I AGREE (`src/members/dpdpNotice.ts` holds the notice's wording). Whatever is published here is what applicants read.
+
 ## Journal
 
 **Website → Journal.** Write a title, a one-line **excerpt** (shown on cards), an optional **hero image**, and the article. Choose categories in the sidebar. Published posts appear automatically in every Journal feed block.

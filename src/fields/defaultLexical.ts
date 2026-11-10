@@ -2,6 +2,7 @@ import type { TextFieldSingleValidation } from 'payload'
 import {
   BlockquoteFeature,
   BoldFeature,
+  EXPERIMENTAL_TableFeature,
   FixedToolbarFeature,
   HeadingFeature,
   HorizontalRuleFeature,
@@ -65,6 +66,8 @@ export const bodyLexical = lexicalEditor({
     OrderedListFeature(),
     BlockquoteFeature(),
     HorizontalRuleFeature(),
+    // For tables in legal text, such as the privacy policy's data matrix
+    EXPERIMENTAL_TableFeature(),
     FixedToolbarFeature(),
     InlineToolbarFeature(),
   ],

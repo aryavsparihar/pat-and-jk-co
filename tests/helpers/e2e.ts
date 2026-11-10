@@ -351,3 +351,12 @@ export const findMember = async (email: string) =>
       overrideAccess: true,
     })
   ).docs[0]!
+
+/** The pre-submission notice: the policy scrolled to its end, the box ticked, I AGREE typed */
+export const agreeToNotice = async (page: Page) => {
+  await page
+    .getByRole('region', { name: 'The privacy policy' })
+    .evaluate((el) => el.scrollTo({ top: el.scrollHeight }))
+  await page.getByLabel(/^I have read and understood the PAT & J\.K\. Co\. Artist/).check()
+  await page.getByLabel('TYPE ‘I AGREE.’').fill('I AGREE')
+}

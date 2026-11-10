@@ -16,7 +16,7 @@ import { TURNSTILE_FIELD } from '@/security/turnstile'
 import { api } from './api'
 import { IdentityPhoto, NAME_CHANGED } from './artist/identity/IdentityPhoto'
 import { Lock } from './artist/identity/Lock'
-import { PrivacyConsent } from './artist/identity/PrivacyConsent'
+import { DpdpConsent, typedAgree } from './DpdpConsent'
 import { AGREE_PHRASE, ReadToAgree } from './artist/identity/ReadToAgree'
 import { Upload } from './artist/identity/Upload'
 import { CodeSignIn } from './CodeSignIn'
@@ -83,7 +83,12 @@ const PartnerForm: React.FC<Props> = ({ formToken, initialCategory, privacy, agr
     for: null,
     note: null,
   })
-  const [consented, setConsented] = useState(false)
+  // The pre-submission notice: the policy scrolled to its end, the box ticked, I AGREE typed
+  const [consentChecked, setConsentChecked] = useState(false)
+  const [consentTyped, setConsentTyped] = useState('')
+  const [readToEnd, setReadToEnd] = useState(false)
+  const consented = consentChecked && readToEnd && typedAgree(consentTyped)
+  const markReadToEnd = useCallback(() => setReadToEnd(true), [])
   const [agreed, setAgreed] = useState(false)
   const [refused, setRefused] = useState(false)
   const bot = useVisibleTurnstile('partner-submit')
@@ -183,7 +188,7 @@ const PartnerForm: React.FC<Props> = ({ formToken, initialCategory, privacy, agr
           kyc: editingKyc
             ? {
                 consent: consented,
-                consentReadToEnd: consented,
+                consentReadToEnd: readToEnd,
                 consentTyped: consented ? AGREE_PHRASE : '',
                 noticeVersion,
                 pan,
@@ -521,11 +526,18 @@ const PartnerForm: React.FC<Props> = ({ formToken, initialCategory, privacy, agr
               />
             </fieldset>
 
-            <PrivacyConsent
-              agreed={consented}
-              error={errors.consent ?? errors.consentReadToEnd ?? errors.consentTyped}
-              onAgreed={setConsented}
+            <DpdpConsent
+              checked={consentChecked}
+              errors={{
+                checked: errors.consent ?? errors.consentReadToEnd,
+                typed: errors.consentTyped,
+              }}
+              id="consent"
+              onChecked={setConsentChecked}
+              onReadToEnd={markReadToEnd}
+              onTyped={setConsentTyped}
               privacy={privacy}
+              typed={consentTyped}
             />
             {kyc && partnerKycComplete(kyc) && (
               <button

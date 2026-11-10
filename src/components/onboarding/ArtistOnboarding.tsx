@@ -376,6 +376,7 @@ export const ArtistOnboarding: React.FC<{
                     all={values}
                     errors={errors}
                     onEdit={(s) => go(s as ArtistStep)}
+                    privacy={privacy}
                     set={set}
                     terms={terms}
                     values={current}
