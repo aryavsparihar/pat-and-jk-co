@@ -43,7 +43,8 @@ const randomCode = (length: number): string => {
 }
 
 /** AT-X63G8 or PT-8GH37: 29^5, about 20 million of each kind. The caller checks it is unused. */
-export const newMemberId = (kind: MemberKind): string => `${MEMBER_ID_PREFIX[kind]}-${randomCode(5)}`
+export const newMemberId = (kind: MemberKind): string =>
+  `${MEMBER_ID_PREFIX[kind]}-${randomCode(5)}`
 export const APPLICATION_REFERENCE_PREFIX: Record<MemberKind, string> = {
   artist: 'A',
   partner: 'PT',
