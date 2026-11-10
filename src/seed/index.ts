@@ -15,11 +15,13 @@ import { getPayload, type CollectionSlug, type Payload } from 'payload'
 
 import { howItWorksBlock, pathsBlock } from './collaborate'
 import { h, p, root } from './lexical'
+import { PRIVACY_POLICY_EFFECTIVE, privacyPolicyRichText } from '../legal/privacyPolicy'
 
 const TENANT_SLUG = 'pjk'
 const CONTACT_INBOX = process.env.CONTACT_INBOX || 'hello@pjk.co.in'
 const BUSINESS_INBOX = process.env.BUSINESS_INBOX || 'business@pjk.co.in'
 const TECHNICAL_INBOX = process.env.TECHNICAL_INBOX || 'tech@pjk.co.in'
+
 /** Named on the Leadership page only, at the founder's request (10 November 2026) */
 const PROPRIETOR = 'Mr. Yuvraj Singh Pathania'
 const context = { disableRevalidate: true }
@@ -825,53 +827,13 @@ async function seed() {
         align: 'left',
         eyebrow: 'Legal',
         heading: 'Privacy policy',
-        intro: 'Last updated 13 September 2026.',
+        intro: `Effective ${PRIVACY_POLICY_EFFECTIVE}.`,
       },
       {
         blockType: 'content',
+        sectionNav: true,
         width: 'narrow',
-        columns: [
-          {
-            size: 'full',
-            richText: root(
-              h('h2', 'Who we are'),
-              p(
-                `This website is run by PAT and J.K. Co. (“PJK”, “we”, “us”), a sole proprietorship. This policy explains what personal data we collect through it, why, and what choices you have.`,
-              ),
-              h('h2', 'What we collect'),
-              p(
-                'When you send us a message through a form on this site, we collect what you give us: usually your name, your email address and your message. We do not use advertising trackers and we do not sell personal data.',
-              ),
-              h('h2', 'How we use it'),
-              p(
-                'We use your details only to answer your message and, where relevant, to continue a conversation you started with us.',
-              ),
-              h('h2', 'How long we keep it'),
-              p(
-                'We keep messages for as long as we need to reply and for reasonable record keeping. After that they are deleted.',
-              ),
-              h('h2', 'Your rights'),
-              p(
-                'Under India’s Digital Personal Data Protection Act, 2023, you can ask us to show, correct or delete the personal data we hold about you, or withdraw your consent. Contact us using the details below.',
-              ),
-              h('h2', 'Cookies'),
-              p(
-                'This website only uses cookies that it needs to work, for example to keep editors signed in. It does not use advertising or tracking cookies.',
-              ),
-              h('h2', 'How we contact you, and how to know it is us'),
-              p(
-                'No one working for PAT and J.K. Co. or for any venture under it will begin a transaction, an agreement or a negotiation from anything other than an official address at the pjk.co.in domain. Quotations, invoices, payment instructions and contracts reach you only from that domain.',
-              ),
-              p(
-                `We are not responsible for any loss arising from correspondence, payment requests, offers or representations made from any other address, account, profile or channel, whether or not it claims to act for us. We will never ask you to send money to an account given over the telephone or by message alone. If anything looks doubtful, stop and write to [${CONTACT_INBOX}](mailto:${CONTACT_INBOX}) before you act on it, and we will confirm whether it came from us.`,
-              ),
-              h('h2', 'Contact'),
-              p(
-                `Questions about this policy can be sent to [${CONTACT_INBOX}](mailto:${CONTACT_INBOX}). Business enquiries go to [${BUSINESS_INBOX}](mailto:${BUSINESS_INBOX}); anything to do with this website goes to [${TECHNICAL_INBOX}](mailto:${TECHNICAL_INBOX}).`,
-              ),
-            ),
-          },
-        ],
+        columns: [{ size: 'full', richText: privacyPolicyRichText() }],
       },
     ],
     'How PAT and J.K. Co. handles personal data sent through this website.',
