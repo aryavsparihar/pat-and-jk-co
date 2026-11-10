@@ -64,6 +64,8 @@ type SectionProps = {
   label?: string | null
   /** Hairline above the section (default true) */
   rule?: boolean
+  /** Shown in the left margin instead of the label, such as a document's contents */
+  aside?: React.ReactNode
 }
 
 /**
@@ -76,6 +78,7 @@ export const Section: React.FC<SectionProps> = ({
   id,
   label,
   rule = true,
+  aside,
 }) => (
   <section className={cn('section', className)} id={id}>
     <div className="container">
@@ -85,7 +88,7 @@ export const Section: React.FC<SectionProps> = ({
       */}
       <div className={cn('grid gap-x-12 gap-y-5 lg:grid-cols-12', rule && 'section-rule')}>
         <div className="lg:col-span-3">
-          <Label className="lg:sticky lg:top-28">{label}</Label>
+          {aside ?? <Label className="lg:sticky lg:top-28">{label}</Label>}
         </div>
         <div className="min-w-0 lg:col-span-9">{children}</div>
       </div>

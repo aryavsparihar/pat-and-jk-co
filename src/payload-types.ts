@@ -683,6 +683,10 @@ export interface ManifestoBlock {
  * via the `definition` "ContentBlock".
  */
 export interface ContentBlock {
+  /**
+   * For long documents such as the privacy policy: each main heading becomes a group in the left margin, and each subheading a link to its section.
+   */
+  sectionNav?: boolean | null;
   width?: ('narrow' | 'wide') | null;
   columns?:
     | {
@@ -2676,6 +2680,7 @@ export interface ManifestoBlockSelect<T extends boolean = true> {
  * via the `definition` "ContentBlock_select".
  */
 export interface ContentBlockSelect<T extends boolean = true> {
+  sectionNav?: T;
   width?: T;
   columns?:
     | T
