@@ -31,7 +31,7 @@ import { partnerAgreement } from './partnerAgreement'
  */
 
 /** The privacy notice an applicant is agreeing to; bump it when the notice changes materially */
-export const PRIVACY_NOTICE_VERSION = '2026-11-04'
+export const PRIVACY_NOTICE_VERSION = '2026-11-12'
 
 export const EDITABLE: Application['stage'][] = ['draft', 'changes-requested']
 
