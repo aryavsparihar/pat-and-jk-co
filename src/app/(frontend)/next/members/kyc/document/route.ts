@@ -58,7 +58,12 @@ export async function POST(request: Request) {
 
   const kind = String(form.get('kind') ?? '') as KycDocumentKind
   const file = form.get('file')
-  if (!KYC_DOCUMENT_KINDS.includes(kind) || (type === 'partner' && !PARTNER_KINDS.includes(kind)))
+  // Agreement files are made only by the signing pages and by staff (src/agreements)
+  if (
+    !KYC_DOCUMENT_KINDS.includes(kind) ||
+    kind.startsWith('agreement-') ||
+    (type === 'partner' && !PARTNER_KINDS.includes(kind))
+  )
     return reply({ message: 'What kind of document is this?' }, { status: 400 })
   if (!(file instanceof File)) return reply({ message: 'Please choose a file.' }, { status: 400 })
   if (file.size > KYC_DOCUMENT_MAX_BYTES)
