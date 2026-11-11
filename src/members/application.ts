@@ -1,5 +1,5 @@
 import type { Payload } from 'payload'
-import { agreedInWords, artistTerms, TERMS_PHRASE } from './terms'
+import { agreedInWords, TERMS_PHRASE } from './terms'
 
 import type { Application, Member } from '@/payload-types'
 import { logSecurityEvent } from '@/security/events'
@@ -19,8 +19,6 @@ import { partnerKycSchema, type PartnerKycInput } from '@/kyc/schema'
 import { identityPhotoFacts, kycProblems, partnerKycProblems, savePartnerKyc } from '@/kyc/service'
 import { actingFor } from '@/security/audit'
 
-import { partnerAgreement } from './partnerAgreement'
-
 /**
  * Reading, saving and submitting an applicant's own application.
  *
@@ -31,7 +29,7 @@ import { partnerAgreement } from './partnerAgreement'
  */
 
 /** The privacy notice an applicant is agreeing to; bump it when the notice changes materially */
-export const PRIVACY_NOTICE_VERSION = '2026-11-04'
+export const PRIVACY_NOTICE_VERSION = '2026-11-12'
 
 export const EDITABLE: Application['stage'][] = ['draft', 'changes-requested']
 
@@ -61,11 +59,7 @@ export type SaveResult =
   | { ok: false; status: number; message: string; errors?: Record<string, string> }
 
 /** What a step's validated data becomes on the application */
-const toFields = (
-  step: ArtistStep,
-  data: Record<string, unknown>,
-  termsDocument?: number,
-): Partial<Application> => {
+const toFields = (step: ArtistStep, data: Record<string, unknown>): Partial<Application> => {
   switch (step) {
     case 'about':
       return {
@@ -90,7 +84,6 @@ const toFields = (
       return {
         declarations: {
           ...data,
-          termsDocument: termsDocument ?? null,
           consentedAt: new Date().toISOString(),
           privacyNoticeVersion: PRIVACY_NOTICE_VERSION,
         } as never,
@@ -146,20 +139,18 @@ export const saveArtistStep = async (
     }
   }
 
-  // The last step asks for consent to the pre-submission notice in so many words (I AGREE typed),
-  // and, while terms are published, agreement to them too, recording which document it was
-  let termsDocument: number | undefined
+  // The last step asks only for consent to the privacy policy, in so many words (I AGREE typed).
+  // The terms of working together are signed after approval (src/agreements).
   if (name === 'review') {
-    const terms = await artistTerms(payload)
-    const review = parsed.data as { agreeTerms?: boolean; agreeTyped?: string }
-    const errors: Record<string, string> = {}
-    if (terms && review.agreeTerms !== true)
-      errors.agreeTerms = 'Please tick that you agree to the terms.'
-    if (!agreedInWords(review.agreeTyped))
-      errors.agreeTyped = `Please type ${TERMS_PHRASE} to confirm.`
-    if (Object.keys(errors).length > 0)
-      return { ok: false, status: 422, message: 'A few things need another look.', errors }
-    if (terms) termsDocument = terms.id
+    const review = parsed.data as { agreeTyped?: string }
+    if (!agreedInWords(review.agreeTyped)) {
+      return {
+        ok: false,
+        status: 422,
+        message: 'A few things need another look.',
+        errors: { agreeTyped: `Please type ${TERMS_PHRASE} to confirm.` },
+      }
+    }
   }
 
   const completed = new Set(application.completedSteps ?? [])
@@ -175,7 +166,7 @@ export const saveArtistStep = async (
     collection: 'applications',
     id: application.id,
     data: {
-      ...toFields(name, parsed.data as Record<string, unknown>, termsDocument),
+      ...toFields(name, parsed.data as Record<string, unknown>),
       completedSteps: [...completed],
     },
     depth: 1,
@@ -239,16 +230,7 @@ export const submitArtistApplication = async (
     return { ok: false, status: 409, message: 'This application has already been sent.' }
   }
   const problems = artistProblems(application)
-  // Terms published since the last step was saved must still be agreed to
-  const terms = await artistTerms(payload)
-  const declarations = application.declarations as
-    { agreeTerms?: boolean | null; agreeTyped?: string | null } | undefined
-  if (terms && !declarations?.agreeTerms) {
-    problems.review = {
-      ...problems.review,
-      agreeTerms: 'Please agree to the terms and conditions.',
-    }
-  }
+  const declarations = application.declarations as { agreeTyped?: string | null } | undefined
   if (!agreedInWords(declarations?.agreeTyped)) {
     problems.review = { ...problems.review, agreeTyped: `Please type ${TERMS_PHRASE} to confirm.` }
   }
@@ -270,23 +252,21 @@ export const submitArtistApplication = async (
   return { ok: true, application: await submit(payload, member, application, ip) }
 }
 
-/** What the partner form sends: its answers, identity details unless already given, agreement */
+/** What the partner form sends: its answers, identity details unless already given, consent */
 export type PartnerSubmission = {
   data?: unknown
   /** Omitted when the identity details given before are kept as they are */
   kyc?: unknown
-  agreement?: { readToEnd?: unknown; typed?: unknown; version?: unknown }
+  /** The privacy policy read to its end, the box ticked and I AGREE typed, every time */
+  consent?: { checked?: unknown; readToEnd?: unknown; typed?: unknown }
 }
-
-export const AGREEMENT_NOT_READY =
-  'The Partner/Trade Program agreement is not ready yet, so applications cannot be sent for now. Please come back in a little while.'
 
 /**
  * Saves and sends a partner application in one go: the form is a single page. Everything is
  * checked first, and every problem is listed at once: the answers, the identity details (PAN, the
- * PAN card and the photo with its code and name, unless kept from before), and agreement to the
- * Partner/Trade Program, read to its end, I AGREE typed, and the version still the one published.
- * Only then are the identity details encrypted and kept, and the application sent.
+ * PAN card and the photo with its code and name, unless kept from before), and consent to the
+ * privacy policy, read to its end, with I AGREE typed. The Partner/Trade Program agreement is
+ * signed after approval (src/agreements). Only then are the identity details encrypted and kept, and the application sent.
  */
 export const submitPartnerApplication = async (
   payload: Payload,
@@ -300,10 +280,6 @@ export const submitPartnerApplication = async (
   if (!EDITABLE.includes(application.stage)) {
     return { ok: false, status: 409, message: 'This application has already been sent.' }
   }
-  // Nothing can be sent until the agreement is published (Site settings → Applications)
-  const agreement = await partnerAgreement(payload)
-  if (!agreement) return { ok: false, status: 409, message: AGREEMENT_NOT_READY }
-
   const errors: Record<string, string> = {}
   const parsed = partnerSchema.safeParse(submission?.data)
   if (!parsed.success) Object.assign(errors, fieldErrors(parsed.error))
@@ -332,13 +308,11 @@ export const submitPartnerApplication = async (
     if (missing.length) errors.kyc = missing[0]!
   }
 
-  const said = submission?.agreement
-  if (said?.version !== agreement.version)
-    errors.agreement = 'The agreement has changed since you read it. Please read it again.'
-  else if (said?.readToEnd !== true)
-    errors.agreement = 'Please read the agreement to the end, then confirm.'
-  else if (!agreedInWords(said?.typed))
-    errors.agreement = `Please type ${TERMS_PHRASE} to agree to the Partner/Trade Program.`
+  const consent = submission?.consent
+  if (consent?.readToEnd !== true || consent?.checked !== true)
+    errors.consent = 'Please read the privacy policy to the end, then tick the box.'
+  if (!agreedInWords(consent?.typed))
+    errors.consentTyped = `Please type ${TERMS_PHRASE} to confirm.`
 
   if (Object.keys(errors).length > 0 || !parsed.success) {
     return { ok: false, status: 422, message: 'A few things need another look.', errors }
@@ -374,10 +348,6 @@ export const submitPartnerApplication = async (
       partnerDeclarations: {
         consentProcessing: true,
         privacyNoticeVersion: PRIVACY_NOTICE_VERSION,
-        agreementVersion: agreement.version,
-        agreedAt: new Date().toISOString(),
-        agreementConfirmation: 'Read the agreement to the end, confirmed, and typed I AGREE',
-        agreementDigest: agreement.digest,
       },
     },
     depth: 0,

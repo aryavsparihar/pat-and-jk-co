@@ -7,7 +7,6 @@ import sharp from 'sharp'
 import {
   CODE,
   cleanUp,
-  E2E_AGREEMENT,
   fillEarlySteps,
   findMember,
   knowCode,
@@ -314,21 +313,6 @@ test('PAN is required, and a masked e-Aadhaar goes through the check', async ({ 
     .toBe('not-verified')
 })
 
-/** A document read to its end in its dialog, confirmed, and I AGREE typed */
-const readAndAgree = async (page: Page, box: RegExp, dialogName: string, region: string) => {
-  await page.getByLabel(box).click()
-  const dialog = page.getByRole('dialog', { name: dialogName })
-  await expect(dialog).toBeVisible()
-  await dialog
-    .getByRole('region', { name: region })
-    .evaluate((el) => el.scrollTo({ top: el.scrollHeight }))
-  await dialog.getByLabel(`I have read ${region.toLowerCase()} to the end.`).check()
-  await dialog.getByLabel('Type I AGREE to confirm').fill('I AGREE')
-  await dialog.getByRole('button', { name: 'Agree' }).click()
-  await expect(dialog).toBeHidden()
-  await expect(page.getByLabel(box)).toBeChecked()
-}
-
 test('a partner applies in one go, with their identity and the agreement', async ({ page }) => {
   const email = uniqueEmail('partner')
   await page.goto('/collaborate/partners')
@@ -358,15 +342,6 @@ test('a partner applies in one go, with their identity and the agreement', async
   await expect(page.getByLabel('Account number', { exact: true })).toHaveCount(0)
   await agreeToNotice(page)
 
-  // The agreement, as published in Site settings, read to its end
-  await expect(page.getByText(E2E_AGREEMENT.words)).toBeAttached()
-  await readAndAgree(
-    page,
-    /I have read the Partner\/Trade Program agreement and I agree/,
-    'Partner/Trade Program agreement',
-    'The agreement',
-  )
-
   await page.waitForTimeout(2200)
   await page.getByRole('button', { name: /Send/ }).click()
   await expect(page.getByRole('heading', { name: 'Thank you. We will be in touch.' })).toBeVisible()
@@ -383,7 +358,7 @@ test('a partner applies in one go, with their identity and the agreement', async
     type: 'partner',
     stage: 'submitted',
     partner: { subType: 'Art dealer / art consultant' },
-    partnerDeclarations: { agreementVersion: E2E_AGREEMENT.version, consentProcessing: true },
+    partnerDeclarations: { consentProcessing: true },
   })
   const records = await p.count({
     collection: 'kyc-records',

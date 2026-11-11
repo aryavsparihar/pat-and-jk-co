@@ -37,6 +37,7 @@ import * as migration_20261017_100216_security_log_coverage from './20261017_100
 import * as migration_20261017_194623_admin_panel_fixes from './20261017_194623_admin_panel_fixes';
 import * as migration_20261019_065012_partner_onboarding from './20261019_065012_partner_onboarding';
 import * as migration_20261110_150816_privacy_policy from './20261110_150816_privacy_policy';
+import * as migration_20261112_090000_privacy_policy_v1 from './20261112_090000_privacy_policy_v1';
 
 export const migrations = [
   {
@@ -233,5 +234,10 @@ export const migrations = [
     up: migration_20261110_150816_privacy_policy.up,
     down: migration_20261110_150816_privacy_policy.down,
     name: '20261110_150816_privacy_policy'
+  },
+  {
+    up: migration_20261112_090000_privacy_policy_v1.up,
+    down: migration_20261112_090000_privacy_policy_v1.down,
+    name: '20261112_090000_privacy_policy_v1'
   },
 ];
