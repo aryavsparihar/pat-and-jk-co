@@ -31,6 +31,11 @@ export const KYC_DOCUMENT_KINDS = [
   'bank-proof',
   // A photo of the artist holding a paper with their identity code and full name written on it
   'identity-photo',
+  // Signing an agreement after approval (src/agreements): the photo with its code, the PDF as the
+  // member signed it, and the copy countersigned with PAT & J.K. Co.'s DSC
+  'agreement-photo',
+  'agreement-signed',
+  'agreement-countersigned',
 ] as const
 export type KycDocumentKind = (typeof KYC_DOCUMENT_KINDS)[number]
 

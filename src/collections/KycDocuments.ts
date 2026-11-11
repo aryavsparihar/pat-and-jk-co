@@ -51,6 +51,9 @@ export const KycDocuments: CollectionConfig = {
         { label: 'Proof of address', value: 'address-proof' },
         { label: 'Cancelled cheque or passbook', value: 'bank-proof' },
         { label: 'Photo of the artist holding their code', value: 'identity-photo' },
+        { label: 'Photo taken to sign an agreement', value: 'agreement-photo' },
+        { label: 'Agreement, as signed by the member', value: 'agreement-signed' },
+        { label: 'Agreement, countersigned with the DSC', value: 'agreement-countersigned' },
       ],
       admin: { readOnly: true },
     },
@@ -101,7 +104,7 @@ export const KycDocuments: CollectionConfig = {
       admin: {
         readOnly: true,
         date: { pickerAppearance: 'dayAndTime' },
-        condition: (data) => data?.kind === 'identity-photo',
+        condition: (data) => ['identity-photo', 'agreement-photo'].includes(data?.kind),
       },
     },
     {
@@ -111,7 +114,7 @@ export const KycDocuments: CollectionConfig = {
       admin: {
         readOnly: true,
         date: { pickerAppearance: 'dayAndTime' },
-        condition: (data) => data?.kind === 'identity-photo',
+        condition: (data) => ['identity-photo', 'agreement-photo'].includes(data?.kind),
       },
     },
     {
@@ -122,7 +125,10 @@ export const KycDocuments: CollectionConfig = {
         { label: 'The camera, on the page', value: 'camera' },
         { label: 'An uploaded photo', value: 'upload' },
       ],
-      admin: { readOnly: true, condition: (data) => data?.kind === 'identity-photo' },
+      admin: {
+        readOnly: true,
+        condition: (data) => ['identity-photo', 'agreement-photo'].includes(data?.kind),
+      },
     },
   ],
   endpoints: [
