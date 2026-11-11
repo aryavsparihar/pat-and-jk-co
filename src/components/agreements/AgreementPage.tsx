@@ -89,9 +89,9 @@ export const AgreementPage = async ({ agreement }: { agreement: AgreementDocumen
             className="h-[min(78dvh,56rem)] overflow-y-auto overscroll-contain border border-border"
             tabIndex={0}
           >
-            <div className="sticky top-0 z-10 border-b border-border bg-background px-6 py-4 sm:px-8">
-              <p className="font-semibold">{agreement.banner[0]}</p>
-              <p className="muted mt-1 text-base">{agreement.banner[1]}</p>
+            <div className="border-b border-border bg-background px-5 py-4 sm:px-8 lg:sticky lg:top-0 lg:z-10">
+              <p className="text-base font-semibold sm:text-lg">{agreement.banner[0]}</p>
+              <p className="muted mt-1 text-sm sm:text-base">{agreement.banner[1]}</p>
             </div>
             <RichText
               className="scroll-mt-28 px-6 py-6 sm:px-8 [&_h2]:scroll-mt-28"
