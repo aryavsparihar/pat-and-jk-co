@@ -241,13 +241,11 @@ The page at /collaborate is an ordinary page, built from blocks. **Ways to work 
 - **Contact & social** — the general, business and technical enquiry addresses, phone, social profiles, and the **Registered office**.
 - **Applications** — whether applications are open, the note shown while they are closed, the wait before someone declined may apply again, the artists' Terms & Conditions, and the **Partner/Trade Program agreement**.
 
-### The Partner/Trade Program agreement
+### Signed agreements
 
-Every partner reads it to the end and types I AGREE before sending their application. Until it is published here, partners can fill in the form but cannot send it, and the form says the agreement is being finalised.
+Applications ask only for consent to the privacy policy. Once approved, artists sign at /collaborate/artist-agreement and trade partners at /collaborate/trade-agreement, with a live photo, two declarations and I AGREE.
 
-To publish it, under **Website → Site settings → Applications → Partner/Trade Program agreement**: write or paste the text in **The agreement**, give it a **Version** (for example `2026-11`), and save. The title is what partners see above it.
-
-**Whenever you change the text, change the version too.** A partner who read the earlier version is asked to read it again before sending. Each partner's application keeps the version they agreed to, when, and a fingerprint of the exact words, so a later edit never changes what someone agreed to.
+Each signing appears under **Members → Signed agreements**. Download the signed PDF there, countersign it with the DSC, and upload the countersigned copy: it is sent to the signer and to compliance@pjk.co.in, and the record is locked. The full flow is in [AGREEMENTS.md](AGREEMENTS.md).
 
 ### The registered office
 
