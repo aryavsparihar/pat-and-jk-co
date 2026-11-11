@@ -286,15 +286,13 @@ export const SiteSettings: CollectionConfig = {
               },
             },
             {
-              // Read by src/members/partnerAgreement.ts; nothing is public until text and version
-              // are both given
+              // No longer used: since November 2026 partners sign the Master Trade Program & B2B
+              // Partner Agreement after approval (src/agreements). Kept, hidden, because migrations
+              // only add things.
               name: 'partnerAgreement',
               label: 'Partner/Trade Program agreement',
               type: 'group',
-              admin: {
-                description:
-                  'Shown to every partner before they send their application: they read it to the end and type I AGREE. Until both the text and its version are given here, partners can fill in their application but cannot send it.',
-              },
+              admin: { condition: () => false },
               fields: [
                 {
                   name: 'title',

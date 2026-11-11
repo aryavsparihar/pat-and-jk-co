@@ -28,7 +28,6 @@ import {
   identityPhotos,
   removeKycFor,
 } from '../helpers/kyc'
-import { setPartnerAgreement } from '../helpers/partnerAgreement'
 
 /*
  * Part 5, partner onboarding: a partner gives their PAN, the card and the same live photo as an
@@ -39,17 +38,11 @@ import { setPartnerAgreement } from '../helpers/partnerAgreement'
 
 let payload: Payload
 let closeApplications: () => Promise<void>
-let restoreAgreement: () => Promise<void>
 let ip = 1
 const ORIGIN = process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:3000'
 const DOMAIN = '@partner.example.test'
 const like = `%${DOMAIN}`
 const unique = (label: string) => `${label}-${Math.random().toString(36).slice(2, 10)}${DOMAIN}`
-const AGREEMENT = {
-  version: '2026-11',
-  words: 'We work with partners on these terms, in good faith.',
-}
-
 const details = {
   category: 'placement',
   subType: 'Art dealer / art consultant',
@@ -61,8 +54,6 @@ const details = {
   interest: 'Finding original work for the collectors I advise.',
   message: 'I advise private collectors in Jammu and Delhi on contemporary work.',
 }
-
-const agreed = (version = AGREEMENT.version) => ({ version, readToEnd: true, typed: 'I AGREE' })
 
 const applicant = async (type: 'artist' | 'partner' = 'partner', email = unique(type)) => {
   const { member, application } = await ensureApplication(payload, { email, type })
@@ -87,7 +78,7 @@ const call = (handler: (r: Request) => Promise<Response>, cookie: string, body?:
 /** What the form sends, after a real pause */
 const submission = (extra: Record<string, unknown>) => ({
   data: details,
-  agreement: agreed(),
+  consent: { checked: true, readToEnd: true, typed: 'I AGREE' },
   formToken: createFormToken(Date.now() - 30_000),
   ...extra,
 })
@@ -116,7 +107,6 @@ const cleanup = async () => {
 beforeAll(async () => {
   payload = await getPayload({ config: await config })
   closeApplications = await openApplicationsForTests(payload)
-  restoreAgreement = await setPartnerAgreement(payload, null)
   await cleanup()
 })
 
@@ -126,44 +116,12 @@ afterEach(() => {
 })
 
 afterAll(async () => {
-  await restoreAgreement()
   await cleanup()
   await closeApplications()
 })
 
-describe('until the Partner/Trade Program agreement is published', () => {
-  it('nothing can be sent, however complete the application', async () => {
-    await setPartnerAgreement(payload, null)
-    const { cookie, member, application } = await applicant()
-    const response = await call(
-      sendPartner,
-      cookie,
-      submission({ kyc: goodPartnerKyc(await partnerPhotos(member)) }),
-    )
-    expect(response.status).toBe(409)
-    expect((await errorsOf(response)).message).toMatch(/agreement is not ready/)
-    const stored = await payload.findByID({
-      collection: 'applications',
-      id: application.id,
-      overrideAccess: true,
-    })
-    expect(stored.stage).toBe('draft')
-    // Nothing of their identity was kept either
-    const records = await payload.count({
-      collection: 'kyc-records',
-      where: { member: { equals: member.id } },
-      overrideAccess: true,
-    })
-    expect(records.totalDocs).toBe(0)
-  })
-})
-
-describe('a partner application, with the agreement published', () => {
-  beforeAll(async () => {
-    await setPartnerAgreement(payload, AGREEMENT)
-  })
-
-  it('lists every problem at once: details, identity and agreement', async () => {
+describe('a partner application', () => {
+  it('lists every problem at once: details, identity and consent', async () => {
     const { cookie } = await applicant()
     const response = await call(
       sendPartner,
@@ -171,7 +129,7 @@ describe('a partner application, with the agreement published', () => {
       submission({
         data: { ...details, fullName: '' },
         kyc: { ...goodPartnerKyc({}), pan: 'ABCDE1234', consent: false },
-        agreement: { version: AGREEMENT.version, readToEnd: true, typed: 'yes' },
+        consent: { checked: true, readToEnd: true, typed: 'yes' },
       }),
     )
     expect(response.status).toBe(422)
@@ -183,10 +141,10 @@ describe('a partner application, with the agreement published', () => {
         'consent',
         'documents.pan-card',
         'documents.identity-photo',
-        'agreement',
+        'consentTyped',
       ]),
     )
-    expect(errors?.agreement).toMatch(/I AGREE/)
+    expect(errors?.consentTyped).toMatch(/I AGREE/)
   })
 
   it('needs identity details from a partner who has given none', async () => {
@@ -196,7 +154,7 @@ describe('a partner application, with the agreement published', () => {
     expect((await errorsOf(response)).errors?.kyc).toMatch(/PAN/)
   })
 
-  it('is sent with the PAN encrypted, and keeps the agreement version and how it was agreed', async () => {
+  it('is sent with the PAN encrypted, and keeps the privacy notice consented to', async () => {
     const { cookie, member, application } = await applicant()
     const response = await call(
       sendPartner,
@@ -216,12 +174,11 @@ describe('a partner application, with the agreement published', () => {
       partner: { subType: 'Art dealer / art consultant' },
       partnerDeclarations: {
         consentProcessing: true,
-        agreementVersion: AGREEMENT.version,
-        agreementConfirmation: expect.stringMatching(/to the end.*I AGREE/),
+        privacyNoticeVersion: expect.stringMatching(/^2026-/),
       },
     })
-    expect(stored.partnerDeclarations?.agreedAt).toBeTruthy()
-    expect(stored.partnerDeclarations?.agreementDigest).toMatch(/^[0-9a-f]{64}$/)
+    // The agreement is signed after approval, on its own page
+    expect(stored.partnerDeclarations?.agreementVersion ?? null).toBeNull()
 
     const [row] = await execute<Record<string, string | null>>(
       payload,
@@ -236,18 +193,18 @@ describe('a partner application, with the agreement published', () => {
     expect(row!.id_choice).toBeNull()
   })
 
-  it('refuses an agreement read in an earlier version', async () => {
+  it('is refused without the privacy policy read to its end, even with the details kept', async () => {
     const { cookie, member } = await applicant()
     const response = await call(
       sendPartner,
       cookie,
       submission({
         kyc: goodPartnerKyc(await partnerPhotos(member)),
-        agreement: agreed('2026-10'),
+        consent: { checked: true, readToEnd: false, typed: 'I AGREE' },
       }),
     )
     expect(response.status).toBe(422)
-    expect((await errorsOf(response)).errors?.agreement).toMatch(/changed since you read it/)
+    expect((await errorsOf(response)).errors?.consent).toMatch(/to the end/)
   })
 
   it('refuses a photo whose paper shows another name', async () => {
@@ -365,10 +322,6 @@ describe('a partner application, with the agreement published', () => {
 })
 
 describe('one identity record for someone who is both an artist and a partner', () => {
-  beforeAll(async () => {
-    await setPartnerAgreement(payload, AGREEMENT)
-  })
-
   it('keeps the artist’s second ID when the partner details are given', async () => {
     const email = unique('both')
     const artist = await applicant('artist', email)

@@ -1433,9 +1433,6 @@ export interface SiteSetting {
    * Linked on the last step of the artist application. While a document is here, an artist must tick that they agree and type I AGREE before sending, and which document they agreed to is kept with their application. Upload a new one to change the terms; earlier agreements stay linked to the version agreed to.
    */
   artistTerms?: (number | null) | Media;
-  /**
-   * Shown to every partner before they send their application: they read it to the end and type I AGREE. Until both the text and its version are given here, partners can fill in their application but cannot send it.
-   */
   partnerAgreement?: {
     title?: string | null;
     /**

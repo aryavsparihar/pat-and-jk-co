@@ -17,7 +17,7 @@ import { api } from './api'
 import { IdentityPhoto, NAME_CHANGED } from './artist/identity/IdentityPhoto'
 import { Lock } from './artist/identity/Lock'
 import { DpdpConsent, typedAgree } from './DpdpConsent'
-import { AGREE_PHRASE, ReadToAgree } from './artist/identity/ReadToAgree'
+import { AGREE_PHRASE } from './artist/identity/ReadToAgree'
 import { Upload } from './artist/identity/Upload'
 import { CodeSignIn } from './CodeSignIn'
 import { ErrorSummary, type Errors, SelectField, TextArea, TextField } from './fields'
@@ -42,16 +42,14 @@ const partnerKycComplete = (kyc: MaskedKyc) =>
 type Props = {
   formToken: string
   initialCategory?: string
-  /** The privacy policy, rendered on the server, for the identity consent */
+  /** The privacy policy, rendered on the server, shown in full before the consent */
   privacy: React.ReactNode
-  /** The Partner/Trade Program agreement while published in Site settings; until then, none */
-  agreement: { title: string; version: string; body: React.ReactNode } | null
 }
 
 /**
  * The partner application: an email check, then one page. Their details; their identity (a PAN,
  * the card, and a photo holding a ten-minute code and their name), as for an artist but with no
- * second ID, address or bank details; agreement to the Partner/Trade Program, read to its end;
+ * second ID, address or bank details; the privacy policy, read to its end, and consent to it;
  * and the bot check before it is sent. Identity details need a recent sign-in, which the page
  * asks for when it is due (StepUp).
  */
@@ -61,7 +59,7 @@ export const PartnerOnboarding: React.FC<Props> = (props) => (
   </StepUpProvider>
 )
 
-const PartnerForm: React.FC<Props> = ({ formToken, initialCategory, privacy, agreement }) => {
+const PartnerForm: React.FC<Props> = ({ formToken, initialCategory, privacy }) => {
   const [phase, setPhase] = useState<'loading' | 'signin' | 'form' | 'closed' | 'sent'>('loading')
   const [application, setApplication] = useState<Application | null>(null)
   const [values, setValues] = useState<Values>({ category: initialCategory })
@@ -89,7 +87,6 @@ const PartnerForm: React.FC<Props> = ({ formToken, initialCategory, privacy, agr
   const [readToEnd, setReadToEnd] = useState(false)
   const consented = consentChecked && readToEnd && typedAgree(consentTyped)
   const markReadToEnd = useCallback(() => setReadToEnd(true), [])
-  const [agreed, setAgreed] = useState(false)
   const [refused, setRefused] = useState(false)
   const bot = useVisibleTurnstile('partner-submit')
   const { guard } = useStepUp()
@@ -196,11 +193,8 @@ const PartnerForm: React.FC<Props> = ({ formToken, initialCategory, privacy, agr
                 documents: docs,
               }
             : undefined,
-          agreement: {
-            version: agreement?.version,
-            readToEnd: agreed,
-            typed: agreed ? AGREE_PHRASE : '',
-          },
+          // The privacy policy read to its end, the box ticked and I AGREE typed: every time
+          consent: { checked: consentChecked, readToEnd, typed: consentTyped },
           formToken,
           [HONEYPOT_FIELD]: honeypot,
           [TURNSTILE_FIELD]: bot.token,
@@ -526,19 +520,6 @@ const PartnerForm: React.FC<Props> = ({ formToken, initialCategory, privacy, agr
               />
             </fieldset>
 
-            <DpdpConsent
-              checked={consentChecked}
-              errors={{
-                checked: errors.consent ?? errors.consentReadToEnd,
-                typed: errors.consentTyped,
-              }}
-              id="consent"
-              onChecked={setConsentChecked}
-              onReadToEnd={markReadToEnd}
-              onTyped={setConsentTyped}
-              privacy={privacy}
-              typed={consentTyped}
-            />
             {kyc && partnerKycComplete(kyc) && (
               <button
                 className="link link-caps min-h-11 justify-self-start"
@@ -552,38 +533,19 @@ const PartnerForm: React.FC<Props> = ({ formToken, initialCategory, privacy, agr
         )}
       </section>
 
-      <section aria-labelledby="partner-agreement" className="mt-16 border-t border-border pt-10">
-        <h2 className="display-sm" id="partner-agreement">
-          {agreement?.title ?? 'Partner/Trade Program agreement'}
-        </h2>
-        {agreement ? (
-          <>
-            <p className="measure mt-4">
-              The terms on which we work with partners. Please read them to the end before you send
-              your application.
-            </p>
-            <ReadToAgree
-              agreed={agreed}
-              body={agreement.body}
-              documentName="the agreement"
-              error={errors.agreement}
-              id="agreement"
-              label={<>I have read the {agreement.title} and I agree to it.</>}
-              onAgreed={setAgreed}
-              title={agreement.title}
-            />
-          </>
-        ) : (
-          <p
-            className="measure mt-6 border-l-2 border-warning bg-surface py-5 pl-6 pr-4"
-            id="field-agreement"
-            role="status"
-          >
-            The agreement is being finalised. You can fill in everything above, but applications
-            cannot be sent until it is published here. Please come back in a little while.
-          </p>
-        )}
-      </section>
+      <DpdpConsent
+        checked={consentChecked}
+        errors={{
+          checked: errors.consent ?? errors.consentReadToEnd,
+          typed: errors.consentTyped,
+        }}
+        id="consent"
+        onChecked={setConsentChecked}
+        onReadToEnd={markReadToEnd}
+        onTyped={setConsentTyped}
+        privacy={privacy}
+        typed={consentTyped}
+      />
 
       <div aria-hidden className="absolute -left-[9999px] h-0 w-0 overflow-hidden">
         <label htmlFor={`${HONEYPOT_FIELD}-partner`}>Company website</label>
@@ -603,7 +565,7 @@ const PartnerForm: React.FC<Props> = ({ formToken, initialCategory, privacy, agr
         )}
         <button
           className="btn btn-solid mt-6 min-h-11"
-          disabled={busy || !agreement || (bot.enabled && !bot.token)}
+          disabled={busy || (bot.enabled && !bot.token)}
           type="submit"
         >
           {busy ? 'Sending…' : 'Send'}
