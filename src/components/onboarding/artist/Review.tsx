@@ -38,12 +38,10 @@ export const ReviewStep: React.FC<
   StepProps & {
     all: Record<string, Values>
     onEdit: (step: string) => void
-    /** The Terms & Conditions to agree to, while they are published in Site settings */
-    terms?: { url: string; filename: string } | null
     /** The privacy policy, rendered on the server, shown in full before the consent */
     privacy?: React.ReactNode
   }
-> = ({ values, set, errors, all, onEdit, terms, privacy }) => {
+> = ({ values, set, errors, all, onEdit, privacy }) => {
   const about = all.about ?? {}
   const address = all.address ?? {}
   const practice = all.practice ?? {}
@@ -208,30 +206,6 @@ export const ReviewStep: React.FC<
           />
         </div>
       </fieldset>
-
-      {terms && (
-        <fieldset className="mt-12 border-t border-border pt-10">
-          <legend className="display-sm mb-4">Terms and conditions</legend>
-          <p className="measure">
-            Please read the terms on which we work with artists before you send your application.
-          </p>
-          <p className="mt-4">
-            <a className="link link-caps" href={terms.url} rel="noopener" target="_blank">
-              Read the Terms & Conditions (PDF)
-              <span className="sr-only"> (opens in a new tab)</span>
-            </a>
-          </p>
-          <div className="mt-8 grid gap-y-8">
-            <Check
-              checked={Boolean(values.agreeTerms)}
-              error={errors.agreeTerms}
-              label="I have read the Terms & Conditions and I agree to them."
-              name="agreeTerms"
-              onValue={(v) => set('agreeTerms', v)}
-            />
-          </div>
-        </fieldset>
-      )}
 
       <DpdpConsent
         checked={Boolean(values.consentProcessing)}

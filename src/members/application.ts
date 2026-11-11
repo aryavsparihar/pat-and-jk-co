@@ -1,5 +1,5 @@
 import type { Payload } from 'payload'
-import { agreedInWords, artistTerms, TERMS_PHRASE } from './terms'
+import { agreedInWords, TERMS_PHRASE } from './terms'
 
 import type { Application, Member } from '@/payload-types'
 import { logSecurityEvent } from '@/security/events'
@@ -61,11 +61,7 @@ export type SaveResult =
   | { ok: false; status: number; message: string; errors?: Record<string, string> }
 
 /** What a step's validated data becomes on the application */
-const toFields = (
-  step: ArtistStep,
-  data: Record<string, unknown>,
-  termsDocument?: number,
-): Partial<Application> => {
+const toFields = (step: ArtistStep, data: Record<string, unknown>): Partial<Application> => {
   switch (step) {
     case 'about':
       return {
@@ -90,7 +86,6 @@ const toFields = (
       return {
         declarations: {
           ...data,
-          termsDocument: termsDocument ?? null,
           consentedAt: new Date().toISOString(),
           privacyNoticeVersion: PRIVACY_NOTICE_VERSION,
         } as never,
@@ -146,20 +141,18 @@ export const saveArtistStep = async (
     }
   }
 
-  // The last step asks for consent to the pre-submission notice in so many words (I AGREE typed),
-  // and, while terms are published, agreement to them too, recording which document it was
-  let termsDocument: number | undefined
+  // The last step asks only for consent to the privacy policy, in so many words (I AGREE typed).
+  // The terms of working together are signed after approval (src/agreements).
   if (name === 'review') {
-    const terms = await artistTerms(payload)
-    const review = parsed.data as { agreeTerms?: boolean; agreeTyped?: string }
-    const errors: Record<string, string> = {}
-    if (terms && review.agreeTerms !== true)
-      errors.agreeTerms = 'Please tick that you agree to the terms.'
-    if (!agreedInWords(review.agreeTyped))
-      errors.agreeTyped = `Please type ${TERMS_PHRASE} to confirm.`
-    if (Object.keys(errors).length > 0)
-      return { ok: false, status: 422, message: 'A few things need another look.', errors }
-    if (terms) termsDocument = terms.id
+    const review = parsed.data as { agreeTyped?: string }
+    if (!agreedInWords(review.agreeTyped)) {
+      return {
+        ok: false,
+        status: 422,
+        message: 'A few things need another look.',
+        errors: { agreeTyped: `Please type ${TERMS_PHRASE} to confirm.` },
+      }
+    }
   }
 
   const completed = new Set(application.completedSteps ?? [])
@@ -175,7 +168,7 @@ export const saveArtistStep = async (
     collection: 'applications',
     id: application.id,
     data: {
-      ...toFields(name, parsed.data as Record<string, unknown>, termsDocument),
+      ...toFields(name, parsed.data as Record<string, unknown>),
       completedSteps: [...completed],
     },
     depth: 1,
@@ -239,16 +232,7 @@ export const submitArtistApplication = async (
     return { ok: false, status: 409, message: 'This application has already been sent.' }
   }
   const problems = artistProblems(application)
-  // Terms published since the last step was saved must still be agreed to
-  const terms = await artistTerms(payload)
-  const declarations = application.declarations as
-    { agreeTerms?: boolean | null; agreeTyped?: string | null } | undefined
-  if (terms && !declarations?.agreeTerms) {
-    problems.review = {
-      ...problems.review,
-      agreeTerms: 'Please agree to the terms and conditions.',
-    }
-  }
+  const declarations = application.declarations as { agreeTyped?: string | null } | undefined
   if (!agreedInWords(declarations?.agreeTyped)) {
     problems.review = { ...problems.review, agreeTyped: `Please type ${TERMS_PHRASE} to confirm.` }
   }
