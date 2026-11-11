@@ -44,6 +44,10 @@ const ROUTES: Record<string, 'public' | 'member' | 'staff' | 'secret' | 'token'>
   '/collaborate/artists': 'public',
   '/collaborate/partners': 'public',
   '/collaborate/signin': 'public',
+  // Open to all, but show the agreement only to a member with the right ID; others are asked to
+  // sign in, or told the page is for approved members
+  '/collaborate/artist-agreement': 'public',
+  '/collaborate/trade-agreement': 'public',
   '/admin-access': 'public',
   '/robots.txt': 'public',
   '/sitemap.xml': 'public',
@@ -84,6 +88,8 @@ const ROUTES: Record<string, 'public' | 'member' | 'staff' | 'secret' | 'token'>
   '/next/members/kyc': 'member',
   '/next/members/kyc/bank-change': 'member',
   '/next/members/kyc/document': 'member',
+  '/next/members/agreement': 'member',
+  '/next/members/agreement/photo': 'member',
   '/next/members/kyc/identity-code': 'member',
   '/next/members/kyc/ifsc': 'member',
   '/next/members/pincode': 'member',
@@ -125,6 +131,7 @@ const COLLECTIONS: Record<string, 'public' | 'own' | 'staff' | 'self' | 'admin' 
     'portfolio-images': 'own',
     'kyc-records': 'kyc',
     'kyc-documents': 'kyc',
+    'agreement-executions': 'kyc',
     'access-requests': 'admin',
     'security-events': 'admin',
     'login-challenges': 'none',
@@ -153,6 +160,8 @@ const ACTIONS: { path: string; who: 'staff' | 'kyc' }[] = [
   { path: '/api/kyc-records/999999999/record-withdrawal', who: 'kyc' },
   { path: '/api/kyc-records/999999999/legal-hold', who: 'kyc' },
   { path: '/api/kyc-documents/999999999/download', who: 'kyc' },
+  { path: '/api/agreement-executions/999999999/download', who: 'kyc' },
+  { path: '/api/agreement-executions/999999999/countersign', who: 'kyc' },
 ]
 
 const appDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../src/app')
