@@ -27,7 +27,14 @@ export const IdentityPhoto: React.FC<{
   /** Said when it first appears: why an earlier photo was cleared */
   note?: string | null
   error?: string
-}> = ({ type, name: typed, onSent, note = null, error }) => {
+  /**
+   * Somewhere other than the application to get the code from and send the photo to: signing an
+   * agreement (src/agreements). Each call carries `fields` as well.
+   */
+  via?: { code: string; photo: string; fields: Record<string, string> }
+  /** Told each new code, for a page that shows it elsewhere too */
+  onCode?: (code: string) => void
+}> = ({ type, name: typed, onSent, note = null, error, via, onCode }) => {
   const name = typed.trim()
   const [code, setCode] = useState<Code | null>(null)
   const [codeBusy, setCodeBusy] = useState(false)
@@ -42,13 +49,16 @@ export const IdentityPhoto: React.FC<{
   const newCode = async () => {
     setCodeBusy(true)
     const result = await guard(() =>
-      api<Omit<Code, 'gotAt'>>('/next/members/kyc/identity-code', { body: { type } }),
+      via
+        ? api<Omit<Code, 'gotAt'>>(via.code, { body: { ...via.fields, action: 'code' } })
+        : api<Omit<Code, 'gotAt'>>('/next/members/kyc/identity-code', { body: { type } }),
     )
     setCodeBusy(false)
     if (!result.ok)
       return setPhotoNote(result.data.message ?? 'A code could not be given just now.')
     // The ten minutes run from now, on this device's clock: see codeLeft
     setCode({ code: result.data.code, minutes: result.data.minutes, gotAt: Date.now() })
+    onCode?.(result.data.code)
     setPhotoNote(null)
   }
 
@@ -64,16 +74,21 @@ export const IdentityPhoto: React.FC<{
     setPhotoNote(null)
     const body = await shrink(blob)
     const form = new FormData()
-    form.append('kind', 'identity-photo')
-    form.append('type', type)
+    if (via) {
+      for (const [key, value] of Object.entries(via.fields)) form.append(key, value)
+    } else {
+      form.append('kind', 'identity-photo')
+      form.append('type', type)
+      form.append('panName', name)
+    }
     form.append('file', body, 'identity-photo.jpg')
     form.append('identityCode', code.code)
-    form.append('panName', name)
     form.append('capturedWith', capturedWith)
     const result = await guard(() =>
-      api<{ document: { id: number }; codeProblem?: string }>('/next/members/kyc/document', {
-        body: form,
-      }),
+      api<{ document: { id: number }; codeProblem?: string }>(
+        via?.photo ?? '/next/members/kyc/document',
+        { body: form },
+      ),
     )
     setPhotoBusy(false)
     if (!result.ok) {

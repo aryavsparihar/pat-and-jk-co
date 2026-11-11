@@ -84,6 +84,7 @@ export interface Config {
     'portfolio-images': PortfolioImage;
     'kyc-records': KycRecord;
     'kyc-documents': KycDocument;
+    'agreement-executions': AgreementExecution;
     'access-requests': AccessRequest;
     'security-events': SecurityEvent;
     'login-challenges': LoginChallenge;
@@ -121,6 +122,7 @@ export interface Config {
     'portfolio-images': PortfolioImagesSelect<false> | PortfolioImagesSelect<true>;
     'kyc-records': KycRecordsSelect<false> | KycRecordsSelect<true>;
     'kyc-documents': KycDocumentsSelect<false> | KycDocumentsSelect<true>;
+    'agreement-executions': AgreementExecutionsSelect<false> | AgreementExecutionsSelect<true>;
     'access-requests': AccessRequestsSelect<false> | AccessRequestsSelect<true>;
     'security-events': SecurityEventsSelect<false> | SecurityEventsSelect<true>;
     'login-challenges': LoginChallengesSelect<false> | LoginChallengesSelect<true>;
@@ -2085,7 +2087,16 @@ export interface KycRecord {
 export interface KycDocument {
   id: number;
   member: number | Member;
-  kind: 'pan-card' | 'masked-aadhaar' | 'other-id' | 'address-proof' | 'bank-proof' | 'identity-photo';
+  kind:
+    | 'pan-card'
+    | 'masked-aadhaar'
+    | 'other-id'
+    | 'address-proof'
+    | 'bank-proof'
+    | 'identity-photo'
+    | 'agreement-photo'
+    | 'agreement-signed'
+    | 'agreement-countersigned';
   contentType: string;
   size?: number | null;
   storageKey: string;
@@ -2096,6 +2107,51 @@ export interface KycDocument {
   identityCodeIssuedAt?: string | null;
   identityCodeExpiresAt?: string | null;
   capturedWith?: ('camera' | 'upload') | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Agreements signed on the site. Open one to download the signed PDF, countersign it with the DSC, and upload the countersigned copy, which is then sent to the signer and to compliance.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "agreement-executions".
+ */
+export interface AgreementExecution {
+  id: number;
+  member: number | Member;
+  kind: 'artist' | 'partner';
+  memberCode?: string | null;
+  state: 'in-progress' | 'pending-countersignature' | 'executed';
+  version?: string | null;
+  documentDigest?: string | null;
+  codeHash?: string | null;
+  codeIssuedAt?: string | null;
+  codeExpiresAt?: string | null;
+  verificationCode?: string | null;
+  photo?: (number | null) | KycDocument;
+  photoAt?: string | null;
+  photoSha256?: string | null;
+  signer?: {
+    name?: string | null;
+    firm?: string | null;
+    taxIdMasked?: string | null;
+    firmRegistration?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    address?: string | null;
+  };
+  typed?: string | null;
+  signedAt?: string | null;
+  signedAtIst?: string | null;
+  ip?: string | null;
+  userAgent?: string | null;
+  signedPdf?: (number | null) | KycDocument;
+  signedPdfSha256?: string | null;
+  countersignedPdf?: (number | null) | KycDocument;
+  countersignedPdfSha256?: string | null;
+  countersignedAt?: string | null;
+  countersignedBy?: (number | null) | User;
+  sentAt?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -2483,6 +2539,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'kyc-documents';
         value: number | KycDocument;
+      } | null)
+    | ({
+        relationTo: 'agreement-executions';
+        value: number | AgreementExecution;
       } | null)
     | ({
         relationTo: 'access-requests';
@@ -3698,6 +3758,50 @@ export interface KycDocumentsSelect<T extends boolean = true> {
   identityCodeIssuedAt?: T;
   identityCodeExpiresAt?: T;
   capturedWith?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "agreement-executions_select".
+ */
+export interface AgreementExecutionsSelect<T extends boolean = true> {
+  member?: T;
+  kind?: T;
+  memberCode?: T;
+  state?: T;
+  version?: T;
+  documentDigest?: T;
+  codeHash?: T;
+  codeIssuedAt?: T;
+  codeExpiresAt?: T;
+  verificationCode?: T;
+  photo?: T;
+  photoAt?: T;
+  photoSha256?: T;
+  signer?:
+    | T
+    | {
+        name?: T;
+        firm?: T;
+        taxIdMasked?: T;
+        firmRegistration?: T;
+        email?: T;
+        phone?: T;
+        address?: T;
+      };
+  typed?: T;
+  signedAt?: T;
+  signedAtIst?: T;
+  ip?: T;
+  userAgent?: T;
+  signedPdf?: T;
+  signedPdfSha256?: T;
+  countersignedPdf?: T;
+  countersignedPdfSha256?: T;
+  countersignedAt?: T;
+  countersignedBy?: T;
+  sentAt?: T;
   updatedAt?: T;
   createdAt?: T;
 }

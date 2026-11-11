@@ -32,6 +32,8 @@ const ONCE_ONLY = [
   '/next/members/application/partner',
   '/next/members/application/reapply',
   '/next/members/kyc/bank-change',
+  // A code, a photo or a signature: each must reach the server once
+  '/next/members/agreement',
   '/next/members/portal/email',
   '/next/members/data-request',
   '/next/members/sign-out',

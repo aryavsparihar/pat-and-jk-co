@@ -393,7 +393,7 @@ export const sendBankChangeNotice = async (
   )
 
 /** Where staff notices go: the technical inbox, else the business one, else the contact inbox */
-const staffInbox = async (payload: Payload): Promise<string | undefined> => {
+export const staffInbox = async (payload: Payload): Promise<string | undefined> => {
   const settings = (
     await payload.find({
       collection: 'site-settings',

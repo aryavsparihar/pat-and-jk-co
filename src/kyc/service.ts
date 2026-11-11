@@ -482,7 +482,7 @@ export const storeKycDocument = async (
     /** For an identity photo: the code it was taken with, sealed with the document's own key */
     identity?: IdentityPhotoFacts
   },
-): Promise<KycDocument> => {
+): Promise<KycDocument & { sha256: string }> => {
   const existing = await payload.count({
     collection: 'kyc-documents',
     where: { member: { equals: member.id } },
@@ -500,7 +500,7 @@ export const storeKycDocument = async (
     sealFile(key, data, documentContext(member.id, storageName)),
   )
 
-  return payload.create({
+  const created = await payload.create({
     collection: 'kyc-documents',
     data: {
       member: member.id,
@@ -522,6 +522,27 @@ export const storeKycDocument = async (
     overrideAccess: true,
     context: { disableRevalidate: true, ...actingFor(member, 'members') },
   })
+  // Of the file as stored (after cleaning), so a copy can be checked against it later
+  return Object.assign(created, { sha256: createHash('sha256').update(data).digest('hex') })
+}
+
+/**
+ * The name on a member's PAN and the PAN itself, decrypted, for the agreement they sign (where
+ * both are printed in the execution block), with the PAN's mask for the page. Never logged.
+ */
+export const signerTaxId = async (
+  payload: Payload,
+  memberId: number,
+): Promise<{ panName: string | null; pan: string | null; masked: string | null }> => {
+  const record = await findRecord(payload, memberId)
+  if (!record) return { panName: null, pan: null, masked: null }
+  const { key } = dataKeyFor(record, memberId)
+  const raw = record as unknown as Record<string, string | null | undefined>
+  const open = (field: SealedField) =>
+    raw[COLUMN[field] as string]
+      ? openField(key, raw[COLUMN[field] as string]!, fieldContext(memberId, field))
+      : null
+  return { panName: open('panName'), pan: open('pan'), masked: record.idMasked ?? null }
 }
 
 /** The facts kept with a member's identity photo, the code decrypted; null if it is not theirs */
@@ -1034,10 +1055,23 @@ export const kycNeededByOther = async (
 }
 
 /** Deletes a member's KYC record and every document, ciphertext included. */
+const AGREEMENT_DOCUMENT_KINDS: KycDocumentKind[] = [
+  'agreement-photo',
+  'agreement-signed',
+  'agreement-countersigned',
+]
+
 export const purgeKyc = async (
   payload: Payload,
   { memberId, reason }: { memberId: number; reason: string },
 ): Promise<boolean> => {
+  // The record of each signing goes first: it points at the documents below
+  await payload.delete({
+    collection: 'agreement-executions',
+    where: { member: { equals: memberId } },
+    overrideAccess: true,
+    context: { disableRevalidate: true },
+  })
   const documents = await payload.find({
     collection: 'kyc-documents',
     where: { member: { equals: memberId } },
@@ -1084,9 +1118,12 @@ export const clearIdentityEvidence = async (
   payload: Payload,
   { memberId, reason }: { memberId: number; reason: string },
 ): Promise<number> => {
+  // Signed agreements are not identity evidence: they stay, and so do their photos
   const documents = await payload.find({
     collection: 'kyc-documents',
-    where: { member: { equals: memberId } },
+    where: {
+      and: [{ member: { equals: memberId } }, { kind: { not_in: AGREEMENT_DOCUMENT_KINDS } }],
+    },
     limit: 100,
     depth: 0,
     overrideAccess: true,

@@ -65,6 +65,10 @@ export const removeKycFor = async (payload: Payload, emailLike: string) => {
   for (const { storage_key } of files) await deleteEncrypted(storage_key).catch(() => undefined)
   await execute(
     payload,
+    sql`DELETE FROM agreement_executions WHERE member_id IN (SELECT id FROM members WHERE email LIKE ${emailLike})`,
+  )
+  await execute(
+    payload,
     sql`DELETE FROM kyc_records WHERE member_id IN (SELECT id FROM members WHERE email LIKE ${emailLike})`,
   )
   await execute(
