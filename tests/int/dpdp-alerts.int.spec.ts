@@ -74,7 +74,11 @@ const cleanup = async () => {
   await execute(payload, sql`DELETE FROM members WHERE email LIKE ${like}`)
 }
 
+// Where alerts go when the site settings name no inbox (as on CI): one made up for the test
+const savedInbox = process.env.CONTACT_INBOX
+
 beforeAll(async () => {
+  process.env.CONTACT_INBOX ||= 'alerts@dpdp.example.test'
   payload = await getPayload({ config: await config })
   closeApplications = await openApplicationsForTests(payload)
   await cleanup()
@@ -92,6 +96,8 @@ beforeAll(async () => {
 })
 afterEach(() => vi.restoreAllMocks())
 afterAll(async () => {
+  if (savedInbox === undefined) delete process.env.CONTACT_INBOX
+  else process.env.CONTACT_INBOX = savedInbox
   await cleanup()
   await payload.delete({ collection: 'users', where: { email: { equals: STAFF_EMAIL } } })
   await closeApplications()
