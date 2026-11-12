@@ -27,20 +27,28 @@ const header = (page: Page) => page.locator('header')
 
 const showsSignedOut = async (page: Page) => {
   await expect(header(page).getByRole('link', { name: 'Sign in' })).toBeVisible()
-  await expect(header(page).getByRole('button', { name: 'Sign out' })).toHaveCount(0)
+  await expect(header(page).getByRole('button', { name: 'My Account' })).toHaveCount(0)
+}
+
+/** My Account, then Sign Out in its menu */
+const signOutFromHeader = async (page: Page) => {
+  await header(page).getByRole('button', { name: 'My Account' }).click()
+  await header(page).getByRole('menuitem', { name: 'Sign Out' }).click()
 }
 
 const showsSignedIn = async (page: Page, as: 'member' | 'staff') => {
-  await expect(header(page).getByRole('button', { name: 'Sign out' })).toBeVisible()
-  // On a phone the bar has room for Sign out only; the account or admin link is there from a
-  // tablet up, so it is looked for in the page rather than on screen
-  await expect(
-    header(page).getByRole('link', {
-      name: as === 'staff' ? 'Admin' : 'Account',
-      includeHidden: true,
-    }),
-  ).not.toHaveCount(0)
+  const account = header(page).getByRole('button', { name: 'My Account' })
+  await expect(account).toBeVisible()
   await expect(header(page).getByRole('link', { name: 'Sign in' })).toHaveCount(0)
+  // Its menu leads to the account or the admin, and closes again with Escape
+  await account.click()
+  await expect(
+    header(page).getByRole('menuitem', {
+      name: as === 'staff' ? 'Open the admin' : 'View My Account',
+    }),
+  ).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(header(page).getByRole('menu')).toHaveCount(0)
 }
 
 const approvedArtist = async () => {
@@ -105,7 +113,7 @@ test('signing out shows Sign in everywhere, and Back never brings Sign out back'
   await showsSignedIn(page, 'member')
   await page.goto('/about')
   await showsSignedIn(page, 'member')
-  await header(page).getByRole('button', { name: 'Sign out' }).click()
+  await signOutFromHeader(page)
   await page.waitForURL((url) => url.pathname === '/')
   await showsSignedOut(page)
   await showsSignedOut(other)
@@ -159,6 +167,34 @@ test('signing out everywhere signs out the other device too', async ({ browser, 
   await laptop.close()
 })
 
+test('an account page left open is closed when the session ends elsewhere', async ({
+  browser,
+  baseURL,
+}) => {
+  const { member } = await approvedArtist()
+  const phone = await browser.newContext()
+  const laptop = await browser.newContext()
+  await signInAs(phone, member.id)
+  await signInAs(laptop, member.id)
+  const onLaptop = await laptop.newPage()
+  await onLaptop.goto('/account')
+  await expect(header(onLaptop).getByRole('button', { name: 'My Account' })).toBeVisible()
+
+  // Ended from another device, as deleting the account ends every session
+  const onPhone = await phone.newPage()
+  const ended = await onPhone.request.post('/next/members/sign-out-everywhere', {
+    headers: { origin: baseURL!, 'content-type': 'application/json' },
+    data: {},
+  })
+  expect(ended.ok()).toBe(true)
+
+  // The next check (coming back to the tab, or the minute's recheck) leaves the account page
+  await onLaptop.evaluate(() => document.dispatchEvent(new Event('visibilitychange')))
+  await onLaptop.waitForURL((url) => url.pathname === '/collaborate/signin')
+  await phone.close()
+  await laptop.close()
+})
+
 test('a member of staff sees Admin, can sign out from the site, and only staff load the admin bar', async ({
   context,
 }) => {
@@ -172,7 +208,7 @@ test('a member of staff sees Admin, can sign out from the site, and only staff l
   await showsSignedIn(page, 'staff')
   await expect.poll(() => meChecks.length).toBeGreaterThan(0)
 
-  await header(page).getByRole('button', { name: 'Sign out' }).click()
+  await signOutFromHeader(page)
   await page.waitForURL((url) => url.pathname === '/')
   await showsSignedOut(page)
   const after = meChecks.length
@@ -186,6 +222,6 @@ test('the cached page itself never carries anyone’s signed-in state', async ({
   await signInAs(context, member.id)
   const html = await (await context.request.get('/')).text()
   expect(html).toContain('Sign in')
-  expect(html).not.toContain('Sign out')
+  expect(html).not.toContain('My Account')
   expect(html).not.toContain(String(member.email))
 })
