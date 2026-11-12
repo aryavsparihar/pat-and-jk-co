@@ -194,6 +194,14 @@ export const decideApplication = async (
     detail: `${result.application.reference} ${STAGE_AFTER[decision]} by ${actor.email}`,
   })
   if (result.memberId) {
+    const { labelKycRecord } = await import('@/kyc/service')
+    await labelKycRecord(payload, {
+      id: result.member.id,
+      artistId:
+        result.member.artistId ?? (result.application.type === 'artist' ? result.memberId : null),
+      partnerId:
+        result.member.partnerId ?? (result.application.type === 'partner' ? result.memberId : null),
+    })
     await logSecurityEvent(payload, {
       event: 'member-id-issued',
       email: result.member.email,
