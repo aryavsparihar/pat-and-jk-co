@@ -15,6 +15,7 @@ import {
 import type { MemberKind } from './ids'
 import { stepValues } from './forms/values'
 import { identityFingerprint } from '@/kyc/identityCode'
+import { discardUnkeptPictures } from './portfolio'
 import { partnerKycSchema, type PartnerKycInput } from '@/kyc/schema'
 import { identityPhotoFacts, kycProblems, partnerKycProblems, savePartnerKyc } from '@/kyc/service'
 import { actingFor } from '@/security/audit'
@@ -99,6 +100,7 @@ export const saveArtistStep = async (
   step: unknown,
   data: unknown,
 ): Promise<SaveResult> => {
+  const started = new Date()
   if (!ARTIST_STEPS.includes(step as ArtistStep)) {
     return { ok: false, status: 400, message: 'That is not a step of the application.' }
   }
@@ -174,6 +176,8 @@ export const saveArtistStep = async (
     ...asMember(member),
     context: { disableRevalidate: true },
   })
+  // Only the pictures in the works on screen are kept; the rest are deleted now
+  if (name === 'portfolio') await discardUnkeptPictures(payload, member, started)
   return { ok: true, application: updated }
 }
 
@@ -259,6 +263,7 @@ export const submitArtistApplication = async (
     )
     return { ok: false, status: 422, message: 'Some steps are not finished yet.', errors }
   }
+  await discardUnkeptPictures(payload, member, new Date())
   return {
     ok: true,
     application: await submit(payload, member, application, evidence, {
