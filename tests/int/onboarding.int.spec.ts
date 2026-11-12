@@ -133,7 +133,13 @@ const cleanup = async () => {
     depth: 0,
   })
   for (const image of images.docs)
-    await payload.delete({ collection: 'portfolio-images', id: image.id, overrideAccess: true })
+    await payload.delete({
+      collection: 'portfolio-images',
+      id: image.id,
+      overrideAccess: true,
+      // As the erasure does: a picture in a sent application is otherwise kept
+      context: { erasing: true },
+    })
   await removeKycFor(payload, like)
   await execute(
     payload,
