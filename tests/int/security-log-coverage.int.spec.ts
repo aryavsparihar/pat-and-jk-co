@@ -2,7 +2,7 @@
 import { randomBytes } from 'node:crypto'
 
 import { sql } from '@payloadcms/db-postgres'
-import { getPayload, type Payload, type Where } from 'payload'
+import { createLocalReq, getPayload, type Payload, type Where } from 'payload'
 import config from '@/payload.config'
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -138,13 +138,15 @@ describe('the security log records', () => {
       email: `partner-${tag()}${DOMAIN}`,
       type: 'partner',
     })
+    // Through the Suspend and Restore buttons' own path: standing is never edited directly
+    const { changeStanding } = await import('@/members/standing')
+    const req = await createLocalReq({ user: { ...admin, collection: 'users' } as never }, payload)
     for (const standing of ['suspended', 'active'] as const) {
-      await payload.update({
-        collection: 'members',
-        id: member.id,
-        data: { standing },
-        overrideAccess: false,
-        user: { ...admin, collection: 'users' } as never,
+      await changeStanding(payload, {
+        memberId: member.id,
+        standing,
+        reason: 'Checking that the security log records this change.',
+        req,
       })
     }
     const logged = await eventsFor({
