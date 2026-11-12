@@ -250,8 +250,9 @@ export const Members: CollectionConfig = {
         // Only ever set by the erasure, which also empties the record
         { label: 'Deleted: details erased', value: 'erased' },
       ],
-      access: { update: staffOnlyField },
-      // Changed only with the buttons above it, which ask for a reason (src/members/standing.ts)
+      // Changed only with the buttons above it, which ask for a reason and are logged
+      // (src/members/standing.ts), and by the erasure: never by an edit, in the admin or the API
+      access: { create: nobody, update: nobody },
       admin: { position: 'sidebar', readOnly: true },
     },
     {
