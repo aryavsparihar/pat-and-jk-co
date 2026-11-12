@@ -4,7 +4,7 @@ import type { Member, User } from '@/payload-types'
 import { logSecurityEvent } from '@/security/events'
 
 import { memberIdsOf } from '../collections/Members'
-import { notifyStaffOfReview, sendReviewDecision } from './emails'
+import { notifyStaffOfPersonalChange, notifyStaffOfReview, sendReviewDecision } from './emails'
 import type { ContactInput, ProfileInput } from './forms/portal'
 import { actingFor } from '@/security/audit'
 
@@ -150,6 +150,11 @@ export const saveContact = async (payload: Payload, member: Member, input: Conta
     overrideAccess: true,
     context: { ...ctx, ...actingFor(member, 'members') },
   })
+  await notifyStaffOfPersonalChange(payload, {
+    what: 'their contact details',
+    memberId: memberIdsOf(member) ?? `Member ${member.id}`,
+    adminPath: `/admin/collections/members/${member.id}`,
+  })
   return profileView(updated).contact
 }
 
@@ -195,6 +200,9 @@ export const decideProfile = async (
     throw new PortalError('Write a note to the artist saying what to change.')
   }
   const member = await ownerOf(payload, memberId)
+  if (decision === 'approve' && member.consentWithdrawal?.withdrawnAt) {
+    throw new PortalError('They have withdrawn consent, so their profile cannot be published.', 409)
+  }
   const review = { ...member.profileReview, ...decided(decision, actor, note) }
   const data =
     decision === 'approve'

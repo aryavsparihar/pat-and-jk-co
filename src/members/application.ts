@@ -15,9 +15,11 @@ import {
 import type { MemberKind } from './ids'
 import { stepValues } from './forms/values'
 import { identityFingerprint } from '@/kyc/identityCode'
+import { discardUnkeptPictures } from './portfolio'
 import { partnerKycSchema, type PartnerKycInput } from '@/kyc/schema'
 import { identityPhotoFacts, kycProblems, partnerKycProblems, savePartnerKyc } from '@/kyc/service'
 import { actingFor } from '@/security/audit'
+import { type ConsentEvidence, consentRow } from './consentRecord'
 
 /**
  * Reading, saving and submitting an applicant's own application.
@@ -98,6 +100,7 @@ export const saveArtistStep = async (
   step: unknown,
   data: unknown,
 ): Promise<SaveResult> => {
+  const started = new Date()
   if (!ARTIST_STEPS.includes(step as ArtistStep)) {
     return { ok: false, status: 400, message: 'That is not a step of the application.' }
   }
@@ -173,6 +176,8 @@ export const saveArtistStep = async (
     ...asMember(member),
     context: { disableRevalidate: true },
   })
+  // Only the pictures in the works on screen are kept; the rest are deleted now
+  if (name === 'portfolio') await discardUnkeptPictures(payload, member, started)
   return { ok: true, application: updated }
 }
 
@@ -192,12 +197,20 @@ const submit = async (
   payload: Payload,
   member: Member,
   application: Application,
-  ip: string,
+  evidence: ConsentEvidence,
+  given: { checked: boolean; typed: string | null | undefined },
 ): Promise<Application> => {
+  const ip = evidence.ip
+  // Each sending adds a row to the consent record; the rows before it are kept as they are
+  const kept = application.consentRecord ?? []
   const updated = await payload.update({
     collection: 'applications',
     id: application.id,
-    data: { stage: 'submitted', submittedAt: new Date().toISOString() },
+    data: {
+      stage: 'submitted',
+      submittedAt: new Date().toISOString(),
+      consentRecord: [...kept, consentRow(evidence, given)],
+    },
     overrideAccess: true, // the stage is the server's to move; every check has been made above
     depth: 0,
     context: { disableRevalidate: true },
@@ -221,7 +234,7 @@ const displayNameOf = (app: Application) =>
 export const submitArtistApplication = async (
   payload: Payload,
   member: Member,
-  ip: string,
+  evidence: ConsentEvidence,
 ): Promise<SaveResult> => {
   const application = await findOwnApplication(payload, member, 'artist', 0)
   if (!application)
@@ -230,7 +243,8 @@ export const submitArtistApplication = async (
     return { ok: false, status: 409, message: 'This application has already been sent.' }
   }
   const problems = artistProblems(application)
-  const declarations = application.declarations as { agreeTyped?: string | null } | undefined
+  const declarations = application.declarations as
+    { agreeTyped?: string | null; consentProcessing?: boolean | null } | undefined
   if (!agreedInWords(declarations?.agreeTyped)) {
     problems.review = { ...problems.review, agreeTyped: `Please type ${TERMS_PHRASE} to confirm.` }
   }
@@ -249,7 +263,14 @@ export const submitArtistApplication = async (
     )
     return { ok: false, status: 422, message: 'Some steps are not finished yet.', errors }
   }
-  return { ok: true, application: await submit(payload, member, application, ip) }
+  await discardUnkeptPictures(payload, member, new Date())
+  return {
+    ok: true,
+    application: await submit(payload, member, application, evidence, {
+      checked: declarations?.consentProcessing === true,
+      typed: declarations?.agreeTyped,
+    }),
+  }
 }
 
 /** What the partner form sends: its answers, identity details unless already given, consent */
@@ -272,7 +293,7 @@ export const submitPartnerApplication = async (
   payload: Payload,
   member: Member,
   submission: PartnerSubmission | null,
-  ip: string,
+  evidence: ConsentEvidence,
 ): Promise<SaveResult> => {
   const application = await findOwnApplication(payload, member, 'partner', 0)
   if (!application)
@@ -354,7 +375,13 @@ export const submitPartnerApplication = async (
     overrideAccess: true,
     context: { disableRevalidate: true, ...actingFor(member, 'members') },
   })
-  return { ok: true, application: await submit(payload, member, saved, ip) }
+  return {
+    ok: true,
+    application: await submit(payload, member, saved, evidence, {
+      checked: consent?.checked === true,
+      typed: typeof consent?.typed === 'string' ? consent.typed : null,
+    }),
+  }
 }
 
 const idOf = (v: unknown) => (v && typeof v === 'object' ? (v as { id: number }).id : v)

@@ -166,22 +166,24 @@ export const useTurnstile = (action: TurnstileAction) => {
  * then. If the script cannot load in time, or the check fails, problem says which.
  */
 export const useVisibleTurnstile = (action: TurnstileAction) => {
-  const container = useRef<HTMLDivElement>(null)
+  // The container is often not on the page when the hook first runs (a form still loading, a step
+  // not yet shown), so the check starts when it appears, not when the hook does
+  const [container, setContainer] = useState<HTMLDivElement | null>(null)
   const widget = useRef<string | null>(null)
   const [token, setToken] = useState<string | null>(null)
   const [problem, setProblem] = useState<BotCheckProblem | null>(null)
 
   useEffect(() => {
-    if (!SITE_KEY) return
+    if (!SITE_KEY || !container) return
     let cancelled = false
     const timer = setTimeout(() => {
       if (!cancelled && !widget.current) setProblem('blocked')
     }, LOAD_TIMEOUT_MS)
     load()
       .then((turnstile) => {
-        if (cancelled || !container.current || widget.current) return
+        if (cancelled || widget.current) return
         clearTimeout(timer)
-        widget.current = turnstile.render(container.current, {
+        widget.current = turnstile.render(container, {
           sitekey: SITE_KEY,
           action,
           appearance: 'always',
@@ -210,7 +212,7 @@ export const useVisibleTurnstile = (action: TurnstileAction) => {
       if (widget.current) window.turnstile?.remove(widget.current)
       widget.current = null
     }
-  }, [action])
+  }, [action, container])
 
   /** Spends the token and runs the check again, for the next request */
   const reset = useCallback(() => {
@@ -219,7 +221,7 @@ export const useVisibleTurnstile = (action: TurnstileAction) => {
   }, [])
 
   // Room is kept for the widget, so nothing below it jumps when it appears
-  const element = SITE_KEY ? <div className="mt-6 min-h-[65px]" ref={container} /> : null
+  const element = SITE_KEY ? <div className="mt-6 min-h-[65px]" ref={setContainer} /> : null
 
   return { element, token, problem, enabled: Boolean(SITE_KEY), reset }
 }

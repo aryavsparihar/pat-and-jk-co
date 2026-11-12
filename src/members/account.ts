@@ -8,7 +8,12 @@ import { revokeSession } from '@/security/memberSession'
 
 import { memberIdsOf } from '../collections/Members'
 import { findMember } from './accounts'
-import { sendEmailChangedNotice, sendMemberCode, sendStaffEmailChangeNotices } from './emails'
+import {
+  notifyStaffOfPersonalChange,
+  sendEmailChangedNotice,
+  sendMemberCode,
+  sendStaffEmailChangeNotices,
+} from './emails'
 import { PortalError } from './profile'
 import { actingFor } from '@/security/audit'
 
@@ -170,6 +175,11 @@ export const confirmEmailChange = async (
     detail: `${others.docs.length} other session(s) ended`,
   })
   await sendEmailChangedNotice(payload, { oldEmail })
+  await notifyStaffOfPersonalChange(payload, {
+    what: 'their email address',
+    memberId: memberIdsOf(member) ?? `Member ${member.id}`,
+    adminPath: `/admin/collections/members/${member.id}`,
+  })
   return { email: pending.pendingEmail }
 }
 

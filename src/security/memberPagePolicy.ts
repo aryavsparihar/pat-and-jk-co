@@ -9,7 +9,8 @@
  */
 
 /** The pages that get this policy */
-export const MEMBER_PAGE = /^\/(?:collaborate\/(?:artists|partners|signin)|account)(?:\/|$)/
+export const MEMBER_PAGE =
+  /^\/(?:collaborate\/(?:artists|partners|signin|artist-agreement|trade-agreement)|account)(?:\/|$)/
 
 export const createNonce = (): string => {
   const bytes = new Uint8Array(16)
@@ -78,12 +79,16 @@ export const memberPagePolicy = (nonce: string, { dev = false, maps = false } = 
     .join('; ')
 
 /**
- * The artist application may use the camera (the identity photo is taken in the page) and, when the
- * artist presses "Use my location" on the map, the device's location; the browser asks them first
- * either way. Every other page keeps the site-wide Permissions-Policy, which turns both off
- * (next.config.ts).
+ * The artist and partner applications and the signing pages may use the camera: the live photo is
+ * taken in the page. The artist application may also use the device's location, when the artist
+ * presses "Use my location" on the map. The browser asks first either way. Every other page keeps
+ * the site-wide Permissions-Policy, which turns both off (next.config.ts).
  */
-export const CAMERA_PAGE = /^\/collaborate\/artists\/?$/
+export const CAMERA_PAGE =
+  /^\/collaborate\/(?:artists|partners|artist-agreement|trade-agreement)\/?$/
+
+/** Where the map is: the artist application only */
+export const MAP_PAGE = /^\/collaborate\/artists\/?$/
 
 export const CAMERA_PERMISSIONS =
   'camera=(self), microphone=(), geolocation=(self), payment=(), usb=(), browsing-topics=()'

@@ -28,12 +28,17 @@ import { FolderField as FolderField_f9c02e79a4aed9a3924487c0cd4cafb1 } from '@pa
 import { WatchTenantCollection as WatchTenantCollection_1d0591e3cf4f332c83a86da13a0de59a } from '@payloadcms/plugin-multi-tenant/client'
 import { ErasePanel as ErasePanel_c706ea81d3a0d117d980a8c611e44a77 } from '@/components/admin/ErasePanel'
 import { MemberLogPanel as MemberLogPanel_70955d8f24c9da078a3aa536c20a5f99 } from '@/components/admin/MemberLogPanel'
+import { UnpublishPanel as UnpublishPanel_fb964396b45e03000f87b9018408998b } from '@/components/admin/UnpublishPanel'
 import { EmailRecoveryPanel as EmailRecoveryPanel_1e7b46736f74144de3026cf06fae8eb8 } from '@/components/admin/EmailRecoveryPanel'
 import { StandingPanel as StandingPanel_4b650f6e123cee9e74d4512b539e6642 } from '@/components/admin/StandingPanel'
 import { DriveFolderField as DriveFolderField_4f09c71a184dc0eba4abc468f50b20a8 } from '@/components/admin/DriveFolderField'
 import { ReviewPanel as ReviewPanel_caa7f039c39638b50465b2dc4034742a } from '@/components/admin/ReviewPanel'
+import { PortraitDownload as PortraitDownload_59d57579f5c55c2b1a1118cc188d6df4 } from '@/components/admin/PictureDownload'
 import { DecisionPanel as DecisionPanel_676fe2f15dcdfed9d10f593f564c78d0 } from '@/components/admin/DecisionPanel'
 import { ApplicationHistory as ApplicationHistory_f59f805df6b53acde3669a4489990560 } from '@/components/admin/ApplicationHistory'
+import { AllPicturesDownload as AllPicturesDownload_59d57579f5c55c2b1a1118cc188d6df4 } from '@/components/admin/PictureDownload'
+import { WorkPictureDownload as WorkPictureDownload_59d57579f5c55c2b1a1118cc188d6df4 } from '@/components/admin/PictureDownload'
+import { ThisPictureDownload as ThisPictureDownload_59d57579f5c55c2b1a1118cc188d6df4 } from '@/components/admin/PictureDownload'
 import { KycPanel as KycPanel_0eb769a0ed0fcab70970f575327a3340 } from '@/components/admin/KycPanel'
 import { AgreementPanel as AgreementPanel_51eb5c8a1888ed67e9e796937b7c7bf1 } from '@/components/admin/AgreementPanel'
 import { FolderTypeField as FolderTypeField_2b8867833a34864a02ddf429b0728a40 } from '@payloadcms/next/client'
@@ -110,15 +115,25 @@ export const importMap = {
   '@/components/admin/ErasePanel#ErasePanel': ErasePanel_c706ea81d3a0d117d980a8c611e44a77,
   '@/components/admin/MemberLogPanel#MemberLogPanel':
     MemberLogPanel_70955d8f24c9da078a3aa536c20a5f99,
+  '@/components/admin/UnpublishPanel#UnpublishPanel':
+    UnpublishPanel_fb964396b45e03000f87b9018408998b,
   '@/components/admin/EmailRecoveryPanel#EmailRecoveryPanel':
     EmailRecoveryPanel_1e7b46736f74144de3026cf06fae8eb8,
   '@/components/admin/StandingPanel#StandingPanel': StandingPanel_4b650f6e123cee9e74d4512b539e6642,
   '@/components/admin/DriveFolderField#DriveFolderField':
     DriveFolderField_4f09c71a184dc0eba4abc468f50b20a8,
   '@/components/admin/ReviewPanel#ReviewPanel': ReviewPanel_caa7f039c39638b50465b2dc4034742a,
+  '@/components/admin/PictureDownload#PortraitDownload':
+    PortraitDownload_59d57579f5c55c2b1a1118cc188d6df4,
   '@/components/admin/DecisionPanel#DecisionPanel': DecisionPanel_676fe2f15dcdfed9d10f593f564c78d0,
   '@/components/admin/ApplicationHistory#ApplicationHistory':
     ApplicationHistory_f59f805df6b53acde3669a4489990560,
+  '@/components/admin/PictureDownload#AllPicturesDownload':
+    AllPicturesDownload_59d57579f5c55c2b1a1118cc188d6df4,
+  '@/components/admin/PictureDownload#WorkPictureDownload':
+    WorkPictureDownload_59d57579f5c55c2b1a1118cc188d6df4,
+  '@/components/admin/PictureDownload#ThisPictureDownload':
+    ThisPictureDownload_59d57579f5c55c2b1a1118cc188d6df4,
   '@/components/admin/KycPanel#KycPanel': KycPanel_0eb769a0ed0fcab70970f575327a3340,
   '@/components/admin/AgreementPanel#AgreementPanel':
     AgreementPanel_51eb5c8a1888ed67e9e796937b7c7bf1,

@@ -69,7 +69,13 @@ const cleanup = async () => {
     overrideAccess: true,
   })
   for (const image of images.docs)
-    await payload.delete({ collection: 'portfolio-images', id: image.id, overrideAccess: true })
+    await payload.delete({
+      collection: 'portfolio-images',
+      id: image.id,
+      overrideAccess: true,
+      // As the erasure does: a picture in a sent application is otherwise kept
+      context: { erasing: true },
+    })
   await execute(payload, sql`DELETE FROM member_sessions WHERE member_id IN (${members})`)
   await execute(payload, sql`DELETE FROM applications WHERE member_id IN (${members})`)
   await execute(payload, sql`DELETE FROM members WHERE email LIKE ${like}`)
