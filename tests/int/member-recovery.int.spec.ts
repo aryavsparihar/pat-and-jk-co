@@ -163,7 +163,7 @@ describe('changing a member’s email address for them', () => {
     expect(sent.some((m) => m.includes('The email address on your PJK account has changed'))).toBe(
       true,
     )
-    expect(sent.some((m) => m.includes('Your PJK account now uses this email address'))).toBe(true)
+    expect(sent.some((m) => m.includes('Your PAT & J.K. Co. account now uses this email address'))).toBe(true)
     info.mockRestore()
   })
 })
