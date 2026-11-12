@@ -76,13 +76,19 @@ const record = async (payload: Payload, report: Report, fingerprint: string) => 
     ])
     if (!limit.allowed) return
     const { sendTechnicalAlert } = await import('@/security/alerts')
+    const route = report.route || 'the site'
+    // 38. To tech@ only
     await sendTechnicalAlert(payload, {
       subject: `PJK site error${report.route ? ` on ${report.route}` : ''}`,
-      lines: [
-        `The site hit an error: ${detail}`,
-        'It is recorded in Admin → Administration → Security log as "server-error". Vercel keeps its own logs for only an hour on this plan, so this email and that entry are the record.',
+      preheader: detail.slice(0, 120),
+      parts: [
+        { kind: 'paragraph', text: `An application error occurred on pjk.co.in (${route}):` },
+        { kind: 'reference', label: 'Error Trace', value: detail },
+        {
+          kind: 'paragraph',
+          text: 'Rate limit: Maximum one alert per unique error per hour, and at most ten error alerts per day.',
+        },
       ],
-      note: 'You will not hear about this same error again for an hour, and about no more than ten errors a day.',
     })
   } catch (error) {
     payload.logger.warn({ msg: 'Could not record a server error', err: error })
