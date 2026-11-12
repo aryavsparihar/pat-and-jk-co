@@ -28,6 +28,7 @@ import { FolderField as FolderField_f9c02e79a4aed9a3924487c0cd4cafb1 } from '@pa
 import { WatchTenantCollection as WatchTenantCollection_1d0591e3cf4f332c83a86da13a0de59a } from '@payloadcms/plugin-multi-tenant/client'
 import { ErasePanel as ErasePanel_c706ea81d3a0d117d980a8c611e44a77 } from '@/components/admin/ErasePanel'
 import { MemberLogPanel as MemberLogPanel_70955d8f24c9da078a3aa536c20a5f99 } from '@/components/admin/MemberLogPanel'
+import { UnpublishPanel as UnpublishPanel_fb964396b45e03000f87b9018408998b } from '@/components/admin/UnpublishPanel'
 import { EmailRecoveryPanel as EmailRecoveryPanel_1e7b46736f74144de3026cf06fae8eb8 } from '@/components/admin/EmailRecoveryPanel'
 import { StandingPanel as StandingPanel_4b650f6e123cee9e74d4512b539e6642 } from '@/components/admin/StandingPanel'
 import { DriveFolderField as DriveFolderField_4f09c71a184dc0eba4abc468f50b20a8 } from '@/components/admin/DriveFolderField'
@@ -110,6 +111,8 @@ export const importMap = {
   '@/components/admin/ErasePanel#ErasePanel': ErasePanel_c706ea81d3a0d117d980a8c611e44a77,
   '@/components/admin/MemberLogPanel#MemberLogPanel':
     MemberLogPanel_70955d8f24c9da078a3aa536c20a5f99,
+  '@/components/admin/UnpublishPanel#UnpublishPanel':
+    UnpublishPanel_fb964396b45e03000f87b9018408998b,
   '@/components/admin/EmailRecoveryPanel#EmailRecoveryPanel':
     EmailRecoveryPanel_1e7b46736f74144de3026cf06fae8eb8,
   '@/components/admin/StandingPanel#StandingPanel': StandingPanel_4b650f6e123cee9e74d4512b539e6642,
