@@ -1,45 +1,46 @@
-import * as migration_20260912_200332_initial from './20260912_200332_initial';
-import * as migration_20260918_171527_admin_gate from './20260918_171527_admin_gate';
-import * as migration_20260918_223130_add_technical_email from './20260918_223130_add_technical_email';
-import * as migration_20260919_131846_add_business_email from './20260919_131846_add_business_email';
-import * as migration_20260924_185422_add_visitor_count from './20260924_185422_add_visitor_count';
-import * as migration_20260924_194443_add_venture_opening from './20260924_194443_add_venture_opening';
-import * as migration_20260924_201500_phulhaar_mark_and_opening from './20260924_201500_phulhaar_mark_and_opening';
-import * as migration_20261002_155740_add_rate_limits from './20261002_155740_add_rate_limits';
-import * as migration_20261002_162508_add_office_address from './20261002_162508_add_office_address';
-import * as migration_20261002_162600_fill_office_address from './20261002_162600_fill_office_address';
-import * as migration_20261002_174436_members_and_applications from './20261002_174436_members_and_applications';
-import * as migration_20261002_181529_application_forms from './20261002_181529_application_forms';
-import * as migration_20261002_182949_paths_block from './20261002_182949_paths_block';
-import * as migration_20261002_183507_applications_switch from './20261002_183507_applications_switch';
-import * as migration_20261002_191825_kyc from './20261002_191825_kyc';
-import * as migration_20261003_063513_storage_prefix from './20261003_063513_storage_prefix';
-import * as migration_20261003_065247_kyc_legal_hold_event from './20261003_065247_kyc_legal_hold_event';
-import * as migration_20261003_065900_kyc_aadhaar_optional from './20261003_065900_kyc_aadhaar_optional';
-import * as migration_20261003_072617_kyc_identity_choice from './20261003_072617_kyc_identity_choice';
-import * as migration_20261003_074020_member_portal from './20261003_074020_member_portal';
-import * as migration_20261004_090000_collaborate_ways_in from './20261004_090000_collaborate_ways_in';
-import * as migration_20261004_100000_payload_3_90 from './20261004_100000_payload_3_90';
-import * as migration_20261006_121931_payout_details_on_sale from './20261006_121931_payout_details_on_sale';
-import * as migration_20261006_153522_venture_theme from './20261006_153522_venture_theme';
-import * as migration_20261006_153600_phulhaar_venture_theme from './20261006_153600_phulhaar_venture_theme';
-import * as migration_20261007_153721_founder_feedback from './20261007_153721_founder_feedback';
-import * as migration_20261011_073719_ipad_feedback from './20261011_073719_ipad_feedback';
-import * as migration_20261013_170910_staff_sign_in_events from './20261013_170910_staff_sign_in_events';
-import * as migration_20261013_171821_member_recent_sign_in from './20261013_171821_member_recent_sign_in';
-import * as migration_20261013_185333_app_role_and_rls from './20261013_185333_app_role_and_rls';
-import * as migration_20261014_033632_security_monitoring_events from './20261014_033632_security_monitoring_events';
-import * as migration_20261014_105526_declined_applications from './20261014_105526_declined_applications';
-import * as migration_20261016_182639_private_media_prefix from './20261016_182639_private_media_prefix';
-import * as migration_20261016_183108_works_folder from './20261016_183108_works_folder';
-import * as migration_20261017_093800_erase_people from './20261017_093800_erase_people';
-import * as migration_20261017_100216_security_log_coverage from './20261017_100216_security_log_coverage';
-import * as migration_20261017_194623_admin_panel_fixes from './20261017_194623_admin_panel_fixes';
-import * as migration_20261019_065012_partner_onboarding from './20261019_065012_partner_onboarding';
-import * as migration_20261110_150816_privacy_policy from './20261110_150816_privacy_policy';
-import * as migration_20261112_090000_privacy_policy_v1 from './20261112_090000_privacy_policy_v1';
-import * as migration_20261112_120000_agreement_executions from './20261112_120000_agreement_executions';
-import * as migration_20261112_144353_consent_record from './20261112_144353_consent_record';
+import * as migration_20260912_200332_initial from './20260912_200332_initial'
+import * as migration_20260918_171527_admin_gate from './20260918_171527_admin_gate'
+import * as migration_20260918_223130_add_technical_email from './20260918_223130_add_technical_email'
+import * as migration_20260919_131846_add_business_email from './20260919_131846_add_business_email'
+import * as migration_20260924_185422_add_visitor_count from './20260924_185422_add_visitor_count'
+import * as migration_20260924_194443_add_venture_opening from './20260924_194443_add_venture_opening'
+import * as migration_20260924_201500_phulhaar_mark_and_opening from './20260924_201500_phulhaar_mark_and_opening'
+import * as migration_20261002_155740_add_rate_limits from './20261002_155740_add_rate_limits'
+import * as migration_20261002_162508_add_office_address from './20261002_162508_add_office_address'
+import * as migration_20261002_162600_fill_office_address from './20261002_162600_fill_office_address'
+import * as migration_20261002_174436_members_and_applications from './20261002_174436_members_and_applications'
+import * as migration_20261002_181529_application_forms from './20261002_181529_application_forms'
+import * as migration_20261002_182949_paths_block from './20261002_182949_paths_block'
+import * as migration_20261002_183507_applications_switch from './20261002_183507_applications_switch'
+import * as migration_20261002_191825_kyc from './20261002_191825_kyc'
+import * as migration_20261003_063513_storage_prefix from './20261003_063513_storage_prefix'
+import * as migration_20261003_065247_kyc_legal_hold_event from './20261003_065247_kyc_legal_hold_event'
+import * as migration_20261003_065900_kyc_aadhaar_optional from './20261003_065900_kyc_aadhaar_optional'
+import * as migration_20261003_072617_kyc_identity_choice from './20261003_072617_kyc_identity_choice'
+import * as migration_20261003_074020_member_portal from './20261003_074020_member_portal'
+import * as migration_20261004_090000_collaborate_ways_in from './20261004_090000_collaborate_ways_in'
+import * as migration_20261004_100000_payload_3_90 from './20261004_100000_payload_3_90'
+import * as migration_20261006_121931_payout_details_on_sale from './20261006_121931_payout_details_on_sale'
+import * as migration_20261006_153522_venture_theme from './20261006_153522_venture_theme'
+import * as migration_20261006_153600_phulhaar_venture_theme from './20261006_153600_phulhaar_venture_theme'
+import * as migration_20261007_153721_founder_feedback from './20261007_153721_founder_feedback'
+import * as migration_20261011_073719_ipad_feedback from './20261011_073719_ipad_feedback'
+import * as migration_20261013_170910_staff_sign_in_events from './20261013_170910_staff_sign_in_events'
+import * as migration_20261013_171821_member_recent_sign_in from './20261013_171821_member_recent_sign_in'
+import * as migration_20261013_185333_app_role_and_rls from './20261013_185333_app_role_and_rls'
+import * as migration_20261014_033632_security_monitoring_events from './20261014_033632_security_monitoring_events'
+import * as migration_20261014_105526_declined_applications from './20261014_105526_declined_applications'
+import * as migration_20261016_182639_private_media_prefix from './20261016_182639_private_media_prefix'
+import * as migration_20261016_183108_works_folder from './20261016_183108_works_folder'
+import * as migration_20261017_093800_erase_people from './20261017_093800_erase_people'
+import * as migration_20261017_100216_security_log_coverage from './20261017_100216_security_log_coverage'
+import * as migration_20261017_194623_admin_panel_fixes from './20261017_194623_admin_panel_fixes'
+import * as migration_20261019_065012_partner_onboarding from './20261019_065012_partner_onboarding'
+import * as migration_20261110_150816_privacy_policy from './20261110_150816_privacy_policy'
+import * as migration_20261112_090000_privacy_policy_v1 from './20261112_090000_privacy_policy_v1'
+import * as migration_20261112_120000_agreement_executions from './20261112_120000_agreement_executions'
+import * as migration_20261112_144353_consent_record from './20261112_144353_consent_record'
+import * as migration_20261112_153424_dpdp_alerts from './20261112_153424_dpdp_alerts'
 
 export const migrations = [
   {
@@ -250,6 +251,11 @@ export const migrations = [
   {
     up: migration_20261112_144353_consent_record.up,
     down: migration_20261112_144353_consent_record.down,
-    name: '20261112_144353_consent_record'
+    name: '20261112_144353_consent_record',
   },
-];
+  {
+    up: migration_20261112_153424_dpdp_alerts.up,
+    down: migration_20261112_153424_dpdp_alerts.down,
+    name: '20261112_153424_dpdp_alerts',
+  },
+]
