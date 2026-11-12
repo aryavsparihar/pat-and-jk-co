@@ -46,6 +46,8 @@ git push -u origin main
 | `PREVIEW_SECRET` | another `openssl rand -hex 32` |
 | `CRON_SECRET` | another `openssl rand -hex 32` |
 | `MEMBER_SESSION_SECRET` | `openssl rand -base64 32`. Signs artist and partner sessions; rotating it signs every member out and nobody else |
+| `PHULHAAR_SHARED_SECRET` | `openssl rand -hex 32`, the same value as Phulhaar's `PJK_SHARED_SECRET`. Phulhaar signs its sign-in requests with it |
+| `PHULHAAR_SIGNING_KEY` | `openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048`. PJK signs Phulhaar's sign-in tokens with it; the public half is served at `/.well-known/jwks.json` |
 | `NEXT_PUBLIC_SERVER_URL` | `https://pjk.co.in` |
 | `DEFAULT_TENANT_SLUG` | `pjk` |
 | `RESEND_API_KEY` | from step 6 (can be added later) |

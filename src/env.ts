@@ -83,6 +83,13 @@ const schema = z.object({
   // can be revoked all at once, by rotating it, without signing staff out
   MEMBER_SESSION_SECRET: optional(optionalSecret(32)),
 
+  // Phulhaar Gallery sign-in (src/phulhaar/protocol.ts). Both or neither: the shared secret
+  // Phulhaar signs its requests with, and the RSA private key (PEM) PJK signs tokens with
+  PHULHAAR_SHARED_SECRET: optional(optionalSecret(32)),
+  PHULHAAR_SIGNING_KEY: optional(
+    z.string().refine((v) => v.includes('PRIVATE KEY'), 'must be a PEM private key'),
+  ),
+
   // Email
   RESEND_API_KEY: optional(z.string().startsWith('re_', 'must be a Resend key (starts with re_)')),
   EMAIL_FROM_ADDRESS: optional(email),
