@@ -57,6 +57,9 @@ export async function POST(request: Request) {
       overrideAccess: true,
       context: { disableRevalidate: true, ...actingFor(member, 'members') },
     })
+    // Staff are prompted on their record to unpublish them (src/members/unpublish.ts)
+    const { recordConsentWithdrawal } = await import('@/members/unpublish')
+    await recordConsentWithdrawal(payload, member)
     await logSecurityEvent(payload, {
       event: 'kyc-consent-withdrawn',
       email: member.email,
@@ -95,6 +98,8 @@ export async function POST(request: Request) {
   await notifyStaffOfDataRequest(payload, {
     reference: member.artistId || member.partnerId || application?.reference,
     request: KINDS[kind],
+    kind,
+    memberId: member.id,
   })
   return withRefresh(
     reply({ ok: true, message: 'Thank you. We have your request and will write to you.' }),

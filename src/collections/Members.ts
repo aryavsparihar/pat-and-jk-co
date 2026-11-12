@@ -148,6 +148,48 @@ export const Members: CollectionConfig = {
       fields: [{ name: 'requestedAt', label: 'Asked on', type: 'date' }],
     },
     {
+      // A member's withdrawal of consent (/next/members/data-request), and staff unpublishing
+      // their profile and artworks after it. Written only by the server (src/members/unpublish.ts)
+      name: 'consentWithdrawal',
+      label: 'Consent withdrawn',
+      type: 'group',
+      access: { create: nobody, update: nobody },
+      admin: {
+        readOnly: true,
+        position: 'sidebar',
+        condition: (data) => Boolean(data?.consentWithdrawal?.withdrawnAt),
+      },
+      fields: [
+        {
+          name: 'withdrawnAt',
+          label: 'Withdrawn on',
+          type: 'date',
+          admin: { date: { pickerAppearance: 'dayAndTime' } },
+        },
+        {
+          name: 'unpublishedAt',
+          label: 'Unpublished from Phulhaar on',
+          type: 'date',
+          admin: { date: { pickerAppearance: 'dayAndTime' } },
+        },
+        {
+          name: 'unpublishedBy',
+          label: 'Unpublished by',
+          type: 'relationship',
+          relationTo: 'users',
+        },
+      ],
+    },
+    {
+      // The prompt after a withdrawal of consent, with the one-click unpublish
+      name: 'unpublishPanel',
+      type: 'ui',
+      admin: {
+        position: 'sidebar',
+        components: { Field: '@/components/admin/UnpublishPanel#UnpublishPanel' },
+      },
+    },
+    {
       name: 'emailRecovery',
       type: 'ui',
       admin: {
@@ -483,6 +525,27 @@ export const Members: CollectionConfig = {
             return Response.json({ message: error.message }, { status: error.status })
           req.payload.logger.error({ err: error, msg: 'Changing a member’s standing failed' })
           return Response.json({ message: 'The change could not be saved.' }, { status: 500 })
+        }
+      },
+    },
+    {
+      // POST /api/members/:id/unpublish. Staff only; logged (src/members/unpublish.ts)
+      path: '/:id/unpublish',
+      method: 'post',
+      handler: async (req) => {
+        if (!isStaff(req.user)) return refuse(req, 'Not allowed.')
+        const { UnpublishError, unpublishMember } = await import('../members/unpublish')
+        try {
+          const result = await unpublishMember(req.payload, {
+            memberId: Number(req.routeParams?.id),
+            actor: req.user!,
+          })
+          return Response.json({ ok: true, ...result })
+        } catch (error) {
+          if (error instanceof UnpublishError)
+            return Response.json({ message: error.message }, { status: error.status })
+          req.payload.logger.error({ err: error, msg: 'Unpublishing a member failed' })
+          return Response.json({ message: 'It could not be unpublished.' }, { status: 500 })
         }
       },
     },

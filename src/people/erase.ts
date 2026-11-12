@@ -273,6 +273,9 @@ export const eraseMember = async (
   let kept: string | null = null
   if (holdUntil) {
     kyc = 'kept'
+    // The kept record goes on saying whose it was: their artist or partner ID
+    const { labelKycRecord } = await import('@/kyc/service')
+    await labelKycRecord(payload, member, reference)
     kept = `your identity and payout details, which we must hold until ${holdUntil.slice(0, 10)}.`
   } else {
     const { purgeKyc } = await import('@/kyc/service')

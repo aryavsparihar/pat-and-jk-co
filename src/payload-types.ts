@@ -1622,6 +1622,11 @@ export interface Member {
   deletionRequest?: {
     requestedAt?: string | null;
   };
+  consentWithdrawal?: {
+    withdrawnAt?: string | null;
+    unpublishedAt?: string | null;
+    unpublishedBy?: (number | null) | User;
+  };
   /**
    * Issued when an artist application is approved. Never changes.
    */
@@ -2011,6 +2016,7 @@ export interface KycRecord {
   id: number;
   member: number | Member;
   reference?: string | null;
+  memberCode?: string | null;
   keyId?: string | null;
   wrappedKey?: string | null;
   idType?: ('pan' | 'aadhaar') | null;
@@ -2266,6 +2272,7 @@ export interface SecurityEvent {
     | 'staff-account-changed'
     | 'member-standing-changed'
     | 'scheduled-task-ran'
+    | 'profile-unpublished'
     | 'record-created'
     | 'record-changed'
     | 'record-deleted';
@@ -3397,6 +3404,13 @@ export interface MembersSelect<T extends boolean = true> {
     | {
         requestedAt?: T;
       };
+  consentWithdrawal?:
+    | T
+    | {
+        withdrawnAt?: T;
+        unpublishedAt?: T;
+        unpublishedBy?: T;
+      };
   artistId?: T;
   partnerId?: T;
   standing?: T;
@@ -3702,6 +3716,7 @@ export interface PortfolioImagesSelect<T extends boolean = true> {
 export interface KycRecordsSelect<T extends boolean = true> {
   member?: T;
   reference?: T;
+  memberCode?: T;
   keyId?: T;
   wrappedKey?: T;
   idType?: T;

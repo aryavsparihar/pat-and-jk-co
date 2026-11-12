@@ -1542,3 +1542,24 @@ export const runKycPurge = async (payload: Payload, now = new Date()): Promise<P
   }
   return summary
 }
+
+/**
+ * Puts the member's artist or partner ID on their KYC record, once an ID is issued and again when
+ * the account is deleted while the record must be kept: the retained record always says whose it
+ * was. `fallback` (an application reference) is used for someone never given an ID.
+ */
+export const labelKycRecord = async (
+  payload: Payload,
+  member: { id: number; artistId?: string | null; partnerId?: string | null },
+  fallback?: string | null,
+) => {
+  const code = [member.artistId, member.partnerId].filter(Boolean).join(' · ') || fallback
+  if (!code) return
+  await payload.update({
+    collection: 'kyc-records',
+    where: { member: { equals: member.id } },
+    data: { memberCode: code } as never,
+    overrideAccess: true,
+    context: { disableRevalidate: true },
+  })
+}
