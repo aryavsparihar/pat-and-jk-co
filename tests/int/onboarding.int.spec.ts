@@ -320,6 +320,53 @@ describe('an artist application', () => {
     expect(errors.dateOfBirth).toMatch(/18 or over/)
   })
 
+  it('keeps only the pictures in the works saved; failed, removed and replaced ones go', async () => {
+    const { cookie, member } = await applicant('artist')
+    const uploadOne = async () =>
+      ((await (await upload(cookie, await photo())).json()) as { image: { id: number } }).image.id
+    const ids: number[] = []
+    for (let i = 0; i < 5; i++) ids.push(await uploadOne())
+    const workFor = (image: number, i: number) => ({
+      image,
+      title: `Work ${i + 1}`,
+      year: 2024,
+      medium: 'Oil on canvas',
+      width: 60,
+      height: 90,
+      unit: 'cm',
+    })
+    const kept = async () =>
+      (
+        await payload.find({
+          collection: 'portfolio-images',
+          where: { owner: { equals: member.id } },
+          depth: 0,
+          overrideAccess: true,
+        })
+      ).docs
+        .map((d) => d.id)
+        .sort((a, b) => a - b)
+
+    // Two were added and then removed before saving: only the three on screen are kept
+    const first = ids.slice(0, 3)
+    await new Promise((r) => setTimeout(r, 5))
+    expect(
+      (await call(saveStep, cookie, { step: 'portfolio', data: { works: first.map(workFor) } }))
+        .status,
+    ).toBe(200)
+    expect(await kept()).toEqual(first)
+
+    // The third picture replaced by a new one: the old one goes
+    const replacement = await uploadOne()
+    const second = [first[0]!, first[1]!, replacement]
+    await new Promise((r) => setTimeout(r, 5))
+    expect(
+      (await call(saveStep, cookie, { step: 'portfolio', data: { works: second.map(workFor) } }))
+        .status,
+    ).toBe(200)
+    expect(await kept()).toEqual(second)
+  })
+
   it('cannot be sent until every step is right, then cannot be changed', async () => {
     const { cookie, application, member } = await applicant('artist')
     const early = await call(submitArtist, cookie, {})
