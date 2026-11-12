@@ -60,6 +60,14 @@ export const PortfolioImages: CollectionConfig = {
   },
   fields: [
     {
+      name: 'download',
+      type: 'ui',
+      admin: {
+        position: 'sidebar',
+        components: { Field: '@/components/admin/PictureDownload#ThisPictureDownload' },
+      },
+    },
+    {
       // Set only by the server when staff approve a portrait that uses this image, and cleared
       // when nothing approved uses it any more (src/members/profile.ts). It no longer makes
       // the picture readable by anyone: publishing copies public versions out instead
