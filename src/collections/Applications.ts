@@ -10,6 +10,7 @@ import { canMove, type Stage } from '../members/stages'
 
 import {
   artistApplicationFields,
+  consentRecordFields,
   partnerApplicationFields,
   progressFields,
 } from './applicationFields'
@@ -237,6 +238,7 @@ export const Applications: CollectionConfig = {
     },
     ...artistApplicationFields,
     ...partnerApplicationFields,
+    ...consentRecordFields,
     ...progressFields,
     {
       name: 'decisionNote',

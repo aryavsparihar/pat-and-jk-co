@@ -247,19 +247,20 @@ export const artistApplicationFields: Field[] = [
         label: 'Consented to identity details being processed for verification',
         type: 'checkbox',
       },
-      { name: 'consentedAt', type: 'date', admin: { date: { pickerAppearance: 'dayAndTime' } } },
-      { name: 'agreeTerms', label: 'Agreed to the Terms & Conditions', type: 'checkbox' },
-      { name: 'agreeTyped', label: 'What they typed to agree', type: 'text' },
       {
-        name: 'termsDocument',
-        label: 'The terms they agreed to',
-        type: 'upload',
-        relationTo: 'media',
+        name: 'consentedAt',
+        label: 'Consent saved on the form',
+        type: 'date',
+        admin: { date: { pickerAppearance: 'dayAndTime' } },
       },
+      // From before the privacy policy replaced the Terms & Conditions: kept, never shown
+      { name: 'agreeTerms', type: 'checkbox', admin: { hidden: true } },
+      { name: 'agreeTyped', label: 'What they typed to agree', type: 'text' },
+      { name: 'termsDocument', type: 'upload', relationTo: 'media', admin: { hidden: true } },
       {
         name: 'privacyNoticeVersion',
+        label: 'Privacy Policy & Statutory Notice: version',
         type: 'text',
-        admin: { description: 'The privacy notice they agreed to.' },
       },
     ],
   },
@@ -354,6 +355,51 @@ export const partnerApplicationFields: Field[] = [
 ]
 
 /** Where the applicant has got to: steps saved so far, and when they began */
+const locked = () => false
+
+/**
+ * The consent given each time an application is sent, artist or partner (src/members/consentRecord.ts):
+ * the box ticked and I AGREE typed, the Privacy Policy & Statutory Notice as shown with its version
+ * and SHA-256, the IP address, the coarse location and the time. Written by the server alone
+ * (overrideAccess) and never changed: no one, staff included, can create or edit a row.
+ */
+export const consentRecordFields: Field[] = [
+  {
+    name: 'consentRecord',
+    label: 'Consent record',
+    type: 'array',
+    access: { create: locked, update: locked },
+    admin: {
+      readOnly: true,
+      initCollapsed: false,
+      description:
+        'One row each time the application was sent. Recorded by the server and locked: it cannot be edited.',
+    },
+    labels: { singular: 'Consent', plural: 'Consents' },
+    fields: [
+      {
+        name: 'submittedAt',
+        label: 'Submitted',
+        type: 'date',
+        admin: { date: { pickerAppearance: 'dayAndTime', displayFormat: 'd MMM yyyy, HH:mm:ss' } },
+      },
+      { name: 'consentChecked', label: 'Ticked the consent box', type: 'checkbox' },
+      { name: 'typed', label: 'Typed (I AGREE)', type: 'text' },
+      { name: 'policyTitle', label: 'Document agreed to', type: 'text' },
+      { name: 'policyVersion', label: 'Version', type: 'text' },
+      { name: 'policySha256', label: 'SHA-256 of the text agreed to', type: 'text' },
+      { name: 'ip', label: 'IP address', type: 'text' },
+      { name: 'location', label: 'Coarse location', type: 'text' },
+      { name: 'userAgent', label: 'Browser', type: 'text' },
+      {
+        name: 'policyText',
+        label: 'Text agreed to (Privacy Policy & Statutory Notice, Pre-Submission DPDP notice)',
+        type: 'textarea',
+      },
+    ],
+  },
+]
+
 export const progressFields: Field[] = [
   {
     name: 'completedSteps',

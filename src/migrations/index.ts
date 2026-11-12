@@ -39,6 +39,7 @@ import * as migration_20261019_065012_partner_onboarding from './20261019_065012
 import * as migration_20261110_150816_privacy_policy from './20261110_150816_privacy_policy';
 import * as migration_20261112_090000_privacy_policy_v1 from './20261112_090000_privacy_policy_v1';
 import * as migration_20261112_120000_agreement_executions from './20261112_120000_agreement_executions';
+import * as migration_20261112_144353_consent_record from './20261112_144353_consent_record';
 
 export const migrations = [
   {
@@ -239,11 +240,16 @@ export const migrations = [
   {
     up: migration_20261112_090000_privacy_policy_v1.up,
     down: migration_20261112_090000_privacy_policy_v1.down,
-    name: '20261112_090000_privacy_policy_v1'
+    name: '20261112_090000_privacy_policy_v1',
   },
   {
     up: migration_20261112_120000_agreement_executions.up,
     down: migration_20261112_120000_agreement_executions.down,
-    name: '20261112_120000_agreement_executions'
+    name: '20261112_120000_agreement_executions',
+  },
+  {
+    up: migration_20261112_144353_consent_record.up,
+    down: migration_20261112_144353_consent_record.down,
+    name: '20261112_144353_consent_record'
   },
 ];
