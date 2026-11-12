@@ -160,7 +160,8 @@ const nextConfig: NextConfig = {
       // The site-wide policy, everywhere except the member pages, which get a stricter per-request
       // policy with a nonce from src/proxy.ts (src/security/memberPagePolicy.ts)
       {
-        source: '/:path((?!account(?:/|$)|collaborate/(?:artists|partners|signin)(?:/|$)).*)',
+        source:
+          '/:path((?!account(?:/|$)|collaborate/(?:artists|partners|signin|artist-agreement|trade-agreement)(?:/|$)).*)',
         headers: siteHeaders,
       },
       // Where several rules set the same header, the later one wins: the admin panel gets its
@@ -168,8 +169,13 @@ const nextConfig: NextConfig = {
       // The identity photo is taken in the artist application, and the map there can use the
       // device's location, so the camera and location are allowed there and nowhere else. The
       // same value as CAMERA_PERMISSIONS in src/security/memberPagePolicy.ts, which the proxy sets
-      {
-        source: '/collaborate/artists',
+      // The signing pages take a live photo too
+      ...[
+        '/collaborate/artists',
+        '/collaborate/artist-agreement',
+        '/collaborate/trade-agreement',
+      ].map((source) => ({
+        source,
         headers: [
           {
             key: 'Permissions-Policy',
@@ -177,7 +183,7 @@ const nextConfig: NextConfig = {
               'camera=(self), microphone=(), geolocation=(self), payment=(), usb=(), browsing-topics=()',
           },
         ],
-      },
+      })),
       { source: '/admin', headers: adminHeaders },
       { source: '/admin/:path*', headers: adminHeaders },
       { source: '/api/media/file/:path*', headers: uploadHeaders },
