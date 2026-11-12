@@ -11,9 +11,16 @@ import { officeLines } from '@/utilities/address'
  *
  * Never allowed to stop an email going out: if the settings cannot be read, the footer is empty.
  */
-export type EmailFooter = { text: string; html: string }
+export type EmailFooter = {
+  text: string
+  html: string
+  /** The parts, for the email template (src/email/layout.ts) to lay out itself */
+  lines: string[]
+  siteUrl: string | null
+  socials: { platform: string; label: string; url: string; icon: boolean }[]
+}
 
-const EMPTY: EmailFooter = { text: '', html: '' }
+const EMPTY: EmailFooter = { text: '', html: '', lines: [], siteUrl: null, socials: [] }
 
 const escape = (value: string) => value.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)
 
@@ -99,7 +106,18 @@ ${[name, ...lines]
   }
 </p>${socialsHtml(socials)}`
 
-  return { text: text.join('\n'), html }
+  return {
+    text: text.join('\n'),
+    html,
+    lines: lines.map(String),
+    siteUrl: siteUrl ?? null,
+    socials: socials.map((s) => ({
+      platform: s.platform,
+      label: SOCIAL_LABEL[s.platform] ?? s.platform,
+      url: s.url ?? '',
+      icon: hasSocialIcon(s.platform),
+    })),
+  }
 }
 
 /** The footer for a brand (or the default brand, when none is given). */
