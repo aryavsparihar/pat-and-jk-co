@@ -45,7 +45,13 @@ export async function POST(request: Request) {
       overrideAccess: true,
     })
   ).docs[0]
-  await notifyStaffOfBankChange(payload, { reference: record?.reference, cancelled: true })
+  const member = await payload
+    .findByID({ collection: 'members', id: memberId, depth: 0, overrideAccess: true })
+    .catch(() => null)
+  await notifyStaffOfBankChange(payload, {
+    member: member ?? { id: memberId },
+    cancelled: true,
+  })
   return reply(
     { ok: true },
     {

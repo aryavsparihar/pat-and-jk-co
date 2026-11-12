@@ -73,7 +73,7 @@ export async function POST(request: Request) {
       bank: parsed.data,
     })
     await sendBankChangeNotice(payload, { member, cancelToken, first })
-    await notifyStaffOfBankChange(payload, { reference: record.reference, first })
+    await notifyStaffOfBankChange(payload, { member, first })
     return withRefresh(reply({ ok: true }), auth.refresh)
   } catch (error) {
     if (error instanceof KycError)

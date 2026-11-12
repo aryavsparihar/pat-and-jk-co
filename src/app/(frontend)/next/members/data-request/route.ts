@@ -100,6 +100,7 @@ export async function POST(request: Request) {
     request: KINDS[kind],
     kind,
     memberId: member.id,
+    member,
   })
   return withRefresh(
     reply({ ok: true, message: 'Thank you. We have your request and will write to you.' }),
