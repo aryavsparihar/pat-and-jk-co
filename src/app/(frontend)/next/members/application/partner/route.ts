@@ -1,4 +1,9 @@
-import { type PartnerSubmission, submitPartnerApplication } from '@/members/application'
+import {
+  type PartnerSubmission,
+  PRIVACY_NOTICE_VERSION,
+  submitPartnerApplication,
+} from '@/members/application'
+import { consentEvidence } from '@/members/consentRecord'
 import { checkFormToken } from '@/members/formToken'
 import { applicationsOpenness, closedReply } from '@/members/openness'
 import {
@@ -78,7 +83,12 @@ export async function POST(request: Request) {
   }
   if (human.note) payload.logger.warn(`Bot check skipped (partner-submit): ${human.note}`)
 
-  const result = await submitPartnerApplication(payload, member, body, ip)
+  const result = await submitPartnerApplication(
+    payload,
+    member,
+    body,
+    await consentEvidence(request, PRIVACY_NOTICE_VERSION),
+  )
   if (!result.ok)
     return reply({ message: result.message, errors: result.errors }, { status: result.status })
   return withRefresh(reply({ ok: true, reference: result.application.reference }), auth.refresh)
