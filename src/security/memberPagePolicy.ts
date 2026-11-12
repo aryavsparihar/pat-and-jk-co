@@ -9,7 +9,8 @@
  */
 
 /** The pages that get this policy */
-export const MEMBER_PAGE = /^\/(?:collaborate\/(?:artists|partners|signin)|account)(?:\/|$)/
+export const MEMBER_PAGE =
+  /^\/(?:collaborate\/(?:artists|partners|signin|artist-agreement|trade-agreement)|account)(?:\/|$)/
 
 export const createNonce = (): string => {
   const bytes = new Uint8Array(16)
@@ -83,7 +84,10 @@ export const memberPagePolicy = (nonce: string, { dev = false, maps = false } = 
  * either way. Every other page keeps the site-wide Permissions-Policy, which turns both off
  * (next.config.ts).
  */
-export const CAMERA_PAGE = /^\/collaborate\/artists\/?$/
+export const CAMERA_PAGE = /^\/collaborate\/(?:artists|artist-agreement|trade-agreement)\/?$/
+
+/** Where the map is: the artist application only */
+export const MAP_PAGE = /^\/collaborate\/artists\/?$/
 
 export const CAMERA_PERMISSIONS =
   'camera=(self), microphone=(), geolocation=(self), payment=(), usb=(), browsing-topics=()'
