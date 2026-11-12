@@ -136,3 +136,68 @@ export const ingestPortfolioImage = async (
     context: { disableRevalidate: true, ...actingFor(member, 'members') },
   })
 }
+
+const idOf = (value: unknown): number | null =>
+  typeof value === 'number' ? value : ((value as { id?: number } | null)?.id ?? null)
+
+/**
+ * Deletes the artist's pictures that nothing keeps: ones that failed or were cut off on the way,
+ * removed from the form, or replaced by another. A picture is kept while a work in any of their
+ * applications shows it, while it is their portrait, or when it arrived after `before` (a picture
+ * still on its way while the form was saved). Run whenever the portfolio is saved and when the
+ * application is sent, so only the pictures on screen are kept.
+ */
+export const discardUnkeptPictures = async (
+  payload: Payload,
+  member: Pick<Member, 'id' | 'email'>,
+  before: Date,
+): Promise<number> => {
+  const keep = new Set<number>()
+  const applications = await payload.find({
+    collection: 'applications',
+    where: { member: { equals: member.id } },
+    limit: 100,
+    depth: 0,
+    pagination: false,
+    overrideAccess: true,
+  })
+  for (const application of applications.docs)
+    for (const work of application.portfolio ?? []) {
+      const id = idOf(work.image)
+      if (id) keep.add(id)
+    }
+  const owner = await payload.findByID({
+    collection: 'members',
+    id: member.id,
+    depth: 0,
+    overrideAccess: true,
+  })
+  const working = idOf((owner.profile as { portrait?: unknown } | null)?.portrait)
+  const published = idOf((owner.publicProfile as { portrait?: unknown } | null)?.portrait)
+  if (working) keep.add(working)
+  if (published) keep.add(published)
+
+  const unkept = await payload.find({
+    collection: 'portfolio-images',
+    where: {
+      and: [
+        { owner: { equals: member.id } },
+        { createdAt: { less_than: before.toISOString() } },
+        ...(keep.size ? [{ id: { not_in: [...keep] } }] : []),
+      ],
+    },
+    limit: 500,
+    depth: 0,
+    pagination: false,
+    overrideAccess: true,
+  })
+  for (const image of unkept.docs) {
+    await payload.delete({
+      collection: 'portfolio-images',
+      id: image.id,
+      overrideAccess: true,
+      context: { disableRevalidate: true, ...actingFor(member, 'members') },
+    })
+  }
+  return unkept.docs.length
+}
