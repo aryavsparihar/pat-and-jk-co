@@ -40,6 +40,7 @@ const ASKED_KEY = 'pjk-session-asked'
 const RECHECK_MS = 60_000
 /** Pages that only make sense while signed in: left at once when the session ends */
 const SIGNED_IN_PAGE = /^\/account(?:\/|$)/
+const LEAVE_AFTER_MS = 2000
 
 let state: SessionState = 'unknown'
 const listeners = new Set<() => void>()
@@ -52,10 +53,15 @@ const set = (next: SessionState) => {
   const ended = (state === 'member' || state === 'staff') && next === 'none'
   state = next
   for (const listener of listeners) listener()
-  // Signed out elsewhere, timed out, or the account deleted: nothing of the account stays on screen
+  // Signed out elsewhere, timed out, or the account deleted: nothing of the account stays on screen.
+  // A moment's wait first, so a sign-out from this page (Sign Out, or the idle sign-out, which
+  // says why on the sign-in page) goes where it was going; that leaves the page and ends this
   if (ended && SIGNED_IN_PAGE.test(window.location.pathname)) {
-    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-    window.location.assign('/collaborate/signin')
+    window.setTimeout(() => {
+      if (state === 'none' && SIGNED_IN_PAGE.test(window.location.pathname))
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+        window.location.assign('/collaborate/signin')
+    }, LEAVE_AFTER_MS)
   }
 }
 
