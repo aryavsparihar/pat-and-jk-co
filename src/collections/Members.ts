@@ -366,6 +366,13 @@ export const Members: CollectionConfig = {
         },
         { name: 'portrait', type: 'upload', relationTo: 'portfolio-images' },
         {
+          name: 'downloadPortrait',
+          type: 'ui',
+          admin: {
+            components: { Field: '@/components/admin/PictureDownload#PortraitDownload' },
+          },
+        },
+        {
           name: 'mediums',
           type: 'select',
           hasMany: true,

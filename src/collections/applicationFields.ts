@@ -190,6 +190,14 @@ export const artistApplicationFields: Field[] = [
     ],
   },
   {
+    name: 'downloadAllPictures',
+    type: 'ui',
+    admin: {
+      condition: isArtist,
+      components: { Field: '@/components/admin/PictureDownload#AllPicturesDownload' },
+    },
+  },
+  {
     name: 'portfolio',
     label: 'Portfolio sample',
     type: 'array',
@@ -197,6 +205,13 @@ export const artistApplicationFields: Field[] = [
     admin: { condition: isArtist, readOnly: true },
     fields: [
       { name: 'image', type: 'upload', relationTo: 'portfolio-images' },
+      {
+        name: 'downloadImage',
+        type: 'ui',
+        admin: {
+          components: { Field: '@/components/admin/PictureDownload#WorkPictureDownload' },
+        },
+      },
       {
         type: 'row',
         fields: [
