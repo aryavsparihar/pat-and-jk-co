@@ -169,9 +169,10 @@ const nextConfig: NextConfig = {
       // The identity photo is taken in the artist application, and the map there can use the
       // device's location, so the camera and location are allowed there and nowhere else. The
       // same value as CAMERA_PERMISSIONS in src/security/memberPagePolicy.ts, which the proxy sets
-      // The signing pages take a live photo too
+      // The partner form and the signing pages take a live photo too
       ...[
         '/collaborate/artists',
+        '/collaborate/partners',
         '/collaborate/artist-agreement',
         '/collaborate/trade-agreement',
       ].map((source) => ({
