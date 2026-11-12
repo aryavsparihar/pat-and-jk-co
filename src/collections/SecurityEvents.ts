@@ -72,6 +72,8 @@ export const securityEventTypes = [
   'staff-account-changed',
   'member-standing-changed',
   'scheduled-task-ran',
+  // A member's profile and artworks taken down after they withdrew consent (src/members/unpublish.ts)
+  'profile-unpublished',
   // Every record added, changed or deleted, in every collection, and by whom (src/security/audit.ts)
   'record-created',
   'record-changed',

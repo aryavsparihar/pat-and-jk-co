@@ -6,6 +6,7 @@ import {
   CAMERA_PAGE,
   CAMERA_PERMISSIONS,
   createNonce,
+  MAP_PAGE,
   MEMBER_PAGE,
   memberPagePolicy,
 } from './security/memberPagePolicy'
@@ -92,7 +93,7 @@ export function proxy(request: NextRequest) {
     const policy = memberPagePolicy(nonce, {
       dev: process.env.NODE_ENV === 'development',
       // Google's map, only on the artist application and only once a key is set
-      maps: CAMERA_PAGE.test(pathname) && Boolean(process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY),
+      maps: MAP_PAGE.test(pathname) && Boolean(process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY),
     })
     // Next.js reads the nonce from this request header and puts it on its own scripts
     const requestHeaders = new Headers(request.headers)

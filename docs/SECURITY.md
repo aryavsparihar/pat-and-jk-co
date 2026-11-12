@@ -362,7 +362,7 @@ Nobody is removed outright: a member's applications, sessions, pictures, KYC and
 member's decisions, all point at them, and removing the row would break those records (the
 database refuses for members). Deleting someone erases their personal details and keeps the record
 (`src/people/erase.ts`), so every link stays valid and shows a placeholder: *Deleted artist
-(AT000012)*, *Deleted partner (PT000003)*, *Deleted applicant (A-7K3Q9X)*, *Deleted staff
+(AT-K7Q4M)*, *Deleted partner (PT-3HM9R)*, *Deleted applicant (A-7K3Q9X)*, *Deleted staff
 (ST-0007)*. IDs come from sequences and the erased record keeps its own, so none is ever issued
 again.
 

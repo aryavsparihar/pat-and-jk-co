@@ -60,6 +60,14 @@ export const PortfolioImages: CollectionConfig = {
   },
   fields: [
     {
+      name: 'download',
+      type: 'ui',
+      admin: {
+        position: 'sidebar',
+        components: { Field: '@/components/admin/PictureDownload#ThisPictureDownload' },
+      },
+    },
+    {
       // Set only by the server when staff approve a portrait that uses this image, and cleared
       // when nothing approved uses it any more (src/members/profile.ts). It no longer makes
       // the picture readable by anyone: publishing copies public versions out instead
@@ -80,6 +88,8 @@ export const PortfolioImages: CollectionConfig = {
       // Without a document (when Payload checks a query) the rule stands aside, as filtering by
       // owner is what lets a member see their own
       access: {
+        // Given when the picture is added, never changed: it cannot be moved to someone else
+        update: () => false,
         read: ({ req: { user }, doc }) =>
           !doc ||
           isStaff(user) ||
@@ -107,6 +117,11 @@ export const PortfolioImages: CollectionConfig = {
   },
   hooks: {
     beforeOperation: [
+      // A picture is never replaced in place: the work it was sent with stays as it was sent
+      ({ operation, req }) => {
+        if (operation === 'update' && req.file)
+          throw publicError('A picture cannot be replaced. Upload a new one instead.', 409)
+      },
       // A picture staff upload in the admin gets what an artist's gets: checked to be what it
       // says it is, re-encoded without location or camera details, at most 2400 px, under a name
       // that says nothing about the file it came from
@@ -125,6 +140,25 @@ export const PortfolioImages: CollectionConfig = {
         req.file.size = data.length
         req.file.mimetype = 'image/jpeg'
         req.file.name = `work-${randomBytes(8).toString('hex')}.jpg`
+      },
+    ],
+    beforeDelete: [
+      // Nor deleted while an application that was sent shows it, except by the erasure
+      async ({ id, req }) => {
+        if (req.context?.erasing) return
+        const sent = await req.payload.count({
+          collection: 'applications',
+          where: {
+            and: [
+              { 'portfolio.image': { equals: id } },
+              { stage: { not_in: ['draft', 'changes-requested'] } },
+            ],
+          },
+          overrideAccess: true,
+          req,
+        })
+        if (sent.totalDocs > 0)
+          throw publicError('This picture is part of an application that was sent.', 409)
       },
     ],
     beforeChange: [

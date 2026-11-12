@@ -1,4 +1,4 @@
-import type { Access, CollectionConfig, FieldAccess, Where } from 'payload'
+import type { Access, CollectionConfig, Field, FieldAccess, Where } from 'payload'
 import { publicError } from '@/utilities/publicError'
 import { APIError } from 'payload'
 
@@ -10,6 +10,7 @@ import { canMove, type Stage } from '../members/stages'
 
 import {
   artistApplicationFields,
+  consentRecordFields,
   partnerApplicationFields,
   progressFields,
 } from './applicationFields'
@@ -37,6 +38,21 @@ const updateOwnWhileEditableOrStaff: Access = ({ req: { user } }) => {
 
 const staffOnlyField: FieldAccess = ({ req: { user } }) => isStaff(user)
 const nobody: FieldAccess = () => false
+
+/**
+ * What the applicant wrote is theirs alone to change, and only while the application is open to
+ * them (the collection's update rule). Staff never rewrite it, in the admin or through the API,
+ * so a sent application stays exactly as it was sent. The server's own writes (overrideAccess)
+ * are the only exception: the stage, the consent record, the declarations agreed to.
+ */
+const applicantOnly: FieldAccess = ({ req: { user } }) => isMember(user)
+const writtenByApplicant = (field: Field): Field =>
+  'name' in field && !('access' in field && field.access?.update)
+    ? ({
+        ...field,
+        access: { ...(field as { access?: object }).access, update: applicantOnly },
+      } as Field)
+    : field
 
 /**
  * How someone asks to work with PJK as an artist, or as a partner. The same person may apply as
@@ -235,8 +251,9 @@ export const Applications: CollectionConfig = {
       options: PARTNER_CATEGORIES.map(({ value, label }) => ({ value, label })),
       admin: { position: 'sidebar', condition: (data) => data?.type === 'partner' },
     },
-    ...artistApplicationFields,
-    ...partnerApplicationFields,
+    ...artistApplicationFields.map(writtenByApplicant),
+    ...partnerApplicationFields.map(writtenByApplicant),
+    ...consentRecordFields,
     ...progressFields,
     {
       name: 'decisionNote',

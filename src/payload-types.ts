@@ -84,6 +84,7 @@ export interface Config {
     'portfolio-images': PortfolioImage;
     'kyc-records': KycRecord;
     'kyc-documents': KycDocument;
+    'agreement-executions': AgreementExecution;
     'access-requests': AccessRequest;
     'security-events': SecurityEvent;
     'login-challenges': LoginChallenge;
@@ -121,6 +122,7 @@ export interface Config {
     'portfolio-images': PortfolioImagesSelect<false> | PortfolioImagesSelect<true>;
     'kyc-records': KycRecordsSelect<false> | KycRecordsSelect<true>;
     'kyc-documents': KycDocumentsSelect<false> | KycDocumentsSelect<true>;
+    'agreement-executions': AgreementExecutionsSelect<false> | AgreementExecutionsSelect<true>;
     'access-requests': AccessRequestsSelect<false> | AccessRequestsSelect<true>;
     'security-events': SecurityEventsSelect<false> | SecurityEventsSelect<true>;
     'login-challenges': LoginChallengesSelect<false> | LoginChallengesSelect<true>;
@@ -683,6 +685,10 @@ export interface ManifestoBlock {
  * via the `definition` "ContentBlock".
  */
 export interface ContentBlock {
+  /**
+   * For long documents such as the privacy policy: each main heading becomes a group in the left margin, and each subheading a link to its section.
+   */
+  sectionNav?: boolean | null;
   width?: ('narrow' | 'wide') | null;
   columns?:
     | {
@@ -1429,9 +1435,6 @@ export interface SiteSetting {
    * Linked on the last step of the artist application. While a document is here, an artist must tick that they agree and type I AGREE before sending, and which document they agreed to is kept with their application. Upload a new one to change the terms; earlier agreements stay linked to the version agreed to.
    */
   artistTerms?: (number | null) | Media;
-  /**
-   * Shown to every partner before they send their application: they read it to the end and type I AGREE. Until both the text and its version are given here, partners can fill in their application but cannot send it.
-   */
   partnerAgreement?: {
     title?: string | null;
     /**
@@ -1618,6 +1621,11 @@ export interface Member {
   };
   deletionRequest?: {
     requestedAt?: string | null;
+  };
+  consentWithdrawal?: {
+    withdrawnAt?: string | null;
+    unpublishedAt?: string | null;
+    unpublishedBy?: (number | null) | User;
   };
   /**
    * Issued when an artist application is approved. Never changes.
@@ -1920,9 +1928,6 @@ export interface Application {
     agreeTerms?: boolean | null;
     agreeTyped?: string | null;
     termsDocument?: (number | null) | Media;
-    /**
-     * The privacy notice they agreed to.
-     */
     privacyNoticeVersion?: string | null;
   };
   partner?: {
@@ -1952,6 +1957,24 @@ export interface Application {
      */
     agreementDigest?: string | null;
   };
+  /**
+   * One row each time the application was sent. Recorded by the server and locked: it cannot be edited.
+   */
+  consentRecord?:
+    | {
+        submittedAt?: string | null;
+        consentChecked?: boolean | null;
+        typed?: string | null;
+        policyTitle?: string | null;
+        policyVersion?: string | null;
+        policySha256?: string | null;
+        ip?: string | null;
+        location?: string | null;
+        userAgent?: string | null;
+        policyText?: string | null;
+        id?: string | null;
+      }[]
+    | null;
   completedSteps?: ('about' | 'address' | 'practice' | 'portfolio' | 'kyc' | 'review')[] | null;
   /**
    * Sent with a rejection or a request for changes; the applicant sees it.
@@ -1993,6 +2016,7 @@ export interface KycRecord {
   id: number;
   member: number | Member;
   reference?: string | null;
+  memberCode?: string | null;
   keyId?: string | null;
   wrappedKey?: string | null;
   idType?: ('pan' | 'aadhaar') | null;
@@ -2084,7 +2108,16 @@ export interface KycRecord {
 export interface KycDocument {
   id: number;
   member: number | Member;
-  kind: 'pan-card' | 'masked-aadhaar' | 'other-id' | 'address-proof' | 'bank-proof' | 'identity-photo';
+  kind:
+    | 'pan-card'
+    | 'masked-aadhaar'
+    | 'other-id'
+    | 'address-proof'
+    | 'bank-proof'
+    | 'identity-photo'
+    | 'agreement-photo'
+    | 'agreement-signed'
+    | 'agreement-countersigned';
   contentType: string;
   size?: number | null;
   storageKey: string;
@@ -2095,6 +2128,51 @@ export interface KycDocument {
   identityCodeIssuedAt?: string | null;
   identityCodeExpiresAt?: string | null;
   capturedWith?: ('camera' | 'upload') | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Agreements signed on the site. Open one to download the signed PDF, countersign it with the DSC, and upload the countersigned copy, which is then sent to the signer and to compliance.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "agreement-executions".
+ */
+export interface AgreementExecution {
+  id: number;
+  member: number | Member;
+  kind: 'artist' | 'partner';
+  memberCode?: string | null;
+  state: 'in-progress' | 'pending-countersignature' | 'executed';
+  version?: string | null;
+  documentDigest?: string | null;
+  codeHash?: string | null;
+  codeIssuedAt?: string | null;
+  codeExpiresAt?: string | null;
+  verificationCode?: string | null;
+  photo?: (number | null) | KycDocument;
+  photoAt?: string | null;
+  photoSha256?: string | null;
+  signer?: {
+    name?: string | null;
+    firm?: string | null;
+    taxIdMasked?: string | null;
+    firmRegistration?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    address?: string | null;
+  };
+  typed?: string | null;
+  signedAt?: string | null;
+  signedAtIst?: string | null;
+  ip?: string | null;
+  userAgent?: string | null;
+  signedPdf?: (number | null) | KycDocument;
+  signedPdfSha256?: string | null;
+  countersignedPdf?: (number | null) | KycDocument;
+  countersignedPdfSha256?: string | null;
+  countersignedAt?: string | null;
+  countersignedBy?: (number | null) | User;
+  sentAt?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -2194,6 +2272,7 @@ export interface SecurityEvent {
     | 'staff-account-changed'
     | 'member-standing-changed'
     | 'scheduled-task-ran'
+    | 'profile-unpublished'
     | 'record-created'
     | 'record-changed'
     | 'record-deleted';
@@ -2484,6 +2563,10 @@ export interface PayloadLockedDocument {
         value: number | KycDocument;
       } | null)
     | ({
+        relationTo: 'agreement-executions';
+        value: number | AgreementExecution;
+      } | null)
+    | ({
         relationTo: 'access-requests';
         value: number | AccessRequest;
       } | null)
@@ -2676,6 +2759,7 @@ export interface ManifestoBlockSelect<T extends boolean = true> {
  * via the `definition` "ContentBlock_select".
  */
 export interface ContentBlockSelect<T extends boolean = true> {
+  sectionNav?: T;
   width?: T;
   columns?:
     | T
@@ -3320,6 +3404,13 @@ export interface MembersSelect<T extends boolean = true> {
     | {
         requestedAt?: T;
       };
+  consentWithdrawal?:
+    | T
+    | {
+        withdrawnAt?: T;
+        unpublishedAt?: T;
+        unpublishedBy?: T;
+      };
   artistId?: T;
   partnerId?: T;
   standing?: T;
@@ -3538,6 +3629,21 @@ export interface ApplicationsSelect<T extends boolean = true> {
         agreementConfirmation?: T;
         agreementDigest?: T;
       };
+  consentRecord?:
+    | T
+    | {
+        submittedAt?: T;
+        consentChecked?: T;
+        typed?: T;
+        policyTitle?: T;
+        policyVersion?: T;
+        policySha256?: T;
+        ip?: T;
+        location?: T;
+        userAgent?: T;
+        policyText?: T;
+        id?: T;
+      };
   completedSteps?: T;
   decisionNote?: T;
   staffNotes?: T;
@@ -3610,6 +3716,7 @@ export interface PortfolioImagesSelect<T extends boolean = true> {
 export interface KycRecordsSelect<T extends boolean = true> {
   member?: T;
   reference?: T;
+  memberCode?: T;
   keyId?: T;
   wrappedKey?: T;
   idType?: T;
@@ -3696,6 +3803,50 @@ export interface KycDocumentsSelect<T extends boolean = true> {
   identityCodeIssuedAt?: T;
   identityCodeExpiresAt?: T;
   capturedWith?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "agreement-executions_select".
+ */
+export interface AgreementExecutionsSelect<T extends boolean = true> {
+  member?: T;
+  kind?: T;
+  memberCode?: T;
+  state?: T;
+  version?: T;
+  documentDigest?: T;
+  codeHash?: T;
+  codeIssuedAt?: T;
+  codeExpiresAt?: T;
+  verificationCode?: T;
+  photo?: T;
+  photoAt?: T;
+  photoSha256?: T;
+  signer?:
+    | T
+    | {
+        name?: T;
+        firm?: T;
+        taxIdMasked?: T;
+        firmRegistration?: T;
+        email?: T;
+        phone?: T;
+        address?: T;
+      };
+  typed?: T;
+  signedAt?: T;
+  signedAtIst?: T;
+  ip?: T;
+  userAgent?: T;
+  signedPdf?: T;
+  signedPdfSha256?: T;
+  countersignedPdf?: T;
+  countersignedPdfSha256?: T;
+  countersignedAt?: T;
+  countersignedBy?: T;
+  sentAt?: T;
   updatedAt?: T;
   createdAt?: T;
 }

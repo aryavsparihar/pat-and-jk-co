@@ -26,7 +26,7 @@ import { blankOf } from './blank'
  * For a member (artist, partner or applicant):
  *   - the member record keeps only its IDs, dates and standing; everything else is emptied, the
  *     email becomes an address that cannot receive mail, and it is shown as "Deleted artist
- *     (AT000012)" wherever it is linked
+ *     (AT-K7Q4M)" wherever it is linked
  *   - their applications keep their reference, kind, stage, dates and decisions; every answer
  *     they gave is emptied
  *   - every picture of theirs (portrait, application portfolio) is deleted with its file; their
@@ -273,6 +273,9 @@ export const eraseMember = async (
   let kept: string | null = null
   if (holdUntil) {
     kyc = 'kept'
+    // The kept record goes on saying whose it was: their artist or partner ID
+    const { labelKycRecord } = await import('@/kyc/service')
+    await labelKycRecord(payload, member, reference)
     kept = `your identity and payout details, which we must hold until ${holdUntil.slice(0, 10)}.`
   } else {
     const { purgeKyc } = await import('@/kyc/service')

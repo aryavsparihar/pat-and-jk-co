@@ -47,6 +47,12 @@ The page with the slug **`home`** is the homepage. The **SEO** tab sets the titl
 
 **Links** in blocks can point to another page, a journal post or a venture (*Internal link*), or to any web address or email (*Custom URL*, e.g. `https://…` or `mailto:hello@pjk.co.in`).
 
+### The privacy policy
+
+**Pages → Privacy policy** holds the founder's Artist & Partner Onboarding Privacy Policy & Statutory Notice (effective 4 November 2026), word for word, in one **Text** block with **List the section headings in a panel on the left** ticked: each main heading becomes a group in the left margin and each numbered heading a link to its section. Tables are added from the editor's toolbar. Change the date under the page heading when the policy changes.
+
+Both application forms show this page's text in full, in a box the applicant scrolls through before the pre-submission notice, the consent box and I AGREE (`src/members/dpdpNotice.ts` holds the notice's wording). Whatever is published here is what applicants read.
+
 ## Journal
 
 **Website → Journal.** Write a title, a one-line **excerpt** (shown on cards), an optional **hero image**, and the article. Choose categories in the sidebar. Published posts appear automatically in every Journal feed block.
@@ -88,7 +94,7 @@ People who want to work with PJK apply on the website, at **/collaborate/artists
 Open an application to read it. In the sidebar, under **Decision**:
 
 - **Start reviewing.** On a newly sent application, so the applicant sees on their account that it is being read. Nobody is emailed.
-- **Approve.** The person is given a member ID (AT000001 for artists, PT000001 for partners) and an email welcoming them. The ID never changes. Someone can be both an artist and a partner, with one ID of each.
+- **Approve.** The person is given a member ID (AT-X63G8 for artists, PT-8GH37 for partners: the prefix and five random characters) and an email welcoming them. The ID never changes. Someone can be both an artist and a partner, with one ID of each.
 - **Ask for changes.** Write a note saying what you need; they are emailed it and can edit their application and send it again.
 - **Decline.** Write a short, kind note; they are emailed it, with the date they may apply again, hello@pjk.co.in for questions, and Phulhaar's social accounts (**Site settings → Contact & social**).
 - **Withdrawn.** An applicant can withdraw their own application from their account at any point before it is decided. It stays here marked *Withdrawn by the applicant*, and you are emailed if it had already been sent. An artist's identity details are deleted at once.
@@ -157,9 +163,9 @@ If an artist asks for a copy of their data, you are emailed; tell the developer.
 
 ### Deleting someone
 
-Only a super admin can delete someone, member or staff, from the **Delete this person** panel in the sidebar of their record. The panel says exactly what will happen before anything does. You type their ID (AT000012, PT000003, an application reference like A-7K3Q9X, or a staff reference like ST-0007) and give the reason, which goes in the security log with your name. It cannot be undone.
+Only a super admin can delete someone, member or staff, from the **Delete this person** panel in the sidebar of their record. The panel says exactly what will happen before anything does. You type their ID (AT-K7Q4M, PT-3HM9R, an application reference like A-7K3Q9X, or a staff reference like ST-0007) and give the reason, which goes in the security log with your name. It cannot be undone.
 
-- **Their record stays, emptied.** Wherever they appear (applications, works, the security log, decisions they took if they were staff) they are shown as *Deleted artist (AT000012)* or *Deleted staff (ST-0007)*. Their ID is never given to anyone else.
+- **Their record stays, emptied.** Wherever they appear (applications, works, the security log, decisions they took if they were staff) they are shown as *Deleted artist (AT-K7Q4M)* or *Deleted staff (ST-0007)*. Their ID is never given to anyone else.
 - **What goes:** name, email, phone, address, profile, portrait, every answer on their applications, sign-in sessions and codes, and messages they sent through the site's forms. They can no longer sign in, and a member is emailed that their account has been deleted.
 - **Works.** Works you approved are archived and kept, with their pictures, as the record of what was shown. **Take them off Shopify yourself** if they are there. Works never approved are removed.
 - **Identity and payout details (KYC)** are deleted, documents included, unless a legal hold is set. **If we have ever paid them, set a legal hold on their KYC first** (see *Consent and legal hold* above): the details then stay, encrypted, until the hold ends, and the record says why.
@@ -235,13 +241,11 @@ The page at /collaborate is an ordinary page, built from blocks. **Ways to work 
 - **Contact & social** — the general, business and technical enquiry addresses, phone, social profiles, and the **Registered office**.
 - **Applications** — whether applications are open, the note shown while they are closed, the wait before someone declined may apply again, the artists' Terms & Conditions, and the **Partner/Trade Program agreement**.
 
-### The Partner/Trade Program agreement
+### Signed agreements
 
-Every partner reads it to the end and types I AGREE before sending their application. Until it is published here, partners can fill in the form but cannot send it, and the form says the agreement is being finalised.
+Applications ask only for consent to the privacy policy. Once approved, artists sign at /collaborate/artist-agreement and trade partners at /collaborate/trade-agreement, with a live photo, two declarations and I AGREE.
 
-To publish it, under **Website → Site settings → Applications → Partner/Trade Program agreement**: write or paste the text in **The agreement**, give it a **Version** (for example `2026-11`), and save. The title is what partners see above it.
-
-**Whenever you change the text, change the version too.** A partner who read the earlier version is asked to read it again before sending. Each partner's application keeps the version they agreed to, when, and a fingerprint of the exact words, so a later edit never changes what someone agreed to.
+Each signing appears under **Members → Signed agreements**. Download the signed PDF there, countersign it with the DSC, and upload the countersigned copy: it is sent to the signer and to compliance@pjk.co.in, and the record is locked. The full flow is in [AGREEMENTS.md](AGREEMENTS.md).
 
 ### The registered office
 

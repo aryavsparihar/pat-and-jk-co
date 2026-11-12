@@ -24,7 +24,7 @@ const day = (iso: string) =>
 /**
  * "Delete this person", for super admins, on a member or a staff account. Says what will happen
  * before anything does, then asks for the ID typed out and a reason, which go to the security
- * log. The record stays, emptied, as "Deleted artist (AT000012)" or "Deleted staff (ST-0007)"
+ * log. The record stays, emptied, as "Deleted artist (AT-K7Q4M)" or "Deleted staff (ST-0007)"
  * (POST /api/{members|users}/:id/erase, src/people/erase.ts; docs/ADMIN_GUIDE.md)
  */
 export const ErasePanel: React.FC = () => {

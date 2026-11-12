@@ -86,6 +86,30 @@ describe('the registered office', () => {
     expect(footer.html).toContain('<a href="https://pjk.co.in"')
   })
 
+  it("ends every email with PJK's own social links, each with its mark", () => {
+    const footer = footerFromSettings(
+      {
+        siteName: 'PAT and J.K. Co.',
+        copyrightName: null,
+        office,
+        address: null,
+        mapUrl: null,
+        socials: [
+          { platform: 'facebook', url: 'https://www.facebook.com/pjk' },
+          { platform: 'behance', url: 'https://www.behance.net/pjk' },
+          { platform: 'instagram', url: 'javascript:alert(1)' },
+        ],
+      },
+      'https://pjk.co.in',
+    )
+    expect(footer.html).toContain('href="https://www.facebook.com/pjk"')
+    expect(footer.html).toContain('/brand/social/facebook.png')
+    expect(footer.html).toContain('>Behance</span>')
+    expect(footer.html).not.toContain('behance.png')
+    expect(footer.html).not.toContain('javascript:')
+    expect(footer.text).toContain('Facebook: https://www.facebook.com/pjk')
+  })
+
   it('escapes whatever the admin typed before putting it in an email', () => {
     const footer = footerFromSettings(
       {

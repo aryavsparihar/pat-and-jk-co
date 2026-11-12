@@ -81,7 +81,14 @@ export const KycRecords: CollectionConfig = {
   admin: {
     group: 'Members',
     useAsTitle: 'reference',
-    defaultColumns: ['reference', 'idMasked', 'aadhaarMasked', 'accountMasked', 'bankName'],
+    defaultColumns: [
+      'memberCode',
+      'reference',
+      'idMasked',
+      'aadhaarMasked',
+      'accountMasked',
+      'bankName',
+    ],
     hidden: ({ user }) => !isKycReviewer(user),
     description:
       'Identity and bank details. Values are encrypted and shown masked; revealing one asks for a reason and is recorded in the security log.',
@@ -100,6 +107,9 @@ export const KycRecords: CollectionConfig = {
     },
     // Shown in lists: the application reference, so nobody needs a name to find a record
     masked('reference', 'Application'),
+    // The artist or partner ID, once issued (src/kyc/service.ts, labelKycRecord). Kept when the
+    // record is held after the account is deleted, so the record still says whose it was
+    masked('memberCode', 'Member ID'),
 
     // Envelope encryption: the record's data key, wrapped by the master key
     sealed('keyId'),

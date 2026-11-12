@@ -8,7 +8,6 @@ import { PhulhaarPage } from '@/components/phulhaar/PhulhaarPage'
 import { phulhaarDisplayFor } from '@/brands/phulhaar'
 import { phulhaarSocialLinks } from '@/brands/socialIcons'
 import { createFormToken } from '@/members/formToken'
-import { artistTerms } from '@/members/terms'
 import { applicationsOpenness, defaultSiteSettings } from '@/members/openness'
 import configPromise from '@payload-config'
 import { getPayload } from 'payload'
@@ -41,7 +40,6 @@ export default async function ArtistApplicationPage({
   const payload = await getPayload({ config: configPromise })
   const { open, note } = await applicationsOpenness(payload)
   const socials = phulhaarSocialLinks((await defaultSiteSettings(payload))?.phulhaarSocial)
-  const terms = open ? await artistTerms(payload) : null
   return (
     <PhulhaarPage
       display={display}
@@ -58,7 +56,6 @@ export default async function ArtistApplicationPage({
           formToken={createFormToken()}
           privacy={<PrivacyText tenantId={ctx.tenant.id} />}
           socials={socials}
-          terms={terms && { url: terms.url, filename: terms.filename }}
         />
       ) : (
         <PhulhaarClosed note={note} />

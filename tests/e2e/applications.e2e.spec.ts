@@ -7,7 +7,6 @@ import sharp from 'sharp'
 import {
   CODE,
   cleanUp,
-  E2E_AGREEMENT,
   fillEarlySteps,
   findMember,
   knowCode,
@@ -15,6 +14,7 @@ import {
   payload,
   signInWithCode,
   uniqueEmail,
+  agreeToNotice,
 } from '../helpers/e2e'
 
 /*
@@ -221,9 +221,7 @@ test('an artist applies step by step, stops halfway, and comes back', async ({ p
   await expect(page.getByText('ABCxxxxx4F')).toBeVisible()
   await page.getByLabel(/my own original work/).check()
   await page.getByLabel(/information I have given is accurate/).check()
-  await page
-    .getByLabel(/processing my identity details, including a photo of me, to verify who I am, and/)
-    .check()
+  await agreeToNotice(page)
   await page.getByRole('button', { name: 'Send my application' }).click()
   await expect(
     page.getByRole('heading', { name: 'Thank you. We have your application.' }),
@@ -315,21 +313,6 @@ test('PAN is required, and a masked e-Aadhaar goes through the check', async ({ 
     .toBe('not-verified')
 })
 
-/** A document read to its end in its dialog, confirmed, and I AGREE typed */
-const readAndAgree = async (page: Page, box: RegExp, dialogName: string, region: string) => {
-  await page.getByLabel(box).click()
-  const dialog = page.getByRole('dialog', { name: dialogName })
-  await expect(dialog).toBeVisible()
-  await dialog
-    .getByRole('region', { name: region })
-    .evaluate((el) => el.scrollTo({ top: el.scrollHeight }))
-  await dialog.getByLabel(`I have read ${region.toLowerCase()} to the end.`).check()
-  await dialog.getByLabel('Type I AGREE to confirm').fill('I AGREE')
-  await dialog.getByRole('button', { name: 'Agree' }).click()
-  await expect(dialog).toBeHidden()
-  await expect(page.getByLabel(box)).toBeChecked()
-}
-
 test('a partner applies in one go, with their identity and the agreement', async ({ page }) => {
   const email = uniqueEmail('partner')
   await page.goto('/collaborate/partners')
@@ -357,21 +340,7 @@ test('a partner applies in one go, with their identity and the agreement', async
   await expect(page.getByText('Received, and encrypted.')).toHaveCount(2)
   await expect(page.getByLabel('I’d rather use another ID')).toHaveCount(0)
   await expect(page.getByLabel('Account number', { exact: true })).toHaveCount(0)
-  await readAndAgree(
-    page,
-    /I agree to PAT and J\.K\. Co\. processing/,
-    'Privacy policy',
-    'The privacy policy',
-  )
-
-  // The agreement, as published in Site settings, read to its end
-  await expect(page.getByText(E2E_AGREEMENT.words)).toBeAttached()
-  await readAndAgree(
-    page,
-    /I have read the Partner\/Trade Program agreement and I agree/,
-    'Partner/Trade Program agreement',
-    'The agreement',
-  )
+  await agreeToNotice(page)
 
   await page.waitForTimeout(2200)
   await page.getByRole('button', { name: /Send/ }).click()
@@ -389,7 +358,7 @@ test('a partner applies in one go, with their identity and the agreement', async
     type: 'partner',
     stage: 'submitted',
     partner: { subType: 'Art dealer / art consultant' },
-    partnerDeclarations: { agreementVersion: E2E_AGREEMENT.version, consentProcessing: true },
+    partnerDeclarations: { consentProcessing: true },
   })
   const records = await p.count({
     collection: 'kyc-records',
@@ -405,7 +374,7 @@ test('a member signs in again with a code, and a wrong code is refused', async (
   await signInWithCode(page, email)
   await expect(page.getByRole('heading', { name: 'About you' })).toBeVisible()
   // Signing in on the application page, without a page load, updates the header too
-  await expect(page.getByRole('button', { name: 'Sign out' }).first()).toBeVisible()
+  await expect(page.getByRole('button', { name: 'My Account' }).first()).toBeVisible()
   await page.context().clearCookies()
 
   await page.goto('/collaborate/signin')
@@ -426,8 +395,8 @@ test('a member signs in again with a code, and a wrong code is refused', async (
   await page.getByRole('button', { name: 'Continue' }).click()
   await expect(page).toHaveURL(/\/account/)
   await expect(page.getByText(`Signed in as ${email}.`)).toBeVisible()
-  // The header knows: Sign out in place of Sign in
-  await expect(page.getByRole('button', { name: 'Sign out' }).first()).toBeVisible()
+  // The header knows: My Account in place of Sign in
+  await expect(page.getByRole('button', { name: 'My Account' }).first()).toBeVisible()
   await expect(page.getByRole('link', { name: 'Sign in' })).toHaveCount(0)
 })
 

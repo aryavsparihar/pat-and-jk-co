@@ -66,11 +66,12 @@ correct submissions are both safe.
 artist and a partner: they hold one application of each kind (unique on member and type), and the
 member record has a slot for each ID, `artistId` and `partnerId`.
 
-**Member IDs** (`AT000001`, `PT000001`) are issued only on approval, into the slot for that kind, from the Postgres sequences
-`member_id_artist_seq` and `member_id_partner_seq`, inside the approval transaction
-(`src/members/decide.ts`). Never compute one from existing rows. The sequences are declared in the
-Drizzle schema through `afterSchemaInit` in `payload.config.ts`, which is what keeps development
-push from dropping them. **Applications** carry a random reference (`APP-7K3Q9X`) from the first
+**Member IDs** (`AT-X63G8`, `PT-8GH37`) are issued only on approval, into the slot for that kind,
+inside the approval transaction (`src/members/decide.ts`): the prefix and five random characters,
+checked against every ID already issued, deleted people's included, with the column's unique index
+as the backstop. IDs issued before November 2026 (`AT000001`) came from the Postgres sequences
+`member_id_artist_seq` and `member_id_partner_seq`, which are still declared in `payload.config.ts`
+so development push does not drop them, and keep their old form. **Applications** carry a random reference (`APP-7K3Q9X`) from the first
 step. Their `stage` (never `status`) is moved only by the server: a submission, or a staff
 decision through `POST /api/applications/:id/decide`.
 

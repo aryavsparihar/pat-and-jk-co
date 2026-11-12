@@ -15,11 +15,14 @@ import { getPayload, type CollectionSlug, type Payload } from 'payload'
 
 import { howItWorksBlock, pathsBlock } from './collaborate'
 import { h, p, root } from './lexical'
+import { PRIVACY_POLICY_EFFECTIVE, privacyPolicyRichText } from '../legal/privacyPolicy'
 
 const TENANT_SLUG = 'pjk'
 const CONTACT_INBOX = process.env.CONTACT_INBOX || 'hello@pjk.co.in'
 const BUSINESS_INBOX = process.env.BUSINESS_INBOX || 'business@pjk.co.in'
 const TECHNICAL_INBOX = process.env.TECHNICAL_INBOX || 'tech@pjk.co.in'
+
+/** Named on the Leadership page only, at the founder's request (10 November 2026) */
 const PROPRIETOR = 'Mr. Yuvraj Singh Pathania'
 const context = { disableRevalidate: true }
 
@@ -357,7 +360,7 @@ async function seed() {
       'Why we built an umbrella before we built a single shopfront, what the ventures beneath it share, and where Phulhaar Gallery fits.',
     content: root(
       p(
-        'PAT and J.K. Co. — PJK — is a sole proprietorship of Mr. Yuvraj Singh Pathania. It is not one shopfront with one thing to sell. It is the umbrella under which several ventures in art and craft are built, run and held to the same standard. This is the first entry in its journal, and the plainest statement we can make of what it is for.',
+        'PAT and J.K. Co. — PJK — is a sole proprietorship. It is not one shopfront with one thing to sell. It is the umbrella under which several ventures in art and craft are built, run and held to the same standard. This is the first entry in its journal, and the plainest statement we can make of what it is for.',
       ),
       h('h2', 'Why an umbrella'),
       p(
@@ -444,7 +447,6 @@ async function seed() {
     {
       blockType: 'hero',
       variant: 'brand',
-      eyebrow: `Prop. ${PROPRIETOR}`,
       heading: 'PAT and J.K. Co. is the *umbrella* our ventures in art and craft stand under.',
       subheading:
         'One house, several ventures — each trading under its own name, each beginning with everything the last one learned. The latest is Phulhaar Gallery by PJK, for fine and contemporary art.',
@@ -525,7 +527,7 @@ async function seed() {
         align: 'left',
         eyebrow: 'About',
         heading: 'About PAT and J.K. Co.',
-        intro: `A sole proprietorship of ${PROPRIETOR}, and the umbrella under which our ventures in art and craft are built and run.`,
+        intro: `A sole proprietorship, and the umbrella under which our ventures in art and craft are built and run.`,
       },
       {
         blockType: 'manifesto',
@@ -533,7 +535,7 @@ async function seed() {
         heading: 'How it started',
         content: root(
           p(
-            `PAT and J.K. Co. was founded by ${PROPRIETOR}, who is its proprietor and its creative director. The idea was to build a home for ventures that care about quality, and to give each of them the time and the support to get things right.`,
+            `PAT and J.K. Co. was founded to build a home for ventures that care about quality, and to give each of them the time and the support to get things right.`,
           ),
           p(
             'The latest of them is Phulhaar Gallery by PJK, a gallery for fine and contemporary art, which curates work and places it — alongside curators, interior designers, decorators and mood setters. More ventures will follow when they are ready, and not before.',
@@ -825,53 +827,13 @@ async function seed() {
         align: 'left',
         eyebrow: 'Legal',
         heading: 'Privacy policy',
-        intro: 'Last updated 13 September 2026.',
+        intro: `Effective ${PRIVACY_POLICY_EFFECTIVE}.`,
       },
       {
         blockType: 'content',
+        sectionNav: true,
         width: 'narrow',
-        columns: [
-          {
-            size: 'full',
-            richText: root(
-              h('h2', 'Who we are'),
-              p(
-                `This website is run by PAT and J.K. Co. (“PJK”, “we”, “us”), a sole proprietorship of ${PROPRIETOR}. This policy explains what personal data we collect through it, why, and what choices you have.`,
-              ),
-              h('h2', 'What we collect'),
-              p(
-                'When you send us a message through a form on this site, we collect what you give us: usually your name, your email address and your message. We do not use advertising trackers and we do not sell personal data.',
-              ),
-              h('h2', 'How we use it'),
-              p(
-                'We use your details only to answer your message and, where relevant, to continue a conversation you started with us.',
-              ),
-              h('h2', 'How long we keep it'),
-              p(
-                'We keep messages for as long as we need to reply and for reasonable record keeping. After that they are deleted.',
-              ),
-              h('h2', 'Your rights'),
-              p(
-                'Under India’s Digital Personal Data Protection Act, 2023, you can ask us to show, correct or delete the personal data we hold about you, or withdraw your consent. Contact us using the details below.',
-              ),
-              h('h2', 'Cookies'),
-              p(
-                'This website only uses cookies that it needs to work, for example to keep editors signed in. It does not use advertising or tracking cookies.',
-              ),
-              h('h2', 'How we contact you, and how to know it is us'),
-              p(
-                'No one working for PAT and J.K. Co. or for any venture under it will begin a transaction, an agreement or a negotiation from anything other than an official address at the pjk.co.in domain. Quotations, invoices, payment instructions and contracts reach you only from that domain.',
-              ),
-              p(
-                `We are not responsible for any loss arising from correspondence, payment requests, offers or representations made from any other address, account, profile or channel, whether or not it claims to act for us. We will never ask you to send money to an account given over the telephone or by message alone. If anything looks doubtful, stop and write to [${CONTACT_INBOX}](mailto:${CONTACT_INBOX}) before you act on it, and we will confirm whether it came from us.`,
-              ),
-              h('h2', 'Contact'),
-              p(
-                `Questions about this policy can be sent to [${CONTACT_INBOX}](mailto:${CONTACT_INBOX}). Business enquiries go to [${BUSINESS_INBOX}](mailto:${BUSINESS_INBOX}); anything to do with this website goes to [${TECHNICAL_INBOX}](mailto:${TECHNICAL_INBOX}).`,
-              ),
-            ),
-          },
-        ],
+        columns: [{ size: 'full', richText: privacyPolicyRichText() }],
       },
     ],
     'How PAT and J.K. Co. handles personal data sent through this website.',
@@ -923,7 +885,7 @@ async function seed() {
       pageRef(contact.id, 'Contact'),
     ],
     legalLinks: [pageRef(privacy.id, 'Privacy policy')],
-    copyrightName: `PAT and J.K. Co. · Prop. ${PROPRIETOR}`,
+    copyrightName: 'PAT and J.K. Co.',
     showVisitorCount: true,
     email: CONTACT_INBOX,
     office: {

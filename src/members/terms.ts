@@ -12,7 +12,8 @@ export const TERMS_PHRASE = 'I AGREE'
 
 /** Typed as asked: the words I AGREE, whatever the capitals or spacing */
 export const agreedInWords = (typed: unknown): boolean =>
-  typeof typed === 'string' && typed.trim().replace(/\s+/g, ' ').toUpperCase() === TERMS_PHRASE
+  typeof typed === 'string' &&
+  typed.trim().replace(/\s+/g, ' ').replace(/\.$/, '').toUpperCase() === TERMS_PHRASE
 
 export const artistTerms = async (payload: Payload): Promise<ArtistTerms | null> => {
   const settings = (

@@ -66,13 +66,11 @@ type Phase =
  */
 export const ArtistOnboarding: React.FC<{
   formToken: string
-  /** The artists' Terms & Conditions, while published in Site settings */
-  terms?: { url: string; filename: string } | null
   /** The privacy policy, rendered on the server, for the consent in the Identity step */
   privacy?: React.ReactNode
   /** Phulhaar's social accounts, from Site settings, for the screen after a decline */
   socials?: { platform: SocialPlatform; label: string; url: string }[]
-}> = ({ formToken, terms, privacy, socials = [] }) => {
+}> = ({ formToken, privacy, socials = [] }) => {
   const [phase, setPhase] = useState<Phase>({ kind: 'loading' })
   const [step, setStep] = useState<ArtistStep>('about')
   const [values, setValues] = useState<Record<string, Values>>({})
@@ -376,8 +374,8 @@ export const ArtistOnboarding: React.FC<{
                     all={values}
                     errors={errors}
                     onEdit={(s) => go(s as ArtistStep)}
+                    privacy={privacy}
                     set={set}
-                    terms={terms}
                     values={current}
                   />
                 )}

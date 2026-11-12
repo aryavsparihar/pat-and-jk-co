@@ -393,7 +393,7 @@ export const sendBankChangeNotice = async (
   )
 
 /** Where staff notices go: the technical inbox, else the business one, else the contact inbox */
-const staffInbox = async (payload: Payload): Promise<string | undefined> => {
+export const staffInbox = async (payload: Payload): Promise<string | undefined> => {
   const settings = (
     await payload.find({
       collection: 'site-settings',
@@ -449,31 +449,89 @@ export const notifyStaffOfBankChange = async (
 }
 
 /**
- * Staff are told a member has asked something about their data: a copy, deletion, or withdrawing
- * consent. Only the kind and the member's reference; staff look the rest up in the admin.
+ * Where data-protection alerts go: the business inbox the founder reads, and the staff inbox, once
+ * each. Data requests, withdrawals of consent and changes to personal details all come here.
+ */
+export const dataProtectionInboxes = async (payload: Payload): Promise<string[]> => {
+  const settings = await defaultSiteSettings(payload).catch(() => null)
+  const all = [settings?.businessEmail, await staffInbox(payload)]
+  return [...new Set(all.filter((a): a is string => Boolean(a)).map((a) => a.toLowerCase()))]
+}
+
+const sendToAll = async (payload: Payload, to: string[], email: BuiltEmail) => {
+  let sent = to.length > 0
+  for (const address of to) sent = (await send(payload, address, email)) && sent
+  return sent
+}
+
+export type DataRequestKind = 'withdraw-consent' | 'delete' | 'download'
+
+const DATA_REQUEST_NEXT: Record<DataRequestKind, string> = {
+  download:
+    'Please prepare a copy of their data and send it to them, as docs/KYC.md describes. The law gives us a limited time to answer.',
+  'withdraw-consent':
+    'Nothing further is processed for them from now. Open their record in the admin and press "Unpublish Profile & Artworks from Phulhaar".',
+  delete:
+    'Open their record in the admin and use "Delete this person". Anything the law makes us keep stays, under their member ID.',
+}
+
+/**
+ * A member's data request (a copy, deletion, or withdrawing consent) to the founder and staff:
+ * only the kind and the member's ID, with a link to their record.
  */
 export const notifyStaffOfDataRequest = async (
   payload: Payload,
-  { reference, request }: { reference?: string | null; request: string },
+  {
+    reference,
+    request,
+    kind,
+    memberId,
+  }: { reference?: string | null; request: string; kind: DataRequestKind; memberId: number },
 ): Promise<boolean> => {
-  const to = await staffInbox(payload)
-  if (!to) return false
-  return send(
+  const who = reference ?? `Member ${memberId}`
+  return sendToAll(
     payload,
-    to,
+    await dataProtectionInboxes(payload),
     buildEmail({
-      subject: `Data request: ${reference ?? 'a member'}`,
+      subject:
+        kind === 'withdraw-consent'
+          ? `Consent withdrawn: ${who}`
+          : kind === 'download'
+            ? `Copy of my data requested: ${who}`
+            : `Data request: ${who}`,
       preheader: 'The law gives us a limited time to answer it.',
       parts: [
+        { kind: 'paragraph', text: `${who} has asked: ${request}.` },
+        { kind: 'paragraph', text: DATA_REQUEST_NEXT[kind] },
         {
-          kind: 'paragraph',
-          text: `A member (${reference ?? 'see Security events in the admin'}) has asked: ${request}. Please deal with it as docs/KYC.md describes, and write to them when it is done.`,
+          kind: 'link',
+          label: 'Open their record',
+          url: `${getServerSideURL()}/admin/collections/members/${memberId}`,
         },
       ],
       footer: await emailFooter(payload),
     }),
   )
 }
+
+/** A member changed personal details: the founder and staff are told, to review the change */
+export const notifyStaffOfPersonalChange = async (
+  payload: Payload,
+  { what, memberId, adminPath }: { what: string; memberId: string; adminPath: string },
+): Promise<boolean> =>
+  sendToAll(
+    payload,
+    await dataProtectionInboxes(payload),
+    buildEmail({
+      subject: `Changed by ${memberId}: ${what}`,
+      preheader: 'Please review the change.',
+      parts: [
+        { kind: 'paragraph', text: `${memberId} has changed ${what}. Please review the change.` },
+        { kind: 'link', label: 'Open their record', url: `${getServerSideURL()}${adminPath}` },
+      ],
+      footer: await emailFooter(payload),
+    }),
+  )
 
 /**
  * Tells someone their account has been deleted: their details erased, and what, if anything, the

@@ -27,7 +27,6 @@ import { execute } from '@/utilities/sql'
 
 import { openApplicationsForTests } from '../helpers/applicationsOpen'
 import { goodKyc, goodPartnerKyc, identityPhotos, removeKycFor } from '../helpers/kyc'
-import { setPartnerAgreement } from '../helpers/partnerAgreement'
 import { storeKycDocument } from '@/kyc/service'
 
 /*
@@ -121,7 +120,7 @@ const goodSteps = {
       },
     ],
   },
-  review: { originalWork: true, accurate: true, consentProcessing: true },
+  review: { originalWork: true, accurate: true, consentProcessing: true, agreeTyped: 'I AGREE' },
 }
 
 const cleanup = async () => {
@@ -134,7 +133,13 @@ const cleanup = async () => {
     depth: 0,
   })
   for (const image of images.docs)
-    await payload.delete({ collection: 'portfolio-images', id: image.id, overrideAccess: true })
+    await payload.delete({
+      collection: 'portfolio-images',
+      id: image.id,
+      overrideAccess: true,
+      // As the erasure does: a picture in a sent application is otherwise kept
+      context: { erasing: true },
+    })
   await removeKycFor(payload, like)
   await execute(
     payload,
@@ -319,6 +324,53 @@ describe('an artist application', () => {
     expect(response.status).toBe(422)
     const { errors } = (await response.json()) as { errors: Record<string, string> }
     expect(errors.dateOfBirth).toMatch(/18 or over/)
+  })
+
+  it('keeps only the pictures in the works saved; failed, removed and replaced ones go', async () => {
+    const { cookie, member } = await applicant('artist')
+    const uploadOne = async () =>
+      ((await (await upload(cookie, await photo())).json()) as { image: { id: number } }).image.id
+    const ids: number[] = []
+    for (let i = 0; i < 5; i++) ids.push(await uploadOne())
+    const workFor = (image: number, i: number) => ({
+      image,
+      title: `Work ${i + 1}`,
+      year: 2024,
+      medium: 'Oil on canvas',
+      width: 60,
+      height: 90,
+      unit: 'cm',
+    })
+    const kept = async () =>
+      (
+        await payload.find({
+          collection: 'portfolio-images',
+          where: { owner: { equals: member.id } },
+          depth: 0,
+          overrideAccess: true,
+        })
+      ).docs
+        .map((d) => d.id)
+        .sort((a, b) => a - b)
+
+    // Two were added and then removed before saving: only the three on screen are kept
+    const first = ids.slice(0, 3)
+    await new Promise((r) => setTimeout(r, 5))
+    expect(
+      (await call(saveStep, cookie, { step: 'portfolio', data: { works: first.map(workFor) } }))
+        .status,
+    ).toBe(200)
+    expect(await kept()).toEqual(first)
+
+    // The third picture replaced by a new one: the old one goes
+    const replacement = await uploadOne()
+    const second = [first[0]!, first[1]!, replacement]
+    await new Promise((r) => setTimeout(r, 5))
+    expect(
+      (await call(saveStep, cookie, { step: 'portfolio', data: { works: second.map(workFor) } }))
+        .status,
+    ).toBe(200)
+    expect(await kept()).toEqual(second)
   })
 
   it('cannot be sent until every step is right, then cannot be changed', async () => {
@@ -527,18 +579,7 @@ describe('applying again after a decline', () => {
 })
 
 describe('a partner application', () => {
-  // Sending needs the Partner/Trade Program agreement published (tests/int/partner-onboarding)
-  let restoreAgreement: () => Promise<void>
-  beforeAll(async () => {
-    restoreAgreement = await setPartnerAgreement(payload, {
-      version: 'test',
-      words: 'The terms, for the tests.',
-    })
-  })
-  afterAll(async () => {
-    await restoreAgreement()
-  })
-  const agreement = { version: 'test', readToEnd: true, typed: 'I AGREE' }
+  const consent = { checked: true, readToEnd: true, typed: 'I AGREE' }
 
   const partner = {
     category: 'placement',
@@ -572,7 +613,7 @@ describe('a partner application', () => {
     const sent = await call(savePartner, cookie, {
       data: partner,
       kyc: goodPartnerKyc(await identityPhotos(payload, member, { dateOfBirth: '' })),
-      agreement,
+      consent,
       formToken: createFormToken(Date.now() - 30_000),
     })
     expect(sent.status).toBe(200)

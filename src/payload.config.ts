@@ -9,6 +9,7 @@ import { fileURLToPath } from 'url'
 import { AccessRequests } from './collections/AccessRequests'
 import { Applications } from './collections/Applications'
 import { Categories } from './collections/Categories'
+import { AgreementExecutions } from './collections/AgreementExecutions'
 import { KycDocuments } from './collections/KycDocuments'
 import { KycRecords } from './collections/KycRecords'
 import { LoginChallenges } from './collections/LoginChallenges'
@@ -152,6 +153,7 @@ export default buildConfig({
     PortfolioImages,
     KycRecords,
     KycDocuments,
+    AgreementExecutions,
     AccessRequests,
     SecurityEvents,
     LoginChallenges,
