@@ -1923,9 +1923,6 @@ export interface Application {
     agreeTerms?: boolean | null;
     agreeTyped?: string | null;
     termsDocument?: (number | null) | Media;
-    /**
-     * The privacy notice they agreed to.
-     */
     privacyNoticeVersion?: string | null;
   };
   partner?: {
@@ -1955,6 +1952,24 @@ export interface Application {
      */
     agreementDigest?: string | null;
   };
+  /**
+   * One row each time the application was sent. Recorded by the server and locked: it cannot be edited.
+   */
+  consentRecord?:
+    | {
+        submittedAt?: string | null;
+        consentChecked?: boolean | null;
+        typed?: string | null;
+        policyTitle?: string | null;
+        policyVersion?: string | null;
+        policySha256?: string | null;
+        ip?: string | null;
+        location?: string | null;
+        userAgent?: string | null;
+        policyText?: string | null;
+        id?: string | null;
+      }[]
+    | null;
   completedSteps?: ('about' | 'address' | 'practice' | 'portfolio' | 'kyc' | 'review')[] | null;
   /**
    * Sent with a rejection or a request for changes; the applicant sees it.
@@ -3599,6 +3614,21 @@ export interface ApplicationsSelect<T extends boolean = true> {
         agreedAt?: T;
         agreementConfirmation?: T;
         agreementDigest?: T;
+      };
+  consentRecord?:
+    | T
+    | {
+        submittedAt?: T;
+        consentChecked?: T;
+        typed?: T;
+        policyTitle?: T;
+        policyVersion?: T;
+        policySha256?: T;
+        ip?: T;
+        location?: T;
+        userAgent?: T;
+        policyText?: T;
+        id?: T;
       };
   completedSteps?: T;
   decisionNote?: T;

@@ -1,4 +1,5 @@
-import { submitArtistApplication } from '@/members/application'
+import { PRIVACY_NOTICE_VERSION, submitArtistApplication } from '@/members/application'
+import { consentEvidence } from '@/members/consentRecord'
 import { applicationsOpenness, closedReply } from '@/members/openness'
 import {
   filledHoneypot,
@@ -9,7 +10,6 @@ import {
   requireMember,
   withRefresh,
 } from '@/members/http'
-import { clientIp } from '@/security/constants'
 import { hitLimit } from '@/security/rateLimit'
 
 export const dynamic = 'force-dynamic'
@@ -37,7 +37,11 @@ export async function POST(request: Request) {
   if (!limit.allowed)
     return reply({ message: 'Please wait a little before trying again.' }, { status: 429 })
 
-  const result = await submitArtistApplication(payload, member, clientIp(request.headers))
+  const result = await submitArtistApplication(
+    payload,
+    member,
+    await consentEvidence(request, PRIVACY_NOTICE_VERSION),
+  )
   if (!result.ok)
     return reply({ message: result.message, errors: result.errors }, { status: result.status })
   return withRefresh(reply({ ok: true, reference: result.application.reference }), auth.refresh)
