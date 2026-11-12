@@ -26,8 +26,9 @@ import {
  *   - on coming back to the tab, and when the browser restores the page from its back/forward
  *     cache (Safari and Firefox do on Back, without running anything), so a page left before
  *     signing out never keeps showing Sign out
- *   - every few minutes while someone is signed in and the tab is open, so an expired session
- *     shows as signed out without a reload
+ *   - every minute while someone is signed in and the tab is open, so a session that ended (signed
+ *     out elsewhere, expired, or the account deleted) shows as signed out without a reload, and an
+ *     account page is left for the sign-in page
  */
 
 export type SessionState = SessionKind | 'none' | 'unknown'
@@ -36,7 +37,10 @@ export type SessionState = SessionKind | 'none' | 'unknown'
 export const SESSION_CHANGED = 'pjk:session-changed'
 
 const ASKED_KEY = 'pjk-session-asked'
-const RECHECK_MS = 5 * 60_000
+const RECHECK_MS = 60_000
+/** Pages that only make sense while signed in: left at once when the session ends */
+const SIGNED_IN_PAGE = /^\/account(?:\/|$)/
+const LEAVE_AFTER_MS = 2000
 
 let state: SessionState = 'unknown'
 const listeners = new Set<() => void>()
@@ -46,8 +50,19 @@ let channel: BroadcastChannel | null = null
 
 const set = (next: SessionState) => {
   if (next === state) return
+  const ended = (state === 'member' || state === 'staff') && next === 'none'
   state = next
   for (const listener of listeners) listener()
+  // Signed out elsewhere, timed out, or the account deleted: nothing of the account stays on screen.
+  // A moment's wait first, so a sign-out from this page (Sign Out, or the idle sign-out, which
+  // says why on the sign-in page) goes where it was going; that leaves the page and ends this
+  if (ended && SIGNED_IN_PAGE.test(window.location.pathname)) {
+    window.setTimeout(() => {
+      if (state === 'none' && SIGNED_IN_PAGE.test(window.location.pathname))
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+        window.location.assign('/collaborate/signin')
+    }, LEAVE_AFTER_MS)
+  }
 }
 
 const storage = {

@@ -374,7 +374,7 @@ test('a member signs in again with a code, and a wrong code is refused', async (
   await signInWithCode(page, email)
   await expect(page.getByRole('heading', { name: 'About you' })).toBeVisible()
   // Signing in on the application page, without a page load, updates the header too
-  await expect(page.getByRole('button', { name: 'Sign out' }).first()).toBeVisible()
+  await expect(page.getByRole('button', { name: 'My Account' }).first()).toBeVisible()
   await page.context().clearCookies()
 
   await page.goto('/collaborate/signin')
@@ -395,8 +395,8 @@ test('a member signs in again with a code, and a wrong code is refused', async (
   await page.getByRole('button', { name: 'Continue' }).click()
   await expect(page).toHaveURL(/\/account/)
   await expect(page.getByText(`Signed in as ${email}.`)).toBeVisible()
-  // The header knows: Sign out in place of Sign in
-  await expect(page.getByRole('button', { name: 'Sign out' }).first()).toBeVisible()
+  // The header knows: My Account in place of Sign in
+  await expect(page.getByRole('button', { name: 'My Account' }).first()).toBeVisible()
   await expect(page.getByRole('link', { name: 'Sign in' })).toHaveCount(0)
 })
 
