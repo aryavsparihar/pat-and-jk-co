@@ -193,6 +193,71 @@ describe('a partner application', () => {
     expect(row!.id_choice).toBeNull()
   })
 
+  it('keeps a locked record of the consent: box, I AGREE, policy text, IP, place and time', async () => {
+    const { cookie, member, application } = await applicant()
+    const before = Date.now()
+    const response = await sendPartner(
+      new Request(`${ORIGIN}/next/members/x`, {
+        method: 'POST',
+        headers: {
+          cookie,
+          origin: ORIGIN,
+          'content-type': 'application/json',
+          'x-forwarded-for': '203.0.113.77',
+          'x-vercel-ip-city': 'Jammu',
+          'x-vercel-ip-country-region': 'JK',
+          'x-vercel-ip-country': 'IN',
+          'user-agent': 'Consent test browser',
+        },
+        body: JSON.stringify(submission({ kyc: goodPartnerKyc(await partnerPhotos(member)) })),
+      }),
+    )
+    expect(response.status).toBe(200)
+
+    const stored = await payload.findByID({
+      collection: 'applications',
+      id: application.id,
+      overrideAccess: true,
+    })
+    const [record] = stored.consentRecord ?? []
+    expect(record).toMatchObject({
+      consentChecked: true,
+      typed: 'I AGREE',
+      policyTitle: expect.stringMatching(/PRIVACY POLICY & STATUTORY NOTICE/),
+      policyVersion: expect.stringMatching(/^2026-/),
+      policySha256: expect.stringMatching(/^[0-9a-f]{64}$/),
+      ip: '203.0.113.77',
+      location: 'Jammu, JK, IN',
+      userAgent: 'Consent test browser',
+    })
+    expect(record!.policyText).toMatch(/Pre-Submission DPDP Act Notice/)
+    expect(Date.parse(record!.submittedAt!)).toBeGreaterThanOrEqual(before - 1000)
+
+    // Nobody can rewrite it: not the partner, not staff through the admin
+    for (const user of [
+      { ...member, collection: 'members' },
+      { id: 1, roles: ['owner'], collection: 'users' },
+    ]) {
+      await payload
+        .update({
+          collection: 'applications',
+          id: application.id,
+          data: { consentRecord: [{ ...record, ip: '0.0.0.0', typed: 'forged' }] } as never,
+          user: user as never,
+          overrideAccess: false,
+          context: { disableRevalidate: true },
+        })
+        .catch(() => null)
+    }
+    const after = await payload.findByID({
+      collection: 'applications',
+      id: application.id,
+      overrideAccess: true,
+    })
+    expect(after.consentRecord).toHaveLength(1)
+    expect(after.consentRecord![0]).toMatchObject({ ip: '203.0.113.77', typed: 'I AGREE' })
+  })
+
   it('is refused without the privacy policy read to its end, even with the details kept', async () => {
     const { cookie, member } = await applicant()
     const response = await call(
