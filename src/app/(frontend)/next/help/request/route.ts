@@ -6,7 +6,7 @@ import { type HelpRequest, parseHelpRequest } from '@/help/request'
 import { checkFormToken } from '@/members/formToken'
 import { fromOurOrigin, refuseCrossSite, reply } from '@/members/http'
 import { newHelpTicket } from '@/members/ids'
-import { clientIp, normaliseEmail } from '@/security/constants'
+import { clientIp } from '@/security/constants'
 import { logSecurityEvent } from '@/security/events'
 import { hitLimits } from '@/security/rateLimit'
 import {
@@ -77,23 +77,24 @@ export async function POST(request: Request) {
   if (timing !== 'ok')
     return reply({ message: 'Please reload the page and try again.' }, { status: 400 })
 
+  // Checked before the bot check, so a mistake in the form does not spend its token
+  const parsed = await parseHelpRequest(form)
+  if (!parsed.ok) return reply({ message: parsed.message }, { status: 400 })
+  const help = parsed.request
+
   const human = await verifyTurnstile(form.get(TURNSTILE_FIELD), 'help-request', {
     hostname: requestHostname(request.headers) ?? new URL(request.url).hostname,
   })
   if (!human.ok) {
     await logSecurityEvent(payload, {
       event: 'bot-check-failed',
-      email: normaliseEmail(form.get('email')) || undefined,
+      email: help.email,
       ip,
       detail: `help-request: ${human.reason}`,
     })
     return reply({ message: TURNSTILE_REFUSED, retryCheck: true }, { status: 400 })
   }
   if (human.note) payload.logger.warn(`Bot check skipped (help-request): ${human.note}`)
-
-  const parsed = await parseHelpRequest(form)
-  if (!parsed.ok) return reply({ message: parsed.message }, { status: 400 })
-  const help = parsed.request
 
   const limit = await hitLimits(payload, [
     {
