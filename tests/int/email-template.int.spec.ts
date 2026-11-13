@@ -78,6 +78,10 @@ describe('the email template', () => {
         `<img src="https://pjk.co.in/brand/social/${platform}.png" width="18" height="18"`,
       )
     expect(html).toContain('href="https://pjk.co.in/privacy"')
+    // The Help Center sits at the far right of the social row, in the copyright line's grey
+    expect(html).toMatch(
+      /<td align="right"[^>]*><a href="https:\/\/pjk\.co\.in\/help"[^>]*color:#858b86[^>]*>Help Center<\/a>/,
+    )
   })
 
   it('makes addresses in the text into mail links, and the code, callout and button', () => {

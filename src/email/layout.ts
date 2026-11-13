@@ -35,6 +35,8 @@ export const HELLO_INBOX = 'hello@pjk.co.in'
 const SITE = (process.env.NEXT_PUBLIC_SERVER_URL || 'https://pjk.co.in').replace(/\/$/, '')
 const LOGO_URL = `${SITE}/brand/pjk-logo-email.png`
 const PRIVACY_URL = `${SITE}/privacy`
+/** The Help Center, at the far right of the social row (the founder, 13 November 2026) */
+export const HELP_CENTER_URL = `${SITE}/help`
 
 /** The platform marks, drawn by `pnpm social:icons`; 18 x 18 shown */
 const socialIconUrl = (platform: string) => `${SITE}/brand/social/${platform}.png`
@@ -126,19 +128,23 @@ const footerHtml = (footer: EmailFooter, brand: string, who: string) => {
         ]
       : []),
   ]
+  // The social marks on the left; the Help Center at the far right of the same row
   const socials = `<tr><td style="padding-top:16px;padding-bottom:20px;border-bottom:1px solid ${HAIRLINE}">
-<p style="font-family:${SERIF};font-size:13px;line-height:1.55;color:${MUTED};margin:0">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+<td align="left" valign="middle" style="font-family:${SERIF};font-size:13px;line-height:1.55;color:${MUTED}">
 ${footer.socials
   .map(
-    (s) =>
-      `<a href="${escapeHtml(s.url)}" target="_blank" style="color:${GREEN};text-decoration:none;white-space:nowrap;margin-right:18px">${
+    (s, i, all) =>
+      `<a href="${escapeHtml(s.url)}" target="_blank" style="color:${GREEN};text-decoration:none;white-space:nowrap;${i < all.length - 1 ? 'margin-right:18px' : ''}">${
         s.icon
           ? `<img src="${socialIconUrl(s.platform)}" width="18" height="18" alt="" style="display:inline-block;border:0;vertical-align:middle;width:18px;height:18px" />&nbsp;`
           : ''
       }<span style="vertical-align:middle">${escapeHtml(s.label)}</span></a>`,
   )
   .join('\n')}
-</p>
+</td>
+<td align="right" valign="middle" style="font-family:${SERIF};font-size:13px;line-height:1.55;color:${FAINT};white-space:nowrap"><a href="${HELP_CENTER_URL}" target="_blank" style="font-family:${SERIF};font-size:13px;line-height:1.55;color:${FAINT};text-decoration:none;white-space:nowrap">Help Center</a></td>
+</tr></table>
 </td></tr>`
 
   return `<tr><td style="padding:28px 40px 32px 40px;background-color:${PANEL};border-top:1px solid ${RULE}">
@@ -161,7 +167,9 @@ const footerText = (footer: EmailFooter, brand: string, who: string) =>
     '—',
     notice(brand),
     [brand, ...footer.lines, footer.siteUrl].filter(Boolean).join('\n'),
-    footer.socials.map((s) => `${s.label}: ${s.url}`).join('\n'),
+    [...footer.socials.map((s) => `${s.label}: ${s.url}`), `Help Center: ${HELP_CENTER_URL}`].join(
+      '\n',
+    ),
     confidentiality(who),
     `Privacy Policy & Statutory Notice: ${PRIVACY_URL}\n© ${new Date().getFullYear()} ${brand} All rights reserved.`,
   ]
