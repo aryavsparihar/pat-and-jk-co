@@ -31,20 +31,33 @@ const generateTitle: GenerateTitle<SeoDoc> = ({ doc }) =>
 const generateURL: GenerateURL<SeoDoc> = ({ doc, collectionSlug }) =>
   `${getServerSideURL()}${docPath(collectionSlug ?? 'pages', doc?.slug)}`
 
-/** The form builder's message as plain text, for mail clients that show no HTML */
-const htmlToText = (html: string) =>
-  html
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/(p|div|h[1-6]|li|tr)>/gi, '\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
+const ENTITIES: Record<string, string> = {
+  nbsp: ' ',
+  amp: '&',
+  lt: '<',
+  gt: '>',
+  quot: '"',
+  '#39': "'",
+}
+
+/**
+ * The form builder's message as plain text, for mail clients that show no HTML. Only ever the
+ * text part of the email. Tags are removed until none are left, so one split around another
+ * cannot come back together, and entities are decoded in a single pass, so "&amp;lt;" stays
+ * "&lt;" rather than becoming "<".
+ */
+const htmlToText = (html: string) => {
+  let text = html.replace(/<br\s*\/?>/gi, '\n').replace(/<\/(p|div|h[1-6]|li|tr)>/gi, '\n')
+  let previous: string
+  do {
+    previous = text
+    text = text.replace(/<[^>]*>/g, '')
+  } while (text !== previous)
+  return text
+    .replace(/&(nbsp|amp|lt|gt|quot|#39);/g, (_, name: string) => ENTITIES[name])
     .replace(/\n{3,}/g, '\n\n')
     .trim()
+}
 
 export const plugins: Plugin[] = [
   redirectsPlugin({
