@@ -13,7 +13,6 @@ declare global {
       BLOB_READ_WRITE_TOKEN?: string
       RESEND_API_KEY?: string
       EMAIL_FROM_ADDRESS?: string
-      EMAIL_FROM_NAME?: string
       CONTACT_INBOX?: string
       NEXT_PUBLIC_TURNSTILE_SITE_KEY?: string
       TURNSTILE_SECRET_KEY?: string
