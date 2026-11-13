@@ -13,7 +13,7 @@ import type { EmailFooter } from './footer'
  */
 
 const INK = '#16201a'
-const GREEN = '#0f2a18'
+export const GREEN = '#0f2a18'
 const MUTED = '#5f6660'
 const FAINT = '#858b86'
 const PAPER = '#f6f3ec'
