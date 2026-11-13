@@ -60,6 +60,13 @@ export type EmailPart =
   | { kind: 'reference'; label: string; value: string }
   /** The button; always a live page on the site */
   | { kind: 'link'; label: string; url: string }
+  /** Labelled answers, one per row: what someone filled in on a form */
+  | { kind: 'fields'; rows: { label: string; value: string }[] }
+  /**
+   * Markup that is already safe: only ever the form builder's message, whose values it escapes
+   * itself (src/plugins/index.ts), or text built from escaped parts (src/help/emails.ts)
+   */
+  | { kind: 'html'; html: string; text: string }
 
 /**
  * Who an email is for, named in its confidentiality notice: a person whose name we know, an
@@ -95,8 +102,20 @@ const htmlPart = (part: EmailPart): string => {
       return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:26px 0"><tr><td align="center" bgcolor="${GREEN}">
 <a href="${escapeHtml(part.url)}" target="_blank" style="display:inline-block;padding:13px 26px;background-color:${GREEN};color:${PAPER};font-family:${SERIF};font-size:14px;letter-spacing:0.08em;text-decoration:none;border:1px solid ${GREEN}">${escapeHtml(part.label)}</a>
 </td></tr></table>`
+    case 'fields':
+      return fieldsHtml(part.rows)
+    case 'html':
+      return `<div style="font-family:${SERIF};font-size:16px;line-height:1.65;color:${INK}">${part.html}</div>`
   }
 }
+
+const fieldsHtml = (rows: { label: string; value: string }[]) =>
+  `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:22px 0;border-top:1px solid ${HAIRLINE}">${rows
+    .map(
+      (r) =>
+        `<tr><td valign="top" style="padding:10px 12px 10px 0;width:38%;border-bottom:1px solid ${HAIRLINE};font-family:${SERIF};font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:${MUTED}">${escapeHtml(r.label)}</td><td valign="top" style="padding:10px 0;border-bottom:1px solid ${HAIRLINE};font-family:${SERIF};font-size:15px;line-height:1.55;color:${INK};word-break:break-word">${withMailtos(r.value || '—', GREEN).replace(/\n/g, '<br />')}</td></tr>`,
+    )
+    .join('')}</table>`
 
 const textPart = (part: EmailPart): string => {
   switch (part.kind) {
@@ -108,6 +127,10 @@ const textPart = (part: EmailPart): string => {
       return `${part.label}: ${part.value}`
     case 'link':
       return `${part.label}: ${part.url}`
+    case 'fields':
+      return part.rows.map((r) => `${r.label}: ${r.value || '—'}`).join('\n')
+    case 'html':
+      return part.text
   }
 }
 

@@ -16,6 +16,7 @@ import {
 } from '@/collections/FormSubmissions/overrides'
 import { revalidateFrontend } from '@/hooks/revalidateFrontend'
 import type { Config, Page, Post, Venture } from '@/payload-types'
+import { buildEmail } from '@/email/layout'
 import { emailFooter } from '@/email/footer'
 import { mediaStoragePlugin } from '@/storage/mediaPlugin'
 import { privateMemberMedia } from '@/storage/memberMediaAdapter'
@@ -29,6 +30,21 @@ const generateTitle: GenerateTitle<SeoDoc> = ({ doc }) =>
 
 const generateURL: GenerateURL<SeoDoc> = ({ doc, collectionSlug }) =>
   `${getServerSideURL()}${docPath(collectionSlug ?? 'pages', doc?.slug)}`
+
+/** The form builder's message as plain text, for mail clients that show no HTML */
+const htmlToText = (html: string) =>
+  html
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/(p|div|h[1-6]|li|tr)>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
 
 export const plugins: Plugin[] = [
   redirectsPlugin({
@@ -64,7 +80,9 @@ export const plugins: Plugin[] = [
       country: false,
       state: false,
     },
-    // Every notification ends with the brand's registered office, like the site's other emails
+    // Every notification and confirmation is set in the one email template, like every other
+    // email the site sends; the form's own message (its values escaped by the form builder) is
+    // the body
     beforeEmail: async (emails, params) => {
       // Typed as the before-change arguments, but called from afterChange with the saved doc;
       // protectSubmission has set the brand on both by then
@@ -73,7 +91,19 @@ export const plugins: Plugin[] = [
       const raw = saved?.tenant ?? data?.tenant
       const tenant = raw && typeof raw === 'object' ? (raw as { id: number }).id : (raw as number)
       const footer = await emailFooter(req.payload, tenant)
-      return emails.map((email) => ({ ...email, html: `${email.html}${footer.html}` }))
+      return emails.map((email) => {
+        const to = String(Array.isArray(email.to) ? email.to[0] : (email.to ?? ''))
+        const address = to.replace(/^.*<([^>]+)>.*$/, '$1').trim()
+        const subject = email.subject ?? ''
+        const built = buildEmail({
+          subject,
+          preheader: subject,
+          parts: [{ kind: 'html', html: email.html ?? '', text: htmlToText(email.html ?? '') }],
+          footer,
+          recipient: /@pjk\.co\.in$/i.test(address) ? { inbox: address } : { email: address },
+        })
+        return { ...email, html: built.html, text: built.text }
+      })
     },
     formOverrides: {
       admin: { group: 'Enquiries' },
