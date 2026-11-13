@@ -160,10 +160,12 @@ describe('changing a member’s email address for them', () => {
       /recovery-reviewer-test@pjk\.co\.in after an identity check: Phoned/,
     )
     const sent = info.mock.calls.map((c) => String(c[0]))
-    expect(sent.some((m) => m.includes('The email address on your PJK account has changed'))).toBe(
-      true,
-    )
-    expect(sent.some((m) => m.includes('Your PAT & J.K. Co. account now uses this email address'))).toBe(true)
+    expect(
+      sent.some((m) => m.includes('The email address on your PAT & J.K. Co. account has changed')),
+    ).toBe(true)
+    expect(
+      sent.some((m) => m.includes('Your PAT & J.K. Co. account now uses this email address')),
+    ).toBe(true)
     info.mockRestore()
   })
 })

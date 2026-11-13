@@ -512,8 +512,8 @@ describe('applying again after a decline', () => {
     const days = Math.round((new Date(declined.reapplyFrom!).getTime() - Date.now()) / 86_400_000)
     expect(days).toBe(90)
     const email = await decisionEmail(payload, { decision: 'reject', application: declined })
-    expect(email.text).toMatch(/apply again from \d{1,2} \w+ \d{4}/)
-    expect(email.text).toContain('For any further questions, contact us at hello@pjk.co.in.')
+    expect(email.text).toMatch(/submit a fresh application from \d{1,2} \w+ \d{4}/)
+    expect(email.text).toContain('For any further questions, please contact us at hello@pjk.co.in.')
     expect(email.html).toContain('href="mailto:hello@pjk.co.in"')
 
     expect((await call(reapply, cookie, { type: 'artist' })).status).toBe(409)

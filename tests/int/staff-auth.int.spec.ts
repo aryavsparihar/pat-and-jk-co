@@ -241,7 +241,9 @@ describe('staff accounts', () => {
     expect(await events('staff-sign-in-failed')).toBeGreaterThanOrEqual(5)
     expect(await events('staff-locked')).toBe(1)
     expect(
-      info.mock.calls.some((c) => String(c[0]).includes('Your PAT & J.K. Co. admin account was locked')),
+      info.mock.calls.some((c) =>
+        String(c[0]).includes('Your PAT & J.K. Co. admin account was locked'),
+      ),
     ).toBe(true)
     info.mockRestore()
     const locked = (await payload.db.findOne({

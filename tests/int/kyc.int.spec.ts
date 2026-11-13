@@ -777,7 +777,7 @@ describe('payout details, only when a sale needs them', () => {
       .find((m) => m.includes('Add your payout details'))
     logged.mockRestore()
     expect(email).toContain('/account/payouts')
-    expect(email).toMatch(/never ask for bank details by email/)
+    expect(email).toMatch(/never requests or sends bank account details by email/)
     expect(email).not.toMatch(/\d{9,}/)
 
     expect((await recordOf(a.member.id)).payoutRequestedAt).toBeTruthy()

@@ -74,13 +74,12 @@ describe('the email template', () => {
     expect(html).toContain('sent from an unmonitored address')
     expect(html).toContain('href="mailto:hello@pjk.co.in"')
     for (const platform of ['instagram', 'linkedin', 'facebook'])
-      expect(html).toContain(
-        `<img src="https://pjk.co.in/brand/social/${platform}.png" width="18" height="18"`,
-      )
-    expect(html).toContain('href="https://pjk.co.in/privacy"')
+      expect(html).toContain(`/brand/social/${platform}.png" width="18" height="18"`)
+    // Images and these links follow the site's address (localhost on CI)
+    expect(html).toMatch(/href="https?:\/\/[^"]+\/privacy"/)
     // The Help Center sits at the far right of the social row, in the copyright line's grey
     expect(html).toMatch(
-      /<td align="right"[^>]*><a href="https:\/\/pjk\.co\.in\/help"[^>]*color:#858b86[^>]*>Help Center<\/a>/,
+      /<td align="right"[^>]*><a href="https?:\/\/[^"]+\/help"[^>]*color:#858b86[^>]*>Help Center<\/a>/,
     )
   })
 
