@@ -24,6 +24,9 @@ export const GATE_IDLE_SECONDS = 30 * 60
 /** Where people are sent to get a code. */
 export const GATE_PATH = '/admin-access'
 
+/** The Help Center: its own header and footer, so not a brand page (src/app/(frontend)/help) */
+export const HELP_PATH = '/help'
+
 export const OTP_LENGTH = 6
 export const OTP_TTL_MINUTES = 10
 export const OTP_MAX_ATTEMPTS = 5

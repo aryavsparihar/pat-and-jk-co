@@ -161,7 +161,7 @@ const nextConfig: NextConfig = {
       // policy with a nonce from src/proxy.ts (src/security/memberPagePolicy.ts)
       {
         source:
-          '/:path((?!account(?:/|$)|collaborate/(?:artists|partners|signin|artist-agreement|trade-agreement)(?:/|$)).*)',
+          '/:path((?!account(?:/|$)|help(?:/|$)|collaborate/(?:artists|partners|signin|artist-agreement|trade-agreement)(?:/|$)).*)',
         headers: siteHeaders,
       },
       // Where several rules set the same header, the later one wins: the admin panel gets its

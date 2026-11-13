@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 
-import { GATE_COOKIE, GATE_PATH } from './security/constants'
+import { GATE_COOKIE, GATE_PATH, HELP_PATH } from './security/constants'
 import { readGateToken, touchGateToken } from './security/gateToken'
 import {
   CAMERA_PAGE,
@@ -77,13 +77,17 @@ export function proxy(request: NextRequest) {
 
   const host = normalizeHost(request.headers.get('host'))
   const url = request.nextUrl.clone()
-  url.pathname = `${TENANT_SITES_PREFIX}/${host}${pathname === '/' ? '' : pathname}`
+  // The Help Center is the same page on every host, with its own header and footer
+  const helpCenter = pathname === HELP_PATH
+  url.pathname = helpCenter
+    ? HELP_PATH
+    : `${TENANT_SITES_PREFIX}/${host}${pathname === '/' ? '' : pathname}`
 
   // `normalizeHost` already refuses anything but a hostname. Checking the result as well means
   // a rewrite can never leave the brand routes even if that guarantee is one day weakened —
   // the URL setter resolves "/.." segments, so a single bad character would otherwise be enough
   // to reach the admin panel past the gate above.
-  if (!url.pathname.startsWith(`${TENANT_SITES_PREFIX}/`)) {
+  if (!helpCenter && !url.pathname.startsWith(`${TENANT_SITES_PREFIX}/`)) {
     return new NextResponse('Bad Request', { status: 400 })
   }
 
