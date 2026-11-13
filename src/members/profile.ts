@@ -109,6 +109,7 @@ export const saveProfile = async (payload: Payload, member: Member, input: Profi
     what: 'A profile',
     memberId: memberIdsOf(member) ?? `Member ${member.id}`,
     adminPath: `/admin/collections/members/${member.id}`,
+    member,
   })
   return profileView(updated)
 }
@@ -133,6 +134,7 @@ export const saveWorksFolder = async (payload: Payload, member: Member, url: str
     await notifyStaffOfWorksFolder(payload, {
       memberId: memberIdsOf(member) ?? `Member ${member.id}`,
       adminPath: `/admin/collections/members/${member.id}`,
+      member,
     })
   }
   return { worksFolder: updated.worksFolder ?? null }
@@ -154,6 +156,8 @@ export const saveContact = async (payload: Payload, member: Member, input: Conta
     what: 'their contact details',
     memberId: memberIdsOf(member) ?? `Member ${member.id}`,
     adminPath: `/admin/collections/members/${member.id}`,
+    // 33B: they are told too (an email change has its own notice)
+    member,
   })
   return profileView(updated).contact
 }
@@ -231,6 +235,7 @@ export const decideProfile = async (
     what: 'Your profile',
     approved: decision === 'approve',
     note,
+    member,
   })
 }
 

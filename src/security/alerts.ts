@@ -1,6 +1,7 @@
 import type { Payload } from 'payload'
 
-import { buildEmail } from '@/email/layout'
+import { buildEmail, type EmailPart } from '@/email/layout'
+import { getServerSideURL } from '@/utilities/getURL'
 import { emailFooter } from '@/email/footer'
 
 import { canSendEmail } from './email'
@@ -74,38 +75,60 @@ export const watchForAbuse = async (payload: Payload, event: string): Promise<vo
   await sendAlert(payload, summary)
 }
 
-/** Emails the technical inbox; never throws. Shared with src/observability/errorAlerts.ts */
+/**
+ * Emails the technical inbox, tech@ (and anyone copied); never throws. Shared with
+ * src/observability/errorAlerts.ts. Only site errors and security alerts come here: never member,
+ * KYC or data-protection details.
+ */
 export const sendTechnicalAlert = async (
   payload: Payload,
-  { subject, lines, note }: { subject: string; lines: string[]; note?: string },
+  {
+    subject,
+    preheader,
+    parts,
+    cc,
+  }: { subject: string; preheader: string; parts: EmailPart[]; cc?: string[] },
 ) => {
-  const to = process.env.TECHNICAL_INBOX || 'tech@pjk.co.in'
   if (!canSendEmail(payload)) {
     payload.logger.warn({ msg: `[alert] ${subject}` })
     return
   }
-  const built = buildEmail({
-    subject,
-    preheader: lines[0]?.slice(0, 120) ?? subject,
-    parts: [
-      ...lines.map((text) => ({ kind: 'paragraph' as const, text })),
-      ...(note ? [{ kind: 'note' as const, text: note }] : []),
-    ],
-    footer: await emailFooter(payload),
-  })
-  try {
-    await payload.sendEmail({ to, subject, text: built.text, html: built.html })
-  } catch (error) {
-    payload.logger.warn({ err: error, msg: 'Could not send a technical alert' })
-  }
+  const { deliver, TECH_INBOX } = await import('@/email/send')
+  await deliver(
+    payload,
+    { to: TECH_INBOX, cc },
+    buildEmail({
+      subject,
+      preheader,
+      parts,
+      footer: await emailFooter(payload),
+      recipient: { inbox: TECH_INBOX },
+    }),
+  )
 }
 
-const sendAlert = (payload: Payload, summary: string) =>
-  sendTechnicalAlert(payload, {
+/** 37. A burst of failures: to tech@, with business@ copied */
+const sendAlert = async (payload: Payload, summary: string) => {
+  const { BUSINESS_INBOX } = await import('@/email/send')
+  return sendTechnicalAlert(payload, {
     subject: `PJK security alert: ${summary}`,
-    lines: [
-      `The site has recorded ${summary}.`,
-      'This may be someone trying passwords or codes, or a script hammering the site. Look at Admin → Administration → Security log for who and where, and at docs/RUNBOOK.md if you need to act.',
+    preheader: `The website recorded ${summary}.`,
+    cc: [BUSINESS_INBOX],
+    parts: [
+      { kind: 'paragraph', text: `The website has recorded ${summary}.` },
+      {
+        kind: 'paragraph',
+        text: 'This may indicate an automated script or repeated unauthorised sign-in attempts. Please inspect Admin → Administration → Security log to review the originating IP addresses and accounts, and follow docs/RUNBOOK.md if mitigation is required.',
+      },
+      {
+        kind: 'paragraph',
+        text: 'Further alerts for this specific threshold are suppressed for the next 60 minutes.',
+      },
+      {
+        kind: 'link',
+        label: 'Open security log',
+        url: `${getServerSideURL()}/admin/collections/security-events`,
+      },
     ],
-    note: 'You will not hear about this kind of trouble again for an hour, however much more there is.',
   })
+}

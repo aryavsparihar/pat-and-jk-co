@@ -1,4 +1,4 @@
-import type { CollectionConfig } from 'payload'
+import type { CollectionConfig, PayloadRequest } from 'payload'
 import { publicError } from '@/utilities/publicError'
 
 import { authenticated } from '../../access/authenticated'
@@ -17,6 +17,7 @@ import {
   normaliseEmail,
 } from '../../security/constants'
 import { emailFooter } from '../../email/footer'
+import { BRAND, buildEmail } from '../../email/layout'
 import { notifyStaffLockout } from '../../security/email'
 import { logSecurityEvent } from '../../security/events'
 import { readGateToken } from '../../security/gateToken'
@@ -98,20 +99,37 @@ export const Users: CollectionConfig = {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'Strict',
     },
-    // The "choose your password" email sent on approval and by "Forgot password": Payload's
-    // wording, in the site's voice, signed off with the registered office
+    // 39. The "choose your password" email sent when a staff account is made and by "Forgot
+    // password", in the one email template. No blind copy to business@: the link would let
+    // whoever reads that inbox set this person's admin password.
     forgotPassword: {
-      generateEmailSubject: () => 'Choose your PJK admin password',
+      generateEmailSubject: () => `Choose your ${BRAND} admin password`,
       generateEmailHTML: async (args) => {
-        const { req, token } = args ?? {}
+        const { req, token, user } = (args ?? {}) as {
+          req?: PayloadRequest
+          token?: string
+          user?: { email?: string; name?: string | null }
+        }
         if (!req || !token) return ''
         const { routes, admin } = req.payload.config
         const url = `${getServerSideURL()}${routes.admin}${admin.routes.reset}/${token}`
-        const footer = await emailFooter(req.payload)
-        const p = 'font-family:Georgia,serif;font-size:16px;line-height:1.55;color:#16201a'
-        return `<p style="${p}">Use this link to choose a password for your PAT and J.K. Co. admin account. It works once, for one hour.</p>
-<p style="${p}"><a href="${url}" style="color:#0f2a18">${url}</a></p>
-<p style="${p};color:#5f6660">If you did not expect this, ignore it: nothing changes until the link is used.</p>${footer.html}`
+        return buildEmail({
+          subject: `Choose your ${BRAND} admin password`,
+          preheader: 'Single-use password setup link valid for one hour.',
+          parts: [
+            {
+              kind: 'paragraph',
+              text: `Please click the button below to set the password for your ${BRAND} administration account. This link works once and expires in one hour.`,
+            },
+            { kind: 'link', label: 'Set admin password', url },
+            {
+              kind: 'paragraph',
+              text: 'If you did not expect this email, you may safely disregard it; nothing will change unless the link is used.',
+            },
+          ],
+          footer: await emailFooter(req.payload),
+          recipient: { email: user?.email ?? '', name: user?.name },
+        }).html
       },
     },
     // Payload locks an account after repeated wrong passwords

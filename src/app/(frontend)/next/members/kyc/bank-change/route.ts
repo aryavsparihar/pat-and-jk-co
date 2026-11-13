@@ -68,12 +68,12 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { record, cancelToken, first } = await requestBankChange(payload, {
+    const { cancelToken, first } = await requestBankChange(payload, {
       member,
       bank: parsed.data,
     })
     await sendBankChangeNotice(payload, { member, cancelToken, first })
-    await notifyStaffOfBankChange(payload, { reference: record.reference, first })
+    await notifyStaffOfBankChange(payload, { member, first })
     return withRefresh(reply({ ok: true }), auth.refresh)
   } catch (error) {
     if (error instanceof KycError)

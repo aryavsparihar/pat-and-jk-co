@@ -97,6 +97,7 @@ const schema = z.object({
   CONTACT_INBOX: optional(email),
   BUSINESS_INBOX: optional(email),
   TECHNICAL_INBOX: optional(email),
+  COMPLIANCE_INBOX: optional(email),
 
   // Cloudflare Turnstile on the code request and the public forms (src/security/turnstile.ts).
   // Both or neither: without them, as on a developer's machine, the check is skipped

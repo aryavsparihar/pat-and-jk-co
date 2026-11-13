@@ -52,16 +52,24 @@ const ask = (cookie: string, kind: string) =>
     }),
   )
 
-/** The subjects of the emails sent while `run` runs (logged locally, as no email service is set) */
+/**
+ * The emails sent while `run` runs, each as its first line: subject, who it went to and who was
+ * copied (logged locally, as no email service is set)
+ */
 const subjectsDuring = async (run: () => Promise<unknown>) => {
   const info = vi.spyOn(payload.logger, 'info')
   await run()
   const subjects = info.mock.calls
     .map(([message]) => String(message))
     .filter((m) => m.startsWith('[dev] Email'))
+    .map((m) => m.split('\n')[0]!)
   info.mockRestore()
   return subjects
 }
+
+/** The founder's rule: no member, KYC or data-protection email ever goes to tech@ */
+const noneToTech = (subjects: string[]) =>
+  expect(subjects.filter((s) => s.includes('tech@pjk.co.in'))).toEqual([])
 
 const cleanup = async () => {
   const like = `%${DOMAIN}`
@@ -74,11 +82,7 @@ const cleanup = async () => {
   await execute(payload, sql`DELETE FROM members WHERE email LIKE ${like}`)
 }
 
-// Where alerts go when the site settings name no inbox (as on CI): one made up for the test
-const savedInbox = process.env.CONTACT_INBOX
-
 beforeAll(async () => {
-  process.env.CONTACT_INBOX ||= 'alerts@dpdp.example.test'
   payload = await getPayload({ config: await config })
   closeApplications = await openApplicationsForTests(payload)
   await cleanup()
@@ -96,8 +100,6 @@ beforeAll(async () => {
 })
 afterEach(() => vi.restoreAllMocks())
 afterAll(async () => {
-  if (savedInbox === undefined) delete process.env.CONTACT_INBOX
-  else process.env.CONTACT_INBOX = savedInbox
   await cleanup()
   await payload.delete({ collection: 'users', where: { email: { equals: STAFF_EMAIL } } })
   await closeApplications()
@@ -109,7 +111,11 @@ describe('data-protection alerts', () => {
     const subjects = await subjectsDuring(async () =>
       expect((await ask(cookie, 'download')).status).toBe(200),
     )
-    expect(subjects.some((s) => s.includes('Copy of my data requested'))).toBe(true)
+    const alert = subjects.find((s) => s.includes('Copy of personal data requested'))
+    expect(alert).toContain('to business@pjk.co.in cc compliance@pjk.co.in')
+    const receipt = subjects.find((s) => s.includes('We have received your data copy request'))
+    expect(receipt).toContain('bcc business@pjk.co.in')
+    noneToTech(subjects)
   })
 
   it('records a withdrawal of consent, alerts staff, and lets them unpublish in one click', async () => {
@@ -125,7 +131,11 @@ describe('data-protection alerts', () => {
     const subjects = await subjectsDuring(async () =>
       expect((await ask(cookie, 'withdraw-consent')).status).toBe(200),
     )
-    expect(subjects.some((s) => s.includes('Consent withdrawn'))).toBe(true)
+    expect(subjects.find((s) => s.includes('Consent withdrawn:'))).toContain(
+      'cc compliance@pjk.co.in',
+    )
+    expect(subjects.some((s) => s.includes('Withdrawal of consent logged'))).toBe(true)
+    noneToTech(subjects)
     const withdrawn = await payload.findByID({
       collection: 'members',
       id: member.id,
@@ -173,9 +183,11 @@ describe('data-protection alerts', () => {
     const subjects = await subjectsDuring(() =>
       saveContact(payload, { ...member, artistId: 'AT-ZZ001' }, { phone: '+91 98765 43210' }),
     )
-    expect(subjects.some((s) => s.includes('Changed by AT-ZZ001: their contact details'))).toBe(
-      true,
+    expect(subjects.find((s) => s.includes('Contact details updated by AT-ZZ001'))).toContain(
+      'to business@pjk.co.in',
     )
+    expect(subjects.some((s) => s.includes('contact details have been updated'))).toBe(true)
+    noneToTech(subjects)
   })
 
   it('puts the member ID on their KYC record, so a kept record says whose it was', async () => {

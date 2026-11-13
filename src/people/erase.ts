@@ -10,7 +10,7 @@ import {
 
 import { isSuperAdmin } from '@/access/roles'
 import { memberIdsOf } from '@/collections/Members'
-import type { Member, User } from '@/payload-types'
+import type { Application, Member, User } from '@/payload-types'
 import { normaliseEmail } from '@/security/constants'
 import { logSecurityEvent } from '@/security/events'
 import { execute, executeIn } from '@/utilities/sql'
@@ -371,8 +371,13 @@ export const eraseMember = async (
   let emailed = false
   const to = normaliseEmail(member.email)
   if (to && !to.endsWith(`@${ERASED_DOMAIN}`)) {
-    const { sendAccountErased } = await import('@/members/emails')
-    emailed = await sendAccountErased(payload, { to, kept })
+    const { applicantName, sendAccountErased } = await import('@/members/emails')
+    emailed = await sendAccountErased(payload, {
+      to,
+      id: memberConfirmation(member, reference),
+      name: applicantName(applications[0] as Application | undefined),
+      keptUntil: holdUntil,
+    })
   }
 
   return {

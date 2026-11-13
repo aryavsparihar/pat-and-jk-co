@@ -49,7 +49,7 @@ export const withdrawApplication = async (
   // Staff hear of it if they might have been reading it
   if (application.stage !== 'draft') {
     const { notifyStaffOfWithdrawal } = await import('./emails')
-    await notifyStaffOfWithdrawal(payload, { application: updated })
+    await notifyStaffOfWithdrawal(payload, { application: updated, member })
   }
   return updated
 }
