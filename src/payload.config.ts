@@ -174,7 +174,8 @@ export default buildConfig({
     ? resendAdapter({
         apiKey: process.env.RESEND_API_KEY,
         defaultFromAddress: process.env.EMAIL_FROM_ADDRESS || 'noreply@pjk.co.in',
-        defaultFromName: process.env.EMAIL_FROM_NAME || 'PAT and J.K. Co.',
+        // Always the registered trade name; EMAIL_FROM_NAME is no longer read for it
+        defaultFromName: 'PAT & J.K. Co.',
       })
     : undefined,
   // JSON lines in production, with personal data redacted from every line (src/observability)

@@ -25,7 +25,7 @@ export const PrivacyConsent: React.FC<{
     id="consent"
     label={
       <>
-        I agree to PAT and J.K. Co. processing my identity details, including the photo of my face,
+        I agree to PAT & J.K. Co. processing my identity details, including the photo of my face,
         to confirm who I am, as the{' '}
         <a className="link" href="/privacy" rel="noopener noreferrer" target="_blank">
           privacy policy

@@ -37,15 +37,15 @@ export const generateMeta = ({
   if (!doc) return { title: 'Page not found', robots: { index: false } }
 
   const siteUrl = ctx?.siteUrl ?? ''
-  const siteName = settings?.siteName ?? 'PAT and J.K. Co.'
+  const siteName = settings?.siteName ?? 'PAT & J.K. Co.'
 
   const docTitle = tidy(
     doc?.meta?.title ||
       (doc && 'name' in doc ? doc.name : doc && 'title' in doc ? doc.title : undefined),
   )
   const isHome = path === '/'
-  // An SEO title that already names the site ("… | PAT and J.K. Co.") is used as written, rather
-  // than having the layout's "— PAT and J.K. Co." appended a second time
+  // An SEO title that already names the site ("… | PAT & J.K. Co.") is used as written, rather
+  // than having the layout's "— PAT & J.K. Co." appended a second time
   const title = isHome
     ? {
         absolute:

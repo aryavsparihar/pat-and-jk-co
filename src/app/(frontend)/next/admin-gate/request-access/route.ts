@@ -38,7 +38,7 @@ export async function POST(request: Request) {
 
   if (!isCompanyEmail(email)) {
     return Response.json(
-      { message: 'Only PAT and J.K. Co. email addresses can be given admin access.' },
+      { message: 'Only PAT & J.K. Co. email addresses can be given admin access.' },
       { status: 400 },
     )
   }

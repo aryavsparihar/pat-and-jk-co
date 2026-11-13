@@ -75,7 +75,7 @@ const uploadIdentityPhoto = async (page: Page) => {
 const agreeToPrivacy = async (page: Page) => {
   await expect(page.getByRole('button', { name: 'Save and continue' })).toBeDisabled()
   // Ticking opens the policy; the box is ticked only once they have agreed
-  await page.getByLabel(/I agree to PAT and J\.K\. Co\. processing/).click()
+  await page.getByLabel(/I agree to PAT & J\.K\. Co\. processing/).click()
   const dialog = page.getByRole('dialog', { name: 'Privacy policy' })
   await expect(dialog).toBeVisible()
   await expect(dialog.getByRole('button', { name: 'Agree' })).toBeDisabled()
@@ -88,7 +88,7 @@ const agreeToPrivacy = async (page: Page) => {
   await dialog.getByLabel('Type I AGREE to confirm').fill('I AGREE')
   await dialog.getByRole('button', { name: 'Agree' }).click()
   await expect(dialog).toBeHidden()
-  await expect(page.getByLabel(/I agree to PAT and J\.K\. Co\. processing/)).toBeChecked()
+  await expect(page.getByLabel(/I agree to PAT & J\.K\. Co\. processing/)).toBeChecked()
 }
 
 const fillKycOtherId = async (page: Page) => {

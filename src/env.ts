@@ -93,7 +93,6 @@ const schema = z.object({
   // Email
   RESEND_API_KEY: optional(z.string().startsWith('re_', 'must be a Resend key (starts with re_)')),
   EMAIL_FROM_ADDRESS: optional(email),
-  EMAIL_FROM_NAME: optional(z.string()),
   CONTACT_INBOX: optional(email),
   BUSINESS_INBOX: optional(email),
   TECHNICAL_INBOX: optional(email),

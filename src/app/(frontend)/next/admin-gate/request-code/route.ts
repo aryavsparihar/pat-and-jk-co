@@ -41,7 +41,7 @@ export async function POST(request: Request) {
       detail: 'rejected domain',
     })
     return Response.json(
-      { message: 'Use your PAT and J.K. Co. email address to sign in.' },
+      { message: 'Use your PAT & J.K. Co. email address to sign in.' },
       { status: 400 },
     )
   }

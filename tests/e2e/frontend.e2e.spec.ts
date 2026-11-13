@@ -4,7 +4,7 @@ import { expect, test } from '@playwright/test'
 test.describe('Frontend', () => {
   test('homepage shows the PJK brand and navigation', async ({ page }) => {
     await page.goto('/')
-    await expect(page).toHaveTitle(/PAT and J\.K\. Co\./)
+    await expect(page).toHaveTitle(/PAT & J\.K\. Co\./)
     await expect(page.locator('h1').first()).toContainText('umbrella our ventures')
     const nav = page.getByRole('navigation', { name: 'Main' })
     for (const label of ['About', 'Ventures', 'Leadership', 'Journal', 'Collaborate']) {
