@@ -36,15 +36,6 @@ export async function POST(request: Request) {
     )
   }
   await revokeAllSessions(payload, memberId, 'bank change reported as not theirs')
-  const record = (
-    await payload.find({
-      collection: 'kyc-records',
-      where: { member: { equals: memberId } },
-      limit: 1,
-      depth: 0,
-      overrideAccess: true,
-    })
-  ).docs[0]
   const member = await payload
     .findByID({ collection: 'members', id: memberId, depth: 0, overrideAccess: true })
     .catch(() => null)

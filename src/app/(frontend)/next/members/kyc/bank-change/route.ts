@@ -68,7 +68,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { record, cancelToken, first } = await requestBankChange(payload, {
+    const { cancelToken, first } = await requestBankChange(payload, {
       member,
       bank: parsed.data,
     })
