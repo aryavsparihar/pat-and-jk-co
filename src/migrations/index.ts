@@ -42,6 +42,7 @@ import * as migration_20261112_120000_agreement_executions from './20261112_1200
 import * as migration_20261112_144353_consent_record from './20261112_144353_consent_record'
 import * as migration_20261112_153424_dpdp_alerts from './20261112_153424_dpdp_alerts'
 import * as migration_20261113_120000_brand_ampersand from './20261113_120000_brand_ampersand'
+import * as migration_20261113_180241_help_tickets from './20261113_180241_help_tickets'
 
 export const migrations = [
   {
@@ -263,5 +264,10 @@ export const migrations = [
     up: migration_20261113_120000_brand_ampersand.up,
     down: migration_20261113_120000_brand_ampersand.down,
     name: '20261113_120000_brand_ampersand',
+  },
+  {
+    up: migration_20261113_180241_help_tickets.up,
+    down: migration_20261113_180241_help_tickets.down,
+    name: '20261113_180241_help_tickets',
   },
 ]
