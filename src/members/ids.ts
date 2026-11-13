@@ -64,3 +64,12 @@ export const newIdentityCode = (): string => {
 /** A-7K3Q9X or PT-7K3Q9X: 29^6, about 600 million each, so a clash is rare and simply retried */
 export const newApplicationReference = (kind: MemberKind): string =>
   `${APPLICATION_REFERENCE_PREFIX[kind]}-${randomCode(6)}`
+
+/**
+ * A Help Center ticket: five characters from the unambiguous alphabet, like 7K3Q9 (29^5, about
+ * 20 million). The caller checks it is unused (src/help/requests.ts).
+ */
+export const newHelpTicket = (): string => randomCode(5)
+
+/** What a Help Center ticket looks like */
+export const HELP_TICKET_PATTERN = new RegExp(`^[${REFERENCE_ALPHABET}]{5}$`)
