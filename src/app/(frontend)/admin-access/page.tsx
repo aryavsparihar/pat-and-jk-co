@@ -23,11 +23,11 @@ export default async function AdminAccessPage({ searchParams }: Args) {
   return (
     <main className="container flex min-h-screen items-center py-16">
       <div className="mx-auto w-full max-w-xl">
-        <BrandSvg className="w-40 text-primary" name="logo" title="PAT and J.K. Co." />
+        <BrandSvg className="w-40 text-primary" name="logo" title="PAT & J.K. Co." />
 
         <h1 className="display-md mt-10">Admin sign-in</h1>
         <p className="measure mt-4">
-          The admin panel is for PAT and J.K. Co. staff. Enter your work address and we will email
+          The admin panel is for PAT & J.K. Co. staff. Enter your work address and we will email
           you a one-time code; your password is asked for afterwards.
         </p>
 

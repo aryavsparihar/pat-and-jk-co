@@ -27,7 +27,7 @@ const [, , logoWidth, logoHeight] = brandSvgs.logo.viewBox.split(' ').map(Number
  * so a brand that hasn't uploaded a logo yet still looks finished.
  */
 export const BrandLogo: React.FC<Props> = ({ settings, variant = 'full', className, priority }) => {
-  const name = settings?.siteName || 'PAT and J.K. Co.'
+  const name = settings?.siteName || 'PAT & J.K. Co.'
 
   const media =
     variant === 'onDark'

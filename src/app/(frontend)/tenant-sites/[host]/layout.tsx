@@ -59,7 +59,7 @@ const themeStyle = (colours?: Record<string, string | null | undefined> | null):
 export async function generateMetadata({ params }: Omit<Args, 'children'>): Promise<Metadata> {
   const { host } = await params
   const ctx = await getTenantContext(host)
-  const siteName = ctx?.settings?.siteName ?? 'PAT and J.K. Co.'
+  const siteName = ctx?.settings?.siteName ?? 'PAT & J.K. Co.'
 
   return {
     metadataBase: ctx ? new URL(ctx.siteUrl) : undefined,

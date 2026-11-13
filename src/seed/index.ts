@@ -1,5 +1,5 @@
 /**
- * Seeds the PAT and J.K. Co. brand with its complete starter website:
+ * Seeds the PAT & J.K. Co. brand with its complete starter website:
  * brand + domains, logos, site settings, pages, ventures, people, openings, forms and a first post.
  *
  *   pnpm seed          # only runs when the "pjk" brand doesn't exist yet
@@ -113,14 +113,14 @@ async function seed() {
     await reset(payload, existing.docs[0].id)
   }
 
-  payload.logger.info('Seeding PAT and J.K. Co.…')
+  payload.logger.info('Seeding PAT & J.K. Co.…')
 
   // ── Brand ────────────────────────────────────────────────────────────
   const tenant = await payload.create({
     collection: 'tenants',
     context,
     data: {
-      name: 'PAT and J.K. Co.',
+      name: 'PAT & J.K. Co.',
       slug: TENANT_SLUG,
       domains: [{ domain: 'pjk.co.in' }, { domain: 'www.pjk.co.in' }, { domain: 'pjk.localhost' }],
     },
@@ -139,14 +139,14 @@ async function seed() {
     payload.create({ collection: 'media', context, data: { alt, tenant: t }, file })
 
   const logo = await upload(
-    'PAT and J.K. Co. logo',
+    'PAT & J.K. Co. logo',
     svgFile('pjk-logo.svg', '#0F2A18', 'pjk-logo.svg'),
   )
   const logoOnDark = await upload(
-    'PAT and J.K. Co. logo (light)',
+    'PAT & J.K. Co. logo (light)',
     svgFile('pjk-logo.svg', '#F6F3EC', 'pjk-logo-light.svg'),
   )
-  const ogImage = await upload('PAT and J.K. Co.', pngFile('og-default.png', 'pjk-share.png'))
+  const ogImage = await upload('PAT & J.K. Co.', pngFile('og-default.png', 'pjk-share.png'))
 
   const phulhaarLogo = await upload(
     'Phulhaar Gallery by PJK',
@@ -186,7 +186,7 @@ async function seed() {
     summary:
       'A gallery for fine and contemporary art. Phulhaar curates work worth living with, and works alongside curators, interior designers, decorators and mood setters to place it well.',
     description: root(
-      p('Phulhaar Gallery by PJK is the latest venture under PAT and J.K. Co.'),
+      p('Phulhaar Gallery by PJK is the latest venture under PAT & J.K. Co.'),
       p(
         'Its first discipline is curation: finding fine and contemporary work we believe in, and showing it properly. Its second is placement, which is a different craft altogether. A piece does not finish its journey on a gallery wall. It finishes it in a room, with a light above it, a colour behind it and a life going on around it.',
       ),
@@ -208,7 +208,7 @@ async function seed() {
     ),
     highlights: [
       { label: 'Discipline', value: 'Curation and placement' },
-      { label: 'Part of', value: 'PAT and J.K. Co.' },
+      { label: 'Part of', value: 'PAT & J.K. Co.' },
     ],
   })
 
@@ -229,7 +229,7 @@ async function seed() {
     order: 1,
     portrait: yuvrajPortrait.id,
     caption: 'Chooses the work, the materials, and the way both are shown.',
-    bio: 'Yuvraj Singh Pathania founded PAT and J.K. Co. and is its proprietor. He leads the creative direction of every venture under it — how each one looks, what it offers and how it treats the people it works with — beginning with Phulhaar Gallery by PJK.',
+    bio: 'Yuvraj Singh Pathania founded PAT & J.K. Co. and is its proprietor. He leads the creative direction of every venture under it — how each one looks, what it offers and how it treats the people it works with — beginning with Phulhaar Gallery by PJK.',
   })
 
   await create('people', {
@@ -294,7 +294,7 @@ async function seed() {
         required: true,
         width: 100,
         options: [
-          { label: 'PAT and J.K. Co.', value: 'pjk' },
+          { label: 'PAT & J.K. Co.', value: 'pjk' },
           { label: 'Phulhaar Gallery', value: 'phulhaar' },
           { label: 'A business or trade enquiry', value: 'business' },
           { label: 'Press', value: 'press' },
@@ -352,7 +352,7 @@ async function seed() {
   // ── Journal ──────────────────────────────────────────────────────────
   await create('posts', {
     _status: 'published',
-    title: 'Introducing PAT and J.K. Co.',
+    title: 'Introducing PAT & J.K. Co.',
     slug: 'introducing-pat-and-jk-co',
     publishedAt: new Date().toISOString(),
     categories: [announcements.id],
@@ -360,7 +360,7 @@ async function seed() {
       'Why we built an umbrella before we built a single shopfront, what the ventures beneath it share, and where Phulhaar Gallery fits.',
     content: root(
       p(
-        'PAT and J.K. Co. — PJK — is a sole proprietorship. It is not one shopfront with one thing to sell. It is the umbrella under which several ventures in art and craft are built, run and held to the same standard. This is the first entry in its journal, and the plainest statement we can make of what it is for.',
+        'PAT & J.K. Co. — PJK — is a sole proprietorship. It is not one shopfront with one thing to sell. It is the umbrella under which several ventures in art and craft are built, run and held to the same standard. This is the first entry in its journal, and the plainest statement we can make of what it is for.',
       ),
       h('h2', 'Why an umbrella'),
       p(
@@ -447,7 +447,7 @@ async function seed() {
     {
       blockType: 'hero',
       variant: 'brand',
-      heading: 'PAT and J.K. Co. is the *umbrella* our ventures in art and craft stand under.',
+      heading: 'PAT & J.K. Co. is the *umbrella* our ventures in art and craft stand under.',
       subheading:
         'One house, several ventures — each trading under its own name, each beginning with everything the last one learned. The latest is Phulhaar Gallery by PJK, for fine and contemporary art.',
       links: [
@@ -465,7 +465,7 @@ async function seed() {
           'Most ventures grow by adding more of the same. We would rather add something different, and only once the last thing is standing on its own.',
         ),
         p(
-          'PAT and J.K. Co. is the umbrella. Beneath it sit ventures that each do one thing carefully — their own names, their own audiences, their own customers. What they hold in common sits underneath and out of sight: one proprietor, one standard of work, and the same people behind the scenes.',
+          'PAT & J.K. Co. is the umbrella. Beneath it sit ventures that each do one thing carefully — their own names, their own audiences, their own customers. What they hold in common sits underneath and out of sight: one proprietor, one standard of work, and the same people behind the scenes.',
         ),
         p(
           'Those ventures partner with established businesses and with retail clients alike. We curate, and we mix — matching what one venture makes to what another needs, and matching both to the person who will live with the result.',
@@ -526,7 +526,7 @@ async function seed() {
         blockType: 'pageIntro',
         align: 'left',
         eyebrow: 'About',
-        heading: 'About PAT and J.K. Co.',
+        heading: 'About PAT & J.K. Co.',
         intro: `A sole proprietorship, and the umbrella under which our ventures in art and craft are built and run.`,
       },
       {
@@ -535,7 +535,7 @@ async function seed() {
         heading: 'How it started',
         content: root(
           p(
-            `PAT and J.K. Co. was founded to build a home for ventures that care about quality, and to give each of them the time and the support to get things right.`,
+            `PAT & J.K. Co. was founded to build a home for ventures that care about quality, and to give each of them the time and the support to get things right.`,
           ),
           p(
             'The latest of them is Phulhaar Gallery by PJK, a gallery for fine and contemporary art, which curates work and places it — alongside curators, interior designers, decorators and mood setters. More ventures will follow when they are ready, and not before.',
@@ -579,7 +579,7 @@ async function seed() {
         links: [url('/leadership', 'Leadership', 'default'), url('/contact', 'Contact', 'text')],
       },
     ],
-    'PAT and J.K. Co. is a sole proprietorship and the umbrella under which ventures in art and craft are built and run. Its latest is Phulhaar Gallery by PJK.',
+    'PAT & J.K. Co. is a sole proprietorship and the umbrella under which ventures in art and craft are built and run. Its latest is Phulhaar Gallery by PJK.',
   )
 
   const values = await page(
@@ -600,7 +600,7 @@ async function seed() {
         heading: 'Ethics and standing policy',
         content: root(
           p(
-            'These are the rules we hold ourselves to. They apply to every individual of this venture — everyone who works for PAT and J.K. Co. or for any venture under it, in any role, paid or otherwise. They apply equally to every outside business we deal with: suppliers, contractors, galleries, partners and clients. Working with us means working to them.',
+            'These are the rules we hold ourselves to. They apply to every individual of this venture — everyone who works for PAT & J.K. Co. or for any venture under it, in any role, paid or otherwise. They apply equally to every outside business we deal with: suppliers, contractors, galleries, partners and clients. Working with us means working to them.',
           ),
           h('h3', 'Honest dealing'),
           p(
@@ -665,7 +665,7 @@ async function seed() {
         links: [url('/contact', 'Get in touch', 'default')],
       },
     ],
-    'The ethics, standing policy and working practices of PAT and J.K. Co.',
+    'The ethics, standing policy and working practices of PAT & J.K. Co.',
   )
 
   const ventures = await page(
@@ -678,7 +678,7 @@ async function seed() {
         eyebrow: 'Ventures',
         heading: 'Our ventures',
         intro:
-          'Every venture under PAT and J.K. Co. trades under its own name. This is where you will find all of them.',
+          'Every venture under PAT & J.K. Co. trades under its own name. This is where you will find all of them.',
       },
       { blockType: 'venturesGrid', eyebrow: 'Index', populateBy: 'all' },
       {
@@ -690,7 +690,7 @@ async function seed() {
         links: [url('/contact', 'Get in touch', 'default')],
       },
     ],
-    'The ventures of PAT and J.K. Co., whose latest is Phulhaar Gallery by PJK for fine and contemporary art.',
+    'The ventures of PAT & J.K. Co., whose latest is Phulhaar Gallery by PJK for fine and contemporary art.',
   )
 
   const leadership = await page(
@@ -715,7 +715,7 @@ async function seed() {
         links: [url('/collaborate', 'Ways to collaborate', 'default')],
       },
     ],
-    `The leadership of PAT and J.K. Co., including its proprietor and creative director ${PROPRIETOR}.`,
+    `The leadership of PAT & J.K. Co., including its proprietor and creative director ${PROPRIETOR}.`,
   )
 
   const journal = await page(
@@ -727,7 +727,7 @@ async function seed() {
         align: 'left',
         eyebrow: 'Journal',
         heading: 'Journal',
-        intro: 'News and notes from PAT and J.K. Co. and its ventures.',
+        intro: 'News and notes from PAT & J.K. Co. and its ventures.',
       },
       {
         blockType: 'journalFeed',
@@ -737,7 +737,7 @@ async function seed() {
         emptyMessage: 'There is nothing here yet.',
       },
     ],
-    'News and notes from PAT and J.K. Co. and its ventures.',
+    'News and notes from PAT & J.K. Co. and its ventures.',
   )
 
   const collaborate = await page(
@@ -791,7 +791,7 @@ async function seed() {
         showContactDetails: false,
       },
     ],
-    'Work with PAT and J.K. Co.: artists, craftspeople, curators, designers, engineers and partners.',
+    'Work with PAT & J.K. Co.: artists, craftspeople, curators, designers, engineers and partners.',
   )
 
   const contact = await page(
@@ -804,7 +804,7 @@ async function seed() {
         eyebrow: 'Contact',
         heading: 'Contact',
         intro:
-          'For anything to do with PAT and J.K. Co. or any of its ventures, write to us here or by email.',
+          'For anything to do with PAT & J.K. Co. or any of its ventures, write to us here or by email.',
       },
       {
         blockType: 'formBlock',
@@ -815,7 +815,7 @@ async function seed() {
         showContactDetails: true,
       },
     ],
-    'Contact PAT and J.K. Co.',
+    'Contact PAT & J.K. Co.',
   )
 
   const privacy = await page(
@@ -836,23 +836,23 @@ async function seed() {
         columns: [{ size: 'full', richText: privacyPolicyRichText() }],
       },
     ],
-    'How PAT and J.K. Co. handles personal data sent through this website.',
+    'How PAT & J.K. Co. handles personal data sent through this website.',
     {
       officeAddress: {
         show: true,
         label: 'Data controller',
-        note: 'PAT and J.K. Co. is responsible for the personal data collected through this website. Questions about it can be sent to the address below, or by email.',
+        note: 'PAT & J.K. Co. is responsible for the personal data collected through this website. Questions about it can be sent to the address below, or by email.',
       },
     },
   )
 
   // ── Site settings ────────────────────────────────────────────────────
   await create('site-settings', {
-    siteName: 'PAT and J.K. Co.',
+    siteName: 'PAT & J.K. Co.',
     shortName: 'PJK',
     tagline: 'An umbrella for ventures in art and craft',
     description:
-      'PAT and J.K. Co. (PJK) is the umbrella under which ventures in art and craft are built and run. Its latest is Phulhaar Gallery by PJK, for fine and contemporary art.',
+      'PAT & J.K. Co. (PJK) is the umbrella under which ventures in art and craft are built and run. Its latest is Phulhaar Gallery by PJK, for fine and contemporary art.',
     ogImage: ogImage.id,
     logo: logo.id,
     logoOnDark: logoOnDark.id,
@@ -885,7 +885,7 @@ async function seed() {
       pageRef(contact.id, 'Contact'),
     ],
     legalLinks: [pageRef(privacy.id, 'Privacy policy')],
-    copyrightName: 'PAT and J.K. Co.',
+    copyrightName: 'PAT & J.K. Co.',
     showVisitorCount: true,
     email: CONTACT_INBOX,
     office: {

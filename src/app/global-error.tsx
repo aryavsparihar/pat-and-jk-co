@@ -25,7 +25,7 @@ export default function GlobalError({
         }}
       >
         <p style={{ letterSpacing: '0.2em', textTransform: 'uppercase', fontSize: 13 }}>
-          PAT and J.K. Co.
+          PAT & J.K. Co.
         </p>
         <h1 style={{ fontWeight: 400, fontSize: 'clamp(2rem, 5vw, 3rem)', maxWidth: '18ch' }}>
           The site could not be shown just now.

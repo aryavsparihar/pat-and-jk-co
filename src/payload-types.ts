@@ -1256,7 +1256,7 @@ export interface SiteSetting {
   id: number;
   tenant?: (number | null) | Tenant;
   /**
-   * e.g. PAT and J.K. Co.
+   * e.g. PAT & J.K. Co.
    */
   siteName: string;
   /**

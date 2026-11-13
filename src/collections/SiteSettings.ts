@@ -66,7 +66,7 @@ export const SiteSettings: CollectionConfig = {
                   name: 'siteName',
                   type: 'text',
                   required: true,
-                  admin: { width: '60%', description: 'e.g. PAT and J.K. Co.' },
+                  admin: { width: '60%', description: 'e.g. PAT & J.K. Co.' },
                 },
                 {
                   name: 'shortName',

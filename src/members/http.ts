@@ -35,7 +35,7 @@ export const reply = (body: unknown, init: { status?: number; headers?: HeadersI
 }
 
 export const refuseCrossSite = () =>
-  reply({ message: 'This request must come from the PAT and J.K. Co. website.' }, { status: 403 })
+  reply({ message: 'This request must come from the PAT & J.K. Co. website.' }, { status: 403 })
 
 export const readJson = async <T extends object>(request: Request): Promise<Partial<T> | null> => {
   try {
