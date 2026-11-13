@@ -44,7 +44,7 @@ The photo and both PDFs are KYC documents, so they are encrypted with their own 
 
 ## Countersigning
 
-When an agreement is signed, the staff inbox is told it is **Pending Admin DSC Countersignature**. Nothing is sent to the signer yet.
+When an agreement is signed, business@ (with compliance@ copied) is told it is **Pending Admin DSC Countersignature**, and the signer gets a receipt. The PDF itself carries no "pending" line, because the DSC countersignature is applied to that same file and it cannot be changed afterwards.
 
 1. Open the agreement under **Members → Signed agreements**.
 2. **Download Artist-Signed PDF** (or **Trade Partner-Signed PDF**), giving a reason.

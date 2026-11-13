@@ -197,7 +197,7 @@ export const buildAgreementPdf = async ({
   w.runs(
     [
       {
-        text: `Executed electronically by ${memberCode} at https://pjk.co.in/collaborate/${agreement.slug} on ${signedAtIst}. Pending Admin DSC Countersignature.`,
+        text: `Executed electronically by ${memberCode} at https://pjk.co.in/collaborate/${agreement.slug} on ${signedAtIst}.`,
         bold: false,
       },
     ],

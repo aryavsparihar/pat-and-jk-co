@@ -1,17 +1,16 @@
 import type { Payload } from 'payload'
 
-import { buildEmail, type BuiltEmail } from '@/email/layout'
+import { memberIdsOf } from '@/collections/Members'
+import { BRAND, buildEmail, type BuiltEmail, type Recipient } from '@/email/layout'
 import { emailFooter } from '@/email/footer'
+import { BUSINESS_INBOX, COMPLIANCE_INBOX, deliver } from '@/email/send'
 import type { Application, Member } from '@/payload-types'
-import { canSendEmail } from '@/security/email'
 import { OTP_TTL_MINUTES } from '@/security/constants'
 import type { Purpose } from '@/security/challenges'
-import { phulhaarSocialLinks } from '@/brands/socialIcons'
 import { getServerSideURL } from '@/utilities/getURL'
 
 import { APPLICATIONS_CONTACT } from './contact'
 import type { Decision } from './decide'
-import { defaultSiteSettings } from './openness'
 
 /** Where questions about an application go (src/members/contact.ts) */
 export { APPLICATIONS_CONTACT }
@@ -26,458 +25,602 @@ export const longDate = (iso: string) =>
   })
 
 /**
- * What members are told, and when. In the site's voice: short, plain, no exclamation marks.
+ * Every email to artists, partners and applicants, and every alert to PJK about them, in the
+ * founder's words of 13 November 2026 (the numbers are those of the email previews).
  *
  * These emails never contain identity or bank details, or anything that would help someone who
  * got hold of the inbox: a code, a reference, a member ID, a link to sign in. Nothing more.
  */
 
-const isProduction = process.env.NODE_ENV === 'production'
+const site = () => getServerSideURL()
+const signInUrl = () => `${site()}/collaborate/signin`
+const accountUrl = () => `${site()}/account`
+const memberAdminUrl = (memberId: number | string) =>
+  `${site()}/admin/collections/members/${memberId}`
+const applicationAdminUrl = (id: number | string) =>
+  `${site()}/admin/collections/applications/${id}`
 
-/** Sends an email; in development without an email service, prints that one was "sent". */
-const send = async (payload: Payload, to: string, email: BuiltEmail): Promise<boolean> => {
-  if (!canSendEmail(payload)) {
-    if (isProduction) {
-      payload.logger.error('No email service configured; a member email was not sent')
-      return false
-    }
-    payload.logger.info(`[dev] Email "${email.subject}":\n${email.text}`)
-    return true
-  }
-  try {
-    await payload.sendEmail({ to, subject: email.subject, text: email.text, html: email.html })
-    return true
-  } catch (error) {
-    payload.logger.error({ err: error, msg: `Could not send "${email.subject}"` })
-    return false
-  }
+const toBusiness: Recipient = { inbox: BUSINESS_INBOX }
+
+/** The name on an application: the artist's legal name, or the partner's name or firm */
+export const applicantName = (application?: Application | null): string | null =>
+  !application
+    ? null
+    : application.type === 'artist'
+      ? application.about?.legalName || application.about?.displayName || null
+      : application.partner?.fullName || application.partner?.organisation || null
+
+/** The member's name, from their latest application, for the confidentiality notice */
+const memberName = async (payload: Payload, memberId: number): Promise<string | null> => {
+  const found = await payload
+    .find({
+      collection: 'applications',
+      where: { member: { equals: memberId } },
+      sort: '-createdAt',
+      limit: 1,
+      depth: 0,
+      overrideAccess: true,
+    })
+    .catch(() => null)
+  return applicantName(found?.docs[0])
 }
+
+const toMember = async (payload: Payload, member: Member): Promise<Recipient> => ({
+  email: member.email,
+  name: await memberName(payload, member.id),
+})
+
+/** A member's artist or partner ID, as emails quote it */
+const idOf = (member: Pick<Member, 'id' | 'artistId' | 'partnerId'>) =>
+  memberIdsOf(member) ?? `Member ${member.id}`
+
+/* ─── 01–05: codes ───────────────────────────────────────────────────────── */
+
+const codeNote = (ending: string) =>
+  `This code expires in ${OTP_TTL_MINUTES} minutes and works once. ${BRAND} will never ask you for this code by phone, SMS, or message. ${ending}`
 
 export const memberCodeEmail = async (
   payload: Payload,
-  { code, purpose }: { code: string; purpose: Purpose },
+  { code, purpose, recipient }: { code: string; purpose: Purpose; recipient: Recipient },
 ): Promise<BuiltEmail> => {
+  const footer = await emailFooter(payload)
   if (purpose === 'email-change') {
     return buildEmail({
-      subject: 'Confirm your new email address',
-      preheader: `Your code is ${code}. It expires in ${OTP_TTL_MINUTES} minutes.`,
+      subject: `Confirm your new email address | ${BRAND}`,
+      preheader: `Your confirmation code is ${code}. It expires in ${OTP_TTL_MINUTES} minutes.`,
       parts: [
         {
           kind: 'paragraph',
-          text: 'Here is the code to make this the email address for your PAT and J.K. Co. account.',
+          text: `Please enter the verification code below to set this address as the primary email for your ${BRAND} account.`,
         },
         { kind: 'code', code },
         {
-          kind: 'note',
-          text: `It expires in ${OTP_TTL_MINUTES} minutes and works once. If you did not ask for this, ignore this email: nothing changes without the code.`,
+          kind: 'paragraph',
+          text: `This code expires in ${OTP_TTL_MINUTES} minutes and works once. If you did not request this update, please disregard this email; no changes will take effect without the code.`,
         },
       ],
-      footer: await emailFooter(payload),
+      footer,
+      recipient,
     })
   }
   if (purpose === 'step-up') {
     return buildEmail({
-      subject: 'Confirm a change to your PJK account',
-      preheader: `Your code is ${code}. It expires in ${OTP_TTL_MINUTES} minutes.`,
+      subject: `Confirm a change to your ${BRAND} account`,
+      preheader: `Your confirmation code is ${code}. It expires in ${OTP_TTL_MINUTES} minutes.`,
       parts: [
         {
           kind: 'paragraph',
-          text: 'Here is the code to confirm a change to your account, such as adding or changing payout details.',
+          text: `Please enter the verification code below to confirm a sensitive update to your ${BRAND} account, such as adding or modifying your payout bank details.`,
         },
         { kind: 'code', code },
         {
-          kind: 'note',
-          text: `It expires in ${OTP_TTL_MINUTES} minutes and works once. If you are not changing anything, do not use it, and please tell us: someone may be signed in as you.`,
+          kind: 'paragraph',
+          text: `This code expires in ${OTP_TTL_MINUTES} minutes and works once. If you are not making an update to your account, do not enter this code—please notify us immediately at ${COMPLIANCE_INBOX} as someone may have active access to your session.`,
         },
       ],
-      footer: await emailFooter(payload),
+      footer,
+      recipient,
     })
   }
-  const applying = purpose !== 'signin'
+  if (purpose === 'signin') {
+    return buildEmail({
+      subject: `Your ${BRAND} sign-in code`,
+      preheader: `Your sign-in code is ${code}. It expires in ${OTP_TTL_MINUTES} minutes.`,
+      parts: [
+        {
+          kind: 'paragraph',
+          text: `Please use the one-time verification code below to sign in to your ${BRAND} account.`,
+        },
+        { kind: 'code', code },
+        {
+          kind: 'paragraph',
+          text: codeNote('If you did not attempt to sign in, you may safely disregard this email.'),
+        },
+      ],
+      footer,
+      recipient,
+    })
+  }
   return buildEmail({
-    subject: applying ? 'Your PJK verification code' : 'Your PJK sign-in code',
-    preheader: `Your code is ${code}. It expires in ${OTP_TTL_MINUTES} minutes.`,
+    subject: `Your ${BRAND} verification code`,
+    preheader: `Your verification code is ${code}. It expires in ${OTP_TTL_MINUTES} minutes.`,
     parts: [
       {
         kind: 'paragraph',
-        text: applying
-          ? 'Here is the code to confirm your email address and begin your application.'
-          : 'Here is your code to sign in to PAT and J.K. Co.',
+        text:
+          purpose === 'apply-partner'
+            ? `Please enter the verification code below to confirm your email address and begin your Trade Program application with ${BRAND}`
+            : `Please enter the verification code below to confirm your email address and begin your artist application with ${BRAND}`,
       },
       { kind: 'code', code },
       {
-        kind: 'note',
-        text: `It expires in ${OTP_TTL_MINUTES} minutes and works once. We will never ask you for it by phone or message.`,
-      },
-      {
-        kind: 'note',
-        text: 'If you did not ask for this code, you can ignore this email. Nothing happens without it.',
+        kind: 'paragraph',
+        text: codeNote(
+          'If you did not request this code, you may safely disregard this email; nothing will change without it.',
+        ),
       },
     ],
-    footer: await emailFooter(payload),
+    footer,
+    recipient,
   })
 }
 
+/** 01–05. One-time codes go to the address alone: no copies */
 export const sendMemberCode = async (
   payload: Payload,
   { email, code, purpose }: { email: string; code: string; purpose: Purpose },
-): Promise<boolean> => send(payload, email, await memberCodeEmail(payload, { code, purpose }))
+): Promise<boolean> => {
+  // Signing in, a member's name is known; a code to apply, or to confirm a new address, names
+  // only the address (#01, #02, #05)
+  const member = (
+    await payload
+      .find({
+        collection: 'members',
+        where: { email: { equals: email } },
+        limit: 1,
+        depth: 0,
+        overrideAccess: true,
+      })
+      .catch(() => null)
+  )?.docs[0]
+  const name =
+    member && (purpose === 'signin' || purpose === 'step-up')
+      ? await memberName(payload, member.id)
+      : null
+  return deliver(
+    payload,
+    { to: email },
+    await memberCodeEmail(payload, { code, purpose, recipient: { email, name } }),
+  )
+}
+
+/* ─── 09–14: applications ───────────────────────────────────────────────── */
 
 export const decisionEmail = async (
   payload: Payload,
   {
     decision,
     application,
+    member,
   }: { decision: Exclude<Decision, 'review'>; application: Application; member?: Member },
 ): Promise<BuiltEmail> => {
-  const signIn = `${getServerSideURL()}/collaborate/signin`
-  const kind = application.type === 'artist' ? 'artist' : 'partner'
+  const artist = application.type === 'artist'
   const footer = await emailFooter(payload)
+  const recipient: Recipient = {
+    email: member?.email ?? '',
+    name: applicantName(application),
+  }
 
   if (decision === 'approve') {
+    const id = application.issuedId ?? ''
     return buildEmail({
-      subject: 'Welcome to PAT and J.K. Co.',
-      preheader: `Your application has been approved. Your member ID is ${application.issuedId}.`,
+      subject: `Welcome to ${BRAND} | ${artist ? 'Artist' : 'Trade'} Application Approved`,
+      preheader: `Your application has been approved. Your ${artist ? 'Artist' : 'Partner'} ID is ${id}.`,
       parts: [
         {
           kind: 'paragraph',
-          text: `Your application to join us as ${kind === 'artist' ? 'an artist' : 'a partner'} has been approved. We are glad to have you.`,
+          text: `We are pleased to inform you that your application to join ${BRAND} as ${artist ? 'a represented artist' : 'a Trade Partner'} has been approved. We are delighted to welcome you.`,
         },
-        {
-          kind: 'reference',
-          label: kind === 'artist' ? 'Your artist ID' : 'Your partner ID',
-          value: application.issuedId ?? '',
-        },
+        { kind: 'reference', label: artist ? 'Your Artist ID' : 'Your Partner ID', value: id },
         {
           kind: 'paragraph',
-          text: 'Quote it whenever you write to us. You can now sign in to your account with a code sent to this address.',
+          text: artist
+            ? 'Please retain this permanent ID and quote it whenever you write to us. You may now sign in to your account using a code sent to this email address to complete your agreement execution and profile onboarding.'
+            : 'Please retain this permanent ID and quote it whenever you write to us. You may now sign in to your account using a code sent to this email address to execute your Trade Partner Agreement and access your portal.',
         },
-        { kind: 'link', label: 'Sign in', url: signIn },
+        { kind: 'link', label: 'Sign in', url: signInUrl() },
       ],
       footer,
+      recipient,
     })
   }
 
-  const note = application.decisionNote ?? ''
+  const note = application.decisionNote?.trim() ?? ''
   if (decision === 'request-changes') {
     return buildEmail({
-      subject: 'A few changes to your application',
-      preheader: `We have read your application ${application.reference} and have a note for you.`,
+      subject: `Updates requested for your ${BRAND} application (${application.reference})`,
+      preheader: `We have reviewed your application ${application.reference} and added a note for you.`,
       parts: [
         {
           kind: 'paragraph',
-          text: 'Thank you for your application. Before we can go further, we would like you to look at one or two things.',
+          text: `Thank you for submitting your application to ${BRAND} Before we can complete our evaluation, please review and address the following note from our team:`,
         },
-        { kind: 'paragraph', text: note },
-        { kind: 'reference', label: 'Application reference', value: application.reference },
-        { kind: 'link', label: 'Sign in to update it', url: signIn },
+        ...(note
+          ? [{ kind: 'reference' as const, label: 'Note from Review Team', value: note }]
+          : []),
+        { kind: 'reference', label: 'Application Reference', value: application.reference },
+        { kind: 'link', label: 'Sign in to update application', url: signInUrl() },
       ],
       footer,
+      recipient,
     })
   }
 
-  const settings = await defaultSiteSettings(payload).catch(() => null)
-  const socials = kind === 'artist' ? phulhaarSocialLinks(settings?.phulhaarSocial) : []
   const reapplyFrom = (application as { reapplyFrom?: string | null }).reapplyFrom
   return buildEmail({
-    subject: 'Your application to PAT and J.K. Co.',
-    preheader: `About your application ${application.reference}.`,
+    subject: `Your application to ${BRAND} (${application.reference})`,
+    preheader: `An update regarding your application ${application.reference}.`,
     parts: [
       {
         kind: 'paragraph',
-        text: 'Thank you for applying, and for the time you gave it. We are not able to accept your application this time.',
+        text: `Thank you for applying to ${BRAND} and for the time and care invested in your submission. After careful review, we are unable to accept your application at this time.`,
       },
-      ...(note ? [{ kind: 'paragraph' as const, text: note }] : []),
+      ...(note ? [{ kind: 'reference' as const, label: 'Review Note', value: note }] : []),
       ...(reapplyFrom
         ? [
             {
               kind: 'paragraph' as const,
-              text: `You are welcome to apply again from ${longDate(reapplyFrom)}. Sign in with this email address and your answers will be there to review${kind === 'artist' ? '; only your identity documents and photo are asked for again' : ''}.`,
+              // Partners are asked for no identity documents or photographs, so their sentence
+              // stops at reviewing their details
+              text: artist
+                ? `You are welcome to submit a fresh application from ${longDate(reapplyFrom)}. If you sign in with this email address after that date, your core application details will be available for you to review and only fresh identity verification documents and photographs will be required.`
+                : `You are welcome to submit a fresh application from ${longDate(reapplyFrom)}. If you sign in with this email address after that date, your core application details will be available for you to review.`,
             },
           ]
         : []),
-      { kind: 'reference', label: 'Application reference', value: application.reference },
+      { kind: 'reference', label: 'Application Reference', value: application.reference },
       {
-        kind: 'mailto',
-        text: 'For any further questions, contact us at',
-        email: APPLICATIONS_CONTACT,
+        kind: 'paragraph',
+        text: `For any further questions, please contact us at ${APPLICATIONS_CONTACT}.`,
       },
-      ...(socials.length
-        ? [{ kind: 'socials' as const, heading: 'Follow Phulhaar', links: socials }]
-        : []),
     ],
     footer,
+    recipient,
   })
 }
 
+/** 11–14. The decision, with a blind copy to business@ for the record */
 export const sendDecisionEmail = async (
   payload: Payload,
   args: { decision: Exclude<Decision, 'review'>; application: Application; member: Member },
-): Promise<boolean> => send(payload, args.member.email, await decisionEmail(payload, args))
+): Promise<boolean> =>
+  deliver(
+    payload,
+    { to: args.member.email, bcc: [BUSINESS_INBOX] },
+    await decisionEmail(payload, args),
+  )
 
 export const applicationReceivedEmail = async (
   payload: Payload,
-  { application }: { application: Application },
+  { application, email }: { application: Application; email?: string },
 ): Promise<BuiltEmail> => {
   const artist = application.type === 'artist'
   return buildEmail({
-    subject: 'We have your application',
+    subject: artist
+      ? `We have received your application | ${BRAND}`
+      : `We have received your Trade Program application | ${BRAND}`,
     preheader: `Your application reference is ${application.reference}.`,
     parts: [
       {
         kind: 'paragraph',
         text: artist
-          ? 'Thank you for applying to show your work with us. We look at every application ourselves, and we will write to you once we have.'
-          : 'Thank you for writing to us about working together. We read every application ourselves, and we will be in touch.',
+          ? `Thank you for submitting your application to showcase your work with ${BRAND} and Phulhaar Gallery. Our curation team reviews every submission individually, and we will write to you as soon as our evaluation is complete.`
+          : `Thank you for submitting your application to collaborate with ${BRAND} through our Trade Program. Our team reviews every application individually, and we will write to you once our review is complete.`,
       },
-      { kind: 'reference', label: 'Your application reference', value: application.reference },
+      { kind: 'reference', label: 'Your Application Reference', value: application.reference },
       {
-        kind: 'note',
-        text: 'Quote it if you write to us. You can see where your application has got to by signing in with a code sent to this address.',
+        kind: 'paragraph',
+        text: 'Please quote this reference in any correspondence with us. You may check the live status of your application at any time by signing in with a code sent to this email address.',
       },
-      { kind: 'link', label: 'Sign in', url: `${getServerSideURL()}/collaborate/signin` },
+      { kind: 'link', label: 'Sign in', url: signInUrl() },
     ],
     footer: await emailFooter(payload),
+    recipient: { email: email ?? '', name: applicantName(application) },
   })
 }
 
+/** 09, 10. The receipt; #22 goes to business@ alongside it */
 export const sendApplicationReceived = async (
   payload: Payload,
   { member, application }: { member: Member; application: Application },
 ): Promise<boolean> =>
-  send(payload, member.email, await applicationReceivedEmail(payload, { application }))
+  deliver(
+    payload,
+    { to: member.email },
+    await applicationReceivedEmail(payload, { application, email: member.email }),
+  )
 
-/**
- * Tells staff a new application is waiting. To the business inbox in Site settings, falling back
- * to the general one. The applicant's name and the reference only: everything else is in the admin.
- */
+/** 22. A new application, to business@ */
 export const notifyStaffOfApplication = async (
   payload: Payload,
   { application, name }: { application: Application; name?: string | null },
 ): Promise<boolean> => {
-  const settings = (
-    await payload.find({
-      collection: 'site-settings',
-      where: { 'tenant.slug': { equals: process.env.DEFAULT_TENANT_SLUG || 'pjk' } },
-      limit: 1,
-      depth: 0,
-      overrideAccess: true,
-    })
-  ).docs[0]
-  const to = settings?.businessEmail || settings?.email || process.env.CONTACT_INBOX
-  if (!to) return false
   const kind = application.type === 'artist' ? 'artist' : 'partner'
-  const email = buildEmail({
-    subject: `New ${kind} application ${application.reference}`,
-    preheader: `${name || 'Someone'} has sent a ${kind} application.`,
-    parts: [
-      { kind: 'paragraph', text: `${name || 'Someone'} has sent a ${kind} application.` },
-      { kind: 'reference', label: 'Reference', value: application.reference },
-      {
-        kind: 'link',
-        label: 'Open it in the admin',
-        url: `${getServerSideURL()}/admin/collections/applications/${application.id}`,
-      },
-    ],
-    footer: await emailFooter(payload),
-  })
-  return send(payload, to, email)
+  const who = name || applicantName(application) || 'An applicant'
+  return deliver(
+    payload,
+    { to: BUSINESS_INBOX },
+    buildEmail({
+      subject: `New ${kind} application: ${application.reference}`,
+      preheader: `${who} has submitted an application (${application.reference}).`,
+      parts: [
+        { kind: 'paragraph', text: `${who} has submitted a new ${kind} application for review.` },
+        { kind: 'reference', label: 'Application Reference', value: application.reference },
+        {
+          kind: 'link',
+          label: 'Open application in admin',
+          url: applicationAdminUrl(application.id),
+        },
+      ],
+      footer: await emailFooter(payload),
+      recipient: toBusiness,
+    }),
+  )
 }
 
-/** Tells staff an applicant has withdrawn an application they had sent */
+/** 23 to business@, and 23B to the applicant with a blind copy to business@ */
 export const notifyStaffOfWithdrawal = async (
   payload: Payload,
-  { application }: { application: Application },
+  { application, member }: { application: Application; member?: Member | null },
 ): Promise<boolean> => {
-  const settings = await defaultSiteSettings(payload).catch(() => null)
-  const to = settings?.businessEmail || settings?.email || process.env.CONTACT_INBOX
-  if (!to) return false
   const kind = application.type === 'artist' ? 'artist' : 'partner'
-  return send(
+  const footer = await emailFooter(payload)
+  const told = await deliver(
     payload,
-    to,
+    { to: BUSINESS_INBOX },
     buildEmail({
       subject: `Application ${application.reference} withdrawn`,
       preheader: `The applicant has withdrawn their ${kind} application.`,
       parts: [
         {
           kind: 'paragraph',
-          text: `The applicant has withdrawn their ${kind} application. There is nothing more to decide on it.`,
+          text: `The applicant has withdrawn their ${kind} application. No further review or decision is required.`,
         },
-        { kind: 'reference', label: 'Reference', value: application.reference },
-        {
-          kind: 'link',
-          label: 'Open it in the admin',
-          url: `${getServerSideURL()}/admin/collections/applications/${application.id}`,
-        },
+        { kind: 'reference', label: 'Application Reference', value: application.reference },
+        { kind: 'link', label: 'Open record in admin', url: applicationAdminUrl(application.id) },
       ],
-      footer: await emailFooter(payload),
+      footer,
+      recipient: toBusiness,
     }),
   )
+  if (!member?.email) return told
+  await deliver(
+    payload,
+    { to: member.email, bcc: [BUSINESS_INBOX] },
+    buildEmail({
+      subject: `Your ${BRAND} application (${application.reference}) has been withdrawn`,
+      preheader: `Confirmation that application ${application.reference} has been withdrawn at your request.`,
+      parts: [
+        {
+          kind: 'paragraph',
+          text: `This confirms that your application to ${BRAND} (Reference: ${application.reference}) has been withdrawn at your request, and no further processing will take place.`,
+        },
+        {
+          kind: 'paragraph',
+          text: `If you have any questions, please write to us at ${APPLICATIONS_CONTACT}.`,
+        },
+      ],
+      footer,
+      recipient: { email: member.email, name: applicantName(application) },
+    }),
+  )
+  return told
 }
 
+/* ─── 17–19, 27–29: payouts ─────────────────────────────────────────────── */
+
 /**
- * An approved artist is asked to add payout details, because a sale needs a payout. It points to
- * their account and nothing else: it never asks for bank details and never contains any, and says
- * so, because an email asking for them is the commonest way to steal a payment.
+ * 17. An approved artist is asked to add payout details. It points to their account and nothing
+ * else: it never asks for bank details and never contains any, and says so.
  */
 export const sendPayoutDetailsRequest = async (
   payload: Payload,
   { member }: { member: Member },
 ): Promise<boolean> =>
-  send(
+  deliver(
     payload,
-    member.email,
+    { to: member.email, bcc: [BUSINESS_INBOX] },
     buildEmail({
-      subject: 'Add your payout details',
-      preheader: 'Add them in your PJK account. We never ask for bank details by email.',
+      subject: `Action Required: Add your payout details | ${BRAND}`,
+      preheader:
+        'Add your bank details securely in your PJK account. We never ask for bank details by email.',
       parts: [
         {
           kind: 'paragraph',
-          text: 'We are ready to pay you for your work. To do that, we need to know which bank account to pay into.',
+          text: `We are ready to set up your account for settlement payouts. To enable transfers, please register your payout bank account details inside your ${BRAND} account portal.`,
         },
         {
           kind: 'paragraph',
-          text: 'Please add it in your account. We will email you a code first, to be sure it is you, and before the first payment we send ₹1 to the account and ask you to confirm it arrived.',
+          text: 'For your security, we will email you a one-time verification code before you enter your banking details. Prior to releasing your first payout, we will transfer a ₹1 test deposit to your account and ask you to confirm receipt.',
         },
-        {
-          kind: 'link',
-          label: 'Add payout details',
-          url: `${getServerSideURL()}/account/payouts`,
-        },
+        { kind: 'link', label: 'Add payout details', url: `${site()}/account/payouts` },
         {
           kind: 'paragraph',
-          text: 'We never ask for bank details by email, and we never send them. Do not reply to this email with them. If an email asking for them seems to come from us, it is not from us: please tell us.',
+          text: `Security Notice: ${BRAND} never requests or sends bank account details by email. Please do not reply to this email with your banking details. If you ever receive a message claiming to be from us that asks for bank details directly, do not respond and report it immediately to ${COMPLIANCE_INBOX}.`,
         },
       ],
       footer: await emailFooter(payload),
+      recipient: await toMember(payload, member),
     }),
   )
 
 /**
- * After payout details are added or changed. Says only that it happened: never the details.
- * The link lets the real owner stop it if it was not them.
+ * 18, 19. After payout details are added or changed. Says only that it happened: never the
+ * details. The button lets the real owner stop it if it was not them.
  */
 export const sendBankChangeNotice = async (
   payload: Payload,
   { member, cancelToken, first }: { member: Member; cancelToken: string; first?: boolean },
 ): Promise<boolean> =>
-  send(
+  deliver(
     payload,
-    member.email,
+    { to: member.email },
     buildEmail({
-      subject: first ? 'Payout details added to your account' : 'Your bank details were changed',
+      subject: first
+        ? `Payout details added to your ${BRAND} account`
+        : `Your ${BRAND} bank details were changed`,
       preheader: first
-        ? 'If this was not you, stop it now.'
-        : 'If this was not you, stop the change now.',
+        ? 'If you did not make this change, cancel it immediately.'
+        : 'If you did not request this change, stop it immediately.',
       parts: [
         {
           kind: 'paragraph',
           text: first
-            ? 'Someone signed in to your PJK account and added the bank account we will pay you into. We will check it, with a ₹1 test payment, before we use it.'
-            : 'Someone signed in to your PJK account and asked to change the bank account we pay you into. We will check the new details before using them; until then, the old ones stay as they are.',
+            ? `Payout bank account details have just been added to your ${BRAND} account. Our team will verify the account with a ₹1 test transfer before activating it for settlements.`
+            : `A request was submitted on your ${BRAND} account to change your payout bank account details. We will verify the new details before activating them; until verification is complete, your existing bank account remains unchanged.`,
         },
-        { kind: 'paragraph', text: 'If this was you, there is nothing to do.' },
         {
           kind: 'paragraph',
-          text: 'If it was not you, stop the change now. We will sign everyone out of your account, and you should then tell us at once.',
+          text: first
+            ? 'If you added these details, no further action is needed.'
+            : 'If you made this update, no further action is needed.',
+        },
+        {
+          kind: 'paragraph',
+          text: first
+            ? `If you did not make this change, click the button below immediately to block the update and sign out every device connected to your account, then notify us at once at ${COMPLIANCE_INBOX}.`
+            : `If you did not request this change, click the button below immediately to stop the change and sign out every device connected to your account, then notify us at once at ${COMPLIANCE_INBOX}.`,
         },
         {
           kind: 'link',
           label: 'This was not me',
-          url: `${getServerSideURL()}/account/bank-change/cancel?t=${encodeURIComponent(cancelToken)}`,
+          url: `${site()}/account/bank-change/cancel?t=${encodeURIComponent(cancelToken)}`,
         },
       ],
       footer: await emailFooter(payload),
+      recipient: await toMember(payload, member),
     }),
   )
 
-/** Where staff notices go: the technical inbox, else the business one, else the contact inbox */
-export const staffInbox = async (payload: Payload): Promise<string | undefined> => {
-  const settings = (
-    await payload.find({
-      collection: 'site-settings',
-      where: { 'tenant.slug': { equals: process.env.DEFAULT_TENANT_SLUG || 'pjk' } },
-      limit: 1,
-      depth: 0,
-      overrideAccess: true,
-    })
-  ).docs[0]
-  return (
-    settings?.technicalEmail ||
-    settings?.businessEmail ||
-    settings?.email ||
-    process.env.CONTACT_INBOX ||
-    undefined
-  )
-}
-
-/** Staff are told a change of bank details is waiting, or was stopped; nothing more */
+/** 27, 28 to business@; 29 (stopped by the member) to business@ with compliance@ copied */
 export const notifyStaffOfBankChange = async (
   payload: Payload,
   {
-    reference,
+    member,
     cancelled,
     first,
-  }: { reference?: string | null; cancelled?: boolean; first?: boolean },
+  }: {
+    member: Pick<Member, 'id' | 'artistId' | 'partnerId'>
+    cancelled?: boolean
+    first?: boolean
+  },
 ): Promise<boolean> => {
-  const to = await staffInbox(payload)
-  if (!to) return false
-  return send(
+  const id = idOf(member)
+  const callout = { kind: 'reference' as const, label: 'Member ID', value: id }
+  const email = cancelled
+    ? buildEmail({
+        subject: `URGENT: Bank change stopped by member (${id})`,
+        preheader: `Member ${id} reported an unauthorised bank change. All sessions have been terminated.`,
+        parts: [
+          {
+            kind: 'paragraph',
+            text: `Member ${id} reported that they did not authorise the recent change to their payout bank details. The bank change has been blocked automatically and every active session on the account has been terminated at once. Please contact the member immediately to verify their account security.`,
+          },
+          callout,
+          { kind: 'link', label: 'Open member record in admin', url: memberAdminUrl(member.id) },
+        ],
+        footer: await emailFooter(payload),
+        recipient: toBusiness,
+      })
+    : buildEmail({
+        subject: first
+          ? `Payout details waiting for verification: ${id}`
+          : `Bank details change waiting for verification: ${id}`,
+        preheader: first
+          ? 'Verify the new bank details via ₹1 test transfer before approving.'
+          : 'Verify the updated bank details via ₹1 test transfer before approving.',
+        parts: [
+          {
+            kind: 'paragraph',
+            text: first
+              ? `Member ${id} has added first-time payout bank details. Please send a ₹1 test transfer to the account, ask the member to confirm receipt, and then approve the payout details inside their KYC record.`
+              : `Member ${id} has requested a change to their payout bank details. Please send a ₹1 test transfer to the new account, ask the member to confirm receipt, and then approve the updated details inside their KYC record.`,
+          },
+          callout,
+          { kind: 'link', label: 'Open KYC record in admin', url: memberAdminUrl(member.id) },
+        ],
+        footer: await emailFooter(payload),
+        recipient: toBusiness,
+      })
+  return deliver(
     payload,
-    to,
-    buildEmail({
-      subject: cancelled
-        ? `Bank change stopped by the member: ${reference ?? ''}`
-        : first
-          ? `Payout details waiting: ${reference ?? ''}`
-          : `Bank details change waiting: ${reference ?? ''}`,
-      preheader: cancelled
-        ? 'They said it was not them. Their sessions have been ended.'
-        : 'Check the new details before approving them.',
-      parts: [
-        {
-          kind: 'paragraph',
-          text: cancelled
-            ? `The member behind ${reference ?? 'this account'} said they did not ask to change their bank details. The change has been stopped and every session on the account ended. Please contact them.`
-            : `A member (${reference ?? 'see the admin'}) has ${first ? 'added payout details' : 'asked to change their bank details'}. Send ₹1 to the account and ask them to confirm it arrived, then approve the details in the KYC record.`,
-        },
-      ],
-      footer: await emailFooter(payload),
-    }),
+    { to: BUSINESS_INBOX, ...(cancelled ? { cc: [COMPLIANCE_INBOX] } : {}) },
+    email,
   )
 }
 
-/**
- * Where data-protection alerts go: the business inbox the founder reads, and the staff inbox, once
- * each. Data requests, withdrawals of consent and changes to personal details all come here.
- */
-export const dataProtectionInboxes = async (payload: Payload): Promise<string[]> => {
-  const settings = await defaultSiteSettings(payload).catch(() => null)
-  const all = [settings?.businessEmail, await staffInbox(payload)]
-  return [...new Set(all.filter((a): a is string => Boolean(a)).map((a) => a.toLowerCase()))]
-}
-
-const sendToAll = async (payload: Payload, to: string[], email: BuiltEmail) => {
-  let sent = to.length > 0
-  for (const address of to) sent = (await send(payload, address, email)) && sent
-  return sent
-}
+/* ─── 30–33: data protection ─────────────────────────────────────────────── */
 
 export type DataRequestKind = 'withdraw-consent' | 'delete' | 'download'
 
-const DATA_REQUEST_NEXT: Record<DataRequestKind, string> = {
-  download:
-    'Please prepare a copy of their data and send it to them, as docs/KYC.md describes. The law gives us a limited time to answer.',
-  'withdraw-consent':
-    'Nothing further is processed for them from now. Open their record in the admin and press "Unpublish Profile & Artworks from Phulhaar".',
-  delete:
-    'Open their record in the admin and use "Delete this person". Anything the law makes us keep stays, under their member ID.',
+const DATA_REQUEST: Record<
+  DataRequestKind,
+  {
+    subject: (id: string) => string
+    preheader: (id: string) => string
+    next: (id: string) => string
+  }
+> = {
+  download: {
+    subject: (id) => `Copy of personal data requested: ${id}`,
+    preheader: (id) =>
+      `Statutory DPDP Act data request from ${id}. Respond within the statutory timeframe.`,
+    next: () =>
+      'Please compile a copy of their personal data and dispatch it to them in accordance with docs/KYC.md within the statutory timeframe mandated by the DPDP Act, 2023.',
+  },
+  'withdraw-consent': {
+    subject: (id) => `Consent withdrawn: ${id}`,
+    preheader: (id) =>
+      `Member ${id} has withdrawn consent. Unpublish their profile and works from Phulhaar.`,
+    next: () =>
+      'Active data processing for this member has been halted. Please open their record in the admin panel immediately and click "Unpublish Profile & Artworks from Phulhaar".',
+  },
+  delete: {
+    subject: (id) => `Account deletion requested: ${id}`,
+    preheader: (id) =>
+      `Member ${id} has requested account deletion. Process within the statutory timeframe.`,
+    next: (id) =>
+      `Please open their record in the admin panel and execute "Delete this person". Any records required to be retained by law will remain encrypted under their member ID (${id}).`,
+  },
+}
+
+const DATA_REQUEST_RECEIPT: Record<
+  DataRequestKind,
+  { subject: (id: string) => string; preheader: string; body: (id: string) => string }
+> = {
+  download: {
+    subject: (id) => `We have received your data copy request (${id}) | ${BRAND}`,
+    preheader: 'Your request for a copy of your personal data has been logged.',
+    body: (id) =>
+      `We have received your request under the Digital Personal Data Protection Act, 2023 for a copy of the personal data held on your ${BRAND} account (${id}). Our compliance team is preparing your records and will send them to this registered email address within the statutory timeframe.`,
+  },
+  'withdraw-consent': {
+    subject: (id) => `Confirmation: Withdrawal of consent logged (${id}) | ${BRAND}`,
+    preheader: 'Your withdrawal of consent has been recorded.',
+    body: (id) =>
+      `We have recorded your withdrawal of consent for your ${BRAND} account (${id}) under the Digital Personal Data Protection Act, 2023. Active processing of your account has ceased and your public profile and works have been queued for removal from Phulhaar Gallery, subject to any active commercial obligations and mandatory statutory tax retention requirements under Indian law.`,
+  },
+  delete: {
+    subject: (id) => `We have received your account deletion request (${id}) | ${BRAND}`,
+    preheader: 'Your account deletion request is being processed by our compliance team.',
+    body: (id) =>
+      `We have received your request to delete your ${BRAND} account (${id}). Our compliance team is processing your request and you will receive a final confirmation email as soon as your account erasure is complete.`,
+  },
 }
 
 /**
- * A member's data request (a copy, deletion, or withdrawing consent) to the founder and staff:
- * only the kind and the member's ID, with a link to their record.
+ * 30–32 to business@ with compliance@ copied: only the kind and the member's ID, with a link to
+ * their record. And 30B–32B, the acknowledgement to the member, with a blind copy to business@.
  */
 export const notifyStaffOfDataRequest = async (
   payload: Payload,
@@ -486,248 +629,378 @@ export const notifyStaffOfDataRequest = async (
     request,
     kind,
     memberId,
-  }: { reference?: string | null; request: string; kind: DataRequestKind; memberId: number },
+    member,
+  }: {
+    reference?: string | null
+    request: string
+    kind: DataRequestKind
+    memberId: number
+    member?: Member | null
+  },
 ): Promise<boolean> => {
-  const who = reference ?? `Member ${memberId}`
-  return sendToAll(
+  const id = reference ?? `Member ${memberId}`
+  const footer = await emailFooter(payload)
+  const what = DATA_REQUEST[kind]
+  const told = await deliver(
     payload,
-    await dataProtectionInboxes(payload),
+    { to: BUSINESS_INBOX, cc: [COMPLIANCE_INBOX] },
     buildEmail({
-      subject:
-        kind === 'withdraw-consent'
-          ? `Consent withdrawn: ${who}`
-          : kind === 'download'
-            ? `Copy of my data requested: ${who}`
-            : `Data request: ${who}`,
-      preheader: 'The law gives us a limited time to answer it.',
+      subject: what.subject(id),
+      preheader: what.preheader(id),
       parts: [
-        { kind: 'paragraph', text: `${who} has asked: ${request}.` },
-        { kind: 'paragraph', text: DATA_REQUEST_NEXT[kind] },
-        {
-          kind: 'link',
-          label: 'Open their record',
-          url: `${getServerSideURL()}/admin/collections/members/${memberId}`,
-        },
+        { kind: 'paragraph', text: `Member ${id} has submitted a formal request: "${request}."` },
+        { kind: 'paragraph', text: what.next(id) },
+        { kind: 'link', label: 'Open member record', url: memberAdminUrl(memberId) },
       ],
-      footer: await emailFooter(payload),
+      footer,
+      recipient: toBusiness,
     }),
   )
+  if (member?.email) {
+    const receipt = DATA_REQUEST_RECEIPT[kind]
+    await deliver(
+      payload,
+      { to: member.email, bcc: [BUSINESS_INBOX] },
+      buildEmail({
+        subject: receipt.subject(id),
+        preheader: receipt.preheader,
+        parts: [
+          { kind: 'paragraph', text: receipt.body(id) },
+          {
+            kind: 'paragraph',
+            text:
+              kind === 'download'
+                ? `For any compliance inquiries, please write to ${COMPLIANCE_INBOX}.`
+                : kind === 'delete'
+                  ? `For any questions, please contact ${COMPLIANCE_INBOX}.`
+                  : `For any questions, please write to ${COMPLIANCE_INBOX}.`,
+          },
+        ],
+        footer,
+        recipient: await toMember(payload, member),
+      }),
+    )
+  }
+  return told
 }
 
-/** A member changed personal details: the founder and staff are told, to review the change */
+/**
+ * 33 to business@: a member changed their phone, address or email address. And, when it was the
+ * phone or address, 33B to the member (an email change has its own notice, #06).
+ */
 export const notifyStaffOfPersonalChange = async (
   payload: Payload,
-  { what, memberId, adminPath }: { what: string; memberId: string; adminPath: string },
-): Promise<boolean> =>
-  sendToAll(
+  {
+    memberId,
+    adminPath,
+    member,
+  }: { what?: string; memberId: string; adminPath: string; member?: Member | null },
+): Promise<boolean> => {
+  const footer = await emailFooter(payload)
+  const told = await deliver(
     payload,
-    await dataProtectionInboxes(payload),
+    { to: BUSINESS_INBOX },
     buildEmail({
-      subject: `Changed by ${memberId}: ${what}`,
-      preheader: 'Please review the change.',
-      parts: [
-        { kind: 'paragraph', text: `${memberId} has changed ${what}. Please review the change.` },
-        { kind: 'link', label: 'Open their record', url: `${getServerSideURL()}${adminPath}` },
-      ],
-      footer: await emailFooter(payload),
-    }),
-  )
-
-/**
- * Tells someone their account has been deleted: their details erased, and what, if anything, the
- * law makes us keep. Sent to the address they had, after the erasure has gone through
- */
-export const sendAccountErased = async (
-  payload: Payload,
-  { to, kept }: { to: string; kept?: string | null },
-): Promise<boolean> =>
-  send(
-    payload,
-    to,
-    buildEmail({
-      subject: 'Your PJK account has been deleted',
-      preheader: 'Your details have been erased.',
+      subject: `Contact details updated by ${memberId}`,
+      preheader: `Please review the updated contact details for ${memberId}.`,
       parts: [
         {
           kind: 'paragraph',
-          text: 'Your PAT and J.K. Co. account has been deleted, and the personal details on it erased: your name, contact details, address, profile, pictures and sign-in sessions. You can no longer sign in with this address.',
+          text: `Member ${memberId} has updated their registered contact details (telephone, address, or email address). Please review the updated record in the admin panel.`,
         },
-        ...(kept
+        { kind: 'link', label: 'Open member record', url: `${site()}${adminPath}` },
+      ],
+      footer,
+      recipient: toBusiness,
+    }),
+  )
+  if (member?.email) {
+    await deliver(
+      payload,
+      { to: member.email },
+      buildEmail({
+        subject: `Your ${BRAND} contact details have been updated`,
+        preheader: 'Confirmation of recent updates to your contact details.',
+        parts: [
+          {
+            kind: 'paragraph',
+            text: `The contact details registered to your ${BRAND} account (${memberId}) have just been updated. If you made this change, no further action is needed.`,
+          },
+          {
+            kind: 'paragraph',
+            text: `If you did not authorise this update, please notify us immediately at ${COMPLIANCE_INBOX}.`,
+          },
+        ],
+        footer,
+        recipient: await toMember(payload, member),
+      }),
+    )
+  }
+  return told
+}
+
+/* ─── 21: deletion ──────────────────────────────────────────────────────── */
+
+/**
+ * 21. Tells someone their account has been deleted, after the erasure has gone through, at the
+ * address they had, with blind copies to business@ and compliance@. The paragraph about what is
+ * kept appears only when the law made us keep their identity and payout records (a legal hold):
+ * otherwise those were purged with everything else.
+ */
+export const sendAccountErased = async (
+  payload: Payload,
+  {
+    to,
+    id,
+    name,
+    keptUntil,
+  }: { to: string; id: string; name?: string | null; keptUntil?: string | null },
+): Promise<boolean> =>
+  deliver(
+    payload,
+    { to, bcc: [BUSINESS_INBOX, COMPLIANCE_INBOX] },
+    buildEmail({
+      subject: `Your ${BRAND} account has been deleted`,
+      preheader: 'Your active profile and personal details have been erased.',
+      parts: [
+        {
+          kind: 'paragraph',
+          text: `Your ${BRAND} account (${id}) has been permanently deleted, and the active personal details associated with it—including your name, contact details, address, profile biography, photographs, and active sign-in sessions—have been erased. You can no longer sign in using this email address.`,
+        },
+        ...(keptUntil
           ? [
               {
                 kind: 'paragraph' as const,
-                text: `The law requires us to keep a little for a while: ${kept} It is kept encrypted, used for nothing else, and deleted when that time is up.`,
+                text: `In compliance with Indian tax and audit laws (Section 8(7) of the DPDP Act, 2023, the Income Tax Act, 1961, and the CGST Act, 2017), we are legally required to retain your identity verification and payout records under your reference ID (${id}) until ${longDate(keptUntil)}. These records are stored in an encrypted vault, used for no other purpose, and automatically purged once the statutory retention period expires.`,
               },
             ]
           : []),
         {
-          kind: 'note',
-          text: 'If you did not expect this, reply to this email and we will look into it.',
+          kind: 'paragraph',
+          text: `If you did not expect this notice, please contact us immediately at ${COMPLIANCE_INBOX}.`,
         },
       ],
       footer: await emailFooter(payload),
+      recipient: { email: to, name },
     }),
   )
 
-/** Tells the old address that the account's email changed, with a way to report it */
+/* ─── 06–08: email address changes ──────────────────────────────────────── */
+
+/** 06. Tells the old address that the account's email changed; blind copy to business@ */
 export const sendEmailChangedNotice = async (
   payload: Payload,
-  { oldEmail }: { oldEmail: string },
+  { oldEmail, member }: { oldEmail: string; member?: Member | null },
 ): Promise<boolean> =>
-  send(
+  deliver(
     payload,
-    oldEmail,
+    { to: oldEmail, bcc: [BUSINESS_INBOX] },
     buildEmail({
-      subject: 'The email address on your PJK account has changed',
-      preheader: 'If this was you, there is nothing to do.',
+      subject: `The email address on your ${BRAND} account has changed`,
+      preheader: 'If you made this change, no further action is needed.',
       parts: [
         {
           kind: 'paragraph',
-          text: 'The email address on your PAT and J.K. Co. account has just been changed, and confirmed with a code sent to the new address. Codes to sign in will go there from now on.',
+          text: `The primary email address registered to your ${BRAND} account has just been changed and verified with a security code sent to your new address. All future sign-in codes and account notices will be delivered to the new email address.`,
         },
         {
-          kind: 'note',
-          text: 'If this was not you, reply to this email or write to us straight away, and we will put it right.',
+          kind: 'paragraph',
+          text: `If you authorised this update, no further action is required. If you did not make this change, please contact us immediately at ${COMPLIANCE_INBOX} or ${APPLICATIONS_CONTACT} so we can secure your account and reverse the change.`,
         },
       ],
       footer: await emailFooter(payload),
+      recipient: {
+        email: oldEmail,
+        name: member ? await memberName(payload, member.id) : null,
+      },
     }),
   )
 
 /**
- * Both addresses hear when our team changes the address on an account, at the member's request
- * after an identity check: the old one so a change they did not ask for is noticed, the new one
- * so they know it worked
+ * 07, 08. Both addresses hear when our team changes the address on an account, at the member's
+ * request after an identity check; blind copies to business@
  */
 export const sendStaffEmailChangeNotices = async (
   payload: Payload,
-  { oldEmail, newEmail }: { oldEmail: string; newEmail: string },
+  { oldEmail, newEmail, memberId }: { oldEmail: string; newEmail: string; memberId?: number },
 ): Promise<void> => {
   const footer = await emailFooter(payload)
-  await send(
+  const name = memberId ? await memberName(payload, memberId) : null
+  await deliver(
     payload,
-    oldEmail,
+    { to: oldEmail, bcc: [BUSINESS_INBOX] },
     buildEmail({
-      subject: 'The email address on your PJK account has changed',
-      preheader: 'Our team changed it at your request.',
+      subject: `The email address on your ${BRAND} account has changed`,
+      preheader:
+        'Our team updated your email address at your request following identity verification.',
       parts: [
         {
           kind: 'paragraph',
-          text: 'Our team has changed the email address on your PAT and J.K. Co. account, after checking your identity, because you told us you could no longer use this one. Codes to sign in will go to the new address from now on, and every device signed in to your account has been signed out.',
+          text: `Following your request and completion of our identity verification check, our administration team has updated the primary email address on your ${BRAND} account. All future sign-in codes will be sent to your new email address, and all active sessions across your devices have been signed out.`,
         },
         {
-          kind: 'note',
-          text: 'If you did not ask for this, write to us at hello@pjk.co.in straight away, and we will put it right.',
+          kind: 'paragraph',
+          text: `If you did not request this change, please write to us immediately at ${COMPLIANCE_INBOX} or ${APPLICATIONS_CONTACT} so we can secure your account.`,
         },
       ],
       footer,
+      recipient: { email: oldEmail, name },
     }),
   )
-  await send(
+  await deliver(
     payload,
-    newEmail,
+    { to: newEmail, bcc: [BUSINESS_INBOX] },
     buildEmail({
-      subject: 'Your PJK account now uses this email address',
-      preheader: 'Sign in with a code sent here.',
+      subject: `Your ${BRAND} account now uses this email address`,
+      preheader: 'You may now sign in using a verification code sent to this address.',
       parts: [
         {
           kind: 'paragraph',
-          text: 'At your request, and after checking your identity, our team has made this the email address for your PAT and J.K. Co. account. Sign in with a code sent here.',
+          text: `At your request, and following verification of your identity, our team has designated this address as the primary email for your ${BRAND} account. You may now sign in using a one-time code sent to this address.`,
         },
-        { kind: 'link', label: 'Sign in', url: `${getServerSideURL()}/collaborate/signin` },
+        { kind: 'link', label: 'Sign in', url: signInUrl() },
         {
-          kind: 'note',
-          text: 'If you did not ask for this, write to us at hello@pjk.co.in.',
+          kind: 'paragraph',
+          text: `If you did not request this update, please notify us immediately at ${APPLICATIONS_CONTACT}.`,
         },
       ],
       footer,
+      recipient: { email: newEmail, name },
     }),
   )
 }
 
-/** The member hears what staff decided about their profile */
+/* ─── 15, 16, 24, 25: profile and works ─────────────────────────────────── */
+
+/** 15, 16. The artist hears what staff decided about their profile; blind copy to business@ */
 export const sendReviewDecision = async (
   payload: Payload,
   {
     to,
-    what,
     approved,
     note,
-  }: { to: string; what: string; approved: boolean; note?: string | null },
+    member,
+  }: { to: string; what?: string; approved: boolean; note?: string | null; member?: Member | null },
 ): Promise<boolean> =>
-  send(
+  deliver(
     payload,
-    to,
+    { to, bcc: [BUSINESS_INBOX] },
     buildEmail({
-      subject: approved ? `${what} is now public` : `A few changes to ${what.toLowerCase()}`,
+      subject: approved
+        ? `Your artist profile is now public | ${BRAND}`
+        : `Updates requested for your profile | ${BRAND}`,
       preheader: approved
-        ? 'Thank you. It can now be seen through Phulhaar.'
-        : 'We have asked for a few changes before it goes up.',
+        ? 'Your profile has been approved and can now be viewed through Phulhaar.'
+        : 'Our team has requested a few updates before your profile is published.',
       parts: [
         {
           kind: 'paragraph',
           text: approved
-            ? `${what} has been approved and can now be seen through Phulhaar.`
-            : `We have looked at ${what.toLowerCase()} and asked for a few changes before it goes up.`,
+            ? 'Your artist profile has been approved by our curation team and is now published for viewing through Phulhaar Gallery.'
+            : 'We have reviewed your profile submission and require the following adjustment(s) before publishing it on Phulhaar Gallery:',
         },
-        ...(note ? [{ kind: 'paragraph' as const, text: note }] : []),
-        {
-          kind: 'link',
-          label: 'Your account',
-          url: `${getServerSideURL()}/account`,
-        },
+        ...(!approved && note?.trim()
+          ? [{ kind: 'reference' as const, label: 'Note from Review Team', value: note.trim() }]
+          : []),
+        { kind: 'link', label: 'Your account', url: accountUrl() },
       ],
       footer: await emailFooter(payload),
+      recipient: { email: to, name: member ? await memberName(payload, member.id) : null },
     }),
   )
 
-/** Tells staff an artist has given or changed their Google Drive works folder */
+/** 25 to business@, and 25B to the artist */
 export const notifyStaffOfWorksFolder = async (
   payload: Payload,
-  { memberId, adminPath }: { memberId: string; adminPath: string },
+  { memberId, adminPath, member }: { memberId: string; adminPath: string; member?: Member | null },
 ): Promise<boolean> => {
-  const to = await staffInbox(payload)
-  if (!to) return false
-  return send(
+  const footer = await emailFooter(payload)
+  const told = await deliver(
     payload,
-    to,
+    { to: BUSINESS_INBOX },
     buildEmail({
-      subject: `Works folder from ${memberId}`,
-      preheader: `${memberId} has given the Google Drive folder their works are in.`,
+      subject: `Works folder updated by ${memberId}`,
+      preheader: `${memberId} has added or updated their Google Drive artwork folder.`,
       parts: [
         {
           kind: 'paragraph',
-          text: `${memberId} has given or changed the Google Drive folder their works are in. Each work is in a folder named after it, with its photos, any video and its description.`,
+          text: `Artist ${memberId} has added or updated the Google Drive folder containing their artwork submissions. Each work is organised in a subfolder named after the piece, containing its photographs, video, and description.`,
         },
-        {
-          kind: 'link',
-          label: 'Open the artist in the admin',
-          url: `${getServerSideURL()}${adminPath}`,
-        },
+        { kind: 'reference', label: 'Artist ID', value: memberId },
+        { kind: 'link', label: 'Open artist in admin', url: `${site()}${adminPath}` },
       ],
-      footer: await emailFooter(payload),
+      footer,
+      recipient: toBusiness,
     }),
   )
+  if (member?.email) {
+    await deliver(
+      payload,
+      { to: member.email },
+      buildEmail({
+        subject: `Your Google Drive works folder link has been saved | ${BRAND}`,
+        preheader: `We have logged the updated Google Drive works folder for ${memberId}.`,
+        parts: [
+          {
+            kind: 'paragraph',
+            text: `We have recorded the Google Drive works folder link on your ${BRAND} account (${memberId}). Please ensure that viewing permissions remain enabled on your folder so our curation team can review and archive your works.`,
+          },
+          { kind: 'link', label: 'Your account', url: accountUrl() },
+        ],
+        footer,
+        recipient: await toMember(payload, member),
+      }),
+    )
+  }
+  return told
 }
 
-/** Staff hear that something is waiting for review; no details beyond what and whose */
+/** 24 to business@, and 24B to the artist */
 export const notifyStaffOfReview = async (
   payload: Payload,
-  { what, memberId, adminPath }: { what: string; memberId: string; adminPath: string },
+  {
+    memberId,
+    adminPath,
+    member,
+  }: { what?: string; memberId: string; adminPath: string; member?: Member | null },
 ): Promise<boolean> => {
-  const to = await staffInbox(payload)
-  if (!to) return false
-  return send(
+  const footer = await emailFooter(payload)
+  const told = await deliver(
     payload,
-    to,
+    { to: BUSINESS_INBOX },
     buildEmail({
-      subject: `Waiting for review: ${what}`,
-      preheader: `From ${memberId}.`,
+      subject: `Waiting for review: Profile from ${memberId}`,
+      preheader: `Artist ${memberId} has submitted profile updates for review.`,
       parts: [
-        { kind: 'paragraph', text: `${memberId} has sent ${what.toLowerCase()} for review.` },
-        { kind: 'link', label: 'Review it', url: `${getServerSideURL()}${adminPath}` },
+        {
+          kind: 'paragraph',
+          text: `Member ${memberId} has submitted profile changes for curation review.`,
+        },
+        { kind: 'reference', label: 'Member ID', value: memberId },
+        { kind: 'link', label: 'Review profile in admin', url: `${site()}${adminPath}` },
       ],
-      footer: await emailFooter(payload),
+      footer,
+      recipient: toBusiness,
     }),
   )
+  if (member?.email) {
+    await deliver(
+      payload,
+      { to: member.email },
+      buildEmail({
+        subject: `We have received your profile updates | ${BRAND}`,
+        preheader: `Your profile updates (${memberId}) are now under curation review.`,
+        parts: [
+          {
+            kind: 'paragraph',
+            text: `We have received the updates to your artist profile (${memberId}). Our curation team will review your changes and notify you by email once your updated profile is published on Phulhaar Gallery.`,
+          },
+          { kind: 'link', label: 'Your account', url: accountUrl() },
+        ],
+        footer,
+        recipient: await toMember(payload, member),
+      }),
+    )
+  }
+  return told
 }

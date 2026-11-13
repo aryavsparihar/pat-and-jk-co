@@ -174,7 +174,7 @@ export const confirmEmailChange = async (
     subject: memberIdsOf(member),
     detail: `${others.docs.length} other session(s) ended`,
   })
-  await sendEmailChangedNotice(payload, { oldEmail })
+  await sendEmailChangedNotice(payload, { oldEmail, member })
   await notifyStaffOfPersonalChange(payload, {
     what: 'their email address',
     memberId: memberIdsOf(member) ?? `Member ${member.id}`,
@@ -258,6 +258,6 @@ export const changeEmailByStaff = async (
     actor: actor.id,
     detail: `Changed by ${actor.email} after an identity check: ${why.slice(0, 300)}; ${sessions.docs.length} session(s) ended`,
   })
-  await sendStaffEmailChangeNotices(payload, { oldEmail, newEmail: next })
+  await sendStaffEmailChangeNotices(payload, { oldEmail, newEmail: next, memberId: member.id })
   return { email: next }
 }
