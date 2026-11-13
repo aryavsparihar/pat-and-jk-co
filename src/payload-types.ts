@@ -86,6 +86,7 @@ export interface Config {
     'kyc-documents': KycDocument;
     'agreement-executions': AgreementExecution;
     'access-requests': AccessRequest;
+    'help-tickets': HelpTicket;
     'security-events': SecurityEvent;
     'login-challenges': LoginChallenge;
     'rate-limits': RateLimit;
@@ -124,6 +125,7 @@ export interface Config {
     'kyc-documents': KycDocumentsSelect<false> | KycDocumentsSelect<true>;
     'agreement-executions': AgreementExecutionsSelect<false> | AgreementExecutionsSelect<true>;
     'access-requests': AccessRequestsSelect<false> | AccessRequestsSelect<true>;
+    'help-tickets': HelpTicketsSelect<false> | HelpTicketsSelect<true>;
     'security-events': SecurityEventsSelect<false> | SecurityEventsSelect<true>;
     'login-challenges': LoginChallengesSelect<false> | LoginChallengesSelect<true>;
     'rate-limits': RateLimitsSelect<false> | RateLimitsSelect<true>;
@@ -2202,6 +2204,21 @@ export interface AccessRequest {
   createdAt: string;
 }
 /**
+ * Every request sent from the Help Center, by ticket number. The request itself is in the email it was sent to (business@ or tech@).
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "help-tickets".
+ */
+export interface HelpTicket {
+  id: number;
+  ticket: string;
+  requestType: 'artist' | 'partner';
+  nature: 'technical' | 'business';
+  memberCode?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
  * Every sign-in attempt, access request and decision, staff and members alike; every record added, changed or deleted anywhere on the site, and by whom; changes to staff accounts; and server errors. Read-only. A member’s own entries are also listed on their record.
  *
  * This interface was referenced by `Config`'s JSON-Schema
@@ -2569,6 +2586,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'access-requests';
         value: number | AccessRequest;
+      } | null)
+    | ({
+        relationTo: 'help-tickets';
+        value: number | HelpTicket;
       } | null)
     | ({
         relationTo: 'security-events';
@@ -3863,6 +3884,18 @@ export interface AccessRequestsSelect<T extends boolean = true> {
   decidedBy?: T;
   decidedAt?: T;
   ip?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "help-tickets_select".
+ */
+export interface HelpTicketsSelect<T extends boolean = true> {
+  ticket?: T;
+  requestType?: T;
+  nature?: T;
+  memberCode?: T;
   updatedAt?: T;
   createdAt?: T;
 }

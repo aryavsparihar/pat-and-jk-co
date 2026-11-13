@@ -24,6 +24,8 @@ export type Envelope = {
   to: string | string[]
   cc?: string[]
   bcc?: string[]
+  /** Where a reply goes, when not the sender (a Help Center request: the person who raised it) */
+  replyTo?: string
   attachments?: { filename: string; content: Buffer; contentType: string }[]
 }
 
@@ -51,6 +53,10 @@ export const deliver = async (
     const copies = [
       cc.length ? ` cc ${cc.join(', ')}` : '',
       bcc.length ? ` bcc ${bcc.join(', ')}` : '',
+      envelope.replyTo ? ` reply-to ${envelope.replyTo}` : '',
+      envelope.attachments?.length
+        ? ` with ${envelope.attachments.map((a) => a.filename).join(', ')}`
+        : '',
     ]
     payload.logger.info(
       `[dev] Email "${email.subject}" to ${to.join(', ')}${copies.join('')}:\n${email.text}`,
@@ -62,6 +68,7 @@ export const deliver = async (
       to,
       ...(cc.length ? { cc } : {}),
       ...(bcc.length ? { bcc } : {}),
+      ...(envelope.replyTo ? { replyTo: envelope.replyTo } : {}),
       subject: email.subject,
       text: email.text,
       html: email.html,

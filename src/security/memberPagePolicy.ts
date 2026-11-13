@@ -1,6 +1,6 @@
 /**
  * The content security policy for pages where people type personal details: the onboarding, the
- * member sign-in and the account. These pages are rendered per request anyway, so each response
+ * member sign-in, the account and the Help Center. These pages are rendered per request anyway, so each response
  * can carry its own nonce, and scripts run only if they carry it ('strict-dynamic' lets those
  * scripts load the rest of the app). No 'unsafe-inline' for scripts, and the pages cannot be framed.
  *
@@ -10,7 +10,7 @@
 
 /** The pages that get this policy */
 export const MEMBER_PAGE =
-  /^\/(?:collaborate\/(?:artists|partners|signin|artist-agreement|trade-agreement)|account)(?:\/|$)/
+  /^\/(?:collaborate\/(?:artists|partners|signin|artist-agreement|trade-agreement)|account|help)(?:\/|$)/
 
 export const createNonce = (): string => {
   const bytes = new Uint8Array(16)
