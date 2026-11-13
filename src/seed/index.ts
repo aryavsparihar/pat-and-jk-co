@@ -402,7 +402,7 @@ async function seed() {
       ),
       h('h2', 'What you can hold us to'),
       p(
-        'Our [values](/values) are written down in public so that they can be held against us: how we price, how we describe what we sell, how artists are paid, and what we do with whatever we learn about you. They apply to everyone who works under PJK, and to every outside business we deal with.',
+        'Our values are written down in public so that they can be held against us: how we price, how we describe what we sell, how artists are paid, and what we do with whatever we learn about you. They apply to everyone who works under PJK, and to every outside business we deal with.',
       ),
       p(
         'When there is news worth having — a new venture, a show, a change we think you should know about — it will appear here first.',
@@ -580,92 +580,6 @@ async function seed() {
       },
     ],
     'PAT & J.K. Co. is a sole proprietorship and the umbrella under which ventures in art and craft are built and run. Its latest is Phulhaar Gallery by PJK.',
-  )
-
-  const values = await page(
-    'Our values',
-    'values',
-    [
-      {
-        blockType: 'pageIntro',
-        align: 'left',
-        eyebrow: 'Our values',
-        heading: 'What we stand for',
-        intro:
-          'Written down so they can be held to: how we deal with people, what we do with what we learn about them, and how the work itself gets done.',
-      },
-      {
-        blockType: 'manifesto',
-        eyebrow: 'Ethics',
-        heading: 'Ethics and standing policy',
-        content: root(
-          p(
-            'These are the rules we hold ourselves to. They apply to every individual of this venture — everyone who works for PAT & J.K. Co. or for any venture under it, in any role, paid or otherwise. They apply equally to every outside business we deal with: suppliers, contractors, galleries, partners and clients. Working with us means working to them.',
-          ),
-          h('h3', 'Honest dealing'),
-          p(
-            'We describe what we sell accurately: what a work is, what it is made of, what was restored or replaced, and what it costs. Prices are the same whoever is asking. If we get something wrong, we say so and put it right.',
-          ),
-          h('h3', 'Artists and makers'),
-          p(
-            'Artists are told in writing what is being shown, for how long and on what terms, and are paid on the dates we agreed. Work left with us is insured and looked after. We do not copy an artist’s work, and we credit the people who made a thing whenever we show it.',
-          ),
-          h('h3', 'Information about people'),
-          p(
-            'We collect only what we need to answer you or complete an order, we keep it no longer than we need it, and we never sell it. What we hold and how to have it removed is set out in our [privacy policy](/privacy).',
-          ),
-          h('h3', 'Conflicts of interest'),
-          p(
-            'If anyone at PJK stands to gain personally from a transaction, they say so before it happens and step back from the decision. We do not accept gifts intended to influence what we buy, show or recommend.',
-          ),
-          h('h3', 'How we identify ourselves'),
-          p(
-            `No one here begins a transaction, an agreement or a negotiation from anything other than an official @pjk.co.in address. If a quotation, an invoice or a request for payment reaches you from anywhere else, it did not come from us — write to [${CONTACT_INBOX}](mailto:${CONTACT_INBOX}) before you act on it.`,
-          ),
-          h('h3', 'People at work'),
-          p(
-            'Everyone who works with us is treated the same regardless of background, and harassment of any kind ends the relationship. We follow the law wherever we operate, and we pay suppliers on time.',
-          ),
-          h('h3', 'Raising a concern'),
-          p(
-            'If something here is not being followed, write to the founder directly. Concerns raised in good faith are taken seriously and never held against the person who raised them.',
-          ),
-        ),
-      },
-      {
-        blockType: 'principles',
-        eyebrow: 'How we work',
-        heading: 'How we work',
-        numbering: 'roman',
-        items: [
-          {
-            title: 'We choose slowly',
-            text: 'Nothing carries our name until we would be glad to live with it ourselves. That means turning down more than we take on.',
-          },
-          {
-            title: 'We make carefully',
-            text: 'Materials are chosen for how they will age, not for what they cost us. The parts nobody sees are finished as well as the parts they do.',
-          },
-          {
-            title: 'We explain the work',
-            text: 'You are told what was done, by whom and with what, before you are asked to pay for it. No pressure, and no invented scarcity.',
-          },
-          {
-            title: 'We stay responsible for it',
-            text: 'If something we made or sold fails, we repair it. A sale is the start of the relationship, not the end of it.',
-          },
-        ],
-      },
-      {
-        blockType: 'ctaBand',
-        tone: 'surface',
-        eyebrow: 'Questions',
-        heading: 'Anything here you would like to ask about?',
-        text: 'We are glad to explain how we work, in as much detail as you would like.',
-        links: [url('/contact', 'Get in touch', 'default')],
-      },
-    ],
-    'The ethics, standing policy and working practices of PAT & J.K. Co.',
   )
 
   const ventures = await page(
@@ -864,7 +778,6 @@ async function seed() {
     },
     headerNav: [
       pageRef(about.id, 'About'),
-      pageRef(values.id, 'Our values'),
       pageRef(ventures.id, 'Ventures'),
       pageRef(leadership.id, 'Leadership'),
       pageRef(journal.id, 'Journal'),
@@ -877,7 +790,6 @@ async function seed() {
     footerNav: [
       pageRef(home.id, 'Home'),
       pageRef(about.id, 'About'),
-      pageRef(values.id, 'Our values'),
       pageRef(ventures.id, 'Ventures'),
       pageRef(leadership.id, 'Leadership'),
       pageRef(journal.id, 'Journal'),
