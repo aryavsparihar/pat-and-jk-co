@@ -49,6 +49,7 @@ const ROUTES: Record<string, 'public' | 'member' | 'staff' | 'secret' | 'token'>
   '/collaborate/artist-agreement': 'public',
   '/collaborate/trade-agreement': 'public',
   '/admin-access': 'public',
+  '/help': 'public',
   '/robots.txt': 'public',
   '/sitemap.xml': 'public',
   '/account': 'member',
@@ -75,6 +76,7 @@ const ROUTES: Record<string, 'public' | 'member' | 'staff' | 'secret' | 'token'>
   '/next/exit-preview': 'public',
   '/next/visits': 'public',
   '/next/members/request-code': 'public',
+  '/next/help/request': 'public',
   '/next/members/verify-code': 'public',
   '/next/members/session': 'public',
   // Who is signed in, for the header: member, staff or no one, never anything more
@@ -138,6 +140,8 @@ const COLLECTIONS: Record<string, 'public' | 'own' | 'staff' | 'self' | 'admin' 
     'kyc-documents': 'kyc',
     'agreement-executions': 'kyc',
     'access-requests': 'admin',
+    // Ticket numbers and the kind of request only; written by the Help Center, never through the API
+    'help-tickets': 'staff',
     'security-events': 'admin',
     'login-challenges': 'none',
     'rate-limits': 'none',
@@ -259,6 +263,7 @@ test('public pages open for everyone', async () => {
     '/collaborate/artists',
     '/collaborate/signin',
     '/admin-access',
+    '/help',
     '/robots.txt',
     '/sitemap.xml',
     '/api/health',
