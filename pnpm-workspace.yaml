@@ -47,6 +47,10 @@ auditConfig:
     # deeply nested glob patterns. No fixed version exists; it only ever matches globs from our
     # own build configuration, never anything a visitor sends. Review 2026-12-01
     - GHSA-vfj7-8cjw-p6xm
+    # picomatch 4.0.7 and 2.3.2, through chokidar in sass and tinyglobby in Payload's type
+    # generator (both build tooling): slow matching on crafted extglob patterns. No fixed version
+    # exists yet; the patterns are always our own, never anything a visitor sends. Review 2026-12-01
+    - GHSA-fc5q-39xc-vjpf
 
 # Small fixes to packages, until their authors make them. Each patch says why inside. When the
 # package is updated the patch must still apply, or the install fails and says so.
