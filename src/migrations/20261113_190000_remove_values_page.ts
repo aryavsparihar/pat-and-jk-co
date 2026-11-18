@@ -1,4 +1,4 @@
-import { MigrateUpArgs, MigrateDownArgs, sql } from '@payloadcms/db-postgres'
+import { MigrateUpArgs, MigrateDownArgs } from '@payloadcms/db-postgres'
 
 /**
  * The Our values page comes off the site (13 November 2026). Nothing is deleted:
@@ -63,7 +63,7 @@ const unlink = (node: LexicalNode, pageId: number | string): boolean => {
   return changed
 }
 
-export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
+export async function up({ payload, req }: MigrateUpArgs): Promise<void> {
   const tenant = (
     await payload.find({
       collection: 'tenants',
@@ -109,20 +109,6 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
       context: { disableRevalidate: true },
       req,
     })
-    // Payload rewrites the links but leaves the old last ones' page references behind, past the
-    // end of each list; they are never read, but are cleared so the record matches what is shown
-    for (const [list, table] of [
-      ['headerNav', 'site_settings_header_nav'],
-      ['footerNav', 'site_settings_footer_nav'],
-    ] as const) {
-      await db.execute(
-        sql.raw(`DELETE FROM site_settings_rels r
-          WHERE r.parent_id = ${Number(settings.id)}
-            AND r.path ~ '^${list}\\.[0-9]+\\.'
-            AND split_part(r.path, '.', 2)::int >=
-              (SELECT count(*) FROM ${table} n WHERE n._parent_id = r.parent_id)`),
-      )
-    }
   }
 
   // Posts that link to it keep their words
