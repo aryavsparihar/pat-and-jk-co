@@ -270,7 +270,7 @@ const PartnerForm: React.FC<Props> = ({ formToken, initialCategory, privacy }) =
           Your reference is{' '}
           <strong className="tracking-wider">{reference || application?.reference}</strong>.
         </p>
-        <a className="btn btn-solid mt-10 min-h-11" href="/account">
+        <a className="btn btn-solid mt-10 min-h-11" href="/next/members/view?to=partner">
           Your account
         </a>
       </div>

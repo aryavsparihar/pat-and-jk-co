@@ -18,6 +18,8 @@ import { ContactForm } from '@/components/portal/ProfileForm'
 import { PortalFrame } from '@/components/portal/PortalFrame'
 import { profileView } from '@/members/profile'
 import { OnboardingPage } from '@/components/onboarding/OnboardingPage'
+import { AccountSwitcher } from '@/components/portal/AccountSwitcher'
+import { VIEW_COOKIE, chooseView } from '@/members/accountView'
 import { MEMBER_COOKIE } from '@/security/constants'
 import { readSession } from '@/security/memberSession'
 
@@ -36,6 +38,7 @@ const shortDate = (iso?: string | null) =>
  *
  *   an approved artist    the portal: profile, works, payouts and account (src/components/portal)
  *   an approved partner   their standing, PT ID and contact details, nothing more
+ *   both, on one email    whichever of the two they chose with "Your Account"
  *   an applicant          where their applications have got to, and nothing more; when their
  *                         artist application was declined, that news in Phulhaar's style
  *
@@ -174,7 +177,10 @@ export default async function AccountPage() {
     </section>
   )
 
-  if (member.artistId) {
+  // One email can hold both IDs; the member chooses which account they are looking at
+  const view = chooseView(member, jar.get(VIEW_COOKIE)?.value)
+
+  if (view === 'artist') {
     const profile = profileView(member)
     return (
       <PortalFrame
@@ -229,12 +235,12 @@ export default async function AccountPage() {
     )
   }
 
-  if (member.partnerId) {
+  if (view === 'partner') {
     return (
       <OnboardingPage
         heading="Your account"
         intro={<>Signed in as {member.email}.</>}
-        label="Partners"
+        label={<AccountSwitcher current="partner" />}
       >
         <section>
           <h2 className="display-sm">Partner</h2>
