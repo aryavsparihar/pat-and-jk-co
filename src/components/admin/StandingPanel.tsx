@@ -83,7 +83,7 @@ export const StandingPanel: React.FC = () => {
 
   return (
     <div style={{ marginBottom: 'var(--base)' }}>
-      <p className="field-label">Account</p>
+      <p className="field-label">Whole account (every ID)</p>
       <p style={{ marginBottom: '0.5rem' }}>{SAID[standing] ?? standing}</p>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
         {choices.map((c) => (

@@ -229,6 +229,78 @@ export const Members: CollectionConfig = {
       ],
     },
     {
+      // Suspend, restore or remove the Artist ID alone (src/members/idStanding.ts)
+      name: 'artistIdActions',
+      type: 'ui',
+      admin: {
+        condition: (data) => Boolean(data?.artistId),
+        components: {
+          Field: {
+            path: '@/components/admin/IdStandingPanel#IdStandingPanel',
+            clientProps: { role: 'artist' },
+          },
+        },
+      },
+    },
+    {
+      name: 'artistAccess',
+      label: 'Artist ID standing',
+      type: 'group',
+      // Changed only with the buttons above, which ask for a reason and are logged
+      access: { create: nobody, update: nobody },
+      admin: { hidden: true },
+      fields: [
+        {
+          name: 'standing',
+          type: 'select',
+          defaultValue: 'active',
+          options: [
+            { label: 'Active', value: 'active' },
+            { label: 'Suspended', value: 'suspended' },
+            { label: 'Removed', value: 'removed' },
+          ],
+        },
+        { name: 'reason', type: 'textarea', maxLength: 1000 },
+        { name: 'changedAt', type: 'date' },
+      ],
+    },
+    {
+      // Suspend, restore or remove the Trade Partner ID alone (src/members/idStanding.ts)
+      name: 'partnerIdActions',
+      type: 'ui',
+      admin: {
+        condition: (data) => Boolean(data?.partnerId),
+        components: {
+          Field: {
+            path: '@/components/admin/IdStandingPanel#IdStandingPanel',
+            clientProps: { role: 'partner' },
+          },
+        },
+      },
+    },
+    {
+      name: 'partnerAccess',
+      label: 'Trade Partner ID standing',
+      type: 'group',
+      // Changed only with the buttons above, which ask for a reason and are logged
+      access: { create: nobody, update: nobody },
+      admin: { hidden: true },
+      fields: [
+        {
+          name: 'standing',
+          type: 'select',
+          defaultValue: 'active',
+          options: [
+            { label: 'Active', value: 'active' },
+            { label: 'Suspended', value: 'suspended' },
+            { label: 'Removed', value: 'removed' },
+          ],
+        },
+        { name: 'reason', type: 'textarea', maxLength: 1000 },
+        { name: 'changedAt', type: 'date' },
+      ],
+    },
+    {
       // Suspend, put on hold, restore: each with a reason, logged (src/members/standing.ts)
       name: 'standingActions',
       type: 'ui',
@@ -505,6 +577,38 @@ export const Members: CollectionConfig = {
             },
             { status: 500 },
           )
+        }
+      },
+    },
+    {
+      // POST /api/members/:id/id-standing  { role: 'artist' | 'partner', standing, reason }.
+      // Staff; removing an ID is for super admins only. Logged (src/members/idStanding.ts)
+      path: '/:id/id-standing',
+      method: 'post',
+      handler: async (req) => {
+        if (!isStaff(req.user)) return refuse(req, 'Not allowed.')
+        const body = (await req.json?.().catch(() => ({}))) as {
+          role?: string
+          standing?: string
+          reason?: string
+        }
+        if (body?.standing === 'removed' && !isSuperAdmin(req.user))
+          return refuse(req, 'Only a super admin can remove an ID.')
+        const { IdStandingError, changeIdStanding } = await import('../members/idStanding')
+        try {
+          await changeIdStanding(req.payload, {
+            memberId: Number(req.routeParams?.id),
+            role: body?.role,
+            standing: body?.standing,
+            reason: body?.reason,
+            req,
+          })
+          return Response.json({ ok: true })
+        } catch (error) {
+          if (error instanceof IdStandingError)
+            return Response.json({ message: error.message }, { status: error.status })
+          req.payload.logger.error({ err: error, msg: 'Changing an ID’s standing failed' })
+          return Response.json({ message: 'The change could not be saved.' }, { status: 500 })
         }
       },
     },
