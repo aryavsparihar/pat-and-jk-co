@@ -82,6 +82,8 @@ const ROUTES: Record<string, 'public' | 'member' | 'staff' | 'secret' | 'token'>
   // Who is signed in, for the header: member, staff or no one, never anything more
   '/next/session': 'public',
   '/next/members/sign-out': 'public',
+  // Sets which account to show and goes to /account; without a session it only redirects
+  '/next/members/view': 'public',
   '/next/members/sign-out-everywhere': 'member',
   '/next/members/kyc/bank-change/cancel': 'token',
   '/next/members/application': 'member',
