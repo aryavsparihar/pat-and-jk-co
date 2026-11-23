@@ -9,6 +9,14 @@ vulnerabilities:
       deeply nested glob patterns. No fixed version exists; it only ever matches globs from our own
       build configuration, never anything a visitor sends.
     expired_at: 2026-12-01
+  - id: CVE-2026-112366
+    paths:
+      - pnpm-lock.yaml
+    statement: >-
+      picomatch 2.3.2 and 4.0.7 (GHSA-fc5q-39xc-vjpf), through chokidar in sass and tinyglobby in
+      Payload's type generator, both build tooling: slow matching on crafted extglob patterns. No
+      fixed version exists; the patterns are always our own, never anything a visitor sends.
+    expired_at: 2026-12-01
   - id: CVE-2026-115887
     paths:
       - pnpm-lock.yaml
