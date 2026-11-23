@@ -43,6 +43,7 @@ import * as migration_20261112_144353_consent_record from './20261112_144353_con
 import * as migration_20261112_153424_dpdp_alerts from './20261112_153424_dpdp_alerts'
 import * as migration_20261113_120000_brand_ampersand from './20261113_120000_brand_ampersand'
 import * as migration_20261113_180241_help_tickets from './20261113_180241_help_tickets'
+import * as migration_20261113_190000_remove_values_page from './20261113_190000_remove_values_page'
 import * as migration_20261123_175146_help_ticket_status from './20261123_175146_help_ticket_status'
 
 export const migrations = [
@@ -270,6 +271,11 @@ export const migrations = [
     up: migration_20261113_180241_help_tickets.up,
     down: migration_20261113_180241_help_tickets.down,
     name: '20261113_180241_help_tickets',
+  },
+  {
+    up: migration_20261113_190000_remove_values_page.up,
+    down: migration_20261113_190000_remove_values_page.down,
+    name: '20261113_190000_remove_values_page',
   },
   {
     up: migration_20261123_175146_help_ticket_status.up,

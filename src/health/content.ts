@@ -11,7 +11,6 @@ import type { Payload } from 'payload'
 export const REQUIRED_PAGES = [
   'home',
   'about',
-  'values',
   'ventures',
   'leadership',
   'journal',
