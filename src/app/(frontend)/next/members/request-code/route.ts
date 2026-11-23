@@ -3,7 +3,7 @@ import { getPayload } from 'payload'
 
 import { memberIdsOf } from '@/collections/Members'
 import { findMember } from '@/members/accounts'
-import { canSignIn } from '@/members/standing'
+import { memberCanSignIn } from '@/members/idStanding'
 import { checkFormToken } from '@/members/formToken'
 import { applicationsOpenness, closedReply } from '@/members/openness'
 import { sendMemberCode } from '@/members/emails'
@@ -130,7 +130,7 @@ export async function POST(request: Request) {
   }
 
   const member = await findMember(payload, email)
-  const suspended = Boolean(member && !canSignIn(member.standing))
+  const suspended = Boolean(member && !memberCanSignIn(member))
   const deliverable = !suspended && (purpose !== 'signin' || Boolean(member))
 
   if (purpose === 'signin' && !deliverable) {
@@ -142,7 +142,7 @@ export async function POST(request: Request) {
       detail: `signin: ${member ? `refused, ${member.standing}` : 'not registered'}`,
     })
     // A deleted record no longer holds anyone's address, so it reads as not registered
-    return member && member.standing === 'suspended'
+    return member && member.standing !== 'erased'
       ? reply({ message: SUSPENDED }, { status: 403 })
       : reply({ message: NOT_REGISTERED, notRegistered: true }, { status: 404 })
   }

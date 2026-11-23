@@ -3,7 +3,8 @@ import { getPayload } from 'payload'
 
 import { memberIdsOf } from '@/collections/Members'
 import { ensureApplication, findMember } from '@/members/accounts'
-import { canChange, canSignIn } from '@/members/standing'
+import { memberCanSignIn } from '@/members/idStanding'
+import { canChange } from '@/members/standing'
 import { applicationsOpenness } from '@/members/openness'
 import { fromOurOrigin, readJson, refuseCrossSite, reply } from '@/members/http'
 import { challengeEmail, checkChallenge } from '@/security/challenges'
@@ -109,7 +110,7 @@ export async function POST(request: Request) {
   let member = await findMember(payload, email)
 
   // Suspended, or deleted (a deleted record no longer holds their address, so this is a second lock)
-  if (member && !canSignIn(member.standing)) {
+  if (member && !memberCanSignIn(member)) {
     await logSecurityEvent(payload, { event: 'member-blocked', email, ip, detail: member.standing })
     return rejected()
   }
@@ -140,7 +141,7 @@ export async function POST(request: Request) {
 
   if (!member) return rejected()
 
-  if (!canSignIn(member.standing)) {
+  if (!memberCanSignIn(member)) {
     await logSecurityEvent(payload, { event: 'member-blocked', email, ip, detail: member.standing })
     return rejected()
   }
