@@ -2,6 +2,8 @@ import React from 'react'
 
 import { OnboardingPage } from '@/components/onboarding/OnboardingPage'
 
+import { AccountSwitcher } from './AccountSwitcher'
+
 const SECTIONS = [
   { href: '/account', label: 'Overview' },
   { href: '/account/profile', label: 'Profile' },
@@ -20,7 +22,7 @@ export const PortalFrame: React.FC<{
   intro: React.ReactNode
   children: React.ReactNode
 }> = ({ current, heading, intro, children }) => (
-  <OnboardingPage heading={heading} intro={intro} label="Your account">
+  <OnboardingPage heading={heading} intro={intro} label={<AccountSwitcher current="artist" />}>
     <nav aria-label="Your account" className="-mt-4 mb-12 border-b border-border">
       <ul className="flex flex-wrap gap-x-8">
         {SECTIONS.map((s) => (
