@@ -2204,7 +2204,7 @@ export interface AccessRequest {
   createdAt: string;
 }
 /**
- * Every request sent from the Help Center, by ticket number. The request itself is in the email it was sent to (business@ or tech@).
+ * Every request sent from the Help Center, by ticket number. The request itself is in the email it was sent to (business@ or tech@). To close a ticket, open it, set its status to Resolved and save; to close several, tick them and use Edit.
  *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "help-tickets".
@@ -2215,6 +2215,22 @@ export interface HelpTicket {
   requestType: 'artist' | 'partner';
   nature: 'technical' | 'business';
   memberCode?: string | null;
+  /**
+   * Set to Resolved and save once the request has been dealt with.
+   */
+  status: 'active' | 'resolved';
+  resolvedAt?: string | null;
+  attachments?:
+    | {
+        filename: string;
+        contentType: string;
+        size?: number | null;
+        storageKey: string;
+        keyId: string;
+        wrappedKey: string;
+        id?: string | null;
+      }[]
+    | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -3896,6 +3912,19 @@ export interface HelpTicketsSelect<T extends boolean = true> {
   requestType?: T;
   nature?: T;
   memberCode?: T;
+  status?: T;
+  resolvedAt?: T;
+  attachments?:
+    | T
+    | {
+        filename?: T;
+        contentType?: T;
+        size?: T;
+        storageKey?: T;
+        keyId?: T;
+        wrappedKey?: T;
+        id?: T;
+      };
   updatedAt?: T;
   createdAt?: T;
 }

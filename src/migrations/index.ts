@@ -44,6 +44,7 @@ import * as migration_20261112_153424_dpdp_alerts from './20261112_153424_dpdp_a
 import * as migration_20261113_120000_brand_ampersand from './20261113_120000_brand_ampersand'
 import * as migration_20261113_180241_help_tickets from './20261113_180241_help_tickets'
 import * as migration_20261113_190000_remove_values_page from './20261113_190000_remove_values_page'
+import * as migration_20261123_175146_help_ticket_status from './20261123_175146_help_ticket_status'
 
 export const migrations = [
   {
@@ -275,5 +276,10 @@ export const migrations = [
     up: migration_20261113_190000_remove_values_page.up,
     down: migration_20261113_190000_remove_values_page.down,
     name: '20261113_190000_remove_values_page',
+  },
+  {
+    up: migration_20261123_175146_help_ticket_status.up,
+    down: migration_20261123_175146_help_ticket_status.down,
+    name: '20261123_175146_help_ticket_status',
   },
 ]
