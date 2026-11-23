@@ -216,7 +216,7 @@ export const ArtistOnboarding: React.FC<{
           We look at every application ourselves, and we will write to you once we have. You can see
           where it has got to at any time by signing in.
         </p>
-        <a className="btn btn-solid mt-10 min-h-11" href="/account">
+        <a className="btn btn-solid mt-10 min-h-11" href="/next/members/view?to=artist">
           Your account
         </a>
       </div>
@@ -263,7 +263,7 @@ export const ArtistOnboarding: React.FC<{
       <div>
         <p className="label">Application {application.reference}</p>
         <h2 className="display-md mt-3">{words[application.stage] ?? 'Your application'}</h2>
-        <a className="btn btn-solid mt-10 min-h-11" href="/account">
+        <a className="btn btn-solid mt-10 min-h-11" href="/next/members/view?to=artist">
           Your account
         </a>
       </div>

@@ -183,6 +183,14 @@ export const sendMemberCode = async (
       })
       .catch(() => null)
   )?.docs[0]
+  // Someone already approved for what they are applying to is signing in, not applying: they
+  // get the sign-in wording, not "begin your application" (the founder's report, 22 November)
+  if (
+    member &&
+    ((purpose === 'apply-partner' && member.partnerId) ||
+      (purpose === 'apply-artist' && member.artistId))
+  )
+    purpose = 'signin'
   const name =
     member && (purpose === 'signin' || purpose === 'step-up')
       ? await memberName(payload, member.id)
