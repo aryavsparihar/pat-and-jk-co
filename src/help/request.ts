@@ -6,8 +6,8 @@ import { isEmail, normaliseEmail } from '@/security/constants'
  * asking, what kind of request it is, how to reach them, the device and browser for a technical
  * problem, the details (bold, italic and links only) and any screenshots, pictures or PDFs.
  *
- * Nothing here is stored. The request travels in two emails, to PJK and back to the sender, and
- * only the ticket number and the kind of request are kept (src/collections/HelpTickets.ts).
+ * The request travels in two emails, to PJK and back to the sender. The ticket keeps its number,
+ * the kind of request and the files, encrypted (src/collections/HelpTickets.ts).
  */
 
 export const REQUEST_TYPES = {
