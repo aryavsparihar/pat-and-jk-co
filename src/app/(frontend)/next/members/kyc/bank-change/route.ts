@@ -1,4 +1,5 @@
 import { confirmSession } from '@/members/recent'
+import { roleOpen } from '@/members/idStanding'
 import { notifyStaffOfBankChange, sendBankChangeNotice } from '@/members/emails'
 import {
   fromOurOrigin,
@@ -34,6 +35,12 @@ export async function POST(request: Request) {
     return reply(
       { message: 'Payout details are added here once you are an approved artist.' },
       { status: 409 },
+    )
+  }
+  if (!roleOpen(member, 'artist')) {
+    return reply(
+      { message: 'Your artist account is closed. Please write to hello@pjk.co.in.' },
+      { status: 403 },
     )
   }
 
