@@ -27,7 +27,7 @@ export const AccountSwitcher: React.FC<{ current: AccountView }> = ({ current })
   useEffect(() => {
     void fetch('/next/members/session', { credentials: 'include', cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : null))
-      .then((s) => setBoth(Boolean(s?.member?.artistId && s?.member?.partnerId)))
+      .then((s) => setBoth(Boolean(s?.member?.artistOpen && s?.member?.partnerOpen)))
       .catch(() => undefined)
   }, [])
 
