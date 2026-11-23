@@ -493,6 +493,30 @@ export const KycRecords: CollectionConfig = {
         }
       },
     },
+    {
+      // POST /api/kyc-records/:id/delete-after-hold { reason }. KYC reviewers only, once the legal
+      // hold has ended; deletes the record and its documents for good, logged with the reason
+      path: '/:id/delete-after-hold',
+      method: 'post',
+      handler: async (req) => {
+        if (!isKycReviewer(req.user)) return refuse(req, 'Not allowed.')
+        const { KycError, deleteKycAfterHold } = await import('../kyc/service')
+        const body = (await req.json?.().catch(() => ({}))) as { reason?: string }
+        try {
+          await deleteKycAfterHold(req.payload, {
+            recordId: Number(req.routeParams?.id),
+            actor: req.user,
+            reason: body?.reason,
+          })
+          return Response.json({ ok: true }, { headers: { 'Cache-Control': 'no-store' } })
+        } catch (error) {
+          if (error instanceof KycError)
+            return Response.json({ message: error.message }, { status: error.status })
+          req.payload.logger.error({ err: error, msg: 'Deleting a KYC record failed' })
+          return Response.json({ message: 'The record could not be deleted.' }, { status: 500 })
+        }
+      },
+    },
   ],
   timestamps: true,
 }
