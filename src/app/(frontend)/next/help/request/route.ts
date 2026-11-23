@@ -1,6 +1,11 @@
 import configPromise from '@payload-config'
 import { getPayload, type Payload } from 'payload'
 
+import {
+  type StoredAttachment,
+  deleteHelpAttachments,
+  storeHelpAttachments,
+} from '@/help/attachments'
 import { sendHelpAcknowledgement, sendHelpRequest } from '@/help/emails'
 import { type HelpRequest, parseHelpRequest } from '@/help/request'
 import { checkFormToken } from '@/members/formToken'
@@ -23,7 +28,11 @@ const REQUESTS_PER_EMAIL_PER_HOUR = 3
 const REQUESTS_PER_IP_PER_HOUR = 6
 
 /** A new ticket number, tried again on the rare clash: the unique index is what decides */
-const createTicket = async (payload: Payload, request: HelpRequest): Promise<string> => {
+const createTicket = async (
+  payload: Payload,
+  request: HelpRequest,
+  attachments: StoredAttachment[],
+): Promise<string> => {
   for (let attempt = 0; ; attempt++) {
     const ticket = newHelpTicket()
     try {
@@ -35,6 +44,8 @@ const createTicket = async (payload: Payload, request: HelpRequest): Promise<str
           requestType: request.requestType,
           nature: request.nature,
           memberCode: request.memberCode,
+          status: 'active',
+          attachments,
         },
       })
       return ticket
@@ -49,8 +60,8 @@ const createTicket = async (payload: Payload, request: HelpRequest): Promise<str
  * hidden field and a timed token against simple bots, Turnstile against the rest, and limits per
  * address and per IP, since the acknowledgement goes to whatever address was typed.
  *
- * A ticket number is logged, PJK's inbox is sent the request with its files, and the sender is
- * sent the acknowledgement. If PJK's copy cannot be sent the sender is told to try again, and the
+ * A ticket number is logged with the files (encrypted, for staff to open from the ticket), PJK's
+ * inbox is sent the request with its files, and the sender is sent the acknowledgement. If PJK's copy cannot be sent the sender is told to try again, and the
  * ticket is withdrawn so no number exists for a request nobody received.
  */
 export async function POST(request: Request) {
@@ -112,9 +123,27 @@ export async function POST(request: Request) {
     )
   }
 
-  const ticket = await createTicket(payload, help)
+  // Kept so staff can open them from the ticket. If the store cannot take them the request still
+  // goes, with the files in the email as before
+  let stored: StoredAttachment[] = []
+  if (help.attachments.length) {
+    try {
+      stored = await storeHelpAttachments(help.attachments)
+    } catch (error) {
+      payload.logger.error({ err: error, msg: 'Help Center files could not be stored' })
+    }
+  }
+
+  let ticket: string
+  try {
+    ticket = await createTicket(payload, help, stored)
+  } catch (error) {
+    await deleteHelpAttachments(stored)
+    throw error
+  }
   const sent = await sendHelpRequest(payload, ticket, help)
   if (!sent) {
+    await deleteHelpAttachments(stored)
     await payload
       .delete({
         collection: 'help-tickets',
