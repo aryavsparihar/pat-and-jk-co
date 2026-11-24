@@ -105,6 +105,8 @@ export const KycPanel: React.FC = () => {
   const { values, left, show, hide } = useReveal()
   const [files, setFiles] = useState<Record<number, DocumentInfo>>({})
   const [message, setMessage] = useState<string | null>(null)
+  // When the record was opened, read once: a render must give the same answer every time
+  const [openedAt] = useState(() => Date.now())
   const [busy, setBusy] = useState(false)
 
   const ids = documents.join(',')
@@ -282,7 +284,7 @@ export const KycPanel: React.FC = () => {
     )
   }
 
-  const holdEnded = Boolean(holdUntil && new Date(holdUntil).getTime() <= Date.now())
+  const holdEnded = Boolean(holdUntil && new Date(holdUntil).getTime() <= openedAt)
 
   /** Once the legal hold has ended: deletes the record and its documents for good */
   const deleteAfterHold = async () => {
