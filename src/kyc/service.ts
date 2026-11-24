@@ -1274,6 +1274,33 @@ export const setLegalHold = async (
   return updated
 }
 
+/**
+ * Deletes a KYC record, its documents and their files, once its legal hold has ended: the founder
+ * asked on 22 November 2026 for staff to be able to do this from the record. Only a record whose
+ * hold was set and is now in the past; a record never held follows the purge rules below. The
+ * deletion is logged with who did it, the hold date and the reason, and cannot be undone.
+ */
+export const deleteKycAfterHold = async (
+  payload: Payload,
+  { recordId, actor, reason }: { recordId: number; actor: User; reason: unknown },
+  now = new Date(),
+): Promise<void> => {
+  const why = requireReason(reason)
+  const record = await payload
+    .findByID({ collection: 'kyc-records', id: recordId, depth: 0, overrideAccess: true })
+    .catch(() => null)
+  if (!record) throw new KycError('This record no longer exists.', 404)
+  if (!record.legalHoldUntil)
+    throw new KycError('This record has no legal hold, so it cannot be deleted here.', 409)
+  if (new Date(record.legalHoldUntil) > now)
+    throw new KycError('The legal hold has not ended yet.', 409)
+  const memberId = typeof record.member === 'object' ? record.member.id : record.member
+  await purgeKyc(payload, {
+    memberId,
+    reason: `deleted by ${actor.email} after the legal hold ended on ${record.legalHoldUntil.slice(0, 10)}: ${why}`,
+  })
+}
+
 /* ─── Retention (docs/KYC.md) ───────────────────────────────────────────── */
 
 const DAY = 86_400_000

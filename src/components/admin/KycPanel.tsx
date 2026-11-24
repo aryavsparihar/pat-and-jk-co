@@ -77,6 +77,7 @@ export const KycPanel: React.FC = () => {
     ([fields]) => fields.consentWithdrawnAt?.value as string | undefined,
   )
   const holdUntil = useFormFields(([fields]) => fields.legalHoldUntil?.value as string | undefined)
+  const reference = useFormFields(([fields]) => fields.reference?.value as string | undefined)
   const identityCode = useFormFields(([fields]) => fields.identityCode?.value as string | undefined)
   const codeIssuedAt = useFormFields(
     ([fields]) => fields.identityCodeIssuedAt?.value as string | undefined,
@@ -104,6 +105,8 @@ export const KycPanel: React.FC = () => {
   const { values, left, show, hide } = useReveal()
   const [files, setFiles] = useState<Record<number, DocumentInfo>>({})
   const [message, setMessage] = useState<string | null>(null)
+  // When the record was opened, read once: a render must give the same answer every time
+  const [openedAt] = useState(() => Date.now())
   const [busy, setBusy] = useState(false)
 
   const ids = documents.join(',')
@@ -279,6 +282,34 @@ export const KycPanel: React.FC = () => {
       { until: answer.date || null, reason: answer.reason },
       answer.date ? 'The legal hold is set.' : 'The legal hold is lifted.',
     )
+  }
+
+  const holdEnded = Boolean(holdUntil && new Date(holdUntil).getTime() <= openedAt)
+
+  /** Once the legal hold has ended: deletes the record and its documents for good */
+  const deleteAfterHold = async () => {
+    const answer = await askDialog({
+      title: 'Delete this KYC record',
+      description: `The legal hold ended on ${holdUntil?.slice(0, 10)}. This deletes the record, its identity and bank details and every document, for good. It cannot be undone, and the member would have to give their details again before being paid.`,
+      confirmLabel: 'Delete for good',
+      danger: true,
+      typed: reference ? { label: `Type ${reference} to confirm`, expect: reference } : undefined,
+      reason: { label: 'Why is it being deleted?' },
+    })
+    if (!answer) return
+    setBusy(true)
+    setMessage(null)
+    const response = await fetch(`/api/kyc-records/${id}/delete-after-hold`, {
+      method: 'POST',
+      credentials: 'include',
+      cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason: answer.reason }),
+    })
+    const reply = (await response.json().catch(() => ({}))) as { message?: string }
+    setBusy(false)
+    if (!response.ok) return setMessage(reply.message ?? 'The record could not be deleted.')
+    router.push('/admin/collections/kyc-records')
   }
 
   const CHECK_WORDS: Record<string, { label: string; colour: string }> = {
@@ -469,6 +500,16 @@ export const KycPanel: React.FC = () => {
         >
           {holdUntil ? 'Change the legal hold' : 'Set a legal hold'}
         </button>
+        {holdEnded && (
+          <button
+            className="btn btn--size-small pjk-btn-danger"
+            disabled={busy}
+            onClick={deleteAfterHold}
+            type="button"
+          >
+            Delete this record
+          </button>
+        )}
       </div>
 
       {message && (
