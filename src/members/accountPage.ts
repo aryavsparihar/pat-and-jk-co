@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { getPayload } from 'payload'
 
+import { roleOpen } from '@/members/idStanding'
 import { MEMBER_COOKIE } from '@/security/constants'
 import { readSession } from '@/security/memberSession'
 
@@ -18,6 +19,6 @@ export const loadMember = async () => {
 /** The same, for pages only an approved artist may see; anyone else goes to their overview */
 export const loadArtist = async () => {
   const loaded = await loadMember()
-  if (!loaded.member.artistId) redirect('/account')
+  if (!roleOpen(loaded.member, 'artist')) redirect('/account')
   return loaded
 }

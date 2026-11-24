@@ -30,6 +30,7 @@ import { ErasePanel as ErasePanel_c706ea81d3a0d117d980a8c611e44a77 } from '@/com
 import { MemberLogPanel as MemberLogPanel_70955d8f24c9da078a3aa536c20a5f99 } from '@/components/admin/MemberLogPanel'
 import { UnpublishPanel as UnpublishPanel_fb964396b45e03000f87b9018408998b } from '@/components/admin/UnpublishPanel'
 import { EmailRecoveryPanel as EmailRecoveryPanel_1e7b46736f74144de3026cf06fae8eb8 } from '@/components/admin/EmailRecoveryPanel'
+import { IdStandingPanel as IdStandingPanel_8d8e7c653438506eaa5bca5ad213e5d6 } from '@/components/admin/IdStandingPanel'
 import { StandingPanel as StandingPanel_4b650f6e123cee9e74d4512b539e6642 } from '@/components/admin/StandingPanel'
 import { DriveFolderField as DriveFolderField_4f09c71a184dc0eba4abc468f50b20a8 } from '@/components/admin/DriveFolderField'
 import { ReviewPanel as ReviewPanel_caa7f039c39638b50465b2dc4034742a } from '@/components/admin/ReviewPanel'
@@ -93,6 +94,7 @@ export const importMap = {
   "@/components/admin/MemberLogPanel#MemberLogPanel": MemberLogPanel_70955d8f24c9da078a3aa536c20a5f99,
   "@/components/admin/UnpublishPanel#UnpublishPanel": UnpublishPanel_fb964396b45e03000f87b9018408998b,
   "@/components/admin/EmailRecoveryPanel#EmailRecoveryPanel": EmailRecoveryPanel_1e7b46736f74144de3026cf06fae8eb8,
+  "@/components/admin/IdStandingPanel#IdStandingPanel": IdStandingPanel_8d8e7c653438506eaa5bca5ad213e5d6,
   "@/components/admin/StandingPanel#StandingPanel": StandingPanel_4b650f6e123cee9e74d4512b539e6642,
   "@/components/admin/DriveFolderField#DriveFolderField": DriveFolderField_4f09c71a184dc0eba4abc468f50b20a8,
   "@/components/admin/ReviewPanel#ReviewPanel": ReviewPanel_caa7f039c39638b50465b2dc4034742a,

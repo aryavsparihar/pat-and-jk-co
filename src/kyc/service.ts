@@ -5,6 +5,7 @@ import type { Payload, Where } from 'payload'
 import sharp from 'sharp'
 
 import type { KycDocument, KycRecord, Member, User } from '@/payload-types'
+import { roleOpen } from '@/members/idStanding'
 import { PAYOUTS_PAUSED_MESSAGE, canChange } from '@/members/standing'
 import { logSecurityEvent } from '@/security/events'
 
@@ -997,6 +998,8 @@ export const requestPayoutDetails = async (
   })
   if (!member.artistId)
     throw new KycError('Payout details are asked for once the artist is approved.', 409)
+  if (!roleOpen(member, 'artist'))
+    throw new KycError('Their artist account is suspended or removed.', 409)
   if (!canChange(member.standing)) throw new KycError(PAYOUTS_PAUSED_MESSAGE, 423)
   if (record.pendingBank?.requestedAt)
     throw new KycError('Their payout details are already waiting for your check.', 409)

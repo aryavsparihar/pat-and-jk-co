@@ -2,7 +2,7 @@ import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypt
 import type { Payload } from 'payload'
 
 import type { Member, MemberSession } from '@/payload-types'
-import { canSignIn } from '@/members/standing'
+import { memberCanSignIn } from '@/members/idStanding'
 
 import {
   MEMBER_COOKIE,
@@ -184,8 +184,9 @@ export const readSession = async (
   const member = await payload
     .findByID({ collection: 'members', id: memberId, depth: 0, overrideAccess: true })
     .catch(() => null)
-  // Suspended or deleted: no session counts. On hold still signs in, to read their account
-  if (!member || !canSignIn(member.standing)) return null
+  // Suspended or deleted, or every ID they hold suspended or removed: no session counts. On hold
+  // still signs in, to read their account
+  if (!member || !memberCanSignIn(member)) return null
 
   // Sliding expiry, written at most once a day rather than on every request
   let refreshCookie: string | undefined

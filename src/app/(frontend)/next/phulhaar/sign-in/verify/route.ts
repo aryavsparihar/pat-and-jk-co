@@ -9,6 +9,7 @@ import {
   readSigned,
   signToken,
 } from '@/phulhaar/protocol'
+import { roleOpen } from '@/members/idStanding'
 import { holdsId } from '@/phulhaar/people'
 import { checkChallenge } from '@/security/challenges'
 import { clientIp } from '@/security/constants'
@@ -56,13 +57,14 @@ export async function POST(request: Request) {
   const member = result.purpose === 'signin' ? await findMember(payload, result.email) : null
   if (!member || !holdsId(member, challenge.memberId)) return json({ code: 'bad_code' }, 400)
 
-  if (member.standing !== 'active') {
+  // Phulhaar is for artists: the whole account and the Artist ID must both be active
+  if (member.standing !== 'active' || !roleOpen(member, 'artist')) {
     await logSecurityEvent(payload, {
       event: 'member-code-failed',
       email: result.email,
       ip,
       subject: challenge.memberId,
-      detail: `phulhaar: refused, ${member.standing}`,
+      detail: `phulhaar: refused, ${member.standing}, artist ${member.artistAccess?.standing ?? 'active'}`,
     })
     return json({ code: 'suspended' }, 403)
   }

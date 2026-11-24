@@ -2,6 +2,7 @@ import configPromise from '@payload-config'
 import { getPayload } from 'payload'
 
 import { reply } from '@/members/http'
+import { roleOpen } from '@/members/idStanding'
 import { readMemberCookie, readSession } from '@/security/memberSession'
 
 export const dynamic = 'force-dynamic'
@@ -22,6 +23,9 @@ export async function GET(request: Request) {
       member: {
         artistId: member.artistId ?? null,
         partnerId: member.partnerId ?? null,
+        // Which of their IDs are open (not suspended or removed): the account switcher uses these
+        artistOpen: roleOpen(member, 'artist'),
+        partnerOpen: roleOpen(member, 'partner'),
         displayName: member.displayName ?? null,
       },
     },

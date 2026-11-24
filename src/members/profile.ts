@@ -1,5 +1,6 @@
 import type { Payload } from 'payload'
 
+import { roleOpen } from './idStanding'
 import type { Member, User } from '@/payload-types'
 import { logSecurityEvent } from '@/security/events'
 
@@ -32,8 +33,13 @@ const ctx = { disableRevalidate: true }
 
 /** Only an approved artist has a portfolio */
 export const requireArtist = (member: Member) => {
-  if (!member.artistId) {
-    throw new PortalError('Your portfolio opens once your artist application is approved.', 403)
+  if (!roleOpen(member, 'artist')) {
+    throw new PortalError(
+      member.artistId
+        ? 'Your artist account is closed. Please write to hello@pjk.co.in.'
+        : 'Your portfolio opens once your artist application is approved.',
+      403,
+    )
   }
 }
 

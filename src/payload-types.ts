@@ -1637,6 +1637,16 @@ export interface Member {
    * Issued when a partner application is approved. Never changes.
    */
   partnerId?: string | null;
+  artistAccess?: {
+    standing?: ('active' | 'suspended' | 'removed') | null;
+    reason?: string | null;
+    changedAt?: string | null;
+  };
+  partnerAccess?: {
+    standing?: ('active' | 'suspended' | 'removed') | null;
+    reason?: string | null;
+    changedAt?: string | null;
+  };
   standing: 'active' | 'on-hold' | 'suspended' | 'erased';
   standingReason?: string | null;
   standingChangedAt?: string | null;
@@ -3450,6 +3460,20 @@ export interface MembersSelect<T extends boolean = true> {
       };
   artistId?: T;
   partnerId?: T;
+  artistAccess?:
+    | T
+    | {
+        standing?: T;
+        reason?: T;
+        changedAt?: T;
+      };
+  partnerAccess?:
+    | T
+    | {
+        standing?: T;
+        reason?: T;
+        changedAt?: T;
+      };
   standing?: T;
   standingReason?: T;
   standingChangedAt?: T;
