@@ -66,6 +66,8 @@ type Sent = { ticket: string; email: string; acknowledged: boolean }
 
 export const HelpForm: React.FC<{ formToken: string }> = ({ formToken }) => {
   const [requestType, setRequestType] = useState('')
+  const [nature, setNature] = useState('')
+  const [hasTicket, setHasTicket] = useState(false)
   const [files, setFiles] = useState<File[]>([])
   const [dropping, setDropping] = useState(false)
   const [empty, setEmpty] = useState(true)
@@ -241,7 +243,14 @@ export const HelpForm: React.FC<{ formToken: string }> = ({ formToken }) => {
           <label className={styles.label} htmlFor="help-nature">
             Nature of request <span className={styles.req}>*</span>
           </label>
-          <select className={styles.input} defaultValue="" id="help-nature" name="nature" required>
+          <select
+            className={styles.input}
+            id="help-nature"
+            name="nature"
+            onChange={(e) => setNature(e.target.value)}
+            required
+            value={nature}
+          >
             <option value="">Choose one</option>
             <option value="technical">Technical Issue / Inquiry</option>
             <option value="business">Business Inquiry</option>
@@ -296,42 +305,82 @@ export const HelpForm: React.FC<{ formToken: string }> = ({ formToken }) => {
         </div>
       </div>
 
-      <div className={styles.row}>
-        <div className={styles.field}>
-          <label className={styles.label} htmlFor="help-device">
-            Device
-          </label>
-          <input
-            className={styles.input}
-            id="help-device"
-            maxLength={120}
-            name="device"
-            placeholder="e.g. Laptop, Phone, Tablet"
-            type="text"
-          />
-        </div>
-        <div className={styles.field}>
-          <label className={styles.label} htmlFor="help-browser">
-            Browser
-          </label>
-          <input
-            className={styles.input}
-            id="help-browser"
-            maxLength={120}
-            name="browser"
-            placeholder="e.g. Chrome, Safari, Edge"
-            type="text"
-          />
-        </div>
-      </div>
+      {/* A Business Inquiry has no device, browser or cache question (the founder, 14 November) */}
+      {nature !== 'business' && (
+        <>
+          <div className={styles.row}>
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="help-device">
+                Device
+              </label>
+              <input
+                className={styles.input}
+                id="help-device"
+                maxLength={120}
+                name="device"
+                placeholder="e.g. Laptop, Phone, Tablet"
+                type="text"
+              />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="help-browser">
+                Browser
+              </label>
+              <input
+                className={styles.input}
+                id="help-browser"
+                maxLength={120}
+                name="browser"
+                placeholder="e.g. Chrome, Safari, Edge"
+                type="text"
+              />
+            </div>
+          </div>
 
+          <div className={styles.field}>
+            <label className={styles.check}>
+              <input name="clearedCache" type="checkbox" value="yes" />
+              <span className={styles.fine}>
+                I have already cleared my browser&rsquo;s cache and cookies (recommended first
+                step).
+              </span>
+            </label>
+          </div>
+        </>
+      )}
+
+      {/* For both kinds of request: add to a ticket already raised, rather than a new one */}
       <div className={styles.field}>
-        <label className={styles.check}>
-          <input name="clearedCache" type="checkbox" value="yes" />
-          <span className={styles.fine}>
-            I have already cleared my browser&rsquo;s cache and cookies (recommended first step).
-          </span>
-        </label>
+        <div className={styles.ticketBox}>
+          <label className={styles.ticketToggle}>
+            <input
+              checked={hasTicket}
+              name="hasTicket"
+              onChange={(e) => setHasTicket(e.target.checked)}
+              type="checkbox"
+              value="yes"
+            />
+            <span className={styles.fine}>I already have a ticket. Enter the Ticket ID.</span>
+          </label>
+          {hasTicket && (
+            <div className={styles.ticketField}>
+              <label className={styles.label} htmlFor="help-ticket">
+                Ticket ID <span className={styles.req}>*</span>
+              </label>
+              <input
+                autoCapitalize="characters"
+                autoComplete="off"
+                className={styles.input}
+                id="help-ticket"
+                maxLength={10}
+                name="ticketId"
+                placeholder="e.g. 7K3Q9"
+                required
+                type="text"
+              />
+            </div>
+          )}
+        </div>
       </div>
 
       <div className={styles.field}>

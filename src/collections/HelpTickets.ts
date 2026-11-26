@@ -27,7 +27,15 @@ export const HelpTickets: CollectionConfig = {
   admin: {
     group: 'Enquiries',
     useAsTitle: 'ticket',
-    defaultColumns: ['ticket', 'status', 'requestType', 'nature', 'memberCode', 'createdAt'],
+    defaultColumns: [
+      'ticket',
+      'status',
+      'requestType',
+      'nature',
+      'memberCode',
+      'followUps',
+      'createdAt',
+    ],
     description:
       'Every request sent from the Help Center, by ticket number. The request itself is in the email it was sent to (business@ or tech@). To close a ticket, open it, set its status to Resolved and save; to close several, tick them and use Edit.',
     components: { beforeListTable: ['@/components/admin/HelpTicketTabs#HelpTicketTabs'] },
@@ -108,6 +116,30 @@ export const HelpTickets: CollectionConfig = {
         readOnly: true,
         date: { pickerAppearance: 'dayAndTime' },
         condition: (data) => data?.status === 'resolved',
+      },
+    },
+    {
+      name: 'followUps',
+      label: 'Follow-ups sent',
+      type: 'number',
+      defaultValue: 0,
+      access: { update: nobody },
+      admin: {
+        position: 'sidebar',
+        readOnly: true,
+        description: 'Messages added to this ticket with "I already have a ticket".',
+      },
+    },
+    {
+      name: 'lastFollowUpAt',
+      label: 'Last follow-up',
+      type: 'date',
+      access: { update: nobody },
+      admin: {
+        position: 'sidebar',
+        readOnly: true,
+        date: { pickerAppearance: 'dayAndTime' },
+        condition: (data) => Boolean(data?.lastFollowUpAt),
       },
     },
     {

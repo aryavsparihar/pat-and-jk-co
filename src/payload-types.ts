@@ -2230,6 +2230,11 @@ export interface HelpTicket {
    */
   status: 'active' | 'resolved';
   resolvedAt?: string | null;
+  /**
+   * Messages added to this ticket with "I already have a ticket".
+   */
+  followUps?: number | null;
+  lastFollowUpAt?: string | null;
   attachments?:
     | {
         filename: string;
@@ -3938,6 +3943,8 @@ export interface HelpTicketsSelect<T extends boolean = true> {
   memberCode?: T;
   status?: T;
   resolvedAt?: T;
+  followUps?: T;
+  lastFollowUpAt?: T;
   attachments?:
     | T
     | {

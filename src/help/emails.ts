@@ -21,9 +21,18 @@ const rows = (request: HelpRequest) => [
   { label: 'Email address', value: request.email },
   { label: REQUEST_TYPES[request.requestType].idLabel, value: request.memberCode },
   { label: 'Full name', value: request.name },
-  { label: 'Device', value: request.device || 'Not given' },
-  { label: 'Browser', value: request.browser || 'Not given' },
-  { label: 'Cleared cache and cookies', value: request.clearedCache ? 'Yes' : 'No' },
+  // A Business Inquiry is not asked about the device, browser or cache
+  ...(request.nature === 'technical'
+    ? [
+        { label: 'Device', value: request.device || 'Not given' },
+        { label: 'Browser', value: request.browser || 'Not given' },
+        { label: 'Cleared cache and cookies', value: request.clearedCache ? 'Yes' : 'No' },
+      ]
+    : []),
+  {
+    label: 'Existing ticket',
+    value: request.existingTicket ? `Yes, ${request.existingTicket}` : 'No, a new request',
+  },
   { label: 'Subject', value: request.subject || 'Not given' },
   {
     label: 'Attachments',
@@ -65,12 +74,14 @@ export const sendHelpRequest = async (
       attachments: request.attachments,
     },
     buildEmail({
-      subject: `Help Center: ${title(ticket, request)}`,
+      subject: `Help Center: ${request.existingTicket ? 'Follow-up, ' : ''}${title(ticket, request)}`,
       preheader: `${NATURES[request.nature]} from ${request.name} (${request.memberCode}).`,
       parts: [
         {
           kind: 'paragraph',
-          text: `A new request has been raised through the ${BRAND} Help Center. Reply to this email to answer ${request.name} directly, quoting the ticket number.`,
+          text: request.existingTicket
+            ? `${request.name} has added to ticket ${ticket} through the ${BRAND} Help Center. Reply to this email to answer them directly, quoting the ticket number.`
+            : `A new request has been raised through the ${BRAND} Help Center. Reply to this email to answer ${request.name} directly, quoting the ticket number.`,
         },
         { kind: 'reference', label: 'Ticket number', value: ticket },
         { kind: 'fields', rows: rows(request) },
@@ -94,13 +105,19 @@ export const sendHelpAcknowledgement = async (
     payload,
     { to: request.email },
     buildEmail({
-      subject: `We have received your request [Ticket ${ticket}]`,
-      preheader: `Your request has been logged under ticket ${ticket}.`,
+      subject: request.existingTicket
+        ? `We have added your message to your request [Ticket ${ticket}]`
+        : `We have received your request [Ticket ${ticket}]`,
+      preheader: request.existingTicket
+        ? `Your message has been added to ticket ${ticket}.`
+        : `Your request has been logged under ticket ${ticket}.`,
       parts: [
         { kind: 'paragraph', text: `Dear ${request.name},` },
         {
           kind: 'paragraph',
-          text: `Thank you for contacting the ${BRAND} Help Center. Your request has been received and logged under the ticket number below. Please quote it in any correspondence about this request.`,
+          text: request.existingTicket
+            ? `Thank you for contacting the ${BRAND} Help Center. Your message has been added to your existing request, under the same ticket number below. Please quote it in any correspondence about this request.`
+            : `Thank you for contacting the ${BRAND} Help Center. Your request has been received and logged under the ticket number below. Please quote it in any correspondence about this request.`,
         },
         { kind: 'reference', label: 'Ticket number', value: ticket },
         {

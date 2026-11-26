@@ -46,6 +46,7 @@ import * as migration_20261113_180241_help_tickets from './20261113_180241_help_
 import * as migration_20261113_190000_remove_values_page from './20261113_190000_remove_values_page';
 import * as migration_20261123_175146_help_ticket_status from './20261123_175146_help_ticket_status';
 import * as migration_20261123_185440_per_id_standing from './20261123_185440_per_id_standing';
+import * as migration_20261126_084142_help_ticket_follow_ups from './20261126_084142_help_ticket_follow_ups';
 
 export const migrations = [
   {
@@ -286,6 +287,11 @@ export const migrations = [
   {
     up: migration_20261123_185440_per_id_standing.up,
     down: migration_20261123_185440_per_id_standing.down,
-    name: '20261123_185440_per_id_standing'
+    name: '20261123_185440_per_id_standing',
+  },
+  {
+    up: migration_20261126_084142_help_ticket_follow_ups.up,
+    down: migration_20261126_084142_help_ticket_follow_ups.down,
+    name: '20261126_084142_help_ticket_follow_ups'
   },
 ];

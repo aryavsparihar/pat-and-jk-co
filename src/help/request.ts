@@ -1,4 +1,5 @@
 import { escapeHtml } from '@/email/layout'
+import { HELP_TICKET_PATTERN } from '@/members/ids'
 import { isEmail, normaliseEmail } from '@/security/constants'
 
 /**
@@ -46,6 +47,8 @@ export type HelpRequest = {
   browser: string
   clearedCache: boolean
   subject: string
+  /** The ticket this follows up, when the sender ticked "I already have a ticket" */
+  existingTicket: string | null
   details: Details
   attachments: Attachment[]
 }
@@ -195,6 +198,19 @@ export const parseHelpRequest = async (form: FormData): Promise<Parsed> => {
   const name = text(form.get('name'), SHORT_MAX)
   if (!name) return { ok: false, message: 'Enter your full name.' }
 
+  // "I already have a ticket": the ID they give, checked against the tickets by the route
+  let existingTicket: string | null = null
+  if (form.get('hasTicket') === 'yes') {
+    existingTicket = text(form.get('ticketId'), 20)
+      .replace(/[\s-]+/g, '')
+      .toUpperCase()
+    if (!HELP_TICKET_PATTERN.test(existingTicket))
+      return {
+        ok: false,
+        message: 'Enter your ticket ID: the five letters and numbers in your email from us.',
+      }
+  }
+
   const details = parseDetails(form.get('details'))
   if (!details) return { ok: false, message: 'Your request could not be read. Please try again.' }
   if (detailsLength(details) === 0) return { ok: false, message: 'Describe your request.' }
@@ -228,10 +244,12 @@ export const parseHelpRequest = async (form: FormData): Promise<Parsed> => {
       email,
       memberCode,
       name,
-      device: text(form.get('device'), SHORT_MAX),
-      browser: text(form.get('browser'), SHORT_MAX),
-      clearedCache: form.get('clearedCache') === 'yes',
+      // A Business Inquiry has no device, browser or cache question (the founder, 14 November)
+      device: nature === 'technical' ? text(form.get('device'), SHORT_MAX) : '',
+      browser: nature === 'technical' ? text(form.get('browser'), SHORT_MAX) : '',
+      clearedCache: nature === 'technical' && form.get('clearedCache') === 'yes',
       subject: text(form.get('subject'), SUBJECT_MAX),
+      existingTicket,
       details,
       attachments,
     },
