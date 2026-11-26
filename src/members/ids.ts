@@ -69,7 +69,14 @@ export const newApplicationReference = (kind: MemberKind): string =>
  * A Help Center ticket: five characters from the unambiguous alphabet, like 7K3Q9 (29^5, about
  * 20 million). The caller checks it is unused (src/help/requests.ts).
  */
-export const newHelpTicket = (): string => randomCode(5)
+export const newHelpTicket = (): string => {
+  // Always letters and numbers together (the founder, 15 November 2026): a code of letters alone,
+  // like CHCWK, reads as a word, so draw again until it has at least one of each
+  for (;;) {
+    const code = randomCode(5)
+    if (/\d/.test(code) && /[A-Z]/.test(code)) return code
+  }
+}
 
 /** What a Help Center ticket looks like */
 export const HELP_TICKET_PATTERN = new RegExp(`^[${REFERENCE_ALPHABET}]{5}$`)
