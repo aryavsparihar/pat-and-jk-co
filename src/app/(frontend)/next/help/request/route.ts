@@ -134,27 +134,75 @@ export async function POST(request: Request) {
     }
   }
 
+  // A follow-up joins the ticket the sender already has, if it is theirs; otherwise a new number
   let ticket: string
-  try {
-    ticket = await createTicket(payload, help, stored)
-  } catch (error) {
-    await deleteHelpAttachments(stored)
-    throw error
+  let followUp: { id: number; attachments: unknown[]; followUps: number } | null = null
+  if (help.existingTicket) {
+    const found = await payload
+      .find({
+        collection: 'help-tickets',
+        where: { ticket: { equals: help.existingTicket } },
+        limit: 1,
+        depth: 0,
+        overrideAccess: true,
+        showHiddenFields: true,
+      })
+      .then((r) => r.docs[0])
+    // The ID they gave must be the one the ticket was raised with, so nobody can add to a
+    // stranger's ticket by guessing its number
+    if (!found || (found.memberCode ?? '').toUpperCase() !== help.memberCode.toUpperCase()) {
+      await deleteHelpAttachments(stored)
+      return reply(
+        {
+          message: `We could not find ticket ${help.existingTicket} for that ${help.requestType === 'artist' ? 'Artist ID' : 'Trade Partner ID'}. Check the ticket ID, or untick the box to raise a new request.`,
+        },
+        { status: 400 },
+      )
+    }
+    ticket = found.ticket
+    followUp = {
+      id: found.id,
+      attachments: (found.attachments ?? []) as unknown[],
+      followUps: found.followUps ?? 0,
+    }
+  } else {
+    try {
+      ticket = await createTicket(payload, help, stored)
+    } catch (error) {
+      await deleteHelpAttachments(stored)
+      throw error
+    }
   }
   const sent = await sendHelpRequest(payload, ticket, help)
   if (!sent) {
     await deleteHelpAttachments(stored)
-    await payload
-      .delete({
-        collection: 'help-tickets',
-        where: { ticket: { equals: ticket } },
-        overrideAccess: true,
-      })
-      .catch(() => undefined)
+    // A new ticket is withdrawn; an existing one is left as it was
+    if (!followUp)
+      await payload
+        .delete({
+          collection: 'help-tickets',
+          where: { ticket: { equals: ticket } },
+          overrideAccess: true,
+        })
+        .catch(() => undefined)
     return reply(
       { message: 'We could not send your request just now. Please try again in a few minutes.' },
       { status: 503 },
     )
+  }
+  if (followUp) {
+    // The new files join the ticket's, and a resolved ticket is open again
+    await payload.update({
+      collection: 'help-tickets',
+      id: followUp.id,
+      data: {
+        attachments: [...followUp.attachments, ...stored],
+        followUps: followUp.followUps + 1,
+        lastFollowUpAt: new Date().toISOString(),
+        status: 'active',
+      } as never,
+      overrideAccess: true,
+    })
   }
   // The request reached PJK; a failed acknowledgement does not undo that
   const acknowledged = await sendHelpAcknowledgement(payload, ticket, help)

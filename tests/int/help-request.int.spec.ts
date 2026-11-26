@@ -139,3 +139,46 @@ describe('Help Center form', () => {
     })
   })
 })
+
+describe('Help Center follow-ups (14 and 15 November)', () => {
+  it('always mixes letters and numbers in a new ticket number', () => {
+    for (let i = 0; i < 500; i++) {
+      const ticket = newHelpTicket()
+      expect(ticket).toMatch(HELP_TICKET_PATTERN)
+      expect(ticket).toMatch(/\d/)
+      expect(ticket).toMatch(/[A-Z]/)
+    }
+  })
+
+  it('reads the ticket ID only when "I already have a ticket" is ticked', async () => {
+    const without = await parseHelpRequest(form({ ...valid, ticketId: '7K3Q9' }))
+    expect(without.ok && without.request.existingTicket).toBe(null)
+    const withIt = await parseHelpRequest(
+      form({ ...valid, hasTicket: 'yes', ticketId: ' 7k3-q9 ' }),
+    )
+    expect(withIt.ok && withIt.request.existingTicket).toBe('7K3Q9')
+    const bad = await parseHelpRequest(form({ ...valid, hasTicket: 'yes', ticketId: 'ABC' }))
+    expect(bad.ok).toBe(false)
+  })
+
+  it('keeps older letters-only tickets findable', () => {
+    expect('CHCWK').toMatch(HELP_TICKET_PATTERN)
+  })
+
+  it('drops the device, browser and cache answers from a Business Inquiry', async () => {
+    const parsed = await parseHelpRequest(
+      form({
+        ...valid,
+        nature: 'business',
+        device: 'Phone',
+        browser: 'Safari',
+        clearedCache: 'yes',
+      }),
+    )
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.request.device).toBe('')
+    expect(parsed.request.browser).toBe('')
+    expect(parsed.request.clearedCache).toBe(false)
+  })
+})
