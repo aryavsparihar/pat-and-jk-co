@@ -126,6 +126,26 @@
   border-radius: 4px;
   cursor: pointer;
 }
+.ticketBox {
+  padding: 12px;
+  background: #faf8f3;
+  border: 1px solid #eae6dc;
+  border-radius: 4px;
+}
+.ticketToggle {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  cursor: pointer;
+}
+.ticketToggle input {
+  margin-top: 3px;
+  accent-color: #0f2a18;
+}
+.ticketField {
+  margin-top: 12px;
+  max-width: 16rem;
+}
 .check input {
   margin-top: 3px;
   accent-color: #0f2a18;
