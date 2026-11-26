@@ -120,6 +120,11 @@ export const SiteFooter: React.FC<Props> = ({ settings, ventures }) => {
                     </a>
                   </li>
                 )}
+                <li className="pt-1">
+                  <a className={listLink} href="/help">
+                    Help
+                  </a>
+                </li>
               </ul>
               <SocialLinks className="mt-5 flex-col gap-y-2.5" socials={settings?.socials} />
             </div>
