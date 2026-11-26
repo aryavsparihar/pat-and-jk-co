@@ -96,7 +96,8 @@ export async function POST(request: Request) {
     })
   ).docs[0]
   await notifyStaffOfDataRequest(payload, {
-    reference: member.artistId || member.partnerId || application?.reference,
+    // Both IDs when they hold both, so the request is not filed under one of them only
+    reference: memberIdsOf(member) ?? application?.reference,
     request: KINDS[kind],
     kind,
     memberId: member.id,
