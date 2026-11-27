@@ -66,7 +66,7 @@ export const HeaderClient: React.FC<Props> = ({ contactEmail, nav, siteName }) =
           Skip to content
         </a>
 
-        <div className="container flex h-16 items-center justify-between gap-4 sm:gap-8 md:h-20">
+        <div className="site-header-bar container flex h-16 items-center justify-between gap-3 sm:gap-8 md:h-20">
           <Link aria-label={`${siteName}, home`} className="site-wordmark shrink-0" href="/">
             {siteName}
           </Link>
