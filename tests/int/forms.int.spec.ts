@@ -125,7 +125,89 @@ describe('step schemas', () => {
     const wrongPin = addressStepSchema.safeParse({
       residence: { ...residence, postalCode: '84101' },
     })
-    expect(fieldErrors(wrongPin.error!)['residence.postalCode']).toMatch(/six digits/)
+    expect(fieldErrors(wrongPin.error!)['residence.postalCode']).toBe(
+      'A PIN code is six digits, for example 184101.',
+    )
+  })
+
+  it('write an address the way its country does', () => {
+    const london = {
+      country: 'United Kingdom',
+      postalCode: 'sw1a 1aa',
+      line1: '10 Example Street',
+      city: 'London',
+      district: 'left over from India',
+      state: '',
+    }
+    const parsed = addressStepSchema.safeParse({ residence: london, correspondenceSame: true })
+    expect(parsed.success).toBe(true)
+    // No district outside India, the postcode in capitals, and an empty county left out
+    expect(parsed.data!.residence).toMatchObject({ postalCode: 'SW1A 1AA', city: 'London' })
+    expect(parsed.data!.residence).not.toHaveProperty('district', expect.anything())
+    expect(parsed.data!.residence.state).toBeUndefined()
+
+    const dubai = { country: 'United Arab Emirates', line1: 'Villa 4, Street 12', city: 'Dubai' }
+    const noEmirate = addressStepSchema.safeParse({ residence: dubai })
+    expect(fieldErrors(noEmirate.error!)['residence.state']).toBe('Please add your emirate.')
+    const withEmirate = addressStepSchema.safeParse({
+      residence: { ...dubai, state: 'Dubai', postalCode: '00000' },
+    })
+    expect(withEmirate.success).toBe(true)
+    // The UAE has no postal codes, so none is kept
+    expect(withEmirate.data!.residence.postalCode).toBeUndefined()
+
+    const nowhere = addressStepSchema.safeParse({ residence: { ...london, country: 'Narnia' } })
+    expect(fieldErrors(nowhere.error!)['residence.country']).toBe('Please choose your country.')
+  })
+
+  it('take the postal address with its own country, in one box', () => {
+    const residence = {
+      line1: 'House 1, Example Lane',
+      city: 'Kathua',
+      district: 'Kathua',
+      state: 'Jammu and Kashmir',
+      postalCode: '184101',
+      country: 'India',
+    }
+    const empty = addressStepSchema.safeParse({
+      residence,
+      correspondenceSame: false,
+      correspondence: { country: 'United States' },
+    })
+    const errors = fieldErrors(empty.error!)
+    expect(errors['correspondence.line1']).toBe('Please add the address where we should send post.')
+    expect(errors['correspondence.postalCode']).toBe('Please add your ZIP code.')
+    expect(errors['correspondence.state']).toBe('Please add your state.')
+    const full = addressStepSchema.safeParse({
+      residence,
+      correspondenceSame: false,
+      correspondence: {
+        country: 'United States',
+        line1: '1 Example Avenue\nApartment 2',
+        city: 'New York',
+        postalCode: '10001',
+        state: 'New York',
+      },
+    })
+    expect(full.success).toBe(true)
+  })
+
+  it('take a phone number as a country code and a number', () => {
+    const about = {
+      legalName: 'Example Person',
+      displayName: 'Example',
+      dateOfBirth: '1990-01-01',
+      language: 'English',
+    }
+    const parse = (phone: string) => aboutSchema.safeParse({ ...about, phone })
+    expect(parse('+44 07911 123456').data?.phone).toBe('+447911123456')
+    expect(parse('+91 98765 43210').data?.phone).toBe('+919876543210')
+    // A number saved before the country code picker was Indian
+    expect(parse('9876543210').data?.phone).toBe('+919876543210')
+    expect(fieldErrors(parse('+91 98765').error!).phone).toBe(
+      'That number looks too short for India. Please check it.',
+    )
+    expect(fieldErrors(parse('').error!).phone).toBe('Please add a phone number.')
   })
 
   it('ask what "other" means, and hold the biography to its limit', () => {
