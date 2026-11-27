@@ -1079,6 +1079,16 @@
   padding-block: 0.75rem;
   white-space: nowrap;
 }
+/* On the narrowest phones the wordmark, the account and Menu share one line */
+@media (max-width: 400px) {
+  .site-wordmark {
+    font-size: 1rem;
+    letter-spacing: 0.12em;
+  }
+  .site-header-bar .header-link {
+    letter-spacing: 0.1em;
+  }
+}
 .header-link {
   font-family: var(--font-body);
   font-size: 0.875rem;
