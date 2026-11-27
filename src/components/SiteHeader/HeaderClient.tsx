@@ -7,12 +7,10 @@ import React, { useEffect, useState, useSyncExternalStore } from 'react'
 
 import { AccountControl } from './AccountControl'
 
-export type NavItem = { href: string; label: string; newTab: boolean }
+export type NavItem = { href: string; label: string }
 
 type Props = {
   contactEmail: string | null
-  cta: NavItem | null
-  logo: React.ReactNode
   nav: NavItem[]
   siteName: string
 }
@@ -26,7 +24,7 @@ const publicPath = (pathname: string) => pathname.replace(/^\/tenant-sites\/[^/]
 
 const noopSubscribe = () => () => {}
 
-export const HeaderClient: React.FC<Props> = ({ contactEmail, cta, logo, nav, siteName }) => {
+export const HeaderClient: React.FC<Props> = ({ contactEmail, nav, siteName }) => {
   const livePathname = usePathname()
   // Read the path only once hydrated: the server renders through a rewrite, so using it during
   // the first render would cause a hydration mismatch (see Next.js docs on usePathname + Proxy).
@@ -55,11 +53,8 @@ export const HeaderClient: React.FC<Props> = ({ contactEmail, cta, logo, nav, si
 
   const linkProps = (item: NavItem) => ({
     href: item.href,
-    ...(item.newTab ? { target: '_blank', rel: 'noopener noreferrer' } : {}),
     'aria-current': isActive(pathname, item.href) ? ('page' as const) : undefined,
   })
-
-  const items = [...nav, ...(cta ? [cta] : [])]
 
   return (
     <>
@@ -71,39 +66,37 @@ export const HeaderClient: React.FC<Props> = ({ contactEmail, cta, logo, nav, si
           Skip to content
         </a>
 
-        <div className="container flex h-16 items-center justify-between gap-4 sm:gap-8 md:h-[4.5rem]">
-          <Link aria-label={`${siteName}, home`} className="shrink-0 text-primary" href="/">
-            {logo}
+        <div className="site-header-bar container flex h-16 items-center justify-between gap-3 sm:gap-8 md:h-20">
+          <Link aria-label={`${siteName}, home`} className="site-wordmark shrink-0" href="/">
+            {siteName}
           </Link>
 
           <nav aria-label="Main" className="hidden xl:block">
-            <ul className="flex items-center gap-8">
-              {items.map((item) => (
+            <ul className="flex items-center gap-[1.875rem]">
+              {nav.map((item) => (
                 <li key={item.href}>
-                  <Link
-                    className="nav-link smallcaps whitespace-nowrap text-[1.12rem] text-primary"
-                    {...linkProps(item)}
-                  >
+                  <Link className="header-link" {...linkProps(item)}>
                     {item.label}
                   </Link>
                 </li>
               ))}
+              <li aria-hidden className="h-[18px] w-px bg-[#c9c3b5]" />
               <li>
-                <AccountControl variant="bar" />
+                <AccountControl />
               </li>
             </ul>
           </nav>
 
           {/* On a phone the account stays in view beside the menu button, never inside it */}
           <div className="ml-auto xl:hidden">
-            <AccountControl variant="bar" />
+            <AccountControl />
           </div>
 
           <button
             aria-controls="mobile-menu"
             aria-expanded={open}
             // Negative margins keep the label optically aligned while the tap target stays thumb-sized
-            className="smallcaps -my-2 -mr-3 px-3 py-2 text-[1.12rem] text-primary xl:hidden"
+            className="header-link -mr-1 xl:hidden"
             onClick={() => setOpen((v) => !v)}
             type="button"
           >
@@ -115,14 +108,14 @@ export const HeaderClient: React.FC<Props> = ({ contactEmail, cta, logo, nav, si
       {/* Mobile menu. Kept as a sibling of <header> so the fixed overlay isn't clipped by it. */}
       <div
         className={cn(
-          'fixed inset-x-0 bottom-0 top-16 z-30 overflow-y-auto bg-background transition-opacity duration-300 md:top-[4.5rem] xl:hidden',
+          'fixed inset-x-0 bottom-0 top-16 z-30 overflow-y-auto bg-background transition-opacity duration-300 md:top-20 xl:hidden',
           open ? 'visible opacity-100' : 'invisible opacity-0',
         )}
         id="mobile-menu"
       >
         <nav aria-label="Mobile" className="container py-8">
           <ul className="border-t border-border">
-            {items.map((item) => (
+            {nav.map((item) => (
               <li className="border-b border-border" key={item.href}>
                 <Link
                   className="block py-4 font-display text-[2rem] leading-tight text-primary aria-[current=page]:italic"

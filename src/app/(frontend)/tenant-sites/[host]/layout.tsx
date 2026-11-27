@@ -1,5 +1,4 @@
 import type { Metadata } from 'next'
-import type { CSSProperties } from 'react'
 
 import configPromise from '@payload-config'
 import Link from '@/components/IntentLink'
@@ -10,7 +9,6 @@ import { HashLinks } from '@/components/HashLinks'
 import { OrganizationJsonLd } from '@/components/JsonLd'
 import { SiteFooter } from '@/components/SiteFooter'
 import { SiteHeader } from '@/components/SiteHeader'
-import { getVentures } from '@/utilities/queries'
 import { getTenantContext, primaryDomain } from '@/utilities/tenant'
 
 type Args = {
@@ -42,18 +40,6 @@ export async function generateStaticParams() {
     // No database at build time — pages will render on first request instead
     return []
   }
-}
-
-const HEX = /^#(?:[0-9a-fA-F]{3}){1,2}$/
-
-/** The brand's palette from Site settings, applied as CSS custom properties. */
-const themeStyle = (colours?: Record<string, string | null | undefined> | null): CSSProperties => {
-  const style: Record<string, string> = {}
-  for (const key of ['primary', 'background', 'surface', 'foreground'] as const) {
-    const value = colours?.[key]
-    if (value && HEX.test(value)) style[`--${key}`] = value
-  }
-  return style as CSSProperties
 }
 
 export async function generateMetadata({ params }: Omit<Args, 'children'>): Promise<Metadata> {
@@ -93,19 +79,19 @@ export default async function BrandLayout({ children, params }: Args) {
     )
   }
 
-  const ventures = await getVentures(ctx.tenant.id)
-
   return (
     <div
       className="brand-theme flex min-h-screen flex-col bg-background text-foreground"
+      // Where the footer's Back to top goes
+      id="top"
+      // The palette is the founder's, fixed in globals.css; the old colour settings are not read
       data-brand={ctx.tenant.slug}
-      style={themeStyle(ctx.settings?.colours)}
     >
       <SiteHeader settings={ctx.settings} />
       <main className="flex-1" id="main">
         {children}
       </main>
-      <SiteFooter settings={ctx.settings} ventures={ventures} />
+      <SiteFooter settings={ctx.settings} />
       <OrganizationJsonLd ctx={ctx} />
       <HashLinks />
     </div>

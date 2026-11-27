@@ -43,12 +43,23 @@
   --color-warning: #8a6116;
 }
 
-/* Base palette — PJK defaults, overridden per brand on .brand-theme */
+/*
+ * The palette, from the founder's brief of 25 November 2026 (section 1): page cream, deep green
+ * for text and grounds, a muted green-grey for secondary text, warm rules, and gold for hover and
+ * decoration. Phulhaar's own cream and pink are here for the pages that show the venture.
+ */
 :root {
   --background: #f6f3ec;
   --surface: #eeeadf;
-  --foreground: #16201a;
-  --primary: #0f2a18;
+  --foreground: #12291d;
+  --primary: #12291d;
+  --muted-ink: #56665b;
+  --rule: #d9d4c8;
+  --gold: #c9952b;
+  --gold-light: #e2c27a;
+  --hover-ink: #2f5a42;
+  --phulhaar-cream: #faf3e5;
+  --phulhaar-pink: #b23a6b;
 }
 
 /* Derived tokens, declared on both selectors so they re-resolve from each brand's palette */
@@ -56,9 +67,9 @@
 .brand-theme {
   --text: color-mix(in oklab, var(--foreground) 82%, var(--primary));
   --primary-foreground: var(--background);
-  --primary-hover: color-mix(in oklab, var(--primary) 80%, black);
-  --muted-foreground: color-mix(in oklab, var(--text) 72%, var(--background));
-  --border: color-mix(in oklab, var(--primary) 18%, transparent);
+  --primary-hover: var(--hover-ink);
+  --muted-foreground: var(--muted-ink);
+  --border: var(--rule);
   --border-strong: color-mix(in oklab, var(--primary) 45%, transparent);
   --input: color-mix(in oklab, var(--primary) 40%, transparent);
   --ring: var(--primary);
@@ -414,11 +425,19 @@
     text-decoration-thickness: 1px;
     text-underline-offset: 0.22em;
     text-decoration-color: var(--border-strong);
-    transition: text-decoration-color 0.25s ease;
+    transition:
+      color 0.2s ease,
+      text-decoration-color 0.2s ease;
   }
 
+  /* Every text link: a deeper green, with a gold underline */
   .link:hover {
-    text-decoration-color: currentColor;
+    color: var(--hover-ink);
+    text-decoration-color: var(--gold);
+  }
+
+  .on-dark .link:hover {
+    color: var(--gold-light);
   }
 
   .link-caps {
@@ -443,8 +462,10 @@
     line-height: 1;
     white-space: nowrap;
     transition:
-      background-color 0.25s ease,
-      color 0.25s ease;
+      background-color 0.2s ease,
+      border-color 0.2s ease,
+      box-shadow 0.2s ease,
+      color 0.2s ease;
   }
 
   .btn-solid {
@@ -456,9 +477,11 @@
     color: var(--primary);
   }
 
+  /* A primary button: a lighter green, with a gold bar along its bottom edge */
   .btn-solid:hover {
     background: var(--primary-hover);
     border-color: var(--primary-hover);
+    box-shadow: inset 0 -3px 0 var(--gold);
   }
 
   .on-dark .btn-solid:hover {
@@ -479,15 +502,17 @@
   .btn-solid:disabled:hover {
     background: var(--ink);
     border-color: var(--ink);
+    box-shadow: none;
   }
 
+  /* An outline button keeps its ground and takes a gold border */
   .btn-outline:hover {
-    background: var(--ink);
-    color: var(--background);
+    border-color: var(--gold);
+    box-shadow: inset 0 0 0 1px var(--gold);
   }
-
-  .on-dark .btn-outline:hover {
-    color: var(--primary);
+  .btn-outline:disabled:hover {
+    border-color: var(--ink);
+    box-shadow: none;
   }
 
   /* Leaf ornament from the PJK logo, recoloured via a CSS mask */
@@ -597,7 +622,8 @@
   }
 
   .rt a:hover {
-    text-decoration-color: currentColor;
+    color: var(--hover-ink);
+    text-decoration-color: var(--gold);
   }
 
   .rt ul,
@@ -848,12 +874,16 @@
     text-decoration-thickness: 1px;
     text-underline-offset: 0.35em;
     text-decoration-color: transparent;
-    transition: text-decoration-color 0.25s ease;
+    transition: text-decoration-color 0.2s ease;
   }
 
-  .nav-link:hover,
+  /* The current page is underlined in the ink; any link under the pointer or keyboard, in gold */
   .nav-link[aria-current='page'] {
     text-decoration-color: currentColor;
+  }
+  .nav-link:hover,
+  .nav-link:focus-visible {
+    text-decoration-color: var(--gold);
   }
 }
 
@@ -1033,4 +1063,129 @@
   .preview-in {
     animation: none;
   }
+}
+
+/*
+ * The header (the founder's brief, section 2, and Header.html): the name in spaced capitals, then
+ * six links and Sign in or Your account in small spaced capitals, each underlined in gold under
+ * the pointer or keyboard focus, and in the ink on the current page.
+ */
+.site-wordmark {
+  font-family: var(--font-body);
+  font-size: 1.125rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--primary);
+  padding-block: 0.75rem;
+  white-space: nowrap;
+}
+/* On the narrowest phones the wordmark, the account and Menu share one line */
+@media (max-width: 400px) {
+  .site-wordmark {
+    font-size: 1rem;
+    letter-spacing: 0.12em;
+  }
+  .site-header-bar .header-link {
+    letter-spacing: 0.1em;
+  }
+}
+.header-link {
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--primary);
+  padding: 0.625rem 0 0.375rem;
+  border-bottom: 1px solid transparent;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+.header-link[aria-current='page'] {
+  border-bottom-color: var(--primary);
+}
+.header-link:hover,
+.header-link:focus-visible,
+.header-link[aria-expanded='true'] {
+  border-bottom-color: var(--gold);
+}
+.account-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.75rem);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  min-width: 230px;
+  padding: 0.5rem 0;
+  background: #fbf9f4;
+  border: 1px solid var(--rule);
+  border-top: 2px solid var(--gold);
+  box-shadow: 0 8px 24px rgb(18 41 29 / 0.08);
+}
+.account-menu-item {
+  display: block;
+  width: 100%;
+  padding: 0.75rem 1.25rem 0.75rem 1.125rem;
+  border-left: 2px solid transparent;
+  font-size: 1.0625rem;
+  text-align: left;
+  color: var(--primary);
+  white-space: nowrap;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease;
+}
+.account-menu-item:hover,
+.account-menu-item:focus-visible {
+  border-left-color: var(--gold);
+  background: #f1ebdd;
+  outline: none;
+}
+.account-menu-last {
+  margin-top: 0.375rem;
+  border-top: 1px solid #e4dfd3;
+}
+
+/* The footer (Footer.html): small spaced capitals for its headings, and light gold under the pointer */
+.site-footer .footer-heading {
+  font-size: 0.75rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #a9bcae;
+}
+.site-footer .footer-caps {
+  font-size: 0.8125rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.site-footer .footer-link {
+  color: inherit;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+  transition:
+    color 0.2s ease,
+    text-decoration-color 0.2s ease;
+}
+.site-footer .footer-link:hover,
+.site-footer .footer-link:focus-visible {
+  color: var(--gold-light);
+  text-decoration-color: var(--gold);
+}
+.site-footer .footer-social {
+  display: flex;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #3f5a4a;
+  border-radius: 50%;
+  color: var(--background);
+  transition:
+    color 0.2s ease,
+    border-color 0.2s ease;
+}
+.site-footer .footer-social:hover,
+.site-footer .footer-social:focus-visible {
+  color: var(--gold-light);
+  border-color: var(--gold);
 }

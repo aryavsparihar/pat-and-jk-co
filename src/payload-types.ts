@@ -1286,9 +1286,6 @@ export interface SiteSetting {
    * Optional smaller mark for the header, e.g. letters only. Falls back to the main logo.
    */
   wordmark?: (number | null) | Media;
-  /**
-   * The palette for this brand. Hairlines and hover states are derived from these automatically.
-   */
   colours?: {
     /**
      * Buttons, links, footer.
@@ -1357,9 +1354,6 @@ export interface SiteSetting {
     url?: string | null;
     label: string;
   };
-  /**
-   * A sentence or two about the brand, shown beside the logo.
-   */
   footerBlurb?: string | null;
   footerNav?:
     | {
@@ -1419,9 +1413,6 @@ export interface SiteSetting {
    * Defaults to the site name.
    */
   copyrightName?: string | null;
-  /**
-   * Displays the running number of visits beside the copyright line. The total itself is under Website → Visitor count.
-   */
   showVisitorCount?: boolean | null;
   applicationsOpen?: boolean | null;
   /**

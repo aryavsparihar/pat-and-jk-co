@@ -127,7 +127,8 @@ describe('who is signed in, for the header', () => {
   it('says member for a live member session, and sets the hint; nothing about who', async () => {
     const { cookie } = await memberCookie()
     const response = await ask(cookie)
-    expect(await response.json()).toEqual({ as: 'member' })
+    // An applicant holds no artist ID yet, so the menu offers no Your works
+    expect(await response.json()).toEqual({ as: 'member', artist: false })
     expect(hintOf(response)?.[0]).toBe('pjk_signed_in=member')
     expect(response.headers.get('cache-control')).toContain('no-store')
   })

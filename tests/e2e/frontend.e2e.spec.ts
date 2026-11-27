@@ -7,7 +7,8 @@ test.describe('Frontend', () => {
     await expect(page).toHaveTitle(/PAT & J\.K\. Co\./)
     await expect(page.locator('h1').first()).toContainText('umbrella our ventures')
     const nav = page.getByRole('navigation', { name: 'Main' })
-    for (const label of ['About', 'Ventures', 'Leadership', 'Journal', 'Collaborate']) {
+    // The founder's six links, in his order (src/components/SiteHeader)
+    for (const label of ['About', 'Ventures', 'Leadership', 'Journal', 'Work with us', 'Contact']) {
       await expect(nav.getByRole('link', { name: label })).toBeVisible()
     }
   })

@@ -1,3 +1,4 @@
+import { roleOpen } from '@/members/idStanding'
 import { canSignIn, type Standing } from '@/members/standing'
 import { MEMBER_COOKIE } from '@/security/constants'
 import { type SessionKind, sessionHintHeader } from '@/utilities/sessionHint'
@@ -8,7 +9,9 @@ export const dynamic = 'force-dynamic'
 const STAFF_COOKIE = 'payload-token'
 
 /**
- * Who is signed in, for the header on every page: "member", "staff" or no one, and nothing more.
+ * Who is signed in, for the header on every page: "member", "staff" or no one, and for a member
+ * whether they hold an open artist ID, so the account menu offers Your works to artists only. Nothing
+ * that says who they are.
  * Public pages are cached and identical for everyone, so this is the only place a visitor's
  * signed-in state is ever shown, and it is never cached by anyone.
  *
@@ -26,6 +29,7 @@ export async function GET(request: Request) {
     .some((name) => name === MEMBER_COOKIE || name === STAFF_COOKIE)
 
   let as: SessionKind | null = null
+  let artist = false
   const headers = new Headers({
     'Cache-Control': 'private, no-store, max-age=0',
     Vary: 'Cookie',
@@ -43,13 +47,15 @@ export async function GET(request: Request) {
     })
     const signedIn = user as { collection?: string; status?: string; standing?: string } | null
     if (signedIn?.collection === 'users' && signedIn.status === 'active') as = 'staff'
-    else if (signedIn?.collection === 'members' && canSignIn(signedIn.standing as Standing))
+    else if (signedIn?.collection === 'members' && canSignIn(signedIn.standing as Standing)) {
       as = 'member'
+      artist = roleOpen(signedIn as Parameters<typeof roleOpen>[0], 'artist')
+    }
     responseHeaders?.forEach((value, key) => {
       if (key.toLowerCase() === 'set-cookie') headers.append('Set-Cookie', value)
     })
   }
 
   headers.append('Set-Cookie', sessionHintHeader(as))
-  return Response.json({ as }, { headers })
+  return Response.json(as === 'member' ? { as, artist } : { as }, { headers })
 }

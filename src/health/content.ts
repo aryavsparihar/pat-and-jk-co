@@ -57,8 +57,6 @@ export const checkContent = async (payload: Payload): Promise<ContentCheck> => {
   ).docs[0]
   need(settings, 'Site settings for the brand')
   need(settings?.siteName, 'Site settings → site name')
-  need(settings?.headerNav?.length, 'Site settings → header navigation')
-  need(settings?.footerNav?.length, 'Site settings → footer navigation')
   need(settings?.email, 'Site settings → Contact & social → email')
 
   const pages = await payload.find({
