@@ -9,7 +9,6 @@ import { HashLinks } from '@/components/HashLinks'
 import { OrganizationJsonLd } from '@/components/JsonLd'
 import { SiteFooter } from '@/components/SiteFooter'
 import { SiteHeader } from '@/components/SiteHeader'
-import { getVentures } from '@/utilities/queries'
 import { getTenantContext, primaryDomain } from '@/utilities/tenant'
 
 type Args = {
@@ -80,11 +79,11 @@ export default async function BrandLayout({ children, params }: Args) {
     )
   }
 
-  const ventures = await getVentures(ctx.tenant.id)
-
   return (
     <div
       className="brand-theme flex min-h-screen flex-col bg-background text-foreground"
+      // Where the footer's Back to top goes
+      id="top"
       // The palette is the founder's, fixed in globals.css; the old colour settings are not read
       data-brand={ctx.tenant.slug}
     >
@@ -92,7 +91,7 @@ export default async function BrandLayout({ children, params }: Args) {
       <main className="flex-1" id="main">
         {children}
       </main>
-      <SiteFooter settings={ctx.settings} ventures={ventures} />
+      <SiteFooter settings={ctx.settings} />
       <OrganizationJsonLd ctx={ctx} />
       <HashLinks />
     </div>
