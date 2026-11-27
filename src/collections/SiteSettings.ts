@@ -138,8 +138,9 @@ export const SiteSettings: CollectionConfig = {
               name: 'colours',
               type: 'group',
               admin: {
-                description:
-                  'The palette for this brand. Hairlines and hover states are derived from these automatically.',
+                // The palette is now fixed in the site's stylesheet, to the founder's brief, so
+                // these settings no longer change anything and are hidden
+                hidden: true,
               },
               fields: [
                 {

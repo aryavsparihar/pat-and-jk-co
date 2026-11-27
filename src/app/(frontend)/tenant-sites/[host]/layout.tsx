@@ -1,5 +1,4 @@
 import type { Metadata } from 'next'
-import type { CSSProperties } from 'react'
 
 import configPromise from '@payload-config'
 import Link from '@/components/IntentLink'
@@ -44,18 +43,6 @@ export async function generateStaticParams() {
   }
 }
 
-const HEX = /^#(?:[0-9a-fA-F]{3}){1,2}$/
-
-/** The brand's palette from Site settings, applied as CSS custom properties. */
-const themeStyle = (colours?: Record<string, string | null | undefined> | null): CSSProperties => {
-  const style: Record<string, string> = {}
-  for (const key of ['primary', 'background', 'surface', 'foreground'] as const) {
-    const value = colours?.[key]
-    if (value && HEX.test(value)) style[`--${key}`] = value
-  }
-  return style as CSSProperties
-}
-
 export async function generateMetadata({ params }: Omit<Args, 'children'>): Promise<Metadata> {
   const { host } = await params
   const ctx = await getTenantContext(host)
@@ -98,8 +85,8 @@ export default async function BrandLayout({ children, params }: Args) {
   return (
     <div
       className="brand-theme flex min-h-screen flex-col bg-background text-foreground"
+      // The palette is the founder's, fixed in globals.css; the old colour settings are not read
       data-brand={ctx.tenant.slug}
-      style={themeStyle(ctx.settings?.colours)}
     >
       <SiteHeader settings={ctx.settings} />
       <main className="flex-1" id="main">
