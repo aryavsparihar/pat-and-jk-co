@@ -1064,3 +1064,74 @@
     animation: none;
   }
 }
+
+/*
+ * The header (the founder's brief, section 2, and Header.html): the name in spaced capitals, then
+ * six links and Sign in or Your account in small spaced capitals, each underlined in gold under
+ * the pointer or keyboard focus, and in the ink on the current page.
+ */
+.site-wordmark {
+  font-family: var(--font-body);
+  font-size: 1.125rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--primary);
+  padding-block: 0.75rem;
+  white-space: nowrap;
+}
+.header-link {
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--primary);
+  padding: 0.625rem 0 0.375rem;
+  border-bottom: 1px solid transparent;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+.header-link[aria-current='page'] {
+  border-bottom-color: var(--primary);
+}
+.header-link:hover,
+.header-link:focus-visible,
+.header-link[aria-expanded='true'] {
+  border-bottom-color: var(--gold);
+}
+.account-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.75rem);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  min-width: 230px;
+  padding: 0.5rem 0;
+  background: #fbf9f4;
+  border: 1px solid var(--rule);
+  border-top: 2px solid var(--gold);
+  box-shadow: 0 8px 24px rgb(18 41 29 / 0.08);
+}
+.account-menu-item {
+  display: block;
+  width: 100%;
+  padding: 0.75rem 1.25rem 0.75rem 1.125rem;
+  border-left: 2px solid transparent;
+  font-size: 1.0625rem;
+  text-align: left;
+  color: var(--primary);
+  white-space: nowrap;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease;
+}
+.account-menu-item:hover,
+.account-menu-item:focus-visible {
+  border-left-color: var(--gold);
+  background: #f1ebdd;
+  outline: none;
+}
+.account-menu-last {
+  margin-top: 0.375rem;
+  border-top: 1px solid #e4dfd3;
+}

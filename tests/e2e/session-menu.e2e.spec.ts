@@ -27,26 +27,30 @@ const header = (page: Page) => page.locator('header')
 
 const showsSignedOut = async (page: Page) => {
   await expect(header(page).getByRole('link', { name: 'Sign in' })).toBeVisible()
-  await expect(header(page).getByRole('button', { name: 'My Account' })).toHaveCount(0)
+  await expect(header(page).getByRole('button', { name: 'Your account' })).toHaveCount(0)
 }
 
-/** My Account, then Sign Out in its menu */
+/** Your account, then Sign out in its menu */
 const signOutFromHeader = async (page: Page) => {
-  await header(page).getByRole('button', { name: 'My Account' }).click()
-  await header(page).getByRole('menuitem', { name: 'Sign Out' }).click()
+  await header(page).getByRole('button', { name: 'Your account' }).click()
+  await header(page).getByRole('menuitem', { name: 'Sign out' }).click()
 }
 
 const showsSignedIn = async (page: Page, as: 'member' | 'staff') => {
-  const account = header(page).getByRole('button', { name: 'My Account' })
+  const account = header(page).getByRole('button', { name: 'Your account' })
   await expect(account).toBeVisible()
   await expect(header(page).getByRole('link', { name: 'Sign in' })).toHaveCount(0)
   // Its menu leads to the account or the admin, and closes again with Escape
   await account.click()
   await expect(
     header(page).getByRole('menuitem', {
-      name: as === 'staff' ? 'Open the admin' : 'View My Account',
+      name: as === 'staff' ? 'Open the admin' : 'Your account',
     }),
   ).toBeVisible()
+  // Every member here is an approved artist, so Your works is offered; staff never see it
+  await expect(header(page).getByRole('menuitem', { name: 'Your works' })).toHaveCount(
+    as === 'member' ? 1 : 0,
+  )
   await page.keyboard.press('Escape')
   await expect(header(page).getByRole('menu')).toHaveCount(0)
 }
@@ -178,7 +182,7 @@ test('an account page left open is closed when the session ends elsewhere', asyn
   await signInAs(laptop, member.id)
   const onLaptop = await laptop.newPage()
   await onLaptop.goto('/account')
-  await expect(header(onLaptop).getByRole('button', { name: 'My Account' })).toBeVisible()
+  await expect(header(onLaptop).getByRole('button', { name: 'Your account' })).toBeVisible()
 
   // Ended from another device, as deleting the account ends every session
   const onPhone = await phone.newPage()
@@ -222,6 +226,6 @@ test('the cached page itself never carries anyone’s signed-in state', async ({
   await signInAs(context, member.id)
   const html = await (await context.request.get('/')).text()
   expect(html).toContain('Sign in')
-  expect(html).not.toContain('My Account')
+  expect(html).not.toContain('Your account')
   expect(html).not.toContain(String(member.email))
 })
