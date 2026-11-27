@@ -43,13 +43,21 @@ const SIGNED_IN_PAGE = /^\/account(?:\/|$)/
 const LEAVE_AFTER_MS = 2000
 
 let state: SessionState = 'unknown'
+/** Whether the member signed in holds an open artist ID (for Your works in the account menu) */
+let artist = false
 const listeners = new Set<() => void>()
 let inflight: Promise<void> | null = null
 let started = false
 let channel: BroadcastChannel | null = null
 
-const set = (next: SessionState) => {
-  if (next === state) return
+const set = (next: SessionState, isArtist = false) => {
+  const artistNow = next === 'member' && isArtist
+  if (next === state && artistNow === artist) return
+  artist = artistNow
+  if (next === state) {
+    for (const listener of listeners) listener()
+    return
+  }
   const ended = (state === 'member' || state === 'staff') && next === 'none'
   state = next
   for (const listener of listeners) listener()
@@ -92,8 +100,11 @@ export const refreshSession = (): Promise<void> => {
         headers: { Accept: 'application/json' },
       })
       if (!response.ok) throw new Error(String(response.status))
-      const { as } = (await response.json()) as { as?: string | null }
-      set(as === 'member' || as === 'staff' ? as : 'none')
+      const { as, artist: isArtist } = (await response.json()) as {
+        as?: string | null
+        artist?: boolean
+      }
+      set(as === 'member' || as === 'staff' ? as : 'none', isArtist === true)
     } catch {
       // Offline or a hiccup: keep showing what we had, and treat "not yet known" as signed out
       if (state === 'unknown') set('none')
@@ -161,4 +172,12 @@ export const useSession = (): SessionState =>
     subscribe,
     () => state,
     () => 'unknown',
+  )
+
+/** Whether the member signed in is an artist; false for a partner, staff, or no one */
+export const useIsArtist = (): boolean =>
+  useSyncExternalStore(
+    subscribe,
+    () => artist,
+    () => false,
   )
