@@ -5,7 +5,9 @@ test.describe('Frontend', () => {
   test('homepage shows the PJK brand and navigation', async ({ page }) => {
     await page.goto('/')
     await expect(page).toHaveTitle(/PAT & J\.K\. Co\./)
-    await expect(page.locator('h1').first()).toContainText('umbrella our ventures')
+    await expect(page.locator('h1').first()).toContainText(
+      'A house for art and craft, and for the names behind it.',
+    )
     const nav = page.getByRole('navigation', { name: 'Main' })
     // The founder's six links, in his order (src/components/SiteHeader)
     for (const label of ['About', 'Ventures', 'Leadership', 'Journal', 'Work with us', 'Contact']) {
