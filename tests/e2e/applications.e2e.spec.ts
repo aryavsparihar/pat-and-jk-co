@@ -171,7 +171,7 @@ test('an artist applies step by step, stops halfway, and comes back', async ({ p
     .fill(
       'A painter working in oils and watercolour, mostly outdoors, across the seasons. '.repeat(4),
     )
-  await page.getByLabel('Instagram', { exact: true }).fill('@asha.example')
+  await page.getByLabel(/^Instagram/).fill('@asha.example')
   await page.getByRole('button', { name: 'Add another platform' }).click()
   await page.getByLabel('Platform').fill('Behance')
   await page.getByLabel('Link or ID').fill('asha-example')
