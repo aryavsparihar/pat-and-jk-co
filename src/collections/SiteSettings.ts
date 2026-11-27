@@ -168,13 +168,18 @@ export const SiteSettings: CollectionConfig = {
         },
         {
           label: 'Navigation',
+          // The header and footer are fixed to the founder's design of November 2026
+          // (src/components/SiteHeader, src/components/SiteFooter), so these settings no longer
+          // change anything. They are hidden, not removed, so no data is lost.
+          description:
+            'The header and footer links are now part of the site’s design and are changed in the code, not here.',
           fields: [
             {
               name: 'headerNav',
               label: 'Header links',
               type: 'array',
               maxRows: 7,
-              admin: { initCollapsed: true },
+              admin: { initCollapsed: true, hidden: true },
               fields: [link({ appearances: false })],
             },
             {
@@ -182,15 +187,14 @@ export const SiteSettings: CollectionConfig = {
               type: 'checkbox',
               label: 'Show a button at the end of the header',
               defaultValue: false,
+              admin: { hidden: true },
             },
             link({
               appearances: false,
               overrides: {
                 name: 'headerCta',
                 label: 'Header button',
-                admin: {
-                  condition: (_, siblingData) => Boolean(siblingData?.enableHeaderCta),
-                },
+                admin: { hidden: true },
               },
             }),
           ],
@@ -201,21 +205,21 @@ export const SiteSettings: CollectionConfig = {
             {
               name: 'footerBlurb',
               type: 'textarea',
-              admin: { description: 'A sentence or two about the brand, shown beside the logo.' },
+              admin: { hidden: true },
             },
             {
               name: 'footerNav',
               label: 'Footer links',
               type: 'array',
               maxRows: 10,
-              admin: { initCollapsed: true },
+              admin: { initCollapsed: true, hidden: true },
               fields: [link({ appearances: false })],
             },
             {
               name: 'legalLinks',
               type: 'array',
               maxRows: 4,
-              admin: { initCollapsed: true },
+              admin: { initCollapsed: true, hidden: true },
               fields: [link({ appearances: false })],
             },
             {
@@ -228,10 +232,9 @@ export const SiteSettings: CollectionConfig = {
               label: 'Show the visitor count',
               type: 'checkbox',
               defaultValue: true,
-              admin: {
-                description:
-                  'Displays the running number of visits beside the copyright line. The total itself is under Website → Visitor count.',
-              },
+              // The new footer has no visitor count; the count itself goes on, under Website →
+              // Visitor count
+              admin: { hidden: true },
             },
           ],
         },

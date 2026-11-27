@@ -1332,7 +1332,7 @@ export interface SiteSetting {
       }[]
     | null;
   enableHeaderCta?: boolean | null;
-  headerCta?: {
+  headerCta: {
     type?: ('reference' | 'custom') | null;
     newTab?: boolean | null;
     reference?:
@@ -1354,9 +1354,6 @@ export interface SiteSetting {
     url?: string | null;
     label: string;
   };
-  /**
-   * A sentence or two about the brand, shown beside the logo.
-   */
   footerBlurb?: string | null;
   footerNav?:
     | {
@@ -1416,9 +1413,6 @@ export interface SiteSetting {
    * Defaults to the site name.
    */
   copyrightName?: string | null;
-  /**
-   * Displays the running number of visits beside the copyright line. The total itself is under Website → Visitor count.
-   */
   showVisitorCount?: boolean | null;
   applicationsOpen?: boolean | null;
   /**
