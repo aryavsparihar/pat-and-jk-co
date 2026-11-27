@@ -36,10 +36,13 @@ const ROUTES: Record<string, 'public' | 'member' | 'staff' | 'secret' | 'token'>
   // Pages
   '/': 'public',
   '/[slug]': 'public',
+  '/about': 'public',
+  '/leadership': 'public',
   '/journal': 'public',
   '/journal/[slug]': 'public',
   '/ventures': 'public',
   '/ventures/[slug]': 'public',
+  '/ventures/phulhaar-gallery': 'public',
   '/collaborate': 'public',
   '/collaborate/artists': 'public',
   '/collaborate/partners': 'public',
