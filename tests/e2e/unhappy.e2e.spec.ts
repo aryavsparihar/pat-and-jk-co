@@ -88,12 +88,12 @@ test('wrong and malformed input is refused with a reason, on every form', async 
   await page.getByRole('button', { name: 'Save and continue' }).click()
   await expect(page.getByText('A few things need another look')).toBeVisible()
   await expect(page.getByText(/18 or over/).first()).toBeVisible()
-  await expect(page.getByText(/does not look complete/).first()).toBeVisible()
+  await expect(page.getByText(/looks too short for India/).first()).toBeVisible()
   // Names in any script, with apostrophes and hyphens, are fine
   await aboutYou(page, { 'Your full legal name': "आशा D'Souza-Rao عاشہ" })
   await page.getByRole('button', { name: 'Save and continue' }).click()
   await expect(page.getByRole('heading', { name: 'Where you live' })).toBeVisible()
-  await page.getByLabel('Address line 1').fill('House 1, Example Lane')
+  await page.getByLabel('House or flat, and street').fill('House 1, Example Lane')
   await page.getByLabel('City or town').fill('Kathua')
   await page.getByLabel('District').fill('Kathua')
   await page.getByLabel('State or union territory').selectOption('Jammu and Kashmir')
@@ -215,7 +215,7 @@ test('the back button mid-application loses nothing', async ({ page }) => {
   await aboutYou(page)
   await page.getByRole('button', { name: 'Save and continue' }).click()
   await expect(page.getByRole('heading', { name: 'Where you live' })).toBeVisible()
-  await page.getByLabel('Address line 1').fill('House 1, Example Lane')
+  await page.getByLabel('House or flat, and street').fill('House 1, Example Lane')
   // Back to wherever they came from, then forward again: the saved step is still saved
   await page.goBack()
   await page.goForward()

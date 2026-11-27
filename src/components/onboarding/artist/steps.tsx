@@ -1,8 +1,7 @@
 'use client'
 
-import React, { useRef, useState } from 'react'
+import React from 'react'
 
-import { STATES_AND_TERRITORIES } from '@/members/forms/india'
 import {
   BIO_LIMIT,
   DETAILS_LIMIT,
@@ -16,10 +15,9 @@ import {
   yearChoices,
 } from '@/members/forms/schemas'
 
-import { api } from '../api'
+import { AddressFields, PhoneField, PostalAddressFields, SendPostHere } from '../country'
 import { Check, CheckGroup, type Errors, SelectField, TextArea, TextField } from '../fields'
 import { Roller, type RollerOption } from '../Roller'
-import { LocationPin } from './LocationPin'
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- step values are free-form until the schema checks them */
 export type Values = Record<string, any>
@@ -67,15 +65,11 @@ export const AboutStep: React.FC<StepProps> = ({ values, set, errors }) => (
         type="date"
         value={values.dateOfBirth}
       />
-      <TextField
-        autoComplete="tel"
+      <PhoneField
         errors={errors}
-        hint="For an Indian number, the ten digits are enough. Otherwise, start with your country code."
-        inputMode="tel"
         label="Mobile number"
         name="phone"
         onValue={(v) => set('phone', v)}
-        type="tel"
         value={values.phone}
       />
     </div>
@@ -91,198 +85,19 @@ export const AboutStep: React.FC<StepProps> = ({ values, set, errors }) => (
   </div>
 )
 
-const AddressFields: React.FC<
-  StepProps & { prefix: string; legend: string; withPin?: boolean }
-> = ({ values, set, errors, prefix, legend, withPin }) => {
-  const address = values[prefix] ?? {}
-  const india = /^(india|bharat)$/i.test(address.country ?? 'India')
-  const at = (key: string) => `${prefix}.${key}`
-
-  // A full PIN code fills in the town, district and state. Only fields that are empty, or still
-  // hold what the last lookup put there, are filled: nothing the person typed is overwritten, and
-  // everything stays editable
-  const [lookup, setLookup] = useState<string | null>(null)
-  const filled = useRef<Record<string, string>>({})
-  const asked = useRef('')
-  const lookUp = async (pin: string) => {
-    if (!india || !/^[1-9]\d{5}$/.test(pin) || pin === asked.current) return
-    asked.current = pin
-    setLookup('Looking up your PIN code…')
-    const result = await api<{
-      found?: boolean
-      unavailable?: boolean
-      city?: string
-      district?: string
-      state?: string
-    }>('/next/members/pincode', { body: { pin } })
-    // A newer PIN code was typed meanwhile: its own lookup speaks for it
-    if (asked.current !== pin) return
-    if (!result.data.found) {
-      setLookup(
-        result.data.unavailable || !result.ok
-          ? 'We could not look up your PIN code just now. Please type the town and district.'
-          : 'We could not find that PIN code. Please check it.',
-      )
-      return
-    }
-    for (const key of ['city', 'district', 'state'] as const) {
-      const next = result.data[key]
-      const now = String(address[key] ?? '').trim()
-      if (next && (!now || now === filled.current[key])) {
-        set(at(key), next)
-        filled.current[key] = next
-      }
-    }
-    setLookup('Filled in from your PIN code. Please check them.')
-  }
-
-  return (
-    <fieldset className="grid gap-y-9">
-      <legend className="display-sm mb-6">{legend}</legend>
-      <TextField
-        autoComplete="address-line1"
-        errors={errors}
-        label="Address line 1"
-        name={at('line1')}
-        onValue={(v) => set(at('line1'), v)}
-        value={address.line1}
-      />
-      <TextField
-        autoComplete="address-line2"
-        errors={errors}
-        label="Address line 2"
-        name={at('line2')}
-        onValue={(v) => set(at('line2'), v)}
-        optional
-        value={address.line2}
-      />
-      <TextField
-        errors={errors}
-        hint="Something nearby that helps a courier find you."
-        label="Landmark"
-        name={at('landmark')}
-        onValue={(v) => set(at('landmark'), v)}
-        optional
-        value={address.landmark}
-      />
-      <div>
-        <TextField
-          autoComplete="postal-code"
-          className="max-w-xs"
-          errors={errors}
-          hint={
-            india
-              ? 'We fill in the town, district and state from it. You can change them.'
-              : undefined
-          }
-          inputMode={india ? 'numeric' : 'text'}
-          label={india ? 'PIN code' : 'Postal code'}
-          maxLength={india ? 6 : 12}
-          name={at('postalCode')}
-          onValue={(v) => {
-            const value = india ? v.replace(/\D/g, '') : v
-            set(at('postalCode'), value)
-            void lookUp(value)
-          }}
-          value={address.postalCode}
-        />
-        {india && lookup && (
-          <p aria-live="polite" className="muted mt-2 text-base" role="status">
-            {lookup}
-          </p>
-        )}
-      </div>
-      <div className="grid gap-x-10 gap-y-9 sm:grid-cols-2">
-        <TextField
-          autoComplete="address-level2"
-          errors={errors}
-          label="City or town"
-          name={at('city')}
-          onValue={(v) => set(at('city'), v)}
-          value={address.city}
-        />
-        <TextField
-          errors={errors}
-          label="District"
-          name={at('district')}
-          onValue={(v) => set(at('district'), v)}
-          value={address.district}
-        />
-      </div>
-      <div className="grid gap-x-10 gap-y-9 sm:grid-cols-2">
-        {india ? (
-          <SelectField
-            errors={errors}
-            label="State or union territory"
-            name={at('state')}
-            onValue={(v) => set(at('state'), v)}
-            options={STATES_AND_TERRITORIES}
-            value={address.state}
-          />
-        ) : (
-          <TextField
-            autoComplete="address-level1"
-            errors={errors}
-            label="State, province or region"
-            name={at('state')}
-            onValue={(v) => set(at('state'), v)}
-            value={address.state}
-          />
-        )}
-      </div>
-      <TextField
-        autoComplete="country-name"
-        className="max-w-sm"
-        errors={errors}
-        label="Country"
-        name={at('country')}
-        onValue={(v) => set(at('country'), v)}
-        value={address.country ?? 'India'}
-      />
-      {withPin && (
-        <LocationPin
-          latitude={address.latitude}
-          longitude={address.longitude}
-          address={[
-            address.line1,
-            address.line2,
-            address.city,
-            address.district,
-            address.state,
-            address.postalCode,
-          ]
-            .filter((part) => typeof part === 'string' && part.trim())
-            .join(', ')}
-          country={address.country}
-          onValue={(latitude, longitude) => {
-            set(at('latitude'), latitude)
-            set(at('longitude'), longitude)
-          }}
-          state={address.state}
-          town={address.city?.trim() || address.district?.trim()}
-        />
-      )}
-    </fieldset>
-  )
-}
-
-export const AddressStep: React.FC<StepProps> = (props) => {
-  const { values, set } = props
-  return (
-    <div className="grid gap-y-12">
-      <AddressFields {...props} legend="Your home address" prefix="residence" withPin />
-      <Check
-        checked={values.correspondenceSame !== false}
-        label="Send post to this address"
-        name="correspondenceSame"
-        onValue={(checked) => set('correspondenceSame', checked)}
-      />
-      {values.correspondenceSame === false && (
-        <AddressFields {...props} legend="Where to send post" prefix="correspondence" />
-      )}
-    </div>
-  )
-}
+/** Where you live, as in the Apply2 design: the home address, then the postal address if it differs */
+export const AddressStep: React.FC<StepProps> = ({ values, set, errors }) => (
+  <div className="grid gap-y-12">
+    <AddressFields errors={errors} prefix="residence" set={set} values={values} withPin />
+    <SendPostHere
+      checked={values.correspondenceSame !== false}
+      onValue={(checked) => set('correspondenceSame', checked)}
+    />
+    {values.correspondenceSame === false && (
+      <PostalAddressFields errors={errors} prefix="correspondence" set={set} values={values} />
+    )}
+  </div>
+)
 
 const YEARS_PRACTISING: RollerOption[] = [
   { value: 0, label: 'Less than one' },
