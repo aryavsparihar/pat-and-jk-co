@@ -702,7 +702,15 @@ export const notifyStaffOfPersonalChange = async (
     memberId,
     adminPath,
     member,
-  }: { what?: string; memberId: string; adminPath: string; member?: Member | null },
+    countryChange,
+  }: {
+    what?: string
+    memberId: string
+    adminPath: string
+    member?: Member | null
+    /** They gave an address in another country: the share and the ID we hold may change */
+    countryChange?: { from: string; to: string }
+  },
 ): Promise<boolean> => {
   const footer = await emailFooter(payload)
   const told = await deliver(
@@ -716,6 +724,14 @@ export const notifyStaffOfPersonalChange = async (
           kind: 'paragraph',
           text: `Member ${memberId} has updated their registered contact details (telephone, address, or email address). Please review the updated record in the admin panel.`,
         },
+        ...(countryChange
+          ? [
+              {
+                kind: 'paragraph' as const,
+                text: `Their country has changed from ${countryChange.from} to ${countryChange.to}. This can change their share of each sale and the ID we hold for them. Please write to them about both before anything changes; the record is flagged until you clear it.`,
+              },
+            ]
+          : []),
         { kind: 'link', label: 'Open member record', url: `${site()}${adminPath}` },
       ],
       footer,

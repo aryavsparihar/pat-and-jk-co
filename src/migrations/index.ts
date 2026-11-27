@@ -48,6 +48,7 @@ import * as migration_20261123_175146_help_ticket_status from './20261123_175146
 import * as migration_20261123_185440_per_id_standing from './20261123_185440_per_id_standing';
 import * as migration_20261126_084142_help_ticket_follow_ups from './20261126_084142_help_ticket_follow_ups';
 import * as migration_20261127_142211_journal_signature_and_categories from './20261127_142211_journal_signature_and_categories';
+import * as migration_20261127_153939_member_country_change from './20261127_153939_member_country_change';
 
 export const migrations = [
   {
@@ -298,6 +299,11 @@ export const migrations = [
   {
     up: migration_20261127_142211_journal_signature_and_categories.up,
     down: migration_20261127_142211_journal_signature_and_categories.down,
-    name: '20261127_142211_journal_signature_and_categories'
+    name: '20261127_142211_journal_signature_and_categories',
+  },
+  {
+    up: migration_20261127_153939_member_country_change.up,
+    down: migration_20261127_153939_member_country_change.down,
+    name: '20261127_153939_member_country_change'
   },
 ];
