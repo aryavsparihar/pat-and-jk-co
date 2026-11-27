@@ -141,6 +141,19 @@ export const Posts: CollectionConfig<'posts'> = {
       hasMany: true,
       relationTo: 'categories',
     },
+    {
+      // The first post ends with the founder's signature, shown whole, and his two titles (his
+      // brief of 25 November 2026, section 6)
+      name: 'signedByProprietor',
+      label: 'End with the proprietor’s signature',
+      type: 'checkbox',
+      defaultValue: false,
+      admin: {
+        position: 'sidebar',
+        description:
+          'Shows Yuvraj Singh Pathania’s signature and both his titles at the end of the post.',
+      },
+    },
     tenantSlugField('posts'),
   ],
   indexes: [{ fields: ['tenant', 'slug'], unique: true }],

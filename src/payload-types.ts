@@ -375,6 +375,10 @@ export interface Post {
   publishedAt?: string | null;
   categories?: (number | Category)[] | null;
   /**
+   * Shows Yuvraj Singh Pathania’s signature and both his titles at the end of the post.
+   */
+  signedByProprietor?: boolean | null;
+  /**
    * When enabled, the slug will auto-generate from the title field on save and autosave.
    */
   generateSlug?: boolean | null;
@@ -1332,7 +1336,7 @@ export interface SiteSetting {
       }[]
     | null;
   enableHeaderCta?: boolean | null;
-  headerCta: {
+  headerCta?: {
     type?: ('reference' | 'custom') | null;
     newTab?: boolean | null;
     reference?:
@@ -3039,6 +3043,7 @@ export interface PostsSelect<T extends boolean = true> {
       };
   publishedAt?: T;
   categories?: T;
+  signedByProprietor?: T;
   generateSlug?: T;
   slug?: T;
   updatedAt?: T;
