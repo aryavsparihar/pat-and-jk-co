@@ -9,7 +9,9 @@ import { LivePreviewListener } from '@/components/LivePreviewListener'
 import { Media } from '@/components/Media'
 import { PayloadRedirects } from '@/components/PayloadRedirects'
 import RichText from '@/components/RichText'
-import { Section } from '@/components/Typography'
+import { FounderCredit } from '@/components/house/FounderCredit'
+import { FounderSignature } from '@/components/house/FounderSignature'
+import { postLine } from '@/components/house/JournalEntry'
 import { docPath } from '@/utilities/docHref'
 import { formatDate } from '@/utilities/formatDateTime'
 import { generateMeta } from '@/utilities/meta'
@@ -36,57 +38,62 @@ export default async function JournalPost({ params }: Args) {
   if (!post) return <PayloadRedirects tenantId={ctx.tenant.id} url={path} />
 
   const hero = post.heroImage && typeof post.heroImage === 'object' ? post.heroImage : null
-  const categories = (post.categories ?? []).filter((c) => typeof c === 'object')
 
   return (
-    <article>
+    <div className="house">
       {draft && <LivePreviewListener />}
-
-      <header className="pb-[clamp(3rem,6vw,5rem)] pt-[clamp(4rem,9vw,7.5rem)]">
-        <div className="container grid gap-x-12 gap-y-5 md:grid-cols-12">
-          <div className="md:col-span-3 md:pt-3">
-            <Link className="label link" href="/journal">
+      <div className="house-wrap">
+        <header className="flex flex-wrap gap-8 pb-16 pt-[clamp(3.5rem,7vw,5.5rem)]">
+          <div className="flex flex-[1_1_200px] flex-col gap-2 pt-3">
+            <Link className="house-small !text-[var(--muted-ink)] !no-underline" href="/journal">
               Journal
             </Link>
-            <p className="label mt-1">
-              {post.publishedAt && (
-                <time dateTime={post.publishedAt}>{formatDate(post.publishedAt)}</time>
-              )}
-              {categories.map((c) =>
-                typeof c === 'object' ? (
-                  <span className="block" key={c.id}>
-                    {c.title}
-                  </span>
-                ) : null,
-              )}
+            {post.publishedAt && (
+              <time className="house-small" dateTime={post.publishedAt}>
+                {formatDate(post.publishedAt)}
+              </time>
+            )}
+            <span className="house-small">{postLine(post)}</span>
+          </div>
+          <div className="min-w-0 flex-[999_1_640px]">
+            <h1 className="mb-7 font-display text-[clamp(2.75rem,6vw,4.5rem)] font-normal leading-[1.05] text-primary">
+              {post.title}
+            </h1>
+            {post.excerpt && <p className="house-lead m-0">{post.excerpt}</p>}
+          </div>
+        </header>
+
+        {hero && (
+          <div className="pb-[clamp(3rem,6vw,5rem)]">
+            <Media
+              className="overflow-hidden bg-surface md:ml-[25%]"
+              imgClassName="h-auto w-full"
+              priority
+              resource={hero}
+              size="(max-width: 1024px) 100vw, 900px"
+            />
+          </div>
+        )}
+
+        <section className="flex flex-wrap gap-8 border-t border-[var(--rule)] pb-[clamp(4rem,8vw,6.875rem)] pt-[clamp(3rem,6vw,4.5rem)]">
+          <div aria-hidden className="flex-[1_1_200px]" />
+          <article className="min-w-0 max-w-[680px] flex-[999_1_640px]">
+            <RichText className="house-post" data={post.content} />
+            {post.signedByProprietor && (
+              <div className="mt-11">
+                <FounderSignature className="mb-2.5 ml-[-6px] w-[260px] max-w-full" />
+                <FounderCredit titleSize="text-[17px]" />
+              </div>
+            )}
+            <p className="mt-14">
+              <Link className="house-tl" href="/journal">
+                Back to the Journal
+              </Link>
             </p>
-          </div>
-          <div className="md:col-span-9">
-            <h1 className="display-lg max-w-[22ch]">{post.title}</h1>
-            {post.excerpt && <p className="lede measure mt-6">{post.excerpt}</p>}
-          </div>
-        </div>
-      </header>
-
-      {hero && (
-        <div className="container pb-[clamp(3rem,6vw,5rem)]">
-          <Media
-            className="overflow-hidden bg-surface md:ml-[25%]"
-            imgClassName="h-auto w-full"
-            priority
-            resource={hero}
-            size="(max-width: 1024px) 100vw, 900px"
-          />
-        </div>
-      )}
-
-      <Section>
-        <RichText className="measure" data={post.content} />
-        <Link className="link link-caps mt-14 inline-block" href="/journal">
-          Back to the journal
-        </Link>
-      </Section>
-    </article>
+          </article>
+        </section>
+      </div>
+    </div>
   )
 }
 
