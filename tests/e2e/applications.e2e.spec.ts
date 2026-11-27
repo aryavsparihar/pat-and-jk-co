@@ -171,7 +171,7 @@ test('an artist applies step by step, stops halfway, and comes back', async ({ p
     .fill(
       'A painter working in oils and watercolour, mostly outdoors, across the seasons. '.repeat(4),
     )
-  await page.getByLabel('Instagram').fill('@asha.example')
+  await page.getByLabel('Instagram', { exact: true }).fill('@asha.example')
   await page.getByRole('button', { name: 'Add another platform' }).click()
   await page.getByLabel('Platform').fill('Behance')
   await page.getByLabel('Link or ID').fill('asha-example')
@@ -397,7 +397,7 @@ test('a member signs in again with a code, and a wrong code is refused', async (
   await expect(page.getByText(`Signed in as ${email}.`)).toBeVisible()
   // The header knows: Your account in place of Sign in
   await expect(page.getByRole('button', { name: 'Your account' }).first()).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Sign in' })).toHaveCount(0)
+  await expect(page.getByRole('banner').getByRole('link', { name: 'Sign in' })).toHaveCount(0)
 })
 
 test('a save that cannot reach the server says so, and the button comes back', async ({ page }) => {

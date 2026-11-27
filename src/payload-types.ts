@@ -1332,7 +1332,7 @@ export interface SiteSetting {
       }[]
     | null;
   enableHeaderCta?: boolean | null;
-  headerCta: {
+  headerCta?: {
     type?: ('reference' | 'custom') | null;
     newTab?: boolean | null;
     reference?:
