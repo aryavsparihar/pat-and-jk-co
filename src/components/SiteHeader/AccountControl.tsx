@@ -99,7 +99,9 @@ export const AccountControl: React.FC = () => {
         onClick={() => setOpen((v) => !v)}
         type="button"
       >
-        Your account <Chevron />
+        {/* A phone has room for one short word beside the wordmark and Menu */}
+        <span className="sm:hidden">Account</span>
+        <span className="hidden sm:inline">Your account</span> <Chevron />
       </button>
       {open && (
         <span className="account-menu" id={menuId} role="menu">
