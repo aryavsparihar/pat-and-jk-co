@@ -194,7 +194,12 @@ export const SiteSettings: CollectionConfig = {
               overrides: {
                 name: 'headerCta',
                 label: 'Header button',
-                admin: { hidden: true },
+                admin: {
+                  hidden: true,
+                  // Kept: a field shown only on a condition may be empty, so its label column
+                  // stays nullable, as it is in the database
+                  condition: (_, siblingData) => Boolean(siblingData?.enableHeaderCta),
+                },
               },
             }),
           ],
