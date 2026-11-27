@@ -42,6 +42,11 @@ const applies = (rule: Rule, request: Request) => {
   )
 }
 
+/** The rule that sends deployment addresses on to pjk.co.in, apart from the removed pages' */
+const toPublicAddress = (redirects: Rule[]) => redirects.filter((r) => r.source === '/:path*')
+
+const REMOVED_PAGES = ['/values', '/our-values', '/newsletter', '/unsubscribe']
+
 const BROWSER = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15'
 
 afterEach(() => {
@@ -50,7 +55,7 @@ afterEach(() => {
 
 describe('the public address', () => {
   it('in production, sends every vercel.app address on to pjk.co.in, keeping the path', async () => {
-    const { redirects } = await load('production')
+    const redirects = toPublicAddress((await load('production')).redirects)
     expect(redirects).toHaveLength(1)
     const [rule] = redirects
     expect(rule.source).toBe('/:path*')
@@ -70,15 +75,27 @@ describe('the public address', () => {
   })
 
   it('leaves Vercel’s cron calls alone, so they keep their secret', async () => {
-    const [rule] = (await load('production')).redirects
+    const [rule] = toPublicAddress((await load('production')).redirects)
     expect(applies(rule, { host: 'pat-and-jk-co.vercel.app', userAgent: 'vercel-cron/1.0' })).toBe(
       false,
     )
   })
 
-  it('redirects nothing in a preview build or on a developer’s machine', async () => {
-    expect((await load('preview')).redirects).toEqual([])
-    expect((await load()).redirects).toEqual([])
+  it('sends no address on in a preview build or on a developer’s machine', async () => {
+    expect(toPublicAddress((await load('preview')).redirects)).toEqual([])
+    expect(toPublicAddress((await load()).redirects)).toEqual([])
+  })
+
+  it('sends the removed pages to the nearest page everywhere, never to an error', async () => {
+    for (const env of ['production', 'preview', undefined]) {
+      const { redirects } = await load(env)
+      const removed = redirects.filter((r) => REMOVED_PAGES.includes(r.source))
+      expect(removed.map((r) => r.source).sort(), String(env)).toEqual([...REMOVED_PAGES].sort())
+      for (const rule of removed) {
+        expect(rule.destination?.startsWith('/'), rule.source).toBe(true)
+        expect(rule.permanent, rule.source).toBe(false)
+      }
+    }
   })
 
   it('asks search engines to index pjk.co.in only', async () => {

@@ -136,8 +136,18 @@ const nextConfig: NextConfig = {
     formats: ['image/avif', 'image/webp'],
   },
   async redirects() {
-    if (!isProductionBuild) return []
+    // Pages the founder's brief of 25 November 2026 removed (section 11) go to the nearest page
+    // that is left, never to an error: the values to About, where the principles are, and the
+    // newsletter, which is on hold, to the Journal. Temporary, so the addresses can come back
+    const removedPages = [
+      { source: '/values', destination: '/about', permanent: false },
+      { source: '/our-values', destination: '/about', permanent: false },
+      { source: '/newsletter', destination: '/journal', permanent: false },
+      { source: '/unsubscribe', destination: '/', permanent: false },
+    ]
+    if (!isProductionBuild) return removedPages
     return [
+      ...removedPages,
       {
         source: '/:path*',
         has: [{ type: 'host', value: VERCEL_HOST }],
