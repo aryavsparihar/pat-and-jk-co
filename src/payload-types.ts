@@ -1286,9 +1286,6 @@ export interface SiteSetting {
    * Optional smaller mark for the header, e.g. letters only. Falls back to the main logo.
    */
   wordmark?: (number | null) | Media;
-  /**
-   * The palette for this brand. Hairlines and hover states are derived from these automatically.
-   */
   colours?: {
     /**
      * Buttons, links, footer.
