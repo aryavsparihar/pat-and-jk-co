@@ -339,7 +339,15 @@ describe('the profile and contact details', () => {
     const artist = await someone('artist')
     const partner = await someone('partner')
     const applicant = await someone('applicant')
-    const body = { phone: '+91 98765 43210', contactAddress: { line1: 'House 1', city: 'Kathua' } }
+    const home = {
+      country: 'India',
+      line1: 'House 1',
+      city: 'Kathua',
+      district: 'Kathua',
+      state: 'Jammu and Kashmir',
+      postalCode: '184101',
+    }
+    const body = { phone: '+91 98765 43210', contactAddress: home }
     expect((await contactRoute(request('POST', artist.cookie, body))).status).toBe(200)
     expect((await contactRoute(request('POST', partner.cookie, body))).status).toBe(200)
     expect((await contactRoute(request('POST', applicant.cookie, body))).status).toBe(403)
@@ -348,8 +356,35 @@ describe('the profile and contact details', () => {
       id: partner.member.id,
       overrideAccess: true,
     })
-    expect(saved.phone).toBe('+91 98765 43210')
+    // Kept in full international form, as the brief asks
+    expect(saved.phone).toBe('+919876543210')
     expect(saved.contactAddress?.city).toBe('Kathua')
+    expect(saved.countryChange?.at ?? null).toBeNull()
+
+    // A move abroad is flagged for the team; the address follows the new country's rules
+    const london = {
+      country: 'United Kingdom',
+      line1: '10 Example Street',
+      city: 'London',
+      postalCode: 'SW1A 1AA',
+    }
+    const moved = await contactRoute(
+      request('POST', partner.cookie, { phone: '+44 7911 123456', contactAddress: london }),
+    )
+    expect(moved.status).toBe(200)
+    const flagged = await payload.findByID({
+      collection: 'members',
+      id: partner.member.id,
+      overrideAccess: true,
+    })
+    expect(flagged.countryChange).toMatchObject({ from: 'India', to: 'United Kingdom' })
+    expect(flagged.contactAddress?.district ?? null).toBeNull()
+
+    // An Indian address still needs its PIN code
+    const noPin = await contactRoute(
+      request('POST', artist.cookie, { contactAddress: { ...home, postalCode: '' } }),
+    )
+    expect(noPin.status).toBe(422)
   })
 })
 

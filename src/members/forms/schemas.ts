@@ -55,7 +55,7 @@ const optionalText = (max: number) =>
  * a bare Indian number saved before the picker, as one international number (E.164). The
  * wording is the founder's, and names the country when the number is too short for it.
  */
-const phone = z
+export const phoneSchema = z
   .string({ error: PHONE_ERRORS.empty })
   .trim()
   .transform((value, ctx) => {
@@ -119,7 +119,7 @@ export const aboutSchema = z.object({
       'Thank you for thinking of us. We can only work with artists who are 18 or over, and we would be glad to hear from you then.',
     )
     .refine((v) => (ageOn(v) ?? 0) <= 120, 'Please check the year.'),
-  phone,
+  phone: phoneSchema,
   language: z.enum(LANGUAGES, { error: 'Please choose a language.' }),
 })
 
@@ -589,7 +589,7 @@ export const partnerSchema = z
     fullName: text(120, 'Please give your full name.'),
     organisation: optionalText(160),
     role: text(120, 'Please tell us your role.'),
-    phone,
+    phone: phoneSchema,
     city: text(80, 'Please add your city.'),
     state: text(80, 'Please choose your state.'),
     website: optionalUrl,

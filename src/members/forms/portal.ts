@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { MEDIUMS } from './schemas'
+import { addressSchema, MEDIUMS, phoneSchema } from './schemas'
 import { isWebUrl } from './validators'
 
 /**
@@ -86,23 +86,33 @@ export const profileSchema = z.object({
 
 export type ProfileInput = z.infer<typeof profileSchema>
 
+/** Every part of an address but its country: whether anything has been written at all */
+const ADDRESS_PARTS = ['line1', 'line2', 'landmark', 'city', 'district', 'state', 'postalCode']
+
+/**
+ * Phone and postal address, changed by the member at once. They follow the same country rules as
+ * the application (the brief, section 9): a phone with its country code, and an address written
+ * the way its country writes one. Either may be left empty, which clears it.
+ */
 export const contactSchema = z.object({
   phone: z
     .string()
     .trim()
-    .max(20)
-    .refine((v) => !v || /^\+?[\d\s-]{7,20}$/.test(v), 'Please give a phone number we can call.')
-    .optional(),
+    .optional()
+    .pipe(z.union([z.literal('').transform(() => null), phoneSchema]).optional()),
   contactAddress: z
-    .object({
-      line1: optionalText(120),
-      line2: optionalText(120),
-      landmark: optionalText(120),
-      city: optionalText(80),
-      district: optionalText(80),
-      state: optionalText(80),
-      postalCode: optionalText(12),
-      country: optionalText(80),
+    .record(z.string(), z.unknown())
+    .optional()
+    .transform((value, ctx) => {
+      if (!value) return undefined
+      const written = ADDRESS_PARTS.some((key) => String(value[key] ?? '').trim())
+      if (!written) return null
+      const parsed = addressSchema.safeParse(value)
+      if (!parsed.success) {
+        for (const issue of parsed.error.issues) ctx.addIssue(issue as never)
+        return z.NEVER
+      }
+      return parsed.data
     })
     .optional(),
 })
