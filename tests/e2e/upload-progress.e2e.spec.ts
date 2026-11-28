@@ -7,6 +7,7 @@ import {
   openApplications,
   signInWithCode,
   uniqueEmail,
+  goToStep,
 } from '../helpers/e2e'
 
 /*
@@ -56,7 +57,7 @@ test('a large picture on a slow connection shows real progress, then its prepara
   await expect(page.getByRole('heading', { name: 'About you' })).toBeVisible()
   await fillEarlySteps(page)
   await page.reload()
-  await page.getByRole('button', { name: /Step 4: Your work/ }).click()
+  await goToStep(page, 'Your work')
   await expect(page.getByRole('heading', { name: 'Your work', exact: true })).toBeVisible()
 
   const before = Number((await page.getByText(/of 10 added/).textContent())!.match(/\d+/)![0])
@@ -120,7 +121,7 @@ test('an upload lost before any of it had gone goes through by itself', async ({
   await expect(page.getByRole('heading', { name: 'About you' })).toBeVisible()
   await fillEarlySteps(page)
   await page.reload()
-  await page.getByRole('button', { name: /Step 4: Your work/ }).click()
+  await goToStep(page, 'Your work')
   await expect(page.getByRole('heading', { name: 'Your work', exact: true })).toBeVisible()
   const before = Number((await page.getByText(/of 10 added/).textContent())!.match(/\d+/)![0])
 
