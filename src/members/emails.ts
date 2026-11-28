@@ -310,46 +310,6 @@ export const sendDecisionEmail = async (
     await decisionEmail(payload, args),
   )
 
-export const applicationReceivedEmail = async (
-  payload: Payload,
-  { application, email }: { application: Application; email?: string },
-): Promise<BuiltEmail> => {
-  const artist = application.type === 'artist'
-  return buildEmail({
-    subject: artist
-      ? `We have received your application | ${BRAND}`
-      : `We have received your Trade Program application | ${BRAND}`,
-    preheader: `Your application reference is ${application.reference}.`,
-    parts: [
-      {
-        kind: 'paragraph',
-        text: artist
-          ? `Thank you for submitting your application to showcase your work with ${BRAND} and Phulhaar Gallery. Our curation team reviews every submission individually, and we will write to you as soon as our evaluation is complete.`
-          : `Thank you for submitting your application to collaborate with ${BRAND} through our Trade Program. Our team reviews every application individually, and we will write to you once our review is complete.`,
-      },
-      { kind: 'reference', label: 'Your Application Reference', value: application.reference },
-      {
-        kind: 'paragraph',
-        text: 'Please quote this reference in any correspondence with us. You may check the live status of your application at any time by signing in with a code sent to this email address.',
-      },
-      { kind: 'link', label: 'Sign in', url: signInUrl() },
-    ],
-    footer: await emailFooter(payload),
-    recipient: { email: email ?? '', name: applicantName(application) },
-  })
-}
-
-/** 09, 10. The receipt; #22 goes to business@ alongside it */
-export const sendApplicationReceived = async (
-  payload: Payload,
-  { member, application }: { member: Member; application: Application },
-): Promise<boolean> =>
-  deliver(
-    payload,
-    { to: member.email },
-    await applicationReceivedEmail(payload, { application, email: member.email }),
-  )
-
 /** 22. A new application, to business@ */
 export const notifyStaffOfApplication = async (
   payload: Payload,

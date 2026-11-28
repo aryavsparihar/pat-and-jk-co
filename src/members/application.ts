@@ -4,7 +4,7 @@ import { agreedInWords, TERMS_PHRASE } from './terms'
 import type { Application, Member } from '@/payload-types'
 import { logSecurityEvent } from '@/security/events'
 
-import { sendApplicationReceived, notifyStaffOfApplication } from './emails'
+import { notifyStaffOfApplication } from './emails'
 import {
   ARTIST_STEPS,
   ARTIST_STEP_SCHEMAS,
@@ -218,7 +218,7 @@ const submit = async (
     subject: updated.reference,
     detail: `${updated.type}${application.stage === 'changes-requested' ? ', resubmitted' : ''}`,
   })
-  await sendApplicationReceived(payload, { member, application: updated })
+  // No receipt to the applicant: the brief has no confirmation emails, and the page says it was sent
   await notifyStaffOfApplication(payload, { application: updated, name: displayNameOf(updated) })
   return updated
 }
