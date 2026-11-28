@@ -86,6 +86,8 @@ const artist = async () => {
     overrideAccess: true,
     context: { disableRevalidate: true },
   })
+  // Identity is asked for only after approval: every artist here has been approved
+  await approveApplication(application.id, member.id)
   const { value } = await createSession(payload, { memberId: member.id })
   const cookie = `${MEMBER_COOKIE}=${encodeURIComponent(value)}`
   // Every artist gives a second ID; tests use a made-up passport scan unless they say otherwise
@@ -100,7 +102,16 @@ const artist = async () => {
   return { member, application, cookie }
 }
 
-/** Approval issues a member ID; tests set one directly */
+/** Approved, as the team would: the application's stage and the member's approval date */
+const approveApplication = async (applicationId: number, memberId: number) => {
+  await execute(payload, sql`UPDATE applications SET stage = 'approved' WHERE id = ${applicationId}`)
+  await execute(
+    payload,
+    sql`UPDATE members SET artist_approved_at = now() WHERE id = ${memberId}`,
+  )
+}
+
+/** Signing the agreement issues a member ID; tests set one directly */
 const approve = (member: Member) =>
   execute(
     payload,
