@@ -92,7 +92,7 @@ export const FormClient: React.FC<Props> = ({ form, helpEmail }) => {
         }
       } catch {
         setIsSubmitting(false)
-        setError('We could not reach the server. Please check your connection and try again.')
+        setError('We could not reach our server. Please check your connection and try again.')
       }
     },
     [router, formID, redirect, confirmationType, getToken],
