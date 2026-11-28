@@ -106,6 +106,10 @@ export const decideApplication = async (
       req,
     })
 
+    // A guest curator is followed on the Curators screen, with its own emails; no member ID
+    if (application.type === 'curator' || !application.member) {
+      throw publicError('A guest curator’s application is answered from the Curators screen.', 409)
+    }
     if (!ALLOWED_FROM[decision].includes(application.stage)) {
       throw publicError(
         `An application that is "${application.stage}" cannot be given that decision.`,
@@ -118,7 +122,7 @@ export const decideApplication = async (
     }
 
     const memberRef = application.member
-    const memberId = typeof memberRef === 'object' ? memberRef.id : memberRef
+    const memberId = typeof memberRef === 'object' ? memberRef!.id : memberRef!
     let member = await payload.findByID({
       collection: 'members',
       id: memberId,
