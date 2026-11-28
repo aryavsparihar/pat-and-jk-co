@@ -107,7 +107,10 @@ export const checkSigner = async (
     }
   }
   if (!canChange(member.standing)) {
-    throw new AgreementError('Your account is on hold. Please write to us before signing.', 403)
+    throw new AgreementError(
+      'Your account is on hold, so the agreement cannot be signed for now. Please write to hello@pjk.co.in.',
+      403,
+    )
   }
   return { reference: application?.reference ?? member[agreement.idField] ?? '' }
 }
@@ -355,7 +358,7 @@ export const signAgreement = async (
   }
   if (now.getTime() - new Date(execution.photoAt).getTime() > SIGN_WITHIN_MS) {
     throw new AgreementError(
-      'Your photo was taken more than an hour ago. Please get a new code and take it again.',
+      'Your photo was taken more than an hour ago. Please ask for a new code and take it again.',
       409,
     )
   }
@@ -363,7 +366,7 @@ export const signAgreement = async (
     throw new AgreementError('Please tick both boxes.')
   }
   if (input.typed !== AGREE_EXACTLY) {
-    throw new AgreementError(`Please type ${AGREE_EXACTLY} in capital letters.`)
+    throw new AgreementError(`Please type ${AGREE_EXACTLY} in capitals.`)
   }
 
   const signer = await signerFor(payload, member, agreement)
@@ -373,13 +376,16 @@ export const signAgreement = async (
     signer.address = clean(input.address) || signer.address
     const missing = [
       !signer.firm && 'your firm or studio’s legal name',
-      !signer.firmRegistration && 'its GSTIN, COA ID or registration number',
-      !signer.address && 'its business address with PIN or ZIP code',
+      !signer.firmRegistration &&
+        'its GSTIN, or its company, COA or professional registration number',
+      !signer.address && 'its business address with PIN or postal code',
     ].filter(Boolean)
     if (missing.length) throw new AgreementError(`Please give ${missing.join(', ')}.`)
   }
   if (!signer.name) {
-    throw new AgreementError('Your legal name is missing from your record. Please write to us.')
+    throw new AgreementError(
+      'We do not have your legal name on record, so the agreement cannot be prepared. Please write to hello@pjk.co.in.',
+    )
   }
 
   // The member ID is issued now, on signing, and named in the signed copy

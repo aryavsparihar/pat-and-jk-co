@@ -43,7 +43,10 @@ export async function POST(request: Request) {
   const file = form.get('file')
   if (!(file instanceof File)) return reply({ message: 'Please choose a photo.' }, { status: 400 })
   if (file.size > KYC_DOCUMENT_MAX_BYTES)
-    return reply({ message: 'That photo is larger than 4 MB.' }, { status: 413 })
+    return reply(
+      { message: 'That photo is larger than 4 MB. Please send a smaller one.' },
+      { status: 413 },
+    )
 
   try {
     const received = await receiveAgreementPhoto(payload, member, found.agreement, {
