@@ -113,8 +113,10 @@ test('payout details: staff ask, the artist adds them, and “this was not me”
   // The artist adds them in their account, with a fresh code
   await signInAs(context, member.id)
   await page.goto('/account/payouts')
-  await expect(page.getByText('We are ready to pay you.', { exact: false })).toBeVisible()
-  await page.getByRole('button', { name: 'Add where we pay you' }).click()
+  await expect(page.getByText('One of your works has sold.', { exact: false })).toBeVisible()
+  await page.getByRole('button', { name: 'Add your bank details' }).click()
+  // A PAN holder's bank is taken to be in India unless they say otherwise
+  await expect(page.getByLabel('In India')).toBeChecked()
   await page.getByLabel('Code from the email').fill(await knowCode(email, 'step-up'))
   await page.getByLabel('Account holder’s name').fill('Asha Example')
   await page.getByLabel('Account number', { exact: true }).fill('999900004821')
@@ -122,8 +124,9 @@ test('payout details: staff ask, the artist adds them, and “this was not me”
   await page.getByLabel('IFSC').fill('TEST0000001')
   await page.getByLabel('Bank', { exact: true }).fill('Example Bank')
   await page.getByLabel('Branch').fill('Example Branch')
-  await page.getByRole('button', { name: 'Send the details' }).click()
-  await expect(page.getByText(/sending ₹1 to it first/)).toBeVisible()
+  await expect(page.getByText(/with a small test payment of ₹1/)).toBeVisible()
+  await page.getByRole('button', { name: 'Save bank details' }).click()
+  await expect(page.getByText(/Our team will check the account before we use it/)).toBeVisible()
 
   // The email carries a one-time link; the test knows its token by setting it
   const token = 'e2e-made-up-cancel-token-0000000000000000000000'
