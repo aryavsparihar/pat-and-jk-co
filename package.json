@@ -22,6 +22,7 @@
     "check:content": "cross-env NODE_ENV=production node --no-deprecation --import tsx/esm --import ./scripts/allow-server-only.mjs scripts/check-content.ts",
     "check:env": "node --no-deprecation --import tsx/esm scripts/check-env-vars.ts",
     "check:database": "node --no-deprecation --import tsx/esm scripts/check-database-access.ts",
+    "test-data:report": "node --no-deprecation --import tsx/esm scripts/test-data-report.ts",
     "social:icons": "node --no-deprecation --import tsx/esm scripts/social-icons.ts",
     "seed": "cross-env NODE_OPTIONS=--no-deprecation payload run src/seed/index.ts",
     "vercel-build": "node scripts/vercel-build.mjs",
