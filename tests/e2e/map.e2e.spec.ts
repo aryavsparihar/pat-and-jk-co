@@ -6,6 +6,7 @@ import {
   openApplications,
   signInWithCode,
   uniqueEmail,
+  goToStep,
 } from '../helpers/e2e'
 
 /*
@@ -69,7 +70,7 @@ const toAddressStep = async (page: import('@playwright/test').Page) => {
   await expect(page.getByRole('heading', { name: 'About you' })).toBeVisible()
   await fillEarlySteps(page)
   await page.reload()
-  await page.getByRole('button', { name: /^Step 2:/ }).click()
+  await goToStep(page, 'Where you live')
   await expect(page.getByRole('heading', { name: 'Where you live' })).toBeVisible()
 }
 
