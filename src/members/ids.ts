@@ -3,7 +3,7 @@ import { randomInt } from 'node:crypto'
 /**
  * The two kinds of identifier a member meets.
  *
- * Member IDs (AT-X63G8, PT-8GH37) are issued on approval: the prefix for the kind and five random
+ * Member IDs (AT-X63G8, PT-8GH37) are issued when the agreement is signed: the prefix for the kind and five random
  * characters, checked against every ID already given out (a deleted person keeps theirs), with
  * the column's unique index as the backstop. Random rather than counted, so an ID says nothing
  * about how many members there are. IDs issued before November 2026 (AT000001, from a Postgres
