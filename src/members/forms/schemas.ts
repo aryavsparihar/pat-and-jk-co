@@ -206,7 +206,7 @@ const required = (
     ctx.addIssue({
       code: 'custom',
       path: [path],
-      message: `Please keep this under ${max} characters.`,
+      message: `Please keep this to ${max} characters or fewer.`,
     })
   }
   return text
@@ -219,7 +219,7 @@ const optionalPart = (value: string, max: number, path: string, ctx: z.Refinemen
     ctx.addIssue({
       code: 'custom',
       path: [path],
-      message: `Please keep this under ${max} characters.`,
+      message: `Please keep this to ${max} characters or fewer.`,
     })
   }
   return text || undefined

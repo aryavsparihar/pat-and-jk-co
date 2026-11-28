@@ -101,13 +101,16 @@ export async function POST(request: Request) {
   const checked = checkVerify(kind, body, { draft: !send })
   if (!checked.ok)
     return reply(
-      { message: 'A few things need another look.', errors: checked.errors },
+      { message: 'A few things need another look. They are marked below.', errors: checked.errors },
       { status: 422 },
     )
   const input = checked.input
 
   if (send && input.noticeVersion !== VERIFY_NOTICE_VERSION) {
-    return reply({ message: E.noticeChanged, errors: { consent: E.noticeChanged } }, { status: 409 })
+    return reply(
+      { message: E.noticeChanged, errors: { consent: E.noticeChanged } },
+      { status: 409 },
+    )
   }
 
   // The photo must show the name given now (and an artist's date of birth); its code is kept

@@ -69,7 +69,10 @@ export async function POST(request: Request) {
   const parsed = bankSchema.safeParse(body?.bank)
   if (!parsed.success) {
     return reply(
-      { message: 'A few things need another look.', errors: fieldErrors(parsed.error) },
+      {
+        message: 'A few things need another look. They are marked below.',
+        errors: fieldErrors(parsed.error),
+      },
       { status: 422 },
     )
   }

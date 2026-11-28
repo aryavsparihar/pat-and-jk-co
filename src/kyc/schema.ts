@@ -189,7 +189,7 @@ export const kycSchema = z
     }),
     noticeVersion: z.string().max(40).optional(),
     pan: z.string({ error: 'Please give your PAN.' }).max(20, 'A PAN is ten characters.'),
-    panName: z.string().max(120, 'Please keep this under 120 characters.').optional(),
+    panName: z.string().max(120, 'Please keep this to 120 characters or fewer.').optional(),
     idChoice: z.enum(['aadhaar', 'other'], {
       error: 'Please choose a masked Aadhaar or another ID.',
     }),
@@ -308,7 +308,7 @@ export const partnerKycSchema = z
     }),
     noticeVersion: z.string().max(40).optional(),
     pan: z.string({ error: 'Please give your PAN.' }).max(20, 'A PAN is ten characters.'),
-    panName: z.string().max(120, 'Please keep this under 120 characters.').optional(),
+    panName: z.string().max(120, 'Please keep this to 120 characters or fewer.').optional(),
     documents: z.object({ 'pan-card': documentId, 'identity-photo': documentId }).default({}),
   })
   .superRefine(

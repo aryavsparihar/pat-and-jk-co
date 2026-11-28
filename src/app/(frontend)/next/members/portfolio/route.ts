@@ -51,7 +51,7 @@ export async function POST(request: Request) {
   const application = await findOwnApplication(payload, member, 'artist', 0)
   if (!canAddPictures(member, application)) {
     return reply(
-      { message: 'Pictures can only be added while your application is open.' },
+      { message: 'Your application has been sent, so pictures can no longer be added to it.' },
       { status: 409 },
     )
   }
@@ -63,7 +63,13 @@ export async function POST(request: Request) {
     windowSeconds: 3600,
   })
   if (!limit.allowed)
-    return reply({ message: 'That is a lot of uploads. Please wait a while.' }, { status: 429 })
+    return reply(
+      {
+        message:
+          'You have uploaded a lot in a short time. Please wait a few minutes and try again.',
+      },
+      { status: 429 },
+    )
 
   try {
     const type = request.headers.get('content-type') ?? ''
@@ -74,7 +80,7 @@ export async function POST(request: Request) {
     if (!(file instanceof File))
       return reply({ message: 'Please choose a picture.' }, { status: 400 })
     if (file.size > PORTFOLIO_MAX_BYTES)
-      throw new PortfolioError('That picture is larger than 5 MB.')
+      throw new PortfolioError('That picture is larger than 5 MB. Please send a smaller version.')
     const bytes = Buffer.from(await file.arrayBuffer())
 
     const image = await ingestPortfolioImage(payload, member, bytes)
@@ -112,7 +118,7 @@ export async function DELETE(request: Request) {
   const application = await findOwnApplication(payload, member, 'artist', 0)
   if (!canAddPictures(member, application)) {
     return reply(
-      { message: 'Pictures can only be changed while your application is open.' },
+      { message: 'Your application has been sent, so its pictures can no longer be changed.' },
       { status: 409 },
     )
   }
@@ -120,9 +126,17 @@ export async function DELETE(request: Request) {
     (w) => (typeof w.image === 'object' ? w.image?.id : w.image) === id,
   )
   if (inUse)
-    return reply({ message: 'Remove that work from your portfolio first.' }, { status: 409 })
+    return reply(
+      {
+        message: 'This picture belongs to a work in your portfolio. Please remove the work first.',
+      },
+      { status: 409 },
+    )
   if (await imageInUseByPortal(payload, member.id, id)) {
-    return reply({ message: 'That picture is used by your profile.' }, { status: 409 })
+    return reply(
+      { message: 'This picture is used on your profile, so it cannot be removed here.' },
+      { status: 409 },
+    )
   }
 
   const result = await payload.delete({
@@ -132,6 +146,9 @@ export async function DELETE(request: Request) {
     context: { disableRevalidate: true, ...actingFor(member, 'members') },
   })
   if (result.docs.length === 0)
-    return reply({ message: 'That picture was not found.' }, { status: 404 })
+    return reply(
+      { message: 'We could not find that picture. It may already have been removed.' },
+      { status: 404 },
+    )
   return withRefresh(reply({ ok: true }), auth.refresh)
 }

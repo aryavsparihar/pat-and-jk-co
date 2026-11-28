@@ -25,7 +25,7 @@ export async function POST(request: Request) {
     windowSeconds: 3600,
   })
   if (!limit.allowed)
-    return reply({ message: 'Please wait a little before saving again.' }, { status: 429 })
+    return reply({ message: 'Please wait a moment before saving again.' }, { status: 429 })
 
   const body = await readJson<{ step: string; data: unknown }>(request)
   const result = await saveArtistStep(payload, member, body?.step, body?.data)

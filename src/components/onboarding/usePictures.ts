@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 
 import { api } from './api'
-import { sendPicture } from './sendPicture'
+import { aboutPicture, pictureNotAdded, pictureNotSent, sendPicture } from './sendPicture'
 import type { UploadState } from './UploadProgress'
 
 export type Picture = { id: number; thumbnail: string | null }
@@ -30,19 +30,20 @@ export const usePictures = () => {
     }
   }, [])
 
-  const sendOne = useCallback(
-    async (file: File): Promise<Picture | null> => {
-      const result = await sendPicture<{ image: Picture }>(file, (state) =>
-        setUploading({ name: file.name, state }),
+  const sendOne = useCallback(async (file: File): Promise<Picture | null> => {
+    const result = await sendPicture<{ image: Picture }>(file, (state) =>
+      setUploading({ name: file.name, state }),
+    )
+    if (!result.ok) {
+      setProblem(
+        result.data.message
+          ? aboutPicture(file.name, result.data.message)
+          : pictureNotAdded(file.name),
       )
-      if (!result.ok) {
-        setProblem(`${file.name}: ${result.data.message ?? 'That picture could not be added.'}`)
-        return null
-      }
-      return result.data.image
-    },
-    [],
-  )
+      return null
+    }
+    return result.data.image
+  }, [])
 
   /** Sends each file in turn; returns the pictures that arrived */
   const send = useCallback(
@@ -59,7 +60,7 @@ export const usePictures = () => {
             setPictures((all) => ({ ...all, [picture.id]: picture }))
           }
         } catch {
-          setProblem(`${file.name}: that picture could not be sent. Please try again.`)
+          setProblem(pictureNotSent(file.name))
         }
       }
       setBusy(null)

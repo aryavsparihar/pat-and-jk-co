@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     windowSeconds: 3600,
   })
   if (!limit.allowed)
-    return reply({ message: 'Please wait a little before trying again.' }, { status: 429 })
+    return reply({ message: 'Please wait a moment before trying again.' }, { status: 429 })
 
   try {
     const application = await applyAgain(payload, member, type)

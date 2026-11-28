@@ -49,7 +49,7 @@ export const portalHandler =
         windowSeconds: 3600,
       })
       if (!limit.allowed) {
-        return reply({ message: 'Please wait a little before trying again.' }, { status: 429 })
+        return reply({ message: 'Please wait a moment before trying again.' }, { status: 429 })
       }
     }
 
@@ -72,7 +72,10 @@ export const portalHandler =
       }
       if (error instanceof ValidationFailed) {
         return reply(
-          { message: 'A few things need another look.', errors: error.errors },
+          {
+            message: 'A few things need another look. They are marked below.',
+            errors: error.errors,
+          },
           { status: 422 },
         )
       }

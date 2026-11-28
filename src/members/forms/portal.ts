@@ -14,7 +14,7 @@ const optionalText = (max: number) =>
   z
     .string()
     .trim()
-    .max(max, `Please keep this under ${max} characters.`)
+    .max(max, `Please keep this to ${max} characters or fewer.`)
     .nullish()
     .transform((v) => (v ? v : null))
 

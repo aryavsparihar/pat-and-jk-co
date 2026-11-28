@@ -227,7 +227,9 @@ export const TradeApplication: React.FC<{ formToken: string }> = ({ formToken })
     if (!result.ok && result.data.retryCheck) return setRefused(true)
     if (!result.ok) {
       setErrors(result.data.errors ?? {})
-      setMessage(result.data.message ?? 'Your application could not be sent.')
+      setMessage(
+        result.data.message ?? 'Your application could not be sent. Please try again in a minute.',
+      )
       window.scrollTo({ top: 0 })
       return
     }
