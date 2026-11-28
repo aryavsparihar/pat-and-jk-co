@@ -418,6 +418,7 @@ export const maskedKyc = async (payload: Payload, memberId: number) => {
       ? {
           accountMasked: record.pendingBank.pendingAccountMasked,
           bankName: record.pendingBank.pendingBankName,
+          location: record.pendingBank.pendingBankLocation ?? 'india',
           requestedAt: record.pendingBank.requestedAt,
         }
       : null,
