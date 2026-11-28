@@ -941,13 +941,12 @@ export const notifyStaffOfWorksFolder = async (
   return told
 }
 
-/** 24 to business@, and 24B to the artist */
+/** 24 to business@ (24B, the receipt to the artist, is no longer sent) */
 export const notifyStaffOfReview = async (
   payload: Payload,
   {
     memberId,
     adminPath,
-    member,
   }: { what?: string; memberId: string; adminPath: string; member?: Member | null },
 ): Promise<boolean> => {
   const footer = await emailFooter(payload)
@@ -969,25 +968,7 @@ export const notifyStaffOfReview = async (
       recipient: toBusiness,
     }),
   )
-  if (member?.email) {
-    await deliver(
-      payload,
-      { to: member.email },
-      buildEmail({
-        subject: `We have received your profile updates | ${BRAND}`,
-        preheader: `Your profile updates (${memberId}) are now under curation review.`,
-        parts: [
-          {
-            kind: 'paragraph',
-            text: `We have received the updates to your artist profile (${memberId}). Our curation team will review your changes and notify you by email once your updated profile is published on Phulhaar Gallery.`,
-          },
-          { kind: 'link', label: 'Your account', url: accountUrl() },
-        ],
-        footer,
-        recipient: await toMember(payload, member),
-      }),
-    )
-  }
+  // No receipt to the artist: the brief has no confirmation emails, and the page says it was sent
   return told
 }
 
