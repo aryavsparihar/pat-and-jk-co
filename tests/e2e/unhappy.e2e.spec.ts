@@ -96,22 +96,24 @@ test('wrong and malformed input is refused with a reason, on every form', async 
   await page.getByRole('button', { name: 'Save and continue' }).click()
   await expect(page.getByText(/six digits/).first()).toBeVisible()
 
-  // The partner form: a GSTIN that is not one
+  // The trade form: a GSTIN that is not one, and nothing agreed to
   await page.goto('/collaborate/partners')
-  await expect(page.getByLabel('How would you like to work with us?')).toBeVisible()
-  await page.getByLabel('How would you like to work with us?').selectOption({ index: 1 })
-  await page.getByLabel('What describes you best?').selectOption({ index: 1 })
+  await expect(page.getByLabel('Which describes you best?')).toBeVisible()
+  await page.getByLabel('Which describes you best?').selectOption({ index: 1 })
   await page.getByLabel('Your full name').fill('Ravi Example')
   await page.getByLabel('Your role').fill('Founder')
-  await page.getByLabel('Phone').fill('98765 43210')
+  await page.getByLabel('Phone', { exact: true }).fill('98765 43210')
   await page.getByLabel('City').fill('Jammu')
   await page.getByLabel('State or union territory').selectOption('Jammu and Kashmir')
-  await page.getByLabel(/GSTIN/).fill('27AAPFU0939F1ZW')
-  await page.getByLabel('What would you like to do together?').fill('Place works in homes.')
-  await page.getByLabel('Message').fill('We design homes in Jammu.')
+  await page.getByLabel(/^GSTIN/).fill('27AAPFU0939F1ZW')
+  await page.getByLabel('What would you like to do with us?').fill('Place works in homes.')
   await page.waitForTimeout(2200)
-  await page.getByRole('button', { name: /Send/ }).click()
+  await page.getByRole('button', { name: 'Send my application' }).click()
   await expect(page.getByText(/GSTIN does not look right/).first()).toBeVisible()
+  await expect(page.getByText('Please type I AGREE in capitals to confirm.').first()).toBeVisible()
+  await expect(
+    page.getByText('Please confirm that the information is accurate.').first(),
+  ).toBeVisible()
 })
 
 test('a slow connection still saves, and says it is saving meanwhile', async ({ page }) => {

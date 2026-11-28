@@ -14,7 +14,6 @@ import {
   payload,
   signInWithCode,
   uniqueEmail,
-  agreeToNotice,
   confirmArtistApplication,
   fillAboutYou,
 } from '../helpers/e2e'
@@ -278,38 +277,52 @@ test.fixme('PAN is required, and a masked e-Aadhaar goes through the check', asy
     .toBe('not-verified')
 })
 
-test('a partner applies in one go, with their identity and the agreement', async ({ page }) => {
+test('a trade partner applies in one go, with no identity documents', async ({ page }) => {
   const email = uniqueEmail('partner')
   await page.goto('/collaborate/partners')
+  await expect(page.getByRole('heading', { name: 'Apply for a trade account' })).toBeVisible()
   await signInWithCode(page, email)
-  await page.getByLabel('How would you like to work with us?').selectOption('placement')
-  await page.getByLabel('What describes you best?').selectOption('Art dealer / art consultant')
+
+  // Before you begin: how the details are used, agreed to with I AGREE
+  await expect(page.getByRole('heading', { name: 'How we use your details' })).toBeVisible()
+  await page.getByLabel('I have read how PAT & J.K. Co. will use my details').check()
+  await page.getByLabel('To confirm, type I AGREE').fill('I AGREE')
+
   await page.getByLabel('Your full name').fill('Asha Example')
   await page.getByLabel('Your role').fill('Art consultant')
-  await page.getByLabel('Organisation').fill('Example Art Advisory')
-  await page.getByLabel('Phone').fill('98765 43210')
+  await page.getByLabel('Firm or organisation').fill('Example Art Advisory')
+  await page.getByLabel('Phone', { exact: true }).fill('98765 43210')
+  await expect(page.getByText('The address you signed in with.')).toBeVisible()
+
+  await page.getByLabel('Which describes you best?').selectOption('Art adviser or consultant')
   await page.getByLabel('City').fill('Jammu')
   await page.getByLabel('State or union territory').selectOption('Jammu and Kashmir')
+  await page.getByLabel(/^GSTIN/).fill('01ABCDE1234F1ZE')
+
+  // Outside India the tax number and the proof ask for something else
+  await page.getByLabel('Country', { exact: true }).selectOption('United Kingdom')
+  await expect(page.getByLabel(/^Company registration or VAT number/)).toBeVisible()
+  await expect(page.getByText(/RIBA, AIA or BIID/)).toBeVisible()
+  await page.getByLabel('Country', { exact: true }).selectOption('India')
+  await page.getByLabel('State or union territory').selectOption('Jammu and Kashmir')
+  await page.getByLabel(/^GSTIN/).fill('01ABCDE1234F1ZE')
+
   await page
-    .getByLabel('What would you like to do together?')
+    .getByLabel('What would you like to do with us?')
     .fill('Find original work for the collectors I advise.')
-  await page
-    .getByLabel('Message')
-    .fill('I advise private collectors in Jammu and Delhi on contemporary work.')
 
-  // Identity: the PAN, its card, and the photo with the code and their name; no second ID
-  await page.getByLabel('PAN', { exact: true }).fill('ABCPE1234F')
-  await page.getByLabel('Name as on your PAN').fill('Asha Example')
-  await uploadPanCard(page)
-  await uploadIdentityPhoto(page)
-  await expect(page.getByText('Received, and encrypted.')).toHaveCount(2)
-  await expect(page.getByLabel('I’d rather use another ID')).toHaveCount(0)
-  await expect(page.getByLabel('Account number', { exact: true })).toHaveCount(0)
-  await agreeToNotice(page)
+  // Saved to finish later, then sent
+  await page.getByRole('button', { name: 'Save and finish later' }).click()
+  await expect(page.getByText(/^Saved\./)).toBeVisible()
 
+  await page.getByLabel('The details I have given are true and complete.').check()
   await page.waitForTimeout(2200)
-  await page.getByRole('button', { name: /Send/ }).click()
-  await expect(page.getByRole('heading', { name: 'Thank you. We will be in touch.' })).toBeVisible()
+  await page.getByRole('button', { name: 'Send my application' }).click()
+  await expect(
+    page.getByRole('heading', { name: 'Thank you. Your application has reached us.' }),
+  ).toBeVisible()
+  await expect(page.getByText(/emailed you a confirmation/)).toHaveCount(0)
+
   const member = await findMember(email)
   const p = await payload()
   const application = (
@@ -322,15 +335,16 @@ test('a partner applies in one go, with their identity and the agreement', async
   expect(application).toMatchObject({
     type: 'partner',
     stage: 'submitted',
-    partner: { subType: 'Art dealer / art consultant' },
-    partnerDeclarations: { consentProcessing: true },
+    partnerCategory: 'placement',
+    partner: { subType: 'Art adviser or consultant', country: 'India', gstin: '01ABCDE1234F1ZE' },
+    partnerDeclarations: { consentProcessing: true, accurate: true },
   })
   const records = await p.count({
     collection: 'kyc-records',
     where: { member: { equals: member.id } },
     overrideAccess: true,
   })
-  expect(records.totalDocs).toBe(1)
+  expect(records.totalDocs).toBe(0)
 })
 
 test('a member signs in again with a code, and a wrong code is refused', async ({ page }) => {
