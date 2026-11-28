@@ -98,10 +98,13 @@ const part = (id: number, token: string, file: number, n: number, bytes: Buffer)
   )
 
 /** The whole journey a page makes: the answers, each file in one part, then the finish */
-const apply = async (email: string, extra: Record<string, unknown> = {}) => {
+const apply = async (
+  email: string,
+  extra: Record<string, unknown> = {},
+): Promise<{ status: number; id?: number; reference?: string; message?: string }> => {
   const started = await json(start, body(email, extra))
   const s = (await started.json()) as { id: number; token: string; message?: string }
-  if (started.status !== 200) return { status: started.status, ...s }
+  if (started.status !== 200) return { status: started.status, message: s.message }
   expect((await part(s.id, s.token, 0, 0, pdf)).status).toBe(200)
   expect((await part(s.id, s.token, 1, 0, docx)).status).toBe(200)
   const done = await json(finish, { id: s.id, token: s.token }, 'finish')
