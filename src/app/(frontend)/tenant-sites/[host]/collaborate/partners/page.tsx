@@ -2,52 +2,50 @@ import type { Metadata } from 'next'
 import { headers } from 'next/headers'
 import { notFound } from 'next/navigation'
 
-import { OnboardingPage } from '@/components/onboarding/OnboardingPage'
-import { PartnerOnboarding } from '@/components/onboarding/PartnerOnboarding'
-import { PrivacyText } from '@/components/onboarding/PrivacyText'
-import { PARTNER_CATEGORIES } from '@/members/categories'
+import { ApplicationsClosed } from '@/components/onboarding/ApplicationsClosed'
+import { TradeApplication } from '@/components/onboarding/TradeApplication'
 import { createFormToken } from '@/members/formToken'
 import { applicationsOpenness } from '@/members/openness'
 import { getTenantContext } from '@/utilities/tenant'
-import { ApplicationsClosed } from '@/components/onboarding/ApplicationsClosed'
 import configPromise from '@payload-config'
 import { getPayload } from 'payload'
 
+// Rendered per request: the page carries a fresh form token and a per-request script nonce
 export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
-  title: 'Work with us as a partner',
-  description: 'For curators, interior designers, decorators, designers, engineers and partners.',
+  title: 'Apply for a trade account',
+  description:
+    'For interior designers, architects, art advisers, dealers and hospitality specifiers who buy or specify art for their clients.',
 }
 
-type Args = {
+export default async function TradeApplicationPage({
+  params,
+}: {
   params: Promise<{ host: string }>
-  searchParams: Promise<{ category?: string }>
-}
-
-export default async function PartnerApplicationPage({ params, searchParams }: Args) {
+}) {
   await headers()
   const ctx = await getTenantContext((await params).host)
   if (!ctx) notFound()
   const payload = await getPayload({ config: configPromise })
   const { open, note } = await applicationsOpenness(payload)
-  const { category } = await searchParams
-  const initial = PARTNER_CATEGORIES.some((c) => c.value === category) ? category : undefined
+  // The founder's ApplyPartner design, in the house frame of the other pages
   return (
-    <OnboardingPage
-      heading="Work with us"
-      intro="For curators, interior designers and decorators; for designers and engineers; and for galleries, institutions and businesses who think in the long term. Tell us who you are and what you have in mind. It takes about ten minutes; have your PAN card to hand, and a phone or camera for a photo of yourself."
-      label="Partners"
-    >
-      {open ? (
-        <PartnerOnboarding
-          formToken={createFormToken()}
-          initialCategory={initial}
-          privacy={<PrivacyText tenantId={ctx.tenant.id} />}
-        />
-      ) : (
-        <ApplicationsClosed note={note} />
-      )}
-    </OnboardingPage>
+    <div className="house apply">
+      <div className="house-wrap">
+        {open ? (
+          <TradeApplication formToken={createFormToken()} />
+        ) : (
+          <section className="house-sec">
+            <div className="house-lab" />
+            <div className="house-con max-w-[780px]">
+              <p className="house-small">Trade partners</p>
+              <h1 className="apply-h1">Apply for a trade account</h1>
+              <ApplicationsClosed note={note} />
+            </div>
+          </section>
+        )}
+      </div>
+    </div>
   )
 }
