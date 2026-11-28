@@ -1,5 +1,6 @@
 import { sql } from '@payloadcms/db-postgres'
 import { type Page, expect, test } from '@playwright/test'
+import sharp from 'sharp'
 
 import {
   BASE,
@@ -244,13 +245,27 @@ test('an upload that fails says so and adds nothing; a cancelled one changes not
   await page.locator('input[type="file"]').setInputFiles({
     name: 'lost.jpg',
     mimeType: 'image/jpeg',
-    buffer: Buffer.from(
-      '/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=',
-      'base64',
-    ),
+    buffer: await sharp({
+      create: { width: 800, height: 600, channels: 3, background: { r: 90, g: 120, b: 60 } },
+    })
+      .jpeg()
+      .toBuffer(),
   })
-  await expect(page.getByText(/lost\.jpg: /)).toBeVisible()
+  // The problem begins with the file's name, as the founder's wording has it
+  await expect(page.getByText(/^lost\.jpg: /)).toBeVisible()
   await expect(page.getByText('Not added')).toBeVisible()
+  await expect(page.getByText(before!)).toBeVisible()
+
+  // A JPEG cut short, which no browser can open, is not called the wrong kind of file
+  await page.getByRole('button', { name: 'Clear lost.jpg' }).click()
+  await page.locator('input[type="file"]').setInputFiles({
+    name: 'damaged.jpg',
+    mimeType: 'image/jpeg',
+    buffer: Buffer.from('/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//', 'base64'),
+  })
+  await expect(
+    page.getByText('damaged.jpg could not be prepared for upload. Please try another copy of it.'),
+  ).toBeVisible()
   await expect(page.getByText(before!)).toBeVisible()
 })
 
@@ -293,4 +308,29 @@ test('pages with nothing to show say so, and never break', async ({ page, contex
   await page.goto('/account')
   await expect(page.getByRole('heading').first()).toBeVisible()
   await expect(page.getByText(/This page could not be shown/)).toHaveCount(0)
+})
+
+test('the Help Center gives the founder’s lines for an empty or mistyped field, not the browser’s', async ({
+  page,
+}) => {
+  await page.goto('/help')
+  const message = (selector: string) =>
+    page.locator(selector).evaluate((el) => (el as HTMLInputElement).validationMessage)
+  await page.getByRole('button', { name: 'Send Request' }).click()
+  expect(await message('#help-type')).toBe('Please choose who you are.')
+  expect(await message('#help-nature')).toBe('Please choose what your request is about.')
+  expect(await message('#help-name')).toBe('Please enter your full name.')
+
+  await page.locator('#help-type').selectOption('partner')
+  await page.locator('#help-email').fill('not an address')
+  await page.getByRole('button', { name: 'Send Request' }).click()
+  expect(await message('#help-type')).toBe('')
+  expect(await message('#help-email')).toBe(
+    'Please enter a full email address, for example name@example.com.',
+  )
+  expect(await message('#help-id')).toBe('Please enter your trade partner ID.')
+
+  // Corrected, the field is let through
+  await page.locator('#help-email').fill('someone@help.example.test')
+  expect(await message('#help-email')).toBe('')
 })

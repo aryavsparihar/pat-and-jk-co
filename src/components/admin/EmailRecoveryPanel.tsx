@@ -48,7 +48,8 @@ export const EmailRecoveryPanel: React.FC = () => {
     })
     const body = (await response.json().catch(() => ({}))) as { message?: string }
     setBusy(false)
-    if (!response.ok) return setMessage(body.message ?? 'The address could not be changed.')
+    if (!response.ok)
+      return setMessage(body.message ?? 'The address could not be changed. Please try again.')
     setMessage('Done. Both addresses have been emailed, and the member is signed out everywhere.')
     router.refresh()
   }

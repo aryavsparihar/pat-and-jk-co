@@ -21,7 +21,8 @@ export async function POST(request: Request) {
     max: 60,
     windowSeconds: 3600,
   })
-  if (!limit.allowed) return reply({ message: 'Please wait a little.' }, { status: 429 })
+  if (!limit.allowed)
+    return reply({ message: 'Please wait a moment before trying again.' }, { status: 429 })
 
   const body = await readJson<{ pin: string }>(request)
   const pin = String(body?.pin ?? '').trim()

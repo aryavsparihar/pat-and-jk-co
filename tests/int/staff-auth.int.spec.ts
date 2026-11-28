@@ -134,7 +134,7 @@ describe('staff accounts', () => {
         data: { token: token!, password: 'password123' },
         overrideAccess: true,
       }),
-    ).rejects.toThrow(/too weak/i)
+    ).rejects.toThrow(/stronger password/i)
     // And so does the breach check
     const spy = breachService('Nv4-copper-Meadow-2026?')
     await expect(

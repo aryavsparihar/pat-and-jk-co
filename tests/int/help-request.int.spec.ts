@@ -104,17 +104,17 @@ describe('Help Center form', () => {
 
   it('asks for each required field', async () => {
     for (const [field, message] of [
-      ['requestType', 'Choose who you are.'],
-      ['nature', 'Choose the nature of your request.'],
-      ['email', 'Enter your email address.'],
-      ['memberCode', 'Enter your Trade Partner ID.'],
-      ['name', 'Enter your full name.'],
+      ['requestType', 'Please choose who you are.'],
+      ['nature', 'Please choose what your request is about.'],
+      ['email', 'Please enter your email address.'],
+      ['memberCode', 'Please enter your trade partner ID.'],
+      ['name', 'Please enter your full name.'],
     ]) {
       const parsed = await parseHelpRequest(form({ ...valid, [field]: '' }))
       expect(parsed).toEqual({ ok: false, message })
     }
     const blank = await parseHelpRequest(form({ ...valid, details: '[[{"t":"  "}]]' }))
-    expect(blank).toEqual({ ok: false, message: 'Describe your request.' })
+    expect(blank).toEqual({ ok: false, message: 'Please describe your request.' })
   })
 
   it('takes pictures and PDFs by their bytes, not their names', async () => {
@@ -123,7 +123,7 @@ describe('Help Center form', () => {
     const disguised = new File([Buffer.from('MZ\x90\x00')], 'photo.png', { type: 'image/png' })
     expect(await parseHelpRequest(form(valid, [disguised]))).toEqual({
       ok: false,
-      message: '"photo" is not a picture or a PDF.',
+      message: '“photo” is not a picture or a PDF.',
     })
     const named = await parseHelpRequest(
       form(valid, [new File([PNG], '../../etc/screen.exe', { type: 'image/png' })]),
@@ -135,7 +135,8 @@ describe('Help Center form', () => {
     const big = new File([Buffer.alloc(4 * 1024 * 1024 + 1)], 'big.pdf')
     expect(await parseHelpRequest(form(valid, [big]))).toEqual({
       ok: false,
-      message: 'The attachments come to more than 4 MB together.',
+      message:
+        'Together, the attachments come to more than 4 MB. Please remove one or send smaller copies.',
     })
   })
 })

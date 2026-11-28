@@ -25,7 +25,7 @@ export async function POST(request: Request) {
   })
   if (!limit.allowed)
     return reply(
-      { message: 'Too many codes have been asked for. Try again in an hour.' },
+      { message: 'You have asked for several codes in a short time. Please try again in an hour.' },
       { status: 429 },
     )
 
@@ -50,7 +50,7 @@ export async function POST(request: Request) {
   })
   if (!sent)
     return reply(
-      { message: 'We could not send the code just now. Please try again.' },
+      { message: 'We could not send a code just now. Please try again in a few minutes.' },
       { status: 503 },
     )
   return withRefresh(

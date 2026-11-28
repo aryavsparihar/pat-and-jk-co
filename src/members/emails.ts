@@ -310,46 +310,6 @@ export const sendDecisionEmail = async (
     await decisionEmail(payload, args),
   )
 
-export const applicationReceivedEmail = async (
-  payload: Payload,
-  { application, email }: { application: Application; email?: string },
-): Promise<BuiltEmail> => {
-  const artist = application.type === 'artist'
-  return buildEmail({
-    subject: artist
-      ? `We have received your application | ${BRAND}`
-      : `We have received your Trade Program application | ${BRAND}`,
-    preheader: `Your application reference is ${application.reference}.`,
-    parts: [
-      {
-        kind: 'paragraph',
-        text: artist
-          ? `Thank you for submitting your application to showcase your work with ${BRAND} and Phulhaar Gallery. Our curation team reviews every submission individually, and we will write to you as soon as our evaluation is complete.`
-          : `Thank you for submitting your application to collaborate with ${BRAND} through our Trade Program. Our team reviews every application individually, and we will write to you once our review is complete.`,
-      },
-      { kind: 'reference', label: 'Your Application Reference', value: application.reference },
-      {
-        kind: 'paragraph',
-        text: 'Please quote this reference in any correspondence with us. You may check the live status of your application at any time by signing in with a code sent to this email address.',
-      },
-      { kind: 'link', label: 'Sign in', url: signInUrl() },
-    ],
-    footer: await emailFooter(payload),
-    recipient: { email: email ?? '', name: applicantName(application) },
-  })
-}
-
-/** 09, 10. The receipt; #22 goes to business@ alongside it */
-export const sendApplicationReceived = async (
-  payload: Payload,
-  { member, application }: { member: Member; application: Application },
-): Promise<boolean> =>
-  deliver(
-    payload,
-    { to: member.email },
-    await applicationReceivedEmail(payload, { application, email: member.email }),
-  )
-
 /** 22. A new application, to business@ */
 export const notifyStaffOfApplication = async (
   payload: Payload,
@@ -981,13 +941,12 @@ export const notifyStaffOfWorksFolder = async (
   return told
 }
 
-/** 24 to business@, and 24B to the artist */
+/** 24 to business@ (24B, the receipt to the artist, is no longer sent) */
 export const notifyStaffOfReview = async (
   payload: Payload,
   {
     memberId,
     adminPath,
-    member,
   }: { what?: string; memberId: string; adminPath: string; member?: Member | null },
 ): Promise<boolean> => {
   const footer = await emailFooter(payload)
@@ -1009,25 +968,7 @@ export const notifyStaffOfReview = async (
       recipient: toBusiness,
     }),
   )
-  if (member?.email) {
-    await deliver(
-      payload,
-      { to: member.email },
-      buildEmail({
-        subject: `We have received your profile updates | ${BRAND}`,
-        preheader: `Your profile updates (${memberId}) are now under curation review.`,
-        parts: [
-          {
-            kind: 'paragraph',
-            text: `We have received the updates to your artist profile (${memberId}). Our curation team will review your changes and notify you by email once your updated profile is published on Phulhaar Gallery.`,
-          },
-          { kind: 'link', label: 'Your account', url: accountUrl() },
-        ],
-        footer,
-        recipient: await toMember(payload, member),
-      }),
-    )
-  }
+  // No receipt to the artist: the brief has no confirmation emails, and the page says it was sent
   return told
 }
 

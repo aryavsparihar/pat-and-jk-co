@@ -14,6 +14,7 @@ import {
   sendMemberCode,
   sendStaffEmailChangeNotices,
 } from './emails'
+import { emailAddressProblem } from '@/security/emailAddress'
 import { PortalError } from './profile'
 import { actingFor } from '@/security/audit'
 
@@ -54,7 +55,7 @@ export const endSession = async (payload: Payload, member: Member, sessionId: nu
     .catch(() => null)
   const owner = session && (typeof session.member === 'object' ? session.member.id : session.member)
   if (!session || owner !== member.id)
-    throw new PortalError('That session could not be found.', 404)
+    throw new PortalError('We could not find that session. It may already have ended.', 404)
   await revokeSession(payload, session.sid, 'signed out from another device')
   await logSecurityEvent(payload, {
     event: 'member-session-ended',
@@ -76,8 +77,13 @@ export const requestEmailChange = async (
   { email, ip }: { email: unknown; ip: string },
 ) => {
   const next = normaliseEmail(String(email ?? ''))
-  if (!isEmail(next)) throw new PortalError('Please give a full email address.')
-  if (next === member.email) throw new PortalError('That is already the address on your account.')
+  if (!isEmail(next))
+    throw new PortalError('Please give a full email address, for example name@example.com.')
+  if (next === member.email)
+    throw new PortalError('That is already the email address on your account.')
+  // The new address must be one mail can reach, and not a throwaway one
+  const problem = await emailAddressProblem(next)
+  if (problem) throw new PortalError(problem)
 
   const challenge = await issueChallenge(payload, {
     email: next,
@@ -104,7 +110,11 @@ export const requestEmailChange = async (
     code: challenge.code,
     purpose: 'email-change',
   })
-  if (!sent) throw new PortalError('We could not send the code just now. Please try again.', 503)
+  if (!sent)
+    throw new PortalError(
+      'We could not send a code just now. Please try again in a few minutes.',
+      503,
+    )
   return { challengeId: challenge.id }
 }
 
@@ -131,7 +141,10 @@ export const confirmEmailChange = async (
   }
   const check = await checkChallenge(payload, { challengeId, code, audience: 'member' })
   if (!check.ok || check.purpose !== 'email-change' || check.email !== pending.pendingEmail) {
-    throw new PortalError('That code is not right, or it has expired. Ask for a new one.', 401)
+    throw new PortalError(
+      'That code is not right, or it has run out. Please ask for a new one.',
+      401,
+    )
   }
   const taken = await findMember(payload, pending.pendingEmail)
   if (taken && taken.id !== member.id) {
@@ -212,7 +225,8 @@ export const changeEmailByStaff = async (
     overrideAccess: true,
   })
   const next = normaliseEmail(String(email ?? ''))
-  if (!isEmail(next)) throw new PortalError('Please give a full email address.')
+  if (!isEmail(next))
+    throw new PortalError('Please give a full email address, for example name@example.com.')
   if (next === member.email) throw new PortalError('That is already the address on the account.')
   const kyc = await payload.count({
     collection: 'kyc-records',

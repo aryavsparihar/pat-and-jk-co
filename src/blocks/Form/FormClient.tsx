@@ -77,7 +77,9 @@ export const FormClient: React.FC<Props> = ({ form, helpEmail }) => {
 
         if (!res.ok) {
           const body = await res.json().catch(() => ({}))
-          setError(body?.errors?.[0]?.message || 'Something went wrong. Please try again.')
+          setError(
+            body?.errors?.[0]?.message || 'Something went wrong on our side. Please try again.',
+          )
           setIsSubmitting(false)
           return
         }
@@ -90,7 +92,7 @@ export const FormClient: React.FC<Props> = ({ form, helpEmail }) => {
         }
       } catch {
         setIsSubmitting(false)
-        setError('We could not reach the server. Please check your connection and try again.')
+        setError('We could not reach our server. Please check your connection and try again.')
       }
     },
     [router, formID, redirect, confirmationType, getToken],

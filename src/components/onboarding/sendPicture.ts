@@ -25,13 +25,21 @@ class PictureError extends Error {}
  * keep. An iPhone's HEIC photo arrives as JPEG already, as the file picker asks only for JPEG, PNG
  * or WebP. The server checks and re-encodes it again whatever happens here.
  */
+const ACCEPTED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+
 const shrink = async (file: File): Promise<Blob> => {
+  // A file the picker let through by its name alone: say what it is not
+  if (file.type && !ACCEPTED_TYPES.has(file.type))
+    throw new PictureError(
+      'That picture is not a JPEG, PNG or WebP picture. Please choose one that is.',
+    )
   let bitmap: ImageBitmap
   try {
     bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' })
   } catch {
+    // The right kind of file, but one this browser cannot open: damaged, or cut short
     throw new PictureError(
-      'This browser could not open that picture. Please send a JPEG, PNG or WebP.',
+      'That picture could not be prepared for upload. Please try another copy of it.',
     )
   }
   const scale = Math.min(1, LONG_SIDE / Math.max(bitmap.width, bitmap.height))
@@ -61,6 +69,20 @@ const shrink = async (file: File): Promise<Blob> => {
  * re-encodes it without any location or camera details, and keeps it in private storage. Nothing
  * goes to public storage on the way.
  */
+/**
+ * A line about one picture, led by its file name as the founder's wording has it: "photo.jpg is
+ * larger than 5 MB…". Lines from here and from the server begin "That picture"; anything else is
+ * shown after the name.
+ */
+export const aboutPicture = (name: string, message: string) =>
+  message.startsWith('That picture ')
+    ? `${name} ${message.slice('That picture '.length)}`
+    : `${name}: ${message}`
+
+/** The two lines for a picture that did not arrive */
+export const pictureNotSent = (name: string) => `${name} could not be uploaded. Please try again.`
+export const pictureNotAdded = (name: string) => `${name} could not be added. Please try again.`
+
 export const sendPicture = async <T>(
   file: File,
   onProgress: (progress: PictureProgress) => void,
@@ -71,7 +93,9 @@ export const sendPicture = async <T>(
     smaller = await shrink(file)
   } catch (error) {
     const message =
-      error instanceof PictureError ? error.message : 'That picture could not be prepared.'
+      error instanceof PictureError
+        ? error.message
+        : 'That picture could not be prepared for upload. Please try another copy of it.'
     return { ok: false, status: 0, data: { message } as ApiResult<T>['data'] }
   }
   const form = new FormData()

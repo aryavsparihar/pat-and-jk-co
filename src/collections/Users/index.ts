@@ -49,7 +49,7 @@ const checkStaffPassword = async (
   logger: { warn: (o: object) => void },
 ) => {
   const problem = passwordProblem(password, email)
-  if (problem) throw publicError(`Password too weak: ${problem}`, 400)
+  if (problem) throw publicError(problem, 400)
   const breached = await isBreachedPassword(password)
   if (breached) throw publicError(BREACHED_MESSAGE, 400)
   if (breached === null) {
@@ -253,7 +253,10 @@ export const Users: CollectionConfig = {
           ]) {
             const result = await hitLimit(req.payload, { ...limit, windowSeconds: 3600 })
             if (!result.allowed) {
-              throw publicError('Too many reset requests. Please try again in an hour.', 429)
+              throw publicError(
+                'Several reset links have been asked for in a short time. Please try again in an hour.',
+                429,
+              )
             }
           }
           return args
@@ -303,7 +306,7 @@ export const Users: CollectionConfig = {
       async ({ data, operation, originalDoc, req, context }) => {
         if (!context.erasing) {
           if (originalDoc?.status === 'erased') {
-            throw publicError('This account has been deleted; it cannot change.', 409)
+            throw publicError('This account has been deleted, so it cannot be changed.', 409)
           }
           if (data.status === 'erased') {
             throw publicError('Use "Delete this person" to delete an account.', 400)
@@ -434,7 +437,10 @@ export const Users: CollectionConfig = {
         const isLocal = req.payloadAPI === 'local'
 
         if (user.status !== 'active') {
-          throw publicError('This account is not active. Ask a super admin to re-enable it.', 403)
+          throw publicError(
+            'This account is switched off. Ask a super admin to switch it back on.',
+            403,
+          )
         }
         if (!isCompanyEmail(user.email)) {
           throw publicError('This account cannot sign in.', 403)

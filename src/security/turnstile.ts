@@ -20,7 +20,7 @@ export const TURNSTILE_FIELD = 'cf-turnstile-response'
 
 /** What a refused person is told: nothing was sent, the likely cause, and what to do */
 export const TURNSTILE_REFUSED =
-  'We could not confirm this came from a person, so nothing was sent. If you use Brave Shields or a privacy extension, allow challenges.cloudflare.com for this site, then try again.'
+  'We could not confirm that this came from a person, so nothing was sent. If you use Brave Shields or a privacy extension, allow challenges.cloudflare.com for this site and try again.'
 
 /** One per form, so a token earned on one cannot be spent on another */
 export type TurnstileAction =

@@ -33,7 +33,7 @@ export async function POST(request: Request) {
 
   if (!member.artistId) {
     return reply(
-      { message: 'Payout details are added here once you are an approved artist.' },
+      { message: 'You can add payout details once you are an approved artist.' },
       { status: 409 },
     )
   }
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
       detail: 'step-up for bank change',
     })
     return reply(
-      { message: 'That code is not right, or it has expired. Ask for a new one.' },
+      { message: 'That code is not right, or it has run out. Please ask for a new one.' },
       { status: 401 },
     )
   }
@@ -69,7 +69,10 @@ export async function POST(request: Request) {
   const parsed = bankSchema.safeParse(body?.bank)
   if (!parsed.success) {
     return reply(
-      { message: 'A few things need another look.', errors: fieldErrors(parsed.error) },
+      {
+        message: 'A few things need another look. They are marked below.',
+        errors: fieldErrors(parsed.error),
+      },
       { status: 422 },
     )
   }

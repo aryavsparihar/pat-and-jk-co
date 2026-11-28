@@ -25,7 +25,8 @@ export async function POST(request: Request) {
     max: 20,
     windowSeconds: 3600,
   })
-  if (!limit.allowed) return reply({ message: 'Please wait a little.' }, { status: 429 })
+  if (!limit.allowed)
+    return reply({ message: 'Please wait a moment before trying again.' }, { status: 429 })
 
   const body = await readJson<{ token: string }>(request)
   const memberId = await cancelBankChangeByToken(payload, String(body?.token ?? ''))

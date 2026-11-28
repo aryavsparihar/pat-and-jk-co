@@ -2,6 +2,7 @@ import configPromise from '@payload-config'
 import { getPayload } from 'payload'
 
 import { runKycPurge } from '@/kyc/service'
+import { runApplicationPurge } from '@/retention/applications'
 import { logSecurityEvent } from '@/security/events'
 import { runHousekeeping } from '@/security/housekeeping'
 import { isCronRequest } from '@/security/secrets'
@@ -16,7 +17,8 @@ const authorised = (request: Request): boolean => isCronRequest(request.headers)
 
 /**
  * The weekly KYC purge (vercel.json): applies the retention rules in docs/KYC.md and logs what it
- * removed, then deletes old sign-in codes and sessions (src/security/housekeeping.ts). Each run is
+ * removed, deletes applications not taken forward (src/retention/applications.ts), then deletes
+ * old sign-in codes and sessions (src/security/housekeeping.ts). Each run is
  * in the security log, and each KYC deletion with its reason. Only the cron can call it.
  */
 export async function GET(request: Request) {
@@ -24,14 +26,19 @@ export async function GET(request: Request) {
   const payload = await getPayload({ config: configPromise })
   const summary = await runKycPurge(payload)
   payload.logger.info({ msg: 'KYC purge', ...summary })
+  // Applications not taken forward: 90 days, or 12 months for a curator kept on file
+  const applications = await runApplicationPurge(payload)
   const cleared = await runHousekeeping(payload)
   // So anyone can see in the admin that the weekly purge is running
   await logSecurityEvent(payload, {
     event: 'scheduled-task-ran',
-    detail: `KYC purge: ${summary.members} member(s), ${summary.documents} upload(s) deleted${summary.failed ? `, ${summary.failed} failed and will be tried again` : ''}. Old sign-in codes: ${cleared.challenges}, old sessions: ${cleared.sessions} deleted`,
+    detail: `KYC purge: ${summary.members} member(s), ${summary.documents} upload(s) deleted${summary.failed ? `, ${summary.failed} failed and will be tried again` : ''}. Applications not taken forward: ${applications.deleted} deleted${applications.failed ? `, ${applications.failed} failed and will be tried again` : ''}. Old sign-in codes: ${cleared.challenges}, old sessions: ${cleared.sessions} deleted`,
   })
-  return Response.json(summary, {
-    status: summary.failed ? 500 : 200,
-    headers: { 'Cache-Control': 'no-store' },
-  })
+  return Response.json(
+    { ...summary, applications },
+    {
+      status: summary.failed || applications.failed ? 500 : 200,
+      headers: { 'Cache-Control': 'no-store' },
+    },
+  )
 }

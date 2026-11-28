@@ -70,11 +70,13 @@ export const cleanImage = async (
     meta = await sharp(input, { limitInputPixels: MAX_PIXELS }).metadata()
   } catch {
     throw new PortfolioError(
-      'That file is not a picture we can open. Please send a JPEG, PNG or WebP.',
+      'That picture is not a JPEG, PNG or WebP picture. Please choose one that is.',
     )
   }
   if (!meta.format || !ACCEPTED.has(meta.format)) {
-    throw new PortfolioError('Please send a JPEG, PNG or WebP picture.')
+    throw new PortfolioError(
+      'That picture is not a JPEG, PNG or WebP picture. Please choose one that is.',
+    )
   }
   const longSide = Math.max(meta.width ?? 0, meta.height ?? 0)
   if (PORTFOLIO_MIN_LONG_SIDE !== null && longSide < PORTFOLIO_MIN_LONG_SIDE) {

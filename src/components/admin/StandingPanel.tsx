@@ -74,7 +74,8 @@ export const StandingPanel: React.FC = () => {
     })
     const body = (await response.json().catch(() => ({}))) as { message?: string }
     setBusy(false)
-    if (!response.ok) return setMessage(body.message ?? 'The change could not be saved.')
+    if (!response.ok)
+      return setMessage(body.message ?? 'The change could not be saved. Please try again.')
     setMessage(done)
     router.refresh()
   }

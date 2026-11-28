@@ -187,7 +187,10 @@ export const Enquiries: CollectionConfig = {
           return fileResponse(new Uint8Array(await openSealed(file as never)), file)
         } catch (error) {
           req.payload.logger.error({ err: error, msg: 'Contact message file could not be opened' })
-          return Response.json({ message: 'The file could not be opened.' }, { status: 500 })
+          return Response.json(
+            { message: 'The file could not be opened. Please try again.' },
+            { status: 500 },
+          )
         }
       },
     },

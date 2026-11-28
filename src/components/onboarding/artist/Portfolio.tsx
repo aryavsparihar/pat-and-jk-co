@@ -6,7 +6,7 @@ import { OFFERED_UNITS, PORTFOLIO_MAX, PORTFOLIO_MIN, yearChoices } from '@/memb
 import { cn } from '@/utilities/ui'
 
 import { api } from '../api'
-import { sendPicture } from '../sendPicture'
+import { aboutPicture, pictureNotAdded, pictureNotSent, sendPicture } from '../sendPicture'
 import { UploadProgress, type UploadState } from '../UploadProgress'
 import { SelectField, TextField } from '../fields'
 import { Roller, type RollerOption } from '../Roller'
@@ -134,7 +134,11 @@ export const PortfolioStep: React.FC<StepProps> = ({ values, set, errors }) => {
   const sendOne = async (file: File, key: string): Promise<Image | null> => {
     const result = await sendPicture<{ image: Image }>(file, (state) => update(key, { state }))
     if (!result.ok) {
-      setProblem(`${file.name}: ${result.data.message ?? 'That picture could not be added.'}`)
+      setProblem(
+        result.data.message
+          ? aboutPicture(file.name, result.data.message)
+          : pictureNotAdded(file.name),
+      )
       return null
     }
     return result.data.image
@@ -168,7 +172,7 @@ export const PortfolioStep: React.FC<StepProps> = ({ values, set, errors }) => {
       try {
         image = await sendOne(file, item.key)
       } catch {
-        setProblem(`${file.name}: that picture could not be sent. Please try again.`)
+        setProblem(pictureNotSent(file.name))
       }
       if (!image) {
         update(item.key, { state: { phase: 'failed' } })

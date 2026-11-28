@@ -50,7 +50,7 @@ export const downloadAgreementFile = async (req: PayloadRequest): Promise<Respon
     const execution = await findExecution(req)
     const documentId = idOf(execution[field])
     if (!documentId)
-      return Response.json({ message: 'There is no such file yet.' }, { status: 404 })
+      return Response.json({ message: 'There is no file here yet.' }, { status: 404 })
     const file = await openKycDocument(req.payload, {
       documentId,
       actor: req.user!,
@@ -83,7 +83,7 @@ export const uploadCountersigned = async (req: PayloadRequest): Promise<Response
         {
           message:
             execution.state === 'executed'
-              ? 'This agreement is already countersigned and sent. It cannot be replaced.'
+              ? 'This agreement has already been countersigned and sent, so it cannot be replaced.'
               : 'This agreement has not been signed yet.',
         },
         { status: 409 },
@@ -146,7 +146,7 @@ export const uploadCountersigned = async (req: PayloadRequest): Promise<Response
     return Response.json({
       message: sent
         ? `Countersigned copy kept and sent to ${execution.signer?.email} and compliance.`
-        : 'Countersigned copy kept, but the email could not be sent. Please send it by hand.',
+        : 'The countersigned copy is kept, but the email could not be sent. Please send it by hand.',
       sent,
     })
   } catch (error) {

@@ -30,7 +30,7 @@ if (!email || !password) {
 if (!isCompanyEmail(email)) fail(`The address must end in @${COMPANY_EMAIL_DOMAIN}.`)
 
 const weak = passwordProblem(password, email)
-if (weak) fail(`That password is too weak. ${weak}`)
+if (weak) fail(weak)
 
 const payload = await getPayload({ config: configPromise })
 

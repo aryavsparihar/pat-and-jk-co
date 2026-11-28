@@ -54,7 +54,11 @@ const DownloadButton: React.FC<{ label: string; run: () => Promise<void> }> = ({
           try {
             await run()
           } catch (error) {
-            setProblem(error instanceof Error ? error.message : 'It could not be downloaded.')
+            setProblem(
+              error instanceof Error
+                ? error.message
+                : 'It could not be downloaded. Please try again.',
+            )
           } finally {
             setBusy(false)
           }

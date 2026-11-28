@@ -81,7 +81,7 @@ export const BankFields: React.FC<{
     } else {
       setLookup(
         result.data.unavailable
-          ? 'We could not look that up just now; please type the bank and branch.'
+          ? 'We could not look that up just now. Please type the bank and branch yourself.'
           : 'We could not find that IFSC. Please check it.',
       )
     }
@@ -138,8 +138,8 @@ export const BankFields: React.FC<{
       />
       {mismatch && (
         <p className="measure -mt-4 text-base italic" role="status">
-          This name looks different from the one on your ID. The account must be in your own name;
-          a shortened name is fine.
+          This name looks different from the one on your ID. The account must be in your own name; a
+          shortened name is fine.
         </p>
       )}
 

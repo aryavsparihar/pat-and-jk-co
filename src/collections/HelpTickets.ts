@@ -198,7 +198,10 @@ export const HelpTickets: CollectionConfig = {
           })
         } catch (error) {
           req.payload.logger.error({ err: error, msg: 'Help Center file could not be opened' })
-          return Response.json({ message: 'The file could not be opened.' }, { status: 500 })
+          return Response.json(
+            { message: 'The file could not be opened. Please try again.' },
+            { status: 500 },
+          )
         }
       },
     },

@@ -33,7 +33,7 @@ const colourField = (name: string, label: string, defaultValue: string, descript
 const httpsLink = (value: unknown) =>
   !value ||
   (typeof value === 'string' && /^https:\/\/\S+$/i.test(value.trim())) ||
-  'Use the full link, starting https://'
+  'Please use the full link, starting https://.'
 
 export const SiteSettings: CollectionConfig = {
   slug: 'site-settings',

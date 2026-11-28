@@ -33,12 +33,12 @@ export async function POST(request: Request) {
     name = String(body.name ?? '').slice(0, 120)
     message = String(body.message ?? '').slice(0, 1000)
   } catch {
-    return Response.json({ message: 'Please fill in the form.' }, { status: 400 })
+    return Response.json({ message: 'Please fill in every field.' }, { status: 400 })
   }
 
   if (!isCompanyEmail(email)) {
     return Response.json(
-      { message: 'Only PAT & J.K. Co. email addresses can be given admin access.' },
+      { message: 'Admin access is only for PAT & J.K. Co. email addresses.' },
       { status: 400 },
     )
   }

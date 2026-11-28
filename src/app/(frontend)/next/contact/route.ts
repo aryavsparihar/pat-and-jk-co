@@ -3,6 +3,7 @@ import { getPayload } from 'payload'
 
 import { ContactError, startMessage } from '@/contact/flow'
 import { checkContact } from '@/contact/message'
+import { emailAddressProblem } from '@/security/emailAddress'
 import { CONTACT_ERRORS } from '@/contact/rules'
 import { checkFormToken } from '@/members/formToken'
 import { fromOurOrigin, readJson, refuseCrossSite, reply } from '@/members/http'
@@ -48,6 +49,10 @@ export async function POST(request: Request) {
   const checked = checkContact(body)
   if (!checked.ok)
     return reply({ message: checked.message, errors: checked.errors }, { status: 400 })
+  // An address mail can reach, so that we can answer, and not a throwaway one
+  const addressProblem = await emailAddressProblem(checked.input.email)
+  if (addressProblem)
+    return reply({ message: addressProblem, errors: { email: addressProblem } }, { status: 400 })
 
   const human = await verifyTurnstile(body[TURNSTILE_FIELD], 'contact', {
     hostname: requestHostname(request.headers) ?? new URL(request.url).hostname,

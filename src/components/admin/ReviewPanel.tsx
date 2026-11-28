@@ -34,7 +34,7 @@ export const ReviewPanel: React.FC = () => {
 
   const decide = async (decision: 'approve' | 'request-changes') => {
     if (decision === 'request-changes' && !note.trim()) {
-      setMessage('Write a note to the artist first: it is emailed to them.')
+      setMessage('Please write a note to the artist first. It is emailed to them.')
       return
     }
     setBusy(true)
@@ -48,7 +48,8 @@ export const ReviewPanel: React.FC = () => {
     })
     const body = (await response.json().catch(() => ({}))) as { message?: string }
     setBusy(false)
-    if (!response.ok) return setMessage(body.message ?? 'The decision could not be saved.')
+    if (!response.ok)
+      return setMessage(body.message ?? 'The decision could not be saved. Please try again.')
     setNote('')
     setMessage(
       decision === 'approve'

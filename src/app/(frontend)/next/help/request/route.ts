@@ -72,7 +72,10 @@ export async function POST(request: Request) {
     form = await request.formData()
   } catch {
     return reply(
-      { message: 'Your request could not be read. The attachments may be too large.' },
+      {
+        message:
+          'Your request could not be read, perhaps because the attachments are too large. Please try smaller copies.',
+      },
       { status: 400 },
     )
   }
@@ -118,7 +121,7 @@ export async function POST(request: Request) {
   ])
   if (!limit.allowed) {
     return reply(
-      { message: 'Too many requests have been sent. Please try again in an hour.' },
+      { message: 'Several requests have been sent in a short time. Please try again in an hour.' },
       { status: 429, headers: { 'Retry-After': String(limit.retryAfter) } },
     )
   }

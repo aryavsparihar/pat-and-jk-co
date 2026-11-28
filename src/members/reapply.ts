@@ -152,7 +152,10 @@ export const applyAgain = async (
   const earlier = await findOwnApplication(payload, member, type, 0)
   if (!earlier) throw publicError('There is no application to follow.', 404)
   if (earlier.stage !== 'rejected' && earlier.stage !== 'withdrawn')
-    throw publicError('Your current application is still open.', 409)
+    throw publicError(
+      'Your current application is still open, so a new one cannot be started yet.',
+      409,
+    )
   if (!canReapply(earlier)) throw publicError('It is not yet time to apply again.', 409)
 
   const kept = await carriedOver(payload, member, earlier)

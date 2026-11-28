@@ -9,7 +9,7 @@ export const Error = ({ name }: { name: string }) => {
   } = useFormContext()
   return (
     <p className="mt-2 text-sm text-destructive" role="alert">
-      {(errors[name]?.message as string) || 'This field is required'}
+      {(errors[name]?.message as string) || 'Please fill this in.'}
     </p>
   )
 }

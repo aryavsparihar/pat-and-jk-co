@@ -30,7 +30,7 @@ export const ON_HOLD_MESSAGE =
   'Your account is on hold, so nothing can be changed for now. Please write to hello@pjk.co.in.'
 
 export const PAYOUTS_PAUSED_MESSAGE =
-  'This account is on hold: payouts and payout details are paused until it is released.'
+  'Your account is on hold, so payouts and payout details are paused until it is released.'
 
 const MIN_REASON = 10
 
@@ -67,7 +67,7 @@ export const changeStanding = async (
     .catch(() => null)
   if (!member) throw new StandingError('There is no such member.', 404)
   if (member.standing === 'erased')
-    throw new StandingError('This person has been deleted; their record cannot change.', 409)
+    throw new StandingError('This person’s record has been deleted, so it cannot be changed.', 409)
   if (member.standing === standing) throw new StandingError('They already have that standing.', 409)
 
   return payload.update({

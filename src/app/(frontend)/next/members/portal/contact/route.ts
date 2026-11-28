@@ -9,7 +9,7 @@ export const POST = portalHandler(
   'contact',
   async ({ payload, member, request }) => {
     if (!member.artistId && !member.partnerId) {
-      throw new PortalError('Contact details can be changed once you are approved.', 403)
+      throw new PortalError('You can change your contact details once you are approved.', 403)
     }
     return { contact: await saveContact(payload, member, await parseBody(request, contactSchema)) }
   },

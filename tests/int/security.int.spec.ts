@@ -154,7 +154,7 @@ describe('user accounts', () => {
         context,
         data: { email: EMAIL, name: 'Weak', password: 'password123', roles: ['editor'] } as never,
       }),
-    ).rejects.toThrow(/too weak/i)
+    ).rejects.toThrow(/stronger password/i)
   })
 
   it('blocks sign-in for a suspended account', async () => {
@@ -172,7 +172,19 @@ describe('user accounts', () => {
 
     await expect(
       payload.login({ collection: 'users', data: { email: EMAIL, password: STRONG } }),
-    ).rejects.toThrow(/not active/i)
+    ).rejects.toThrow(/switched off/i)
+  })
+
+  it('answers a wrong password in the founder’s words, not the CMS’s', async () => {
+    await cleanup()
+    await payload.create({
+      collection: 'users',
+      context,
+      data: { email: EMAIL, name: 'Wrong password', password: STRONG, roles: ['editor'] } as never,
+    })
+    await expect(
+      payload.login({ collection: 'users', data: { email: EMAIL, password: `${STRONG}x` } }),
+    ).rejects.toThrow('The email address or password is not right.')
   })
 })
 

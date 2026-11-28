@@ -57,7 +57,10 @@ export const IdentityPhoto: React.FC<{
     )
     setCodeBusy(false)
     if (!result.ok)
-      return setPhotoNote(result.data.message ?? 'A code could not be given just now.')
+      return setPhotoNote(
+        result.data.message ??
+          'We could not give you a code just now. Please try again in a minute.',
+      )
     // The ten minutes run from now, on this device's clock: see codeLeft
     setCode({ code: result.data.code, minutes: result.data.minutes, gotAt: Date.now() })
     onCode?.(result.data.code)
@@ -96,7 +99,9 @@ export const IdentityPhoto: React.FC<{
     setPhotoBusy(false)
     if (!result.ok) {
       setPhoto(null)
-      return setPhotoNote(result.data.message ?? 'The photo could not be sent.')
+      return setPhotoNote(
+        result.data.message ?? 'The photo could not be uploaded. Please try again.',
+      )
     }
     onSent(result.data.document.id, name)
     setPhotoNote('Received, and encrypted.')
@@ -148,8 +153,8 @@ export const IdentityPhoto: React.FC<{
           {cameraProblem && (
             <p className="measure text-base" role="status">
               {cameraProblem === 'declined'
-                ? 'The camera was not allowed, which is fine. Take the photo with your camera app and upload it here instead.'
-                : 'We could not open a camera on this device. Take the photo another way and upload it here instead.'}
+                ? 'That is fine: we will not use your camera. Take the photo with your camera app and upload it here instead.'
+                : 'We could not open a camera on this device. Take the photo another way and upload it here.'}
             </p>
           )}
           {camera && (

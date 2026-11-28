@@ -30,7 +30,9 @@ export const Email: React.FC<
         type="email"
         {...register(name, {
           validate: (value: string) =>
-            !value || isEmailShaped(value.trim()) || 'Please enter a valid email address',
+            !value ||
+            isEmailShaped(value.trim()) ||
+            'Please enter a full email address, for example name@example.com.',
           required: Boolean(required),
         })}
       />

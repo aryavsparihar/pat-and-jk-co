@@ -47,7 +47,7 @@ export const AgreementPanel: React.FC = () => {
     })
     if (!response.ok) {
       const body = (await response.json().catch(() => ({}))) as { message?: string }
-      return setMessage(body.message ?? 'The file could not be opened.')
+      return setMessage(body.message ?? 'The file could not be opened. Please try again.')
     }
     const name =
       /filename="([^"]+)"/.exec(response.headers.get('Content-Disposition') ?? '')?.[1] ?? file
@@ -78,7 +78,9 @@ export const AgreementPanel: React.FC = () => {
     })
     const body = (await response.json().catch(() => ({}))) as { message?: string }
     setBusy(false)
-    setMessage(body.message ?? (response.ok ? 'Done.' : 'The upload did not work.'))
+    setMessage(
+      body.message ?? (response.ok ? 'Done.' : 'The upload did not work. Please try again.'),
+    )
     if (response.ok) router.refresh()
   }
 

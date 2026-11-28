@@ -178,18 +178,18 @@ export type OtherIdKind = (typeof OTHER_ID_KINDS)[number]
 export const kycSchema = z
   .object({
     consent: z.literal(true, {
-      error: 'We need your consent before we can take your identity details.',
+      error: 'Please tick the box to agree before we take your identity details.',
     }),
     // How the consent was given: the privacy notice read to its end, then I AGREE typed out
     consentReadToEnd: z.literal(true, {
       error: 'Please read the privacy notice to the end, then confirm.',
     }),
     consentTyped: z.literal('I AGREE', {
-      error: 'Please type I AGREE, in capitals, to confirm.',
+      error: 'Please type I AGREE in capitals to confirm.',
     }),
     noticeVersion: z.string().max(40).optional(),
     pan: z.string({ error: 'Please give your PAN.' }).max(20, 'A PAN is ten characters.'),
-    panName: z.string().max(120, 'Please keep this under 120 characters.').optional(),
+    panName: z.string().max(120, 'Please keep this to 120 characters or fewer.').optional(),
     idChoice: z.enum(['aadhaar', 'other'], {
       error: 'Please choose a masked Aadhaar or another ID.',
     }),
@@ -219,19 +219,25 @@ export const kycSchema = z
       if (problem === 'format') {
         issue(['pan'], 'A PAN is ten characters: five letters, four digits, a letter.')
       } else if (problem === 'not-individual') {
-        issue(['pan'], 'That looks like the PAN of a business. Please give your own, personal PAN.')
+        issue(['pan'], 'That looks like a business PAN. Please give your own personal PAN.')
       }
       if (!String(value.panName ?? '').trim()) {
-        issue(['panName'], 'Please give your name exactly as it is on your PAN card.')
+        issue(['panName'], 'Please give your name exactly as it is printed on your PAN card.')
       }
 
       if (value.idChoice === 'aadhaar') {
         const digits = String(value.aadhaarLast4 ?? '').trim()
         if (looksLikeFullAadhaar(digits)) {
           // Never accept, store or echo a full Aadhaar number
-          issue(['aadhaarLast4'], 'Please give only the last four digits, not the whole number.')
+          issue(
+            ['aadhaarLast4'],
+            'Please give only the last four digits, not the whole Aadhaar number.',
+          )
         } else if (!isAadhaarLast4(digits)) {
-          issue(['aadhaarLast4'], 'Please give the last four digits shown on your masked Aadhaar.')
+          issue(
+            ['aadhaarLast4'],
+            'Please give the last four digits shown on your masked e-Aadhaar.',
+          )
         }
         if (!documents['masked-aadhaar']) {
           issue(['documents', 'masked-aadhaar'], 'Please upload your masked e-Aadhaar.')
@@ -249,7 +255,7 @@ export const kycSchema = z
       if (!documents['pan-card']) {
         issue(
           ['documents', 'pan-card'],
-          'Please add a photo of your PAN card, with your face on it clearly visible.',
+          'Please add a photo of your PAN card, with your face, name and number easy to read.',
         )
       }
       if (!documents['identity-photo']) {
@@ -260,11 +266,14 @@ export const kycSchema = z
       }
 
       if (typeof value.addressOnIdMatches !== 'boolean') {
-        issue(['addressOnIdMatches'], 'Please tell us whether the address on it matches.')
+        issue(
+          ['addressOnIdMatches'],
+          'Please tell us whether the address on it matches the one in your application.',
+        )
       } else if (value.addressOnIdMatches === false && !documents['address-proof']) {
         issue(
           ['documents', 'address-proof'],
-          'As the address differs, please upload a proof of your current address.',
+          'As the address is different, please also upload proof of your current address.',
         )
       }
     },
@@ -298,17 +307,17 @@ export type KycInput = z.infer<typeof kycSchema>
 export const partnerKycSchema = z
   .object({
     consent: z.literal(true, {
-      error: 'We need your consent before we can take your identity details.',
+      error: 'Please tick the box to agree before we take your identity details.',
     }),
     consentReadToEnd: z.literal(true, {
       error: 'Please read the privacy notice to the end, then confirm.',
     }),
     consentTyped: z.literal('I AGREE', {
-      error: 'Please type I AGREE, in capitals, to confirm.',
+      error: 'Please type I AGREE in capitals to confirm.',
     }),
     noticeVersion: z.string().max(40).optional(),
     pan: z.string({ error: 'Please give your PAN.' }).max(20, 'A PAN is ten characters.'),
-    panName: z.string().max(120, 'Please keep this under 120 characters.').optional(),
+    panName: z.string().max(120, 'Please keep this to 120 characters or fewer.').optional(),
     documents: z.object({ 'pan-card': documentId, 'identity-photo': documentId }).default({}),
   })
   .superRefine(
@@ -321,15 +330,15 @@ export const partnerKycSchema = z
       if (problem === 'format') {
         issue(['pan'], 'A PAN is ten characters: five letters, four digits, a letter.')
       } else if (problem === 'not-individual') {
-        issue(['pan'], 'That looks like the PAN of a business. Please give your own, personal PAN.')
+        issue(['pan'], 'That looks like a business PAN. Please give your own personal PAN.')
       }
       if (!String(value.panName ?? '').trim()) {
-        issue(['panName'], 'Please give your name exactly as it is on your PAN card.')
+        issue(['panName'], 'Please give your name exactly as it is printed on your PAN card.')
       }
       if (!documents['pan-card']) {
         issue(
           ['documents', 'pan-card'],
-          'Please add a photo of your PAN card, with your face on it clearly visible.',
+          'Please add a photo of your PAN card, with your face, name and number easy to read.',
         )
       }
       if (!documents['identity-photo']) {

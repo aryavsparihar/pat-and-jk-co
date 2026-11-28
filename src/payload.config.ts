@@ -42,6 +42,7 @@ import { checkDatabaseRole } from './security/databaseRole'
 import { isCronRequest } from './security/secrets'
 import { isStaff } from './access/roles'
 import { defaultLexical } from '@/fields/defaultLexical'
+import { adminMessages } from '@/i18n/adminMessages'
 import { putStaffSessionFirst } from './security/strategyOrder'
 import { trustedOrigins } from './utilities/getURL'
 
@@ -56,6 +57,8 @@ const dirname = path.dirname(filename)
 const allowedOrigins = trustedOrigins()
 
 export default buildConfig({
+  // The admin panel's own messages, in the founder's wording (src/i18n/adminMessages.ts)
+  i18n: { translations: adminMessages },
   admin: {
     // Both media storage plugins' upload components, so switching store is only a setting
     // (src/storage/mediaPlugin.ts)

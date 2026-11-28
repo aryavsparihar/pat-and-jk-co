@@ -32,7 +32,9 @@ export const CancelBankChange: React.FC<{ token: string }> = ({ token }) => {
     setState('busy')
     const result = await api('/next/members/kyc/bank-change/cancel', { body: { token } })
     if (result.ok) return setState('done')
-    setMessage(result.data.message ?? 'That did not work. Please write to us.')
+    setMessage(
+      result.data.message ?? 'That did not work. Please write to hello@pjk.co.in straight away.',
+    )
     setState('failed')
   }
 

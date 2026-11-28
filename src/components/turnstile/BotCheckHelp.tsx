@@ -15,12 +15,12 @@ export const BotCheckHelp: React.FC<{
   <div className="mt-6 border-l-2 border-destructive pl-5 text-base" id={id} role="alert">
     <p className="font-medium">
       {problem === 'blocked'
-        ? 'We could not run the check that keeps out automated messages, so nothing was sent.'
-        : 'The check that keeps out automated messages did not go through, so nothing was sent.'}
+        ? 'The security check could not load, so nothing was sent.'
+        : 'The security check did not go through, so nothing was sent.'}
     </p>
     <p className="measure mt-2">
-      Brave Shields, or a privacy or ad-blocking extension, often stops it. Allow
-      challenges.cloudflare.com, or turn the shield off for this site, then try again.
+      Brave Shields and some privacy or ad-blocking extensions can stop it. Allow
+      challenges.cloudflare.com, or turn the shield off for pjk.co.in, then try again.
     </p>
     <p className="measure mt-2">
       If it still does not work,{' '}
@@ -34,9 +34,9 @@ export const BotCheckHelp: React.FC<{
         </>
       ) : (
         <>
-          write to us: our address is on the{' '}
+          you will find our email addresses on the{' '}
           <a className="link" href="/contact">
-            contact page
+            Contact page
           </a>
           .
         </>

@@ -80,7 +80,11 @@ const StepUpDialog: React.FC<{ onDone: (ok: boolean) => void }> = ({ onDone }) =
     setMessage(null)
     const result = await api<{ challengeId: number }>('/next/members/step-up', { body: {} })
     setBusy(false)
-    if (!result.ok) return setMessage(result.data.message ?? 'We could not send a code just now.')
+    if (!result.ok)
+      return setMessage(
+        result.data.message ??
+          'We could not send a code just now. Please try again in a few minutes.',
+      )
     setChallengeId(result.data.challengeId)
     setCode('')
   }
@@ -91,7 +95,10 @@ const StepUpDialog: React.FC<{ onDone: (ok: boolean) => void }> = ({ onDone }) =
     setMessage(null)
     const result = await api('/next/members/step-up/confirm', { body: { challengeId, code } })
     setBusy(false)
-    if (!result.ok) return setMessage(result.data.message ?? 'That code was not accepted.')
+    if (!result.ok)
+      return setMessage(
+        result.data.message ?? 'We could not accept that code. Please ask for a new one.',
+      )
     dialog.current?.close()
     onDone(true)
   }

@@ -58,7 +58,7 @@ export const DpdpConsent: React.FC<{
       <p className="muted mt-2 text-base">
         {readToEnd
           ? 'You have reached the end of the policy.'
-          : 'Scroll to the end of the policy to continue.'}
+          : 'Please scroll to the end of the notice to continue.'}
       </p>
 
       <p className="measure mt-8 font-semibold">{DPDP_NOTICE}</p>

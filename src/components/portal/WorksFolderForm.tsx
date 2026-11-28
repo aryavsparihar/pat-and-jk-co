@@ -29,7 +29,7 @@ export const WorksFolderForm: React.FC<{ initial: string | null }> = ({ initial 
       const reason = (result.data as { errors?: Record<string, string> }).errors?.url
       setMessage({
         ok: false,
-        text: reason ?? result.data.message ?? 'The link could not be saved.',
+        text: reason ?? result.data.message ?? 'The link could not be saved. Please try again.',
       })
       return
     }

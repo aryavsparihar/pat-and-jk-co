@@ -43,7 +43,11 @@ export async function POST(request: Request) {
     max: 5,
     windowSeconds: 86_400,
   })
-  if (!limit.allowed) return reply({ message: 'We already have your request.' }, { status: 429 })
+  if (!limit.allowed)
+    return reply(
+      { message: 'We already have your request and are dealing with it.' },
+      { status: 429 },
+    )
 
   const body = await readJson<{ kind: string }>(request)
   const kind = body?.kind as keyof typeof KINDS

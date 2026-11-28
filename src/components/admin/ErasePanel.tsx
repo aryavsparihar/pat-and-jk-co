@@ -98,7 +98,8 @@ export const ErasePanel: React.FC = () => {
       placeholder?: string
     }
     setBusy(false)
-    if (!response.ok) return setMessage(body.message ?? 'They could not be deleted.')
+    if (!response.ok)
+      return setMessage(body.message ?? 'They could not be deleted. Please try again.')
     setMessage(`Done. They are now “${body.placeholder}”.`)
     router.refresh()
   }

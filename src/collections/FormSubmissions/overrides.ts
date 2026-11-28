@@ -35,7 +35,7 @@ export const protectSubmission: CollectionBeforeChangeHook = async ({ data, oper
 
   const honeypot = entries.find((e) => e.field === HONEYPOT_FIELD)
   if (honeypot && String(honeypot.value ?? '').trim() !== '') {
-    throw publicError('Your message could not be sent.', 400)
+    throw publicError('Your message could not be sent. Please try again in a minute.', 400)
   }
 
   // Visitors are limited and checked; staff and server code calling the Local API (seeds, tests)

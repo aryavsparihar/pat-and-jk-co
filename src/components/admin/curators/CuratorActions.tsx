@@ -73,7 +73,7 @@ export const CuratorActions: React.FC<{ application: Curator }> = ({ application
             body,
           })
     setBusy(false)
-    if (!result.ok) return setMessage(result.message ?? 'That could not be done.')
+    if (!result.ok) return setMessage(result.message ?? 'That could not be done. Please try again.')
     close()
     router.refresh()
   }

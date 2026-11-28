@@ -46,7 +46,10 @@ export async function POST(request: Request) {
 
   const body = await readJson<PartnerSubmission & { formToken?: string; save?: boolean }>(request)
   if (filledHoneypot(body as Record<string, unknown>)) {
-    return reply({ message: 'Your application could not be sent.' }, { status: 400 })
+    return reply(
+      { message: 'Your application could not be sent. Please try again in a minute.' },
+      { status: 400 },
+    )
   }
   if (checkFormToken(body?.formToken) !== 'ok') {
     return reply({ message: 'Please reload the page and try again.' }, { status: 400 })
@@ -66,7 +69,7 @@ export async function POST(request: Request) {
     windowSeconds: 3600,
   })
   if (!limit.allowed)
-    return reply({ message: 'Please wait a little before trying again.' }, { status: 429 })
+    return reply({ message: 'Please wait a moment before trying again.' }, { status: 429 })
 
   // Cloudflare Turnstile at the final step, where it is set up: earned on this form, on this site
   const ip = clientIp(request.headers)

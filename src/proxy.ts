@@ -58,7 +58,11 @@ export function proxy(request: NextRequest) {
     // API callers get a plain refusal; people get sent to the gate
     if (pathname.startsWith('/api/')) {
       return NextResponse.json(
-        { errors: [{ message: 'Admin access requires a one-time code. Visit /admin-access.' }] },
+        {
+          errors: [
+            { message: 'Admin access needs a one-time code. Go to /admin-access to get one.' },
+          ],
+        },
         { status: 401 },
       )
     }

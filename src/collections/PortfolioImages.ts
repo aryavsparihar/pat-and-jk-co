@@ -120,7 +120,7 @@ export const PortfolioImages: CollectionConfig = {
       // A picture is never replaced in place: the work it was sent with stays as it was sent
       ({ operation, req }) => {
         if (operation === 'update' && req.file)
-          throw publicError('A picture cannot be replaced. Upload a new one instead.', 409)
+          throw publicError('A picture cannot be replaced. Please upload a new one instead.', 409)
       },
       // A picture staff upload in the admin gets what an artist's gets: checked to be what it
       // says it is, re-encoded without location or camera details, at most 2400 px, under a name
@@ -158,7 +158,10 @@ export const PortfolioImages: CollectionConfig = {
           req,
         })
         if (sent.totalDocs > 0)
-          throw publicError('This picture is part of an application that was sent.', 409)
+          throw publicError(
+            'This picture is part of an application that has been sent, so it cannot be changed.',
+            409,
+          )
       },
     ],
     beforeChange: [

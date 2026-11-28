@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     windowSeconds: 3600,
   })
   if (!limit.allowed)
-    return reply({ message: 'Please wait a little before trying again.' }, { status: 429 })
+    return reply({ message: 'Please wait a moment before trying again.' }, { status: 429 })
 
   try {
     const application = await withdrawApplication(payload, member, body.type)
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
       return reply({ message: error.message }, { status: error.status })
     payload.logger.error({ err: error, msg: 'Could not withdraw an application' })
     return reply(
-      { message: 'Your application could not be withdrawn just now. Please try later.' },
+      { message: 'Your application could not be withdrawn just now. Please try again later.' },
       { status: 500 },
     )
   }
