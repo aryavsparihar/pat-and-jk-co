@@ -46,6 +46,8 @@ const ROUTES: Record<string, 'public' | 'member' | 'staff' | 'secret' | 'token'>
   '/collaborate': 'public',
   '/collaborate/artists': 'public',
   '/collaborate/partners': 'public',
+  // The guest curator form: no account is needed
+  '/collaborate/curators': 'public',
   '/collaborate/signin': 'public',
   // Open to all, but show the agreement only to a member with the right ID; others are asked to
   // sign in, or told the page is for approved members
@@ -77,6 +79,10 @@ const ROUTES: Record<string, 'public' | 'member' | 'staff' | 'secret' | 'token'>
   '/next/contact': 'public',
   '/next/contact/part': 'public',
   '/next/contact/finish': 'public',
+  // The guest curator form, the same way: the answers, then the portfolio and CV in parts
+  '/next/curators': 'public',
+  '/next/curators/part': 'public',
+  '/next/curators/finish': 'public',
   '/next/admin-gate/request-access': 'public',
   '/next/admin-gate/request-code': 'public',
   '/next/admin-gate/verify-code': 'public',
