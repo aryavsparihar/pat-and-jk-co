@@ -1,4 +1,13 @@
-import type { Access, CollectionConfig, Field, FieldAccess, Where } from 'payload'
+import type {
+  Access,
+  CollectionConfig,
+  Endpoint,
+  Field,
+  FieldAccess,
+  PayloadRequest,
+  Where,
+} from 'payload'
+import type { User } from '../payload-types'
 import { publicError } from '@/utilities/publicError'
 import { APIError } from 'payload'
 
@@ -54,6 +63,95 @@ const writtenByApplicant = (field: Field): Field =>
         access: { ...(field as { access?: object }).access, update: applicantOnly },
       } as Field)
     : field
+
+/** What went wrong, as staff should read it: a known refusal in its words, anything else plainly */
+const failed = (req: PayloadRequest, error: unknown, what: string) => {
+  const status = error instanceof APIError ? error.status : 500
+  if (status === 500) req.payload.logger.error({ err: error, msg: `${what} failed` })
+  return Response.json(
+    { message: error instanceof APIError ? error.message : 'That could not be done.' },
+    { status },
+  )
+}
+
+/**
+ * The Curators screen's actions (src/curators/admin.ts), staff only: send one of the two letters
+ * as edited, put a curator on a project, add a team note, and open their portfolio or CV.
+ */
+const curatorEndpoints = (): Endpoint[] => {
+  const action =
+    (
+      run: (req: PayloadRequest, id: number, body: Record<string, unknown>) => Promise<unknown>,
+      what: string,
+    ) =>
+    async (req: PayloadRequest) => {
+      if (!isStaff(req.user)) return refuse(req, 'Only staff can do that.')
+      const body = ((await req.json?.().catch(() => ({}))) ?? {}) as Record<string, unknown>
+      try {
+        await run(req, Number(req.routeParams?.id), body)
+        return Response.json({ ok: true })
+      } catch (error) {
+        return failed(req, error, what)
+      }
+    }
+  return [
+    {
+      // POST /api/applications/:id/curator-email  { kind: 'talk' | 'decline', subject, body }
+      path: '/:id/curator-email',
+      method: 'post',
+      handler: action(async (req, id, body) => {
+        const { sendFromCuratorsScreen } = await import('../curators/admin')
+        await sendFromCuratorsScreen(req.payload, req.user as User, {
+          id,
+          kind: body.kind as 'talk' | 'decline',
+          subject: String(body.subject ?? ''),
+          body: String(body.body ?? ''),
+        })
+      }, 'Curator email'),
+    },
+    {
+      // POST /api/applications/:id/curator-project  { project }
+      path: '/:id/curator-project',
+      method: 'post',
+      handler: action(async (req, id, body) => {
+        const { setCuratorProject } = await import('../curators/admin')
+        await setCuratorProject(req.payload, req.user as User, {
+          id,
+          project: String(body.project ?? ''),
+        })
+      }, 'Curator project'),
+    },
+    {
+      // POST /api/applications/:id/curator-note  { note }
+      path: '/:id/curator-note',
+      method: 'post',
+      handler: action(async (req, id, body) => {
+        const { addCuratorNote } = await import('../curators/admin')
+        await addCuratorNote(req.payload, req.user as User, { id, note: String(body.note ?? '') })
+      }, 'Curator note'),
+    },
+    {
+      // GET /api/applications/:id/curator-file/portfolio or /cv. Staff only; never cached
+      path: '/:id/curator-file/:kind',
+      method: 'get',
+      handler: async (req) => {
+        if (!isStaff(req.user)) return refuse(req, 'Only staff can open these files.')
+        try {
+          const { curatorFile } = await import('../curators/admin')
+          const { fileResponse } = await import('../utilities/fileResponse')
+          const { file, bytes } = await curatorFile(
+            req.payload,
+            Number(req.routeParams?.id),
+            String(req.routeParams?.kind),
+          )
+          return fileResponse(bytes, file)
+        } catch (error) {
+          return failed(req, error, 'Curator file')
+        }
+      },
+    },
+  ]
+}
 
 /**
  * How someone asks to work with PJK: as an artist, as a trade partner, or as a guest curator (the
@@ -359,6 +457,7 @@ export const Applications: CollectionConfig = {
   // Every application of a person, of a kind, found quickly; at most one is current (currentSlot)
   indexes: [{ fields: ['member', 'type'] }],
   endpoints: [
+    ...curatorEndpoints(),
     {
       // POST /api/applications/:id/allow-reapply. Staff only; logged
       path: '/:id/allow-reapply',

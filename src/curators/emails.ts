@@ -17,7 +17,7 @@ import { CURATOR_AREAS, CURATOR_WANTS, CURATOR_YEARS, labelOf } from './rules'
  *   on file. Each goes from noreply@ with a blind copy to business@, as every decision does.
  */
 
-export type CuratorEmailKind = 'talk' | 'decline'
+export { curatorEmailDraft, type CuratorEmailKind } from './drafts'
 
 type Curator = {
   id: number
@@ -25,33 +25,6 @@ type Curator = {
   fullName: string
   email: string
   keepOnFile: boolean
-}
-
-const firstName = (fullName: string) => fullName.trim().split(/\s+/)[0] || fullName
-
-/** The draft each button opens: the subject and the letter, as the design words them */
-export const curatorEmailDraft = (
-  kind: CuratorEmailKind,
-  curator: Pick<Curator, 'reference' | 'fullName' | 'keepOnFile'>,
-): { subject: string; body: string } => {
-  const ref = curator.reference
-  const paragraphs =
-    kind === 'talk'
-      ? [
-          'We have looked through your portfolio with real interest, and would like to talk about working together.',
-          'Guest curators work with us one project at a time. Before any project begins, we agree its scope, dates and fee with you in writing.',
-          `Please write to hello@pjk.co.in with two or three times that suit you for a first conversation, quoting ${ref}. We work on Indian Standard Time, and are happy to find an hour that suits yours.`,
-        ]
-      : [
-          'Thank you for your application, and for the care you put into it. We are not able to offer you a project at the moment.',
-          curator.keepOnFile
-            ? 'As you asked, we will keep your application on file for 12 months, and write if a later project suits your work. If you would rather we deleted it now, write to compliance@pjk.co.in.'
-            : 'We will delete your application within 90 days.',
-        ]
-  return {
-    subject: 'Your application to curate with PJK',
-    body: [`Dear ${firstName(curator.fullName)},`, ...paragraphs].join('\n\n'),
-  }
 }
 
 const SIGN_OFF = [
