@@ -86,10 +86,28 @@ export const artistApplicationFields: Field[] = [
           { name: 'phone', type: 'text', admin: { width: '33%' } },
           {
             name: 'language',
-            label: 'Preferred language',
+            label: 'Preferred language (no longer asked)',
             type: 'select',
             options: LANGUAGES.map((l) => ({ label: l, value: l })),
             admin: { width: '33%' },
+          },
+        ],
+      },
+      // Given in step 1, against the notice on how PAT & J.K. Co. uses their details
+      {
+        type: 'row',
+        fields: [
+          {
+            name: 'consentProcessing',
+            label: 'Agreed to how PAT & J.K. Co. uses their details',
+            type: 'checkbox',
+            admin: { width: '50%' },
+          },
+          {
+            name: 'consentedAt',
+            label: 'Agreed on',
+            type: 'date',
+            admin: { width: '50%', date: { pickerAppearance: 'dayAndTime' } },
           },
         ],
       },
@@ -128,7 +146,15 @@ export const artistApplicationFields: Field[] = [
       },
       { name: 'mediumOther', label: 'Other medium', type: 'text' },
       { name: 'stylesThemes', label: 'Styles and themes', type: 'textarea' },
-      { name: 'yearsPractising', type: 'number' },
+      {
+        name: 'yearsPractising',
+        label: 'Years making work',
+        type: 'number',
+        admin: {
+          description:
+            'The start of the band they chose: 0 is less than a year, 1 is 1 to 2, 3 is 3 to 5, 6 is 6 to 10, 11 is more than 10.',
+        },
+      },
       { name: 'training', label: 'Training or education', type: 'textarea' },
       { name: 'bio', label: 'Biography', type: 'textarea' },
       { name: 'statement', label: 'Artist statement', type: 'textarea' },
@@ -256,10 +282,16 @@ export const artistApplicationFields: Field[] = [
         label: 'The work is their own, and they hold the rights',
         type: 'checkbox',
       },
+      {
+        name: 'notCopy',
+        label: 'None of the works is a print, a copy, or made with AI',
+        type: 'checkbox',
+      },
       { name: 'accurate', label: 'The information is accurate', type: 'checkbox' },
+      // Asked here before the design moved consent to step 1 (about.consentProcessing)
       {
         name: 'consentProcessing',
-        label: 'Consented to identity details being processed for verification',
+        label: 'Consented to identity details being processed (before step 1 asked)',
         type: 'checkbox',
       },
       {
