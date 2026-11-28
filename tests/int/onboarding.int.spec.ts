@@ -11,7 +11,6 @@ import { POST as reapply } from '@/app/(frontend)/next/members/application/reapp
 import { GET as getApplication } from '@/app/(frontend)/next/members/application/route'
 import { POST as saveStep } from '@/app/(frontend)/next/members/application/step/route'
 import { POST as submitArtist } from '@/app/(frontend)/next/members/application/submit/route'
-import { POST as saveKycStep } from '@/app/(frontend)/next/members/kyc/route'
 import { POST as uploadPicture } from '@/app/(frontend)/next/members/portfolio/route'
 import { POST as requestCode } from '@/app/(frontend)/next/members/request-code/route'
 import { ensureApplication } from '@/members/accounts'
@@ -26,8 +25,12 @@ import type { User } from '@/payload-types'
 import { execute } from '@/utilities/sql'
 
 import { openApplicationsForTests } from '../helpers/applicationsOpen'
-import { goodKyc, goodPartnerKyc, identityPhotos, removeKycFor } from '../helpers/kyc'
-import { storeKycDocument } from '@/kyc/service'
+import { goodPartnerKyc, identityPhotos, removeKycFor } from '../helpers/kyc'
+import {
+  ARTIST_DECLARATIONS,
+  ARTIST_NOTICE_CHECKBOX,
+  ARTIST_NOTICE_VERSION,
+} from '@/members/applicationNotice'
 
 /*
  * The onboarding, through the real route handlers: saving steps, pictures, sending, and the
@@ -87,8 +90,8 @@ const goodSteps = {
     legalName: 'Asha Example',
     displayName: 'Asha',
     dateOfBirth: '1990-04-12',
-    phone: '98765 43210',
-    language: 'English',
+    phone: '+91 98765 43210',
+    consentProcessing: true,
   },
   address: {
     residence: {
@@ -120,7 +123,7 @@ const goodSteps = {
       },
     ],
   },
-  review: { originalWork: true, accurate: true, consentProcessing: true, agreeTyped: 'I AGREE' },
+  review: { originalWork: true, notCopy: true, accurate: true, agreeTyped: 'I AGREE' },
 }
 
 const cleanup = async () => {
@@ -374,7 +377,7 @@ describe('an artist application', () => {
   })
 
   it('cannot be sent until every step is right, then cannot be changed', async () => {
-    const { cookie, application, member } = await applicant('artist')
+    const { cookie, application } = await applicant('artist')
     const early = await call(submitArtist, cookie, {})
     expect(early.status).toBe(422)
 
@@ -396,21 +399,8 @@ describe('an artist application', () => {
       unit: 'cm',
     }))
     expect((await call(saveStep, cookie, { step: 'portfolio', data: { works } })).status).toBe(200)
-    // Identity and bank details go through their own endpoint, encrypted (tests/int/kyc.int.spec.ts)
-    expect((await call(saveStep, cookie, { step: 'kyc', data: {} })).status).toBeGreaterThanOrEqual(
-      400,
-    )
-    const passport = await storeKycDocument(payload, {
-      member,
-      kind: 'other-id',
-      bytes: Buffer.from('%PDF-1.7\n% a made-up passport page\n%%EOF\n'),
-    })
-    const photos = await identityPhotos(payload, member, {
-      dateOfBirth: String(goodSteps.about.dateOfBirth),
-    })
-    expect(
-      (await call(saveKycStep, cookie, goodKyc({ 'other-id': passport.id, ...photos }))).status,
-    ).toBe(200)
+    // Five steps: identity is no longer one of them, but asked for after approval
+    expect((await call(saveStep, cookie, { step: 'kyc', data: {} })).status).toBe(400)
     expect((await call(saveStep, cookie, { step: 'review', data: goodSteps.review })).status).toBe(
       200,
     )
@@ -426,7 +416,17 @@ describe('an artist application', () => {
     })
     expect(stored.stage).toBe('submitted')
     expect(stored.submittedAt).toBeTruthy()
-    expect(stored.declarations?.privacyNoticeVersion).toBeTruthy()
+    expect(stored.declarations?.privacyNoticeVersion).toBe(ARTIST_NOTICE_VERSION)
+    expect(stored.declarations?.notCopy).toBe(true)
+    // Consent was given in step 1, and kept with the notice exactly as shown
+    expect(stored.about?.consentProcessing).toBe(true)
+    expect(stored.about?.consentedAt).toBeTruthy()
+    const consent = stored.consentRecord?.at(-1)
+    expect(consent?.consentChecked).toBe(true)
+    expect(consent?.typed).toBe('I AGREE')
+    expect(consent?.policyVersion).toBe(ARTIST_NOTICE_VERSION)
+    expect(consent?.policyText).toContain(ARTIST_NOTICE_CHECKBOX)
+    expect(consent?.policyText).toContain(ARTIST_DECLARATIONS.notCopy)
 
     expect((await call(saveStep, cookie, { step: 'about', data: goodSteps.about })).status).toBe(
       409,
