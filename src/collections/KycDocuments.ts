@@ -163,7 +163,10 @@ export const KycDocuments: CollectionConfig = {
           if (error instanceof KycError)
             return Response.json({ message: error.message }, { status: error.status })
           req.payload.logger.error({ err: error, msg: 'KYC document download failed' })
-          return Response.json({ message: 'The document could not be opened.' }, { status: 500 })
+          return Response.json(
+            { message: 'The document could not be opened. Please try again.' },
+            { status: 500 },
+          )
         }
       },
     },

@@ -450,7 +450,10 @@ export const KycRecords: CollectionConfig = {
           if (error instanceof KycError)
             return Response.json({ message: error.message }, { status: error.status })
           req.payload.logger.error({ err: error, msg: 'Marking identity as checked failed' })
-          return Response.json({ message: 'That could not be saved.' }, { status: 500 })
+          return Response.json(
+            { message: 'That could not be saved. Please try again.' },
+            { status: 500 },
+          )
         }
       },
     },
@@ -475,7 +478,10 @@ export const KycRecords: CollectionConfig = {
           if (error instanceof KycError)
             return Response.json({ message: error.message }, { status: error.status })
           req.payload.logger.error({ err: error, msg: 'Sending identity back failed' })
-          return Response.json({ message: 'That could not be saved.' }, { status: 500 })
+          return Response.json(
+            { message: 'That could not be saved. Please try again.' },
+            { status: 500 },
+          )
         }
       },
     },
@@ -524,7 +530,10 @@ export const KycRecords: CollectionConfig = {
           if (error instanceof KycError)
             return Response.json({ message: error.message }, { status: error.status })
           req.payload.logger.error({ err: error, msg: 'Bank change approval failed' })
-          return Response.json({ message: 'The change could not be approved.' }, { status: 500 })
+          return Response.json(
+            { message: 'The change could not be approved. Please try again.' },
+            { status: 500 },
+          )
         }
       },
     },
@@ -545,7 +554,10 @@ export const KycRecords: CollectionConfig = {
           const sent = await sendPayoutDetailsRequest(req.payload, { member })
           if (!sent)
             return Response.json(
-              { message: 'The request is recorded, but the email could not be sent. Try again.' },
+              {
+                message:
+                  'The request is recorded, but the email could not be sent. Please send it again.',
+              },
               { status: 502 },
             )
           return Response.json({ ok: true }, { headers: { 'Cache-Control': 'no-store' } })

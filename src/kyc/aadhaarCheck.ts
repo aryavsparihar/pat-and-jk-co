@@ -138,7 +138,7 @@ const checkSignature = async (file: Buffer, roots: string[]): Promise<Signature>
 
     if (roots.length === 0) {
       out.soft.push(
-        'India’s CCA root certificates are not installed, so the chain was not checked.',
+        'India’s CCA root certificates are not installed on the server, so the signature chain was not checked. Please tell the technical director.',
       )
     } else {
       try {
@@ -224,7 +224,9 @@ export const checkMaskedAadhaar = async ({
   if (file.subarray(0, 5).toString('latin1') !== '%PDF-') {
     return {
       result: 'manual-review',
-      reasons: ['A photo or scan, not the original PDF from myAadhaar. Please check it by hand.'],
+      reasons: [
+        'This is a photo or scan, not the original PDF from myAadhaar. Please check it by hand.',
+      ],
     }
   }
 
@@ -270,7 +272,9 @@ export const checkMaskedAadhaar = async ({
         const found = wanted.filter((w) => present.has(w)).length
         if (found === 0) problems.push('The name in the PDF is not the name on the PAN.')
         else if (found < wanted.length) {
-          soft.push('The name in the PDF only partly matches the name on the PAN.')
+          soft.push(
+            'The name in the PDF only partly matches the name on the PAN. Please compare them by hand.',
+          )
         }
       }
 

@@ -67,7 +67,7 @@ export const changeStanding = async (
     .catch(() => null)
   if (!member) throw new StandingError('There is no such member.', 404)
   if (member.standing === 'erased')
-    throw new StandingError('This person has been deleted; their record cannot change.', 409)
+    throw new StandingError('This person’s record has been deleted, so it cannot be changed.', 409)
   if (member.standing === standing) throw new StandingError('They already have that standing.', 409)
 
   return payload.update({

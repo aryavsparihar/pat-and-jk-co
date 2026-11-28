@@ -14,9 +14,9 @@ export const tenantSlugField = (collection: CollectionSlug, useAsSlug = 'title')
       const slug = row.fields.find((f) => 'name' in f && f.name === 'slug')
       if (slug && slug.type === 'text') {
         slug.validate = (async (value, { data, id, req }) => {
-          if (!value) return 'A slug is required'
+          if (!value) return 'Please give a slug.'
           if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value)) {
-            return 'Use lowercase letters, numbers and hyphens only, e.g. "our-story"'
+            return 'Use lowercase letters, numbers and hyphens only, for example our-story.'
           }
           const tenant = (data as { tenant?: unknown })?.tenant
           const tenantId =
@@ -34,7 +34,7 @@ export const tenantSlugField = (collection: CollectionSlug, useAsSlug = 'title')
             },
           })
           return existing.totalDocs > 0
-            ? `Another item in this brand already uses "${value}"`
+            ? `Another page in this brand already uses “${value}”. Please choose another.`
             : true
         }) as TextFieldSingleValidation
       }

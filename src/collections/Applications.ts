@@ -69,7 +69,10 @@ const failed = (req: PayloadRequest, error: unknown, what: string) => {
   const status = error instanceof APIError ? error.status : 500
   if (status === 500) req.payload.logger.error({ err: error, msg: `${what} failed` })
   return Response.json(
-    { message: error instanceof APIError ? error.message : 'That could not be done.' },
+    {
+      message:
+        error instanceof APIError ? error.message : 'That could not be done. Please try again.',
+    },
     { status },
   )
 }
@@ -474,7 +477,12 @@ export const Applications: CollectionConfig = {
         } catch (error) {
           const status = error instanceof APIError ? error.status : 500
           return Response.json(
-            { message: error instanceof APIError ? error.message : 'That could not be done.' },
+            {
+              message:
+                error instanceof APIError
+                  ? error.message
+                  : 'That could not be done. Please try again.',
+            },
             { status },
           )
         }
@@ -511,7 +519,9 @@ export const Applications: CollectionConfig = {
         } catch (error) {
           const status = error instanceof APIError ? error.status : 500
           const message =
-            error instanceof APIError ? error.message : 'The decision could not be saved.'
+            error instanceof APIError
+              ? error.message
+              : 'The decision could not be saved. Please try again.'
           if (status === 500)
             req.payload.logger.error({ err: error, msg: 'Application decision failed' })
           return Response.json({ message }, { status })

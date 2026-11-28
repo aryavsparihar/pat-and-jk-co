@@ -103,7 +103,8 @@ export const IdStandingPanel: React.FC<{ role: Role }> = ({ role }) => {
     })
     const body = (await response.json().catch(() => ({}))) as { message?: string }
     setBusy(false)
-    if (!response.ok) return setMessage(body.message ?? 'The change could not be saved.')
+    if (!response.ok)
+      return setMessage(body.message ?? 'The change could not be saved. Please try again.')
     setMessage(done)
     load()
     router.refresh()

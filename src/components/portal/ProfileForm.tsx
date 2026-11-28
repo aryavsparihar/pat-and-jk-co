@@ -360,7 +360,11 @@ export const ContactForm: React.FC<{
     setSaving(false)
     if (!result.ok) {
       setErrors(result.data.errors ?? {})
-      setMessage(result.data.errors ? null : (result.data.message ?? 'That could not be saved.'))
+      setMessage(
+        result.data.errors
+          ? null
+          : (result.data.message ?? 'That could not be saved. Please try again.'),
+      )
       return
     }
     setMessage('Saved.')

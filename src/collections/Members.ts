@@ -503,7 +503,10 @@ export const Members: CollectionConfig = {
         // A deleted person's record never changes again, and only the erasure deletes anyone
         if (!context.erasing) {
           if (originalDoc?.standing === 'erased') {
-            throw publicError('This person has been deleted; their record cannot change.', 409)
+            throw publicError(
+              'This person’s record has been deleted, so it cannot be changed.',
+              409,
+            )
           }
           if (data.standing === 'erased') {
             throw publicError('Use "Delete this person" to delete someone.', 400)
@@ -520,7 +523,10 @@ export const Members: CollectionConfig = {
           const after = data[field]
           if (after === undefined || after === before) continue
           if (before || operation === 'create' || context.issuingMemberId !== field) {
-            throw publicError('A member ID cannot be set or changed by hand.', 400)
+            throw publicError(
+              'Member IDs are given automatically and cannot be set or changed by hand.',
+              400,
+            )
           }
           if (!MEMBER_ID_PATTERN.test(String(after)) || !String(after).startsWith(prefix)) {
             throw publicError('That is not a member ID of this kind.', 400)
@@ -627,7 +633,10 @@ export const Members: CollectionConfig = {
           if (error instanceof IdStandingError)
             return Response.json({ message: error.message }, { status: error.status })
           req.payload.logger.error({ err: error, msg: 'Changing an ID’s standing failed' })
-          return Response.json({ message: 'The change could not be saved.' }, { status: 500 })
+          return Response.json(
+            { message: 'The change could not be saved. Please try again.' },
+            { status: 500 },
+          )
         }
       },
     },
@@ -655,7 +664,10 @@ export const Members: CollectionConfig = {
           if (error instanceof StandingError)
             return Response.json({ message: error.message }, { status: error.status })
           req.payload.logger.error({ err: error, msg: 'Changing a member’s standing failed' })
-          return Response.json({ message: 'The change could not be saved.' }, { status: 500 })
+          return Response.json(
+            { message: 'The change could not be saved. Please try again.' },
+            { status: 500 },
+          )
         }
       },
     },
@@ -676,7 +688,10 @@ export const Members: CollectionConfig = {
           if (error instanceof UnpublishError)
             return Response.json({ message: error.message }, { status: error.status })
           req.payload.logger.error({ err: error, msg: 'Unpublishing a member failed' })
-          return Response.json({ message: 'It could not be unpublished.' }, { status: 500 })
+          return Response.json(
+            { message: 'It could not be unpublished. Please try again.' },
+            { status: 500 },
+          )
         }
       },
     },
@@ -703,7 +718,10 @@ export const Members: CollectionConfig = {
           if (error instanceof PortalError)
             return Response.json({ message: error.message }, { status: error.status })
           req.payload.logger.error({ err: error, msg: 'Staff email change failed' })
-          return Response.json({ message: 'The address could not be changed.' }, { status: 500 })
+          return Response.json(
+            { message: 'The address could not be changed. Please try again.' },
+            { status: 500 },
+          )
         }
       },
     },
@@ -730,7 +748,10 @@ export const Members: CollectionConfig = {
           if (error instanceof PortalError)
             return Response.json({ message: error.message }, { status: error.status })
           req.payload.logger.error({ err: error, msg: 'Review decision failed' })
-          return Response.json({ message: 'The decision could not be saved.' }, { status: 500 })
+          return Response.json(
+            { message: 'The decision could not be saved. Please try again.' },
+            { status: 500 },
+          )
         }
       },
     },

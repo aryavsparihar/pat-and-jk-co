@@ -164,7 +164,7 @@ export const KycPanel: React.FC = () => {
     }
     setBusy(false)
     if (!response.ok || !body.values)
-      return setMessage(body.message ?? 'The details could not be shown.')
+      return setMessage(body.message ?? 'The details could not be shown. Please try again.')
     show(body.values, body.hideAfterSeconds)
   }
 
@@ -188,7 +188,7 @@ export const KycPanel: React.FC = () => {
     })
     if (!response.ok) {
       const body = (await response.json().catch(() => ({}))) as { message?: string }
-      return setMessage(body.message ?? 'The document could not be opened.')
+      return setMessage(body.message ?? 'The document could not be opened. Please try again.')
     }
     const name =
       /filename="([^"]+)"/.exec(response.headers.get('Content-Disposition') ?? '')?.[1] ??
@@ -218,7 +218,8 @@ export const KycPanel: React.FC = () => {
     })
     const body = (await response.json().catch(() => ({}))) as { message?: string }
     setBusy(false)
-    if (!response.ok) return setMessage(body.message ?? 'The change could not be approved.')
+    if (!response.ok)
+      return setMessage(body.message ?? 'The change could not be approved. Please try again.')
     hide()
     setMessage('Approved. Payments now go to this account.')
     router.refresh()
@@ -278,7 +279,8 @@ export const KycPanel: React.FC = () => {
     })
     const reply = (await response.json().catch(() => ({}))) as { message?: string }
     setBusy(false)
-    if (!response.ok) return setMessage(reply.message ?? 'That could not be done.')
+    if (!response.ok)
+      return setMessage(reply.message ?? 'That could not be done. Please try again.')
     setMessage(done)
     router.refresh()
   }
@@ -402,7 +404,9 @@ export const KycPanel: React.FC = () => {
       <p className="field-label">Identity check</p>
       <div style={{ marginBottom: 'var(--base)' }} role="status">
         {checkedAt ? (
-          <p>Checked on {new Date(checkedAt).toLocaleDateString('en-IN')}. The agreement is unlocked.</p>
+          <p>
+            Checked on {new Date(checkedAt).toLocaleDateString('en-IN')}. The agreement is unlocked.
+          </p>
         ) : sentAt ? (
           <>
             <p>Sent for checking on {new Date(sentAt).toLocaleDateString('en-IN')}.</p>

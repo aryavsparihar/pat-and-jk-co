@@ -197,7 +197,7 @@ const ActionDialog: React.FC<{
             />
             <p id={`${ids.reason}-hint`} style={{ opacity: 0.7, marginTop: '0.25rem' }}>
               {request.reason.hint ??
-                'A few words at least. It is recorded in the security log with your name.'}
+                'Please write a few words. They are recorded in the security log with your name.'}
             </p>
           </div>
         )}

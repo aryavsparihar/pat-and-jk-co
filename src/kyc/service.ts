@@ -984,7 +984,7 @@ export const approveBankChange = async (
   })
   const pending = (record.pendingBank ?? {}) as Record<string, string | null | undefined>
   if (!pending.requestedAt || !pending.pendingAccountNumberSealed)
-    throw new KycError('There is no change of bank details waiting.', 409)
+    throw new KycError('There is no change of bank details waiting for a check.', 409)
   const memberId = typeof record.member === 'object' ? record.member.id : record.member
   await refuseWhilePaused(payload, memberId)
   const { key } = dataKeyFor(record, memberId)
@@ -1332,10 +1332,10 @@ export const setLegalHold = async (
     const day = String(until).trim()
     const date = new Date(`${day}T23:59:59.999+05:30`)
     if (!DAY_PATTERN.test(day) || Number.isNaN(date.getTime())) {
-      throw new KycError('Give the date as YYYY-MM-DD.', 400)
+      throw new KycError('Please give the date as YYYY-MM-DD.', 400)
     }
     if (date.getTime() <= Date.now())
-      throw new KycError('A legal hold must end in the future.', 400)
+      throw new KycError('A legal hold must end on a date in the future.', 400)
     next = date.toISOString()
   }
   const record = await payload.findByID({

@@ -23,22 +23,24 @@ export const otpMatches = (code: string, salt: string, storedHash: string): bool
 
 /**
  * Passwords for the admin panel. Long and mixed, and checked on the server so the rule
- * cannot be skipped by calling the API directly.
+ * cannot be skipped by calling the API directly. Each line is the founder's (error document of
+ * 25 November 2026, section 13), whole, so it is shown as it is.
  */
 export const passwordProblem = (password: string, email?: string): string | null => {
-  if (password.length < 12) return 'Use at least 12 characters.'
-  if (password.length > 200) return 'That password is too long.'
-  if (!/[a-z]/.test(password)) return 'Include a lowercase letter.'
-  if (!/[A-Z]/.test(password)) return 'Include a capital letter.'
-  if (!/[0-9]/.test(password)) return 'Include a number.'
-  if (!/[^A-Za-z0-9]/.test(password)) return 'Include a symbol.'
-  if (/^(.)\1+$/.test(password)) return 'Use something less repetitive.'
+  if (password.length < 12) return 'Please choose a stronger password: use at least 12 characters.'
+  if (password.length > 200) return 'That password is too long. Please choose a shorter one.'
+  if (!/[a-z]/.test(password)) return 'Please choose a stronger password: add a lowercase letter.'
+  if (!/[A-Z]/.test(password)) return 'Please choose a stronger password: add a capital letter.'
+  if (!/[0-9]/.test(password)) return 'Please choose a stronger password: add a number.'
+  if (!/[^A-Za-z0-9]/.test(password)) return 'Please choose a stronger password: add a symbol.'
+  if (/^(.)\1+$/.test(password))
+    return 'Please choose a stronger password: it repeats itself too much.'
   const local = email?.split('@')[0]?.toLowerCase()
   if (local && local.length > 2 && password.toLowerCase().includes(local)) {
-    return 'Do not include your email address in your password.'
+    return 'Please leave your email address out of your password.'
   }
   if (/(password|qwerty|12345678|admin|letmein|pjk\.co\.in)/i.test(password)) {
-    return 'That password contains a very common word or phrase.'
+    return 'Please choose a stronger password: it contains a very common word or phrase.'
   }
   return null
 }

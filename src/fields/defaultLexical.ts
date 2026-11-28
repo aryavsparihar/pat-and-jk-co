@@ -41,7 +41,7 @@ const linkFeature = LinkFeature({
           if ((options?.siblingData as LinkFields)?.linkType === 'internal') {
             return true // no validation needed, as no url should exist for internal links
           }
-          return value ? true : 'URL is required'
+          return value ? true : 'Please add the web address.'
         }) as TextFieldSingleValidation,
       },
     ]

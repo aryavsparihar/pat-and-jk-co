@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     const body = (await request.json()) as { email?: string }
     email = normaliseEmail(body.email)
   } catch {
-    return Response.json({ message: 'Enter your work email address.' }, { status: 400 })
+    return Response.json({ message: 'Please enter your work email address.' }, { status: 400 })
   }
 
   if (!isCompanyEmail(email)) {
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
       detail: 'rejected domain',
     })
     return Response.json(
-      { message: 'Use your PAT & J.K. Co. email address to sign in.' },
+      { message: 'Please use your PAT & J.K. Co. email address.' },
       { status: 400 },
     )
   }
@@ -78,7 +78,9 @@ export async function POST(request: Request) {
   ) {
     await logSecurityEvent(payload, { event: 'code-rate-limited', email, ip })
     return Response.json(
-      { message: 'Too many codes requested. Try again in an hour.' },
+      {
+        message: 'Several codes have been asked for in a short time. Please try again in an hour.',
+      },
       { status: 429 },
     )
   }
@@ -107,7 +109,7 @@ export async function POST(request: Request) {
     const sent = await sendSignInCode(payload, { email, code })
     if (!sent) {
       return Response.json(
-        { message: 'We could not send the code right now. Please tell the technical director.' },
+        { message: 'We could not send the code just now. Please tell the technical director.' },
         { status: 503 },
       )
     }

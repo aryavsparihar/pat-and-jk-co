@@ -192,7 +192,7 @@ describe('what was sent stays as it was sent', () => {
 
     await expect(
       payload.delete({ collection: 'portfolio-images', id: picture.id, ...asStaff() }),
-    ).rejects.toThrow(/application that was sent/)
+    ).rejects.toThrow(/application that has been sent/)
   })
 
   it.each(['kyc-records', 'kyc-documents', 'agreement-executions', 'security-events'] as const)(

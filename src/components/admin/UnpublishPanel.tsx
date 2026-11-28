@@ -61,7 +61,8 @@ export const UnpublishPanel: React.FC = () => {
     })
     const body = (await response.json().catch(() => ({}))) as { message?: string }
     setBusy(false)
-    if (!response.ok) return setMessage(body.message ?? 'It could not be unpublished.')
+    if (!response.ok)
+      return setMessage(body.message ?? 'It could not be unpublished. Please try again.')
     setMessage('Unpublished.')
     router.refresh()
   }

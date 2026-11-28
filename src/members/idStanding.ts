@@ -103,7 +103,10 @@ export const changeIdStanding = async (
     .catch(() => null)
   if (!member) throw new IdStandingError('There is no such member.', 404)
   if (member.standing === 'erased')
-    throw new IdStandingError('This person has been deleted; their record cannot change.', 409)
+    throw new IdStandingError(
+      'This person’s record has been deleted, so it cannot be changed.',
+      409,
+    )
   const before = idStanding(member, role)
   if (!before) throw new IdStandingError(`They do not hold a ${ROLE[role].label}.`, 409)
   if (before === 'removed')

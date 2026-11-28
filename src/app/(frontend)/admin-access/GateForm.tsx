@@ -33,7 +33,7 @@ export const GateForm: React.FC<{ next: string; domain: string }> = ({ next, dom
     setError(null)
     const result = await post('/next/admin-gate/request-code', { email })
     setBusy(false)
-    if (!result.ok) return setError(result.message ?? 'Something went wrong.')
+    if (!result.ok) return setError(result.message ?? 'Something went wrong. Please try again.')
     setChallengeId(String(result.challengeId ?? ''))
     setNote(result.message ?? null)
     setStage('code')

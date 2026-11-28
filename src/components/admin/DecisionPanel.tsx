@@ -62,14 +62,17 @@ export const DecisionPanel: React.FC = () => {
     })
     const body = (await response.json().catch(() => ({}))) as { message?: string }
     setBusy(false)
-    if (!response.ok) return setMessage(body.message ?? 'That could not be saved.')
+    if (!response.ok)
+      return setMessage(body.message ?? 'That could not be saved. Please try again.')
     setMessage('Marked as under review. The applicant sees it is being read.')
     router.refresh()
   }
 
   const decide = async (decision: 'approve' | 'reject' | 'request-changes') => {
     if (decision !== 'approve' && !note.trim()) {
-      setMessage('Write a note to the applicant first: it is sent to them with the decision.')
+      setMessage(
+        'Please write a note to the applicant first. It is sent to them with the decision.',
+      )
       return
     }
     const confirmations = {
@@ -92,7 +95,8 @@ export const DecisionPanel: React.FC = () => {
       memberId?: string
     }
     setBusy(false)
-    if (!response.ok) return setMessage(body.message ?? 'The decision could not be saved.')
+    if (!response.ok)
+      return setMessage(body.message ?? 'The decision could not be saved. Please try again.')
     setMessage(
       body.memberId
         ? `Approved. Member ID ${body.memberId}.`
@@ -193,7 +197,7 @@ const Declined: React.FC<{ id: number | string }> = ({ id }) => {
     })
     const body = (await response.json().catch(() => ({}))) as { message?: string }
     setBusy(false)
-    if (!response.ok) return setMessage(body.message ?? 'That could not be done.')
+    if (!response.ok) return setMessage(body.message ?? 'That could not be done. Please try again.')
     setMessage('Done. They can apply again when they next sign in.')
     router.refresh()
   }
