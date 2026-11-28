@@ -9,11 +9,10 @@ import { HONEYPOT_FIELD } from '@/utilities/honeypot'
 
 import { api } from './api'
 import { AboutStep, AddressStep, PracticeStep, type Values } from './artist/steps'
-import { KycStep } from './artist/KycStep'
 import { PortfolioStep } from './artist/Portfolio'
 import { ReviewStep } from './artist/Review'
+import { ApplicationSteps, ApplyHero, ApplySide } from './ApplyFrame'
 import { CodeSignIn } from './CodeSignIn'
-import { GarlandProgress } from '@/components/phulhaar/GarlandProgress'
 
 import { ErrorSummary, type Errors } from './fields'
 import { DeclinedNotice } from './DeclinedNotice'
@@ -21,7 +20,7 @@ import { ApplyAgainButton } from '@/components/account/ApplicationActions'
 import type { SocialPlatform } from '@/brands/socialIcons'
 
 const STEP_TITLES: Record<ArtistStep, { title: string; intro: string }> = {
-  about: { title: 'About you', intro: 'A few details, so we know who we are writing to.' },
+  about: { title: 'About you', intro: 'So that we know who we are writing to.' },
   address: {
     title: 'Where you live',
     intro: 'Where you live, and where we should send post.',
@@ -32,14 +31,34 @@ const STEP_TITLES: Record<ArtistStep, { title: string; intro: string }> = {
   },
   portfolio: {
     title: 'Your work',
-    intro: 'A small selection of the work you would like us to see.',
-  },
-  kyc: {
-    title: 'Identity',
-    intro: 'So that we can be sure of who you are, and pay you.',
+    intro: 'Three to ten works that show what you do best.',
   },
   review: { title: 'Review and send', intro: 'Check everything once more, then send it to us.' },
 }
+
+/** After sending (the ApplySent design): what happens next, I to IV */
+const NEXT_STEPS: [string, string, string][] = [
+  [
+    'I',
+    'We read it',
+    'Every application is read by someone at the gallery, and we reply within seven days.',
+  ],
+  [
+    'II',
+    'We talk',
+    'If your work is a good fit, we will write to you, to talk it through or to ask a question or two.',
+  ],
+  [
+    'III',
+    'Confirm who you are',
+    'If we go ahead, we ask you to confirm who you are in your account, with your PAN or passport, a second ID showing your address, and a photo of you.',
+  ],
+  [
+    'IV',
+    'The agreement',
+    'We send you our agreement to read and sign online. Once we have both signed, you receive your member ID.',
+  ],
+]
 
 /** Sets a value at a dotted path ("residence.city", "works.2.title") without mutating */
 const setAt = (object: Values, path: string, value: unknown): Values => {
@@ -59,18 +78,25 @@ type Phase =
   | { kind: 'closed'; application: Application }
   | { kind: 'sent'; reference: string }
 
+/** A page of the application outside the steps: the label column, then the content */
+const Plain: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <section className="house-sec border-t border-[#e3cfa3]">
+    <div className="house-lab" />
+    <div className="house-con max-w-[780px]">{children}</div>
+  </section>
+)
+
 /**
- * The artist's application, one step at a time. Each step is saved on the server as it is
- * finished, so an artist can close the tab and pick up later by signing in again; nothing personal
- * is ever kept in the browser.
+ * The artist's application, five steps one at a time (the Apply1 to Apply5 designs). Each step is
+ * saved on the server as it is finished, so an artist can close the tab and pick up later by
+ * signing in again; nothing personal is ever kept in the browser. Identity is not asked for here:
+ * it comes after approval, before the agreement.
  */
 export const ArtistOnboarding: React.FC<{
   formToken: string
-  /** The privacy policy, rendered on the server, for the consent in the Identity step */
-  privacy?: React.ReactNode
   /** Phulhaar's social accounts, from Site settings, for the screen after a decline */
   socials?: { platform: SocialPlatform; label: string; url: string }[]
-}> = ({ formToken, privacy, socials = [] }) => {
+}> = ({ formToken, socials = [] }) => {
   const [phase, setPhase] = useState<Phase>({ kind: 'loading' })
   const [step, setStep] = useState<ArtistStep>('about')
   const [values, setValues] = useState<Record<string, Values>>({})
@@ -156,7 +182,12 @@ export const ArtistOnboarding: React.FC<{
     }
     if (!result.ok) {
       setErrors(result.data.errors ?? {})
-      setMessage(result.data.errors ? null : (result.data.message ?? 'That could not be saved.'))
+      setMessage(
+        result.data.errors
+          ? null
+          : (result.data.message ??
+              'We could not save this step. What you typed is still here: please try again.'),
+      )
       return false
     }
     setCompleted(result.data.completedSteps)
@@ -185,7 +216,9 @@ export const ArtistOnboarding: React.FC<{
     setBusy(false)
     if (!result.ok) {
       setErrors(result.data.errors ?? {})
-      setMessage(result.data.message ?? 'Your application could not be sent.')
+      setMessage(
+        result.data.message ?? 'Your application could not be sent. Please try again in a minute.',
+      )
       return
     }
     setPhase({ kind: 'sent', reference: result.data.reference })
@@ -194,32 +227,64 @@ export const ArtistOnboarding: React.FC<{
 
   if (phase.kind === 'loading') {
     return (
-      <p className="muted" role="status">
-        One moment…
-      </p>
+      <>
+        <ApplyHero />
+        <Plain>
+          <p className="muted" role="status">
+            One moment…
+          </p>
+        </Plain>
+      </>
     )
   }
 
   if (phase.kind === 'signin') {
-    return <CodeSignIn formToken={formToken} onSignedIn={load} purpose="apply-artist" />
+    return (
+      <>
+        <ApplyHero />
+        <Plain>
+          <CodeSignIn formToken={formToken} onSignedIn={load} purpose="apply-artist" />
+        </Plain>
+      </>
+    )
   }
 
   if (phase.kind === 'sent') {
     return (
-      <div role="status">
-        <h2 className="display-md">Thank you. We have your application.</h2>
-        <p className="lede measure mt-6">
-          Your reference is <strong className="tracking-wider">{phase.reference}</strong>. We have
-          emailed it to you as well.
-        </p>
-        <p className="measure mt-6">
-          We look at every application ourselves, and we will write to you once we have. You can see
-          where it has got to at any time by signing in.
-        </p>
-        <a className="btn btn-solid mt-10 min-h-11" href="/next/members/view?to=artist">
-          Your account
-        </a>
-      </div>
+      <section className="house-hero" role="status">
+        <div className="house-lab">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img alt="" className="h-auto w-14" height={56} src="/brand/wreath.png" width={56} />
+        </div>
+        <div className="house-con max-w-[780px]">
+          <p className="house-small">Apply as an artist</p>
+          <h1 className="apply-h1">Thank you. Your application has reached us.</h1>
+          <p className="house-lead">
+            Your application number is{' '}
+            <strong className="font-medium tracking-wider">{phase.reference}</strong>.
+          </p>
+          <h2 className="apply-h2 mt-12">What happens next</h2>
+          <ol className="mt-2">
+            {NEXT_STEPS.map(([number, title, text]) => (
+              <li className="house-row" key={number}>
+                <span aria-hidden className="house-num">
+                  {number}
+                </span>
+                <p className="house-rt m-0">{title}</p>
+                <p className="house-rb">{text}</p>
+              </li>
+            ))}
+          </ol>
+          <div className="mt-10 flex flex-wrap items-center gap-x-8 gap-y-4">
+            <a className="house-btn" href="/next/members/view?to=artist">
+              Go to your account
+            </a>
+            <a className="house-tl" href="/ventures/phulhaar-gallery">
+              About Phulhaar Gallery
+            </a>
+          </div>
+        </div>
+      </section>
     )
   }
 
@@ -233,40 +298,42 @@ export const ArtistOnboarding: React.FC<{
     if (application.stage === 'rejected') {
       const ready = waitIsOver(application.reapplyFrom)
       return (
-        <DeclinedNotice
-          action={ready ? <ApplyAgainButton kind="artist" /> : undefined}
-          kind="artist"
-          note={application.decisionNote}
-          reapplyFrom={application.reapplyFrom}
-          ready={ready}
-          reference={application.reference}
-          socials={socials}
-        />
+        <Plain>
+          <DeclinedNotice
+            action={ready ? <ApplyAgainButton kind="artist" /> : undefined}
+            kind="artist"
+            note={application.decisionNote}
+            reapplyFrom={application.reapplyFrom}
+            ready={ready}
+            reference={application.reference}
+            socials={socials}
+          />
+        </Plain>
       )
     }
     if (application.stage === 'withdrawn') {
       return (
-        <div>
-          <p className="label">Application {application.reference}</p>
-          <h2 className="display-md mt-3">You withdrew this application.</h2>
-          <p className="lede measure mt-6">
+        <Plain>
+          <p className="house-small">Application {application.reference}</p>
+          <h2 className="apply-h2 mt-3">You withdrew this application.</h2>
+          <p className="house-p mt-6">
             You are welcome to apply again whenever you like. A new application starts with your
-            answers filled in; only your identity details, documents and photo are asked for again.
+            answers filled in, for you to check.
           </p>
           <div className="mt-10">
             <ApplyAgainButton kind="artist" />
           </div>
-        </div>
+        </Plain>
       )
     }
     return (
-      <div>
-        <p className="label">Application {application.reference}</p>
-        <h2 className="display-md mt-3">{words[application.stage] ?? 'Your application'}</h2>
-        <a className="btn btn-solid mt-10 min-h-11" href="/next/members/view?to=artist">
-          Your account
+      <Plain>
+        <p className="house-small">Application {application.reference}</p>
+        <h2 className="apply-h2 mt-3">{words[application.stage] ?? 'Your application'}</h2>
+        <a className="house-btn mt-10" href="/next/members/view?to=artist">
+          Go to your account
         </a>
-      </div>
+      </Plain>
     )
   }
 
@@ -274,164 +341,130 @@ export const ArtistOnboarding: React.FC<{
   const index = ARTIST_STEPS.indexOf(step)
   const current = values[step] ?? {}
   const meta = STEP_TITLES[step]
-  const header = (
-    <>
-      {application.stage === 'changes-requested' && application.decisionNote && (
-        <div className="mb-10 border-l-2 border-primary bg-surface py-5 pl-6 pr-4">
-          <p className="font-medium">A note from us</p>
-          <p className="measure mt-2 whitespace-pre-line">{application.decisionNote}</p>
-        </div>
-      )}
-
-      <p className="label">
-        Step {index + 1} of {ARTIST_STEPS.length}
-      </p>
-      <h2 className="display-md mt-2 outline-none" ref={heading} tabIndex={-1}>
-        {meta.title}
-      </h2>
-      <p className="lede measure mt-4">{meta.intro}</p>
-    </>
-  )
+  const back =
+    index > 0 ? (
+      <button
+        className="link link-caps min-h-11"
+        onClick={() => go(ARTIST_STEPS[index - 1]!)}
+        type="button"
+      >
+        Back
+      </button>
+    ) : null
 
   return (
-    <div>
-      <p className="label mb-6">Application {application.reference}</p>
-      <GarlandProgress
-        completed={completed}
-        current={step}
-        onGo={go}
-        steps={ARTIST_STEPS}
-        titles={
-          Object.fromEntries(ARTIST_STEPS.map((s) => [s, STEP_TITLES[s].title])) as Record<
-            ArtistStep,
-            string
-          >
-        }
-      />
-      <div className="step-in mt-14" key={step}>
-        {step === 'kyc' ? (
-          <div>
-            {header}
-            <div className="mt-10">
-              <KycStep
-                dateOfBirth={values.about?.dateOfBirth}
-                privacy={privacy}
-                onSaved={(done) => {
-                  setCompleted(done)
-                  go('review')
+    <>
+      {step === 'about' && <ApplyHero />}
+      <section
+        className={`flex flex-wrap gap-8 ${step === 'about' ? 'border-t border-[#e3cfa3] pt-10' : 'pt-14'}`}
+      >
+        <ApplySide first={step === 'about'} reference={application.reference ?? ''} />
+        <div className="house-con">
+          <ApplicationSteps
+            completed={completed}
+            current={step}
+            onGo={go}
+            steps={ARTIST_STEPS.map((s) => ({ step: s, label: STEP_TITLES[s].title }))}
+          />
+        </div>
+      </section>
+
+      <section className="flex flex-wrap gap-8 pb-[clamp(4rem,8vw,6.25rem)] pt-10">
+        <div className="house-lab" />
+        <div className="house-con max-w-[780px] step-in" key={step}>
+          {/* Outside the step's form: the sign-in form cannot sit inside another form */}
+          {signedOut && (
+            <div className="apply-notice mb-10" role="alert">
+              <p className="mb-6">
+                You have been signed out, so this step was not saved. Sign in again here: what you
+                have typed stays on the page.
+              </p>
+              <CodeSignIn
+                formToken={formToken}
+                onSignedIn={() => {
+                  setSignedOut(false)
+                  setMessage(null)
                 }}
+                purpose="signin"
               />
             </div>
-            <button
-              className="link link-caps mt-6 min-h-11"
-              onClick={() => go(ARTIST_STEPS[index - 1]!)}
-              type="button"
-            >
-              Back
-            </button>
-          </div>
-        ) : (
-          <>
-            {/* Outside the step's form: the sign-in form cannot sit inside another form */}
-            {signedOut && (
-              <div
-                className="mb-10 border-l-2 border-primary bg-surface py-6 pl-6 pr-4"
-                role="alert"
-              >
-                <p className="measure mb-6">
-                  You have been signed out, so this step was not saved. Sign in again here: what you
-                  have typed stays on the page.
+          )}
+          <form noValidate onSubmit={step === 'review' ? send : next}>
+            {application.stage === 'changes-requested' && application.decisionNote && (
+              <div className="contact-note mb-10">
+                <p className="font-medium">A note from us</p>
+                <p className="mt-2 whitespace-pre-line">{application.decisionNote}</p>
+              </div>
+            )}
+            <p className="apply-eb">
+              Step {index + 1} of {ARTIST_STEPS.length}
+            </p>
+            <h2 className="apply-h2 outline-none" ref={heading} tabIndex={-1}>
+              {meta.title}
+            </h2>
+            <p className="text-[1.1875rem]">{meta.intro}</p>
+
+            <div className="mt-9">
+              <ErrorSummary errors={errors} />
+              {message && (
+                <p className="mb-8 text-base italic text-destructive" role="alert">
+                  {message}
                 </p>
-                <CodeSignIn
-                  formToken={formToken}
-                  onSignedIn={() => {
-                    setSignedOut(false)
-                    setMessage(null)
-                  }}
-                  purpose="signin"
+              )}
+
+              {step === 'about' && <AboutStep errors={errors} set={set} values={current} />}
+              {step === 'address' && <AddressStep errors={errors} set={set} values={current} />}
+              {step === 'practice' && <PracticeStep errors={errors} set={set} values={current} />}
+              {step === 'portfolio' && <PortfolioStep errors={errors} set={set} values={current} />}
+              {step === 'review' && (
+                <ReviewStep
+                  all={values}
+                  errors={errors}
+                  onEdit={(s) => go(s as ArtistStep)}
+                  set={set}
+                  values={current}
+                />
+              )}
+            </div>
+
+            {step === 'review' && (
+              <div aria-hidden className="absolute -left-[9999px] h-0 w-0 overflow-hidden">
+                <label htmlFor={`${HONEYPOT_FIELD}-send`}>Company website</label>
+                <input
+                  autoComplete="off"
+                  id={`${HONEYPOT_FIELD}-send`}
+                  onChange={(e) => setHoneypot(e.target.value)}
+                  tabIndex={-1}
+                  value={honeypot}
                 />
               </div>
             )}
-            <form noValidate onSubmit={step === 'review' ? send : next}>
-              {header}
 
-              <div className="mt-10">
-                <ErrorSummary errors={errors} />
-                {message && (
-                  <p className="mb-8 text-base italic text-destructive" role="alert">
-                    {message}
-                  </p>
-                )}
-
-                {step === 'about' && <AboutStep errors={errors} set={set} values={current} />}
-                {step === 'address' && <AddressStep errors={errors} set={set} values={current} />}
-                {step === 'practice' && <PracticeStep errors={errors} set={set} values={current} />}
-                {step === 'portfolio' && (
-                  <PortfolioStep errors={errors} set={set} values={current} />
-                )}
-                {step === 'review' && (
-                  <ReviewStep
-                    all={values}
-                    errors={errors}
-                    onEdit={(s) => go(s as ArtistStep)}
-                    privacy={privacy}
-                    set={set}
-                    values={current}
-                  />
-                )}
-              </div>
-
-              {step === 'review' && (
-                <div aria-hidden className="absolute -left-[9999px] h-0 w-0 overflow-hidden">
-                  <label htmlFor={`${HONEYPOT_FIELD}-send`}>Company website</label>
-                  <input
-                    autoComplete="off"
-                    id={`${HONEYPOT_FIELD}-send`}
-                    onChange={(e) => setHoneypot(e.target.value)}
-                    tabIndex={-1}
-                    value={honeypot}
-                  />
-                </div>
-              )}
-
-              <div className="mt-14 flex flex-wrap items-center gap-x-8 gap-y-4 border-t border-border pt-8">
-                <button className="btn btn-solid min-h-11" disabled={busy} type="submit">
-                  {busy
-                    ? 'Saving…'
-                    : step === 'review'
-                      ? 'Send my application'
-                      : 'Save and continue'}
+            <div className="apply-actions mt-12">
+              <button className="house-btn" disabled={busy} type="submit">
+                {busy ? 'Saving…' : step === 'review' ? 'Send my application' : 'Save and continue'}
+              </button>
+              {step !== 'review' && (
+                <button className="apply-btn2" disabled={busy} onClick={saveForLater} type="button">
+                  Save and finish later
                 </button>
-                {step !== 'review' && (
-                  <button
-                    className="btn btn-outline min-h-11"
-                    disabled={busy}
-                    onClick={saveForLater}
-                    type="button"
-                  >
-                    Save and finish later
-                  </button>
-                )}
-                {index > 0 && (
-                  <button
-                    className="link link-caps min-h-11"
-                    onClick={() => go(ARTIST_STEPS[index - 1]!)}
-                    type="button"
-                  >
-                    Back
-                  </button>
-                )}
-              </div>
-              {saved && (
-                <p className="mt-6 text-base text-primary" role="status">
-                  Saved. You can close this page and come back to it by signing in.
-                </p>
               )}
-            </form>
-          </>
-        )}
-      </div>
-    </div>
+              {back}
+            </div>
+            {step === 'review' && (
+              <p className="muted mt-4 text-base">
+                Once it is sent, you can follow it from your account.
+              </p>
+            )}
+            {saved && (
+              <p className="mt-6 text-base text-primary" role="status">
+                Saved. You can close this page and come back to it by signing in.
+              </p>
+            )}
+          </form>
+        </div>
+      </section>
+    </>
   )
 }
 

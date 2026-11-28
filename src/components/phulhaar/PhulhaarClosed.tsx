@@ -9,7 +9,7 @@ import React from 'react'
 
 const READY = [
   'A few photographs of recent work: sharp, well lit, the whole piece in frame.',
-  'Your PAN, and a masked e-Aadhaar or another ID that shows your address.',
+  'A short biography, a few lines long, and links to your work online if you have them.',
 ]
 
 export const PhulhaarClosed: React.FC<{ note: string }> = ({ note }) => (
