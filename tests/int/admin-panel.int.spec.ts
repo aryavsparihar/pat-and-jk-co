@@ -450,7 +450,7 @@ describe('the security log records every addition, change and deletion', () => {
           displayName: 'Asha',
           dateOfBirth: '1990-04-12',
           phone: '+91 98765 43210',
-          language: 'English',
+          consentProcessing: true,
         },
       }),
     )

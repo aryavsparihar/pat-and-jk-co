@@ -240,7 +240,7 @@ const aboutYou = {
   displayName: 'Asha',
   dateOfBirth: '1990-04-12',
   phone: '98765 43210',
-  language: 'English',
+  consentProcessing: true,
 }
 
 describe('applying again', () => {

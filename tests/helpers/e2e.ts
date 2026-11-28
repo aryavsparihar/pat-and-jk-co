@@ -219,7 +219,7 @@ export const fillEarlySteps = async (page: Page) => {
             displayName: 'Asha',
             dateOfBirth: '1990-04-12',
             phone: '98765 43210',
-            language: 'English',
+            consentProcessing: true,
           },
         })
       ).status,
@@ -333,6 +333,49 @@ export const findMember = async (email: string) =>
       overrideAccess: true,
     })
   ).docs[0]!
+
+/**
+ * Step 1 of the artist application as the design asks for it: the names, the date of birth by
+ * day, month and year, the mobile number after its country code, and the tick box under "How we
+ * use your details". A date is given as YYYY-MM-DD; an empty value leaves its field empty.
+ */
+export const fillAboutYou = async (
+  page: Page,
+  {
+    name = 'Asha Example',
+    workName = 'Asha',
+    dateOfBirth = '1990-04-12',
+    phone = '98765 43210',
+    consent = true,
+  }: {
+    name?: string
+    workName?: string
+    dateOfBirth?: string
+    phone?: string
+    consent?: boolean
+  } = {},
+) => {
+  await page.getByLabel('Your full name').fill(name)
+  await page.getByLabel('The name you work under').fill(workName)
+  const [year = '', month = '', day = ''] = dateOfBirth.split('-')
+  await page.getByLabel('Day', { exact: true }).fill(day ? String(Number(day)) : '')
+  await page.getByLabel('Month', { exact: true }).selectOption(month ? String(Number(month)) : '')
+  await page.getByLabel('Year', { exact: true }).fill(year)
+  await page.getByLabel('Mobile number').fill(phone)
+  const box = page.getByLabel(
+    'I have read how PAT & J.K. Co. will use my details, and I agree to it.',
+  )
+  if (consent) await box.check()
+  else await box.uncheck()
+}
+
+/** Review and send: the three statements ticked, and I AGREE typed */
+export const confirmArtistApplication = async (page: Page) => {
+  await page.getByLabel(/my own original work/).check()
+  await page.getByLabel(/None of them is a print, a copy/).check()
+  await page.getByLabel(/The details I have given are true and complete/).check()
+  await page.getByLabel('To confirm, type I AGREE').fill('I AGREE')
+}
 
 /** The pre-submission notice: the policy scrolled to its end, the box ticked, I AGREE typed */
 export const agreeToNotice = async (page: Page) => {
