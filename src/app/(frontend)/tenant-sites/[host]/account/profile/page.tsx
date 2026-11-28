@@ -5,7 +5,7 @@ import { ContactForm, ProfileForm } from '@/components/portal/ProfileForm'
 import { PortalFrame } from '@/components/portal/PortalFrame'
 import { loadArtist } from '@/members/accountPage'
 import { profileView } from '@/members/profile'
-import { MEDIUMS } from '@/members/forms/schemas'
+import { MEDIUMS, TAKEN_MEDIUMS } from '@/members/forms/schemas'
 
 export const dynamic = 'force-dynamic'
 export const metadata: Metadata = { title: 'Your profile', robots: { index: false, follow: false } }
@@ -14,13 +14,19 @@ export const metadata: Metadata = { title: 'Your profile', robots: { index: fals
 export default async function ProfilePage() {
   const { member } = await loadArtist()
   const profile = profileView(member)
+  // The media taken now, and any no longer taken that the profile still has, to be unticked
+  const chosen: string[] = (profile as { mediums?: string[] }).mediums ?? []
+  const mediums = [
+    ...TAKEN_MEDIUMS,
+    ...MEDIUMS.filter((m) => 'retired' in m && chosen.includes(m.value)),
+  ]
   return (
     <PortalFrame
       current="/account/profile"
       heading="Your profile"
       intro={<>How you appear with your work. Our team looks at it before it is shown.</>}
     >
-      <ProfileForm initial={profile as never} mediums={MEDIUMS} />
+      <ProfileForm initial={profile as never} mediums={mediums} />
       <section className="mt-16 border-t border-border-strong pt-10">
         <h2 className="display-sm">Contact details</h2>
         <p className="muted measure mb-8 mt-2">
