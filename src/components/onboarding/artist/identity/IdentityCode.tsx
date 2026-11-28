@@ -71,7 +71,7 @@ export const IdentityCode: React.FC<{
   if (!code) {
     return (
       <button className="btn btn-solid min-h-11" disabled={busy} onClick={onNew} type="button">
-        {busy ? <Sending label="Getting your code" /> : 'Show my code'}
+        {busy ? <Sending label="Getting your code" /> : 'Show me my code'}
       </button>
     )
   }
