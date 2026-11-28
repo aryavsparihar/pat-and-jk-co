@@ -2,6 +2,8 @@
 
 import React, { useState } from 'react'
 
+import { houseValidity } from '@/components/ui/houseValidity'
+
 type Stage = 'email' | 'code' | 'done' | 'request'
 
 const post = async (url: string, body: unknown) => {
@@ -72,7 +74,7 @@ export const GateForm: React.FC<{ next: string; domain: string }> = ({ next, dom
 
   if (stage === 'request') {
     return (
-      <form className="mt-10" onSubmit={requestAccess}>
+      <form className="mt-10" {...houseValidity} onSubmit={requestAccess}>
         <p className="measure">
           Ask for an account. The technical director approves every request before an account is
           created, and you will then receive an email to set your password.
@@ -123,7 +125,7 @@ export const GateForm: React.FC<{ next: string; domain: string }> = ({ next, dom
 
   if (stage === 'code' || stage === 'done') {
     return (
-      <form className="mt-10" onSubmit={verifyCode}>
+      <form className="mt-10" {...houseValidity} onSubmit={verifyCode}>
         {note && <p className="measure">{note}</p>}
         <div className="mt-8">
           <label className="label mb-1 block" htmlFor="gate-code">
@@ -168,7 +170,7 @@ export const GateForm: React.FC<{ next: string; domain: string }> = ({ next, dom
   }
 
   return (
-    <form className="mt-10" onSubmit={requestCode}>
+    <form className="mt-10" {...houseValidity} onSubmit={requestCode}>
       {note && <p className="measure mb-6">{note}</p>}
       <div>
         <label className="label mb-1 block" htmlFor="gate-email">
