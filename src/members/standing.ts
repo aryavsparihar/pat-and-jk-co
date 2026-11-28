@@ -30,7 +30,7 @@ export const ON_HOLD_MESSAGE =
   'Your account is on hold, so nothing can be changed for now. Please write to hello@pjk.co.in.'
 
 export const PAYOUTS_PAUSED_MESSAGE =
-  'This account is on hold: payouts and payout details are paused until it is released.'
+  'Your account is on hold, so payouts and payout details are paused until it is released.'
 
 const MIN_REASON = 10
 

@@ -96,7 +96,10 @@ export const PayoutsView: React.FC<{ kyc: MaskedKyc; locked?: boolean; email: st
     setMessage(null)
     const result = await api<{ challengeId: number }>('/next/members/step-up', { body: {} })
     setBusy(false)
-    if (!result.ok) return setMessage(result.data.message ?? 'We could not send a code.')
+    if (!result.ok)
+      return setMessage(
+        result.data.message ?? 'We could not send a code. Please try again in a few minutes.',
+      )
     setChallengeId(result.data.challengeId)
     setStage('details')
   }
@@ -115,7 +118,8 @@ export const PayoutsView: React.FC<{ kyc: MaskedKyc; locked?: boolean; email: st
       for (const [key, value] of Object.entries(result.data.errors ?? {}))
         flat[key.replace(/^bank\./, '')] = value
       setErrors(flat)
-      if (!result.data.errors) setMessage(result.data.message ?? 'The details could not be saved.')
+      if (!result.data.errors)
+        setMessage(result.data.message ?? 'Your bank details could not be sent. Please try again.')
       return
     }
     // Forget what was typed: from here on only the masked view is shown
@@ -170,8 +174,8 @@ export const PayoutsView: React.FC<{ kyc: MaskedKyc; locked?: boolean; email: st
       {stage === 'view' && !kyc.pendingBank && (
         <div className="mt-6">
           <p className="muted measure mb-6 text-base">
-            To keep your payments safe, we first email you a code, even though you are signed in.
-            We never ask for bank details by email, and we never send them.
+            To keep your payments safe, we first email you a code, even though you are signed in. We
+            never ask for bank details by email, and we never send them.
           </p>
           <button
             className={`btn ${first ? 'btn-solid' : 'btn-outline'} min-h-11`}
@@ -179,7 +183,11 @@ export const PayoutsView: React.FC<{ kyc: MaskedKyc; locked?: boolean; email: st
             onClick={askForCode}
             type="button"
           >
-            {busy ? 'Sending a code…' : first ? 'Add your bank details' : 'Change your bank details'}
+            {busy
+              ? 'Sending a code…'
+              : first
+                ? 'Add your bank details'
+                : 'Change your bank details'}
           </button>
         </div>
       )}

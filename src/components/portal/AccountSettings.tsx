@@ -147,7 +147,10 @@ export const SessionsList: React.FC = () => {
 
   const end = async (session: Session) => {
     const result = await api(`/next/members/portal/sessions/${session.id}`, { method: 'DELETE' })
-    if (!result.ok) return setMessage(result.data.message ?? 'That device could not be signed out.')
+    if (!result.ok)
+      return setMessage(
+        result.data.message ?? 'We could not sign that device out. Please try again.',
+      )
     setSessions((all) => (all ?? []).filter((s) => s.id !== session.id))
     setMessage(`${session.device} has been signed out.`)
   }
@@ -233,7 +236,10 @@ export const DataRequests: React.FC = () => {
       api<{ message: string }>('/next/members/data-request', { body: { kind } }),
     )
     setBusy(false)
-    setMessage(result.data.message ?? 'That could not be sent.')
+    setMessage(
+      result.data.message ??
+        'Your request could not be sent. Please try again, or write to compliance@pjk.co.in.',
+    )
   }
 
   return (

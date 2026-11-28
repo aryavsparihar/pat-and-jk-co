@@ -37,10 +37,10 @@ export const driveFolderSchema = z.object({
   url: z
     .string()
     .trim()
-    .max(400, 'That link is too long to be a Google Drive folder.')
+    .max(400, 'That link is too long to be a Google Drive folder. Please copy it again.')
     .refine(
       (v) => v === '' || DRIVE_FOLDER.test(v),
-      'Please paste the link to a Google Drive folder. It starts https://drive.google.com/drive/folders/',
+      'Please paste the link to a Google Drive folder. It starts with https://drive.google.com/drive/folders/',
     )
     // Kept in one plain form, whatever was pasted: no sharing or tracking parts
     .transform((v) =>
@@ -55,7 +55,7 @@ export const profileSchema = z.object({
     .string({ error: 'Please give the name you would like shown.' })
     .trim()
     .min(1, 'Please give the name you would like shown.')
-    .max(120, 'Please keep the name under 120 characters.'),
+    .max(120, 'Please keep the name to 120 characters or fewer.'),
   bio: optionalText(2000),
   statement: optionalText(2000),
   links: z
@@ -65,10 +65,10 @@ export const profileSchema = z.object({
         url: z
           .string()
           .trim()
-          .refine((v) => isWebUrl(v), 'Please give a full web address, starting https://.'),
+          .refine((v) => isWebUrl(v), 'Please give the full web address, starting https://.'),
       }),
     )
-    .max(5, 'Up to five links, please.')
+    .max(5, 'You can add up to five links.')
     .default([]),
   portrait: z.coerce.number().int().positive().optional(),
   // From the media Phulhaar takes now; one no longer taken is named, to be unticked
@@ -78,7 +78,7 @@ export const profileSchema = z.object({
     .default([])
     .superRefine((list, ctx) => {
       const retired = list.find((m) => !TAKEN_MEDIUMS.some((t) => t.value === m))
-      if (retired) ctx.addIssue({ code: 'custom', message: retiredMediumLine(retired) })
+      if (retired) ctx.addIssue({ code: 'custom', message: retiredMediumLine(retired, 'listed') })
     }),
   exhibitions: z
     .array(

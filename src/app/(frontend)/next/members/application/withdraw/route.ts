@@ -45,7 +45,7 @@ export async function POST(request: Request) {
       return reply({ message: error.message }, { status: error.status })
     payload.logger.error({ err: error, msg: 'Could not withdraw an application' })
     return reply(
-      { message: 'Your application could not be withdrawn just now. Please try later.' },
+      { message: 'Your application could not be withdrawn just now. Please try again later.' },
       { status: 500 },
     )
   }

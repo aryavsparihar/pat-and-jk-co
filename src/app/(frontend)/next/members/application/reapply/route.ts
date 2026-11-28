@@ -44,7 +44,7 @@ export async function POST(request: Request) {
       return reply({ message: error.message }, { status: error.status })
     payload.logger.error({ err: error, msg: 'Could not start a new application' })
     return reply(
-      { message: 'Your new application could not be started. Please try later.' },
+      { message: 'Your new application could not be started. Please try again later.' },
       { status: 500 },
     )
   }

@@ -336,11 +336,14 @@ export const TAKEN_MEDIUMS = MEDIUMS.filter((m) => !('retired' in m))
 const isRetired = (value: string) =>
   MEDIUMS.some((m) => m.value === value && 'retired' in m && m.retired)
 
-/** "Phulhaar takes original, hand-made work only, so Photography can no longer be chosen." */
-export const retiredMediumLine = (value: string) =>
+/**
+ * "Phulhaar takes original, hand-made work only, so Photography can no longer be chosen." The
+ * application says "chosen"; the profile, where the media are listed, says "listed".
+ */
+export const retiredMediumLine = (value: string, verb: 'chosen' | 'listed' = 'chosen') =>
   `Phulhaar takes original, hand-made work only, so ${
     MEDIUMS.find((m) => m.value === value)?.label ?? value
-  } can no longer be chosen. Please untick it.`
+  } can no longer be ${verb}. Please untick it.`
 
 /**
  * Typical prices, in rupees for every artist wherever they live. The last two of the list are

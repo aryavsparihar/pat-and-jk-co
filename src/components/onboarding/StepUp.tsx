@@ -80,7 +80,11 @@ const StepUpDialog: React.FC<{ onDone: (ok: boolean) => void }> = ({ onDone }) =
     setMessage(null)
     const result = await api<{ challengeId: number }>('/next/members/step-up', { body: {} })
     setBusy(false)
-    if (!result.ok) return setMessage(result.data.message ?? 'We could not send a code just now.')
+    if (!result.ok)
+      return setMessage(
+        result.data.message ??
+          'We could not send a code just now. Please try again in a few minutes.',
+      )
     setChallengeId(result.data.challengeId)
     setCode('')
   }

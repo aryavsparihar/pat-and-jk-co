@@ -25,7 +25,8 @@ export async function POST(request: Request) {
 
   const body = await readJson<{ ifsc: string }>(request)
   const ifsc = normaliseIfsc(String(body?.ifsc ?? ''))
-  if (!isIfsc(ifsc)) return reply({ message: 'That IFSC does not look right.' }, { status: 400 })
+  if (!isIfsc(ifsc))
+    return reply({ message: 'That IFSC does not look right. Please check it.' }, { status: 400 })
 
   try {
     const response = await fetch(`https://ifsc.razorpay.com/${ifsc}`, {

@@ -22,7 +22,9 @@ export const ApplyAgainButton: React.FC<{ kind: 'artist' | 'partner' }> = ({ kin
     const result = await api('/next/members/application/reapply', { body: { type: kind } })
     if (!result.ok) {
       setBusy(false)
-      return setMessage(result.data.message ?? 'That could not be done just now.')
+      return setMessage(
+        result.data.message ?? 'That could not be done just now. Please try again later.',
+      )
     }
     window.location.assign(formFor(kind))
   }
@@ -114,7 +116,9 @@ const WithdrawDialog: React.FC<{
     )
     if (!result.ok) {
       setBusy(false)
-      return setMessage(result.data.message ?? 'That could not be done just now.')
+      return setMessage(
+        result.data.message ?? 'That could not be done just now. Please try again later.',
+      )
     }
     window.location.reload()
   }

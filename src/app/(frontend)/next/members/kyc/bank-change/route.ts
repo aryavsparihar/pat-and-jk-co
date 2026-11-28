@@ -33,7 +33,7 @@ export async function POST(request: Request) {
 
   if (!member.artistId) {
     return reply(
-      { message: 'Payout details are added here once you are an approved artist.' },
+      { message: 'You can add payout details once you are an approved artist.' },
       { status: 409 },
     )
   }

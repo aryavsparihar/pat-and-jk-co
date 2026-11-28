@@ -58,7 +58,7 @@ const ownImages = async (payload: Payload, memberId: number, ids: number[]) => {
     overrideAccess: true,
   })
   if (found.docs.length !== new Set(ids).size) {
-    throw new PortalError('One of the pictures could not be found. Please upload it again.')
+    throw new PortalError('We could not find one of the pictures. Please upload it again.')
   }
 }
 
