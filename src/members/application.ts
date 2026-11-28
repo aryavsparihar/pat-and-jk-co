@@ -14,12 +14,9 @@ import {
 } from './forms/schemas'
 import type { MemberKind } from './ids'
 import { stepValues } from './forms/values'
-import { identityFingerprint } from '@/kyc/identityCode'
 import { discardUnkeptPictures } from './portfolio'
-import { partnerKycSchema, type PartnerKycInput } from '@/kyc/schema'
-import { identityPhotoFacts, partnerKycProblems, savePartnerKyc } from '@/kyc/service'
 import { actingFor } from '@/security/audit'
-import { ARTIST_NOTICE_VERSION } from './applicationNotice'
+import { ARTIST_NOTICE_VERSION, TRADE_NOTICE_VERSION } from './applicationNotice'
 import { type ConsentEvidence, consentRow } from './consentRecord'
 
 /**
@@ -271,21 +268,74 @@ export const submitArtistApplication = async (
   }
 }
 
-/** What the partner form sends: its answers, identity details unless already given, consent */
+/** What the trade form sends: its answers, consent with I AGREE, and that the details are true */
 export type PartnerSubmission = {
   data?: unknown
-  /** Omitted when the identity details given before are kept as they are */
-  kyc?: unknown
-  /** The privacy policy read to its end, the box ticked and I AGREE typed, every time */
-  consent?: { checked?: unknown; readToEnd?: unknown; typed?: unknown }
+  /** The box under "How we use your details" ticked and I AGREE typed, every time */
+  consent?: { checked?: unknown; typed?: unknown }
+  /** "The details I have given are true and complete." */
+  accurate?: unknown
+}
+
+/** The answers a trade applicant may keep in a draft: text only, trimmed, at most its length */
+const TRADE_DRAFT_FIELDS: Record<string, number> = {
+  subType: 60,
+  fullName: 120,
+  role: 120,
+  organisation: 160,
+  phone: 30,
+  country: 80,
+  city: 80,
+  state: 80,
+  website: 300,
+  gstin: 30,
+  proof: 300,
+  interest: 600,
+  message: 2000,
 }
 
 /**
- * Saves and sends a partner application in one go: the form is a single page. Everything is
- * checked first, and every problem is listed at once: the answers, the identity details (PAN, the
- * PAN card and the photo with its code and name, unless kept from before), and consent to the
- * privacy policy, read to its end, with I AGREE typed. The Partner/Trade Program agreement is
- * signed after approval (src/agreements). Only then are the identity details encrypted and kept, and the application sent.
+ * "Save and finish later": keeps what the trade form holds, as typed, without checking it, so
+ * the applicant can come back to it. Everything is checked when it is sent.
+ */
+export const savePartnerDraft = async (
+  payload: Payload,
+  member: Member,
+  data: unknown,
+): Promise<SaveResult> => {
+  const application = await findOwnApplication(payload, member, 'partner', 0)
+  if (!application)
+    return { ok: false, status: 404, message: 'There is no trade application to save.' }
+  if (!EDITABLE.includes(application.stage)) {
+    return {
+      ok: false,
+      status: 409,
+      message: 'This application has been sent, so it can no longer be changed.',
+    }
+  }
+  const given = (data && typeof data === 'object' ? data : {}) as Record<string, unknown>
+  const partner = Object.fromEntries(
+    Object.entries(TRADE_DRAFT_FIELDS).map(([key, max]) => [
+      key,
+      typeof given[key] === 'string' ? (given[key] as string).trim().slice(0, max) || null : null,
+    ]),
+  )
+  const saved = await payload.update({
+    collection: 'applications',
+    id: application.id,
+    data: { partner: partner as never },
+    depth: 0,
+    ...asMember(member),
+    context: { disableRevalidate: true },
+  })
+  return { ok: true, application: saved }
+}
+
+/**
+ * Sends a trade application in one go: the form is a single page (the ApplyPartner design).
+ * Everything is checked first and every problem listed at once: the answers, consent to how the
+ * details are used with I AGREE typed, and that the details are true. No identity documents are
+ * asked for now: those come after approval, before the trade agreement.
  */
 export const submitPartnerApplication = async (
   payload: Payload,
@@ -295,7 +345,7 @@ export const submitPartnerApplication = async (
 ): Promise<SaveResult> => {
   const application = await findOwnApplication(payload, member, 'partner', 0)
   if (!application)
-    return { ok: false, status: 404, message: 'There is no partner application to send.' }
+    return { ok: false, status: 404, message: 'There is no trade application to send.' }
   if (!EDITABLE.includes(application.stage)) {
     return { ok: false, status: 409, message: 'This application has already been sent.' }
   }
@@ -303,58 +353,28 @@ export const submitPartnerApplication = async (
   const parsed = partnerSchema.safeParse(submission?.data)
   if (!parsed.success) Object.assign(errors, fieldErrors(parsed.error))
 
-  // Identity: given now, or kept from before and still complete
-  let kyc: PartnerKycInput | null = null
-  let photo: Awaited<ReturnType<typeof identityPhotoFacts>> = null
-  if (submission?.kyc !== undefined) {
-    const given = partnerKycSchema.safeParse(submission.kyc)
-    if (!given.success) Object.assign(errors, fieldErrors(given.error))
-    else if (given.data.noticeVersion !== PRIVACY_NOTICE_VERSION)
-      errors.consent = 'The privacy notice has changed since you read it. Please read it again.'
-    else {
-      kyc = given.data
-      // The photo must show the name given now: the paper in it has the code and that name
-      photo = await identityPhotoFacts(payload, {
-        memberId: member.id,
-        documentId: kyc.documents['identity-photo']!,
-      })
-      if (!photo || photo.fingerprint !== identityFingerprint(kyc.panName, null))
-        errors['documents.identity-photo'] =
-          'Your name has changed since this photo was taken. Please get a new code and take it again.'
-    }
-  } else {
-    const missing = await partnerKycProblems(payload, member.id)
-    if (missing.length) errors.kyc = missing[0]!
-  }
-
   const consent = submission?.consent
-  if (consent?.readToEnd !== true || consent?.checked !== true)
-    errors.consent = 'Please read the privacy policy to the end, then tick the box.'
-  if (!agreedInWords(consent?.typed))
-    errors.consentTyped = `Please type ${TERMS_PHRASE} to confirm.`
+  if (consent?.checked !== true)
+    errors.consent =
+      'Please tick the box to give your consent, so that we can check your details and, if we work together, pay you.'
+  if (!agreedInWords(consent?.typed)) errors.consentTyped = AGREE_LINE
+  if (submission?.accurate !== true)
+    errors.accurate = 'Please confirm that the information is accurate.'
 
   if (Object.keys(errors).length > 0 || !parsed.success) {
-    return { ok: false, status: 422, message: 'A few things need another look.', errors }
+    return {
+      ok: false,
+      status: 422,
+      message: 'A few things need another look. They are marked below.',
+      errors,
+    }
   }
 
-  if (kyc) {
-    await savePartnerKyc(payload, {
-      member,
-      input: kyc,
-      reference: application.reference,
-      identityCode: photo,
-      consent: {
-        noticeVersion: PRIVACY_NOTICE_VERSION,
-        confirmation: 'Read the privacy notice to the end, confirmed, and typed I AGREE',
-      },
-    })
-  }
-
-  const { category, ...partner } = parsed.data
   await payload.update({
     collection: 'applications',
     id: application.id,
-    data: { partner, partnerCategory: category },
+    // A trade account is always the placement kind: designers, architects, advisers, dealers
+    data: { partner: parsed.data, partnerCategory: 'placement' },
     depth: 0,
     ...asMember(member),
     context: { disableRevalidate: true },
@@ -366,7 +386,8 @@ export const submitPartnerApplication = async (
     data: {
       partnerDeclarations: {
         consentProcessing: true,
-        privacyNoticeVersion: PRIVACY_NOTICE_VERSION,
+        accurate: true,
+        privacyNoticeVersion: TRADE_NOTICE_VERSION,
       },
     },
     depth: 0,
@@ -376,7 +397,7 @@ export const submitPartnerApplication = async (
   return {
     ok: true,
     application: await submit(payload, member, saved, evidence, {
-      checked: consent?.checked === true,
+      checked: true,
       typed: typeof consent?.typed === 'string' ? consent.typed : null,
     }),
   }
