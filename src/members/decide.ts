@@ -5,7 +5,6 @@ import {
   initTransaction,
   killTransaction,
   type Payload,
-  type PayloadRequest,
 } from 'payload'
 
 import type { Application, Member, User } from '@/payload-types'
