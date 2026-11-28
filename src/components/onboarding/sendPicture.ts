@@ -25,13 +25,21 @@ class PictureError extends Error {}
  * keep. An iPhone's HEIC photo arrives as JPEG already, as the file picker asks only for JPEG, PNG
  * or WebP. The server checks and re-encodes it again whatever happens here.
  */
+const ACCEPTED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+
 const shrink = async (file: File): Promise<Blob> => {
+  // A file the picker let through by its name alone: say what it is not
+  if (file.type && !ACCEPTED_TYPES.has(file.type))
+    throw new PictureError(
+      'That picture is not a JPEG, PNG or WebP picture. Please choose one that is.',
+    )
   let bitmap: ImageBitmap
   try {
     bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' })
   } catch {
+    // The right kind of file, but one this browser cannot open: damaged, or cut short
     throw new PictureError(
-      'That picture is not a JPEG, PNG or WebP picture. Please choose one that is.',
+      'That picture could not be prepared for upload. Please try another copy of it.',
     )
   }
   const scale = Math.min(1, LONG_SIDE / Math.max(bitmap.width, bitmap.height))

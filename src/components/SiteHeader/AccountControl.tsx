@@ -3,7 +3,12 @@
 import Link from '@/components/IntentLink'
 import React, { useEffect, useId, useRef, useState } from 'react'
 
-import { announceSessionChange, useIsArtist, useSession } from '@/components/session/sessionStore'
+import {
+  announceSessionChange,
+  markLeaving,
+  useIsArtist,
+  useSession,
+} from '@/components/session/sessionStore'
 
 /**
  * Sign in, or Your account, at the end of the header on every page (the founder's brief, section
@@ -57,6 +62,7 @@ export const AccountControl: React.FC = () => {
 
   const signOut = async () => {
     setBusy(true)
+    markLeaving()
     try {
       await fetch(session === 'staff' ? '/api/users/logout' : '/next/members/sign-out', {
         method: 'POST',
