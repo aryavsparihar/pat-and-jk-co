@@ -12,7 +12,7 @@ import { createFormToken } from '@/members/formToken'
 export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
-  title: `Help Center | ${BRAND}`,
+  title: `Help Center — ${BRAND}`,
   description: `Raise a request with the ${BRAND} team: artists and trade partners.`,
 }
 
