@@ -196,7 +196,7 @@ describe('where it is checked', () => {
       } as never)
 
     await expect(submit([{ field: 'message', value: 'Hello' }])).rejects.toThrow(
-      /could not confirm this came from a person/,
+      /could not confirm that this came from a person/,
     )
 
     // With a genuine token it gets past the check, to the form itself (none here)

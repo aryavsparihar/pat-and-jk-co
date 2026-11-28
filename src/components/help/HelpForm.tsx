@@ -191,7 +191,7 @@ export const HelpForm: React.FC<{ formToken: string }> = ({ formToken }) => {
         setError(
           response.status === 413
             ? 'The attachments are too large. Please keep them under 4 MB together.'
-            : (body.message ?? 'Something went wrong. Please try again.'),
+            : (body.message ?? 'Something went wrong on our side. Please try again.'),
         )
       }
       bot.reset()

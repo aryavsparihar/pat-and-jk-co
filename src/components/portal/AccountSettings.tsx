@@ -56,7 +56,9 @@ export const EmailChange: React.FC<{ current: string }> = ({ current }) => {
     })
     setBusy(false)
     if (!result.ok) {
-      setErrors({ code: result.data.message ?? 'That code was not accepted.' })
+      setErrors({
+        code: result.data.message ?? 'We could not accept that code. Please ask for a new one.',
+      })
       return
     }
     setDone(result.data.email)

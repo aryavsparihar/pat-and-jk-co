@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic'
 // returned to every failed attempt breaks from the second failure on
 const rejected = () =>
   Response.json(
-    { message: 'That code is not right, or it has expired. Ask for a new one.' },
+    { message: 'That code is not right, or it has run out. Please ask for a new one.' },
     { status: 401 },
   )
 

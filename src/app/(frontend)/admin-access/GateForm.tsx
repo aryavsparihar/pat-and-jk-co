@@ -45,7 +45,8 @@ export const GateForm: React.FC<{ next: string; domain: string }> = ({ next, dom
     setError(null)
     const result = await post('/next/admin-gate/verify-code', { challengeId, code })
     setBusy(false)
-    if (!result.ok) return setError(result.message ?? 'That code was not accepted.')
+    if (!result.ok)
+      return setError(result.message ?? 'We could not accept that code. Please ask for a new one.')
     setStage('done')
     window.location.assign(next)
   }

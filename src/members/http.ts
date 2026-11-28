@@ -59,7 +59,7 @@ const ALLOWED_ON_HOLD = [
 
 /** When the database cannot be reached; what was saved before is still there */
 export const UNAVAILABLE =
-  'We could not reach our records just now, so nothing was changed. Please try again in a minute: what you typed is still here.'
+  'We could not reach our records just now, so nothing has changed. What you typed is still here: please try again in a minute.'
 
 /**
  * The signed-in member for a request, or a 401 to return. Passes on a refreshed cookie when the
@@ -81,7 +81,13 @@ export const requireMember = async (
     return { ok: false, response: reply({ message: UNAVAILABLE }, { status: 503 }) }
   }
   if (!active) {
-    return { ok: false, response: reply({ message: 'Please sign in again.' }, { status: 401 }) }
+    return {
+      ok: false,
+      response: reply(
+        { message: 'You have been signed out. Please sign in again to carry on.' },
+        { status: 401 },
+      ),
+    }
   }
   // An account on hold reads, and changes nothing: every change is refused here, so no endpoint
   // can forget to, except signing out of other devices and asking for their data

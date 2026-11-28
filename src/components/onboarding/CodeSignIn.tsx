@@ -98,7 +98,10 @@ export const CodeSignIn: React.FC<{
     if (!result.ok && result.data.retryCheck) return setRefused(true)
     if (!result.ok && result.data.notRegistered) return setNotRegistered(true)
     if (!result.ok)
-      return setError(result.data.message ?? 'Something went wrong. Please try again.')
+      return setError(
+        result.data.message ??
+          'Something went wrong on our side. Please try again, and if it keeps happening, write to tech@pjk.co.in.',
+      )
     setChallengeId(result.data.challengeId ?? null)
     setMessage(result.data.message ?? null)
     setStage('code')
@@ -112,7 +115,10 @@ export const CodeSignIn: React.FC<{
     setError(null)
     const result = await api('/next/members/verify-code', { body: { challengeId, code } })
     setBusy(false)
-    if (!result.ok) return setError(result.data.message ?? 'That code was not accepted.')
+    if (!result.ok)
+      return setError(
+        result.data.message ?? 'We could not accept that code. Please ask for a new one.',
+      )
     // The header's Sign in becomes the account and Sign out, here and in every other open tab,
     // without a page load
     announceSessionChange()
@@ -213,12 +219,12 @@ export const CodeSignIn: React.FC<{
               id="member-email-error"
               role="alert"
             >
-              That email address is not registered with us. To work with us, apply as an artist or a
-              partner on our{' '}
+              We could not find an account for that email address. Please check it for a typing
+              slip, or{' '}
               <a className="link not-italic" href="/collaborate">
-                Collaborate page
-              </a>
-              .
+                start an application
+              </a>{' '}
+              if you have not applied yet.
             </p>
           )}
           {error && (

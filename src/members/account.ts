@@ -135,7 +135,10 @@ export const confirmEmailChange = async (
   }
   const check = await checkChallenge(payload, { challengeId, code, audience: 'member' })
   if (!check.ok || check.purpose !== 'email-change' || check.email !== pending.pendingEmail) {
-    throw new PortalError('That code is not right, or it has expired. Ask for a new one.', 401)
+    throw new PortalError(
+      'That code is not right, or it has run out. Please ask for a new one.',
+      401,
+    )
   }
   const taken = await findMember(payload, pending.pendingEmail)
   if (taken && taken.id !== member.id) {

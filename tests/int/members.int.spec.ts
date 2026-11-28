@@ -319,7 +319,8 @@ describe('asking for a code', () => {
     const response = await post(requestCode, { email, purpose: 'signin' })
     expect(response.status).toBe(404)
     expect(await response.json()).toEqual({
-      message: 'That email address is not registered with us.',
+      message:
+        'We could not find an account for that email address. Please check it for a typing slip, or start an application if you have not applied yet.',
       notRegistered: true,
     })
     const challenges = await payload.count({
@@ -473,7 +474,7 @@ describe('signing in', () => {
     // And asking again says why, and sends nothing
     const again = await post(requestCode, { email, purpose: 'signin' })
     expect(again.status).toBe(403)
-    expect(((await again.json()) as { message: string }).message).toMatch(/suspended/)
+    expect(((await again.json()) as { message: string }).message).toMatch(/on hold/)
   })
 
   it('lets a member on hold sign in and read, but change nothing', async () => {
@@ -795,9 +796,9 @@ describe('approval and member IDs', () => {
     const { id } = await issueMemberId(payload, approved, 'artist', {
       reference: application.reference,
     })
-    expect(
-      (await eventsOf()).some((e) => e.event === 'member-id-issued' && e.subject === id),
-    ).toBe(true)
+    expect((await eventsOf()).some((e) => e.event === 'member-id-issued' && e.subject === id)).toBe(
+      true,
+    )
   })
 })
 

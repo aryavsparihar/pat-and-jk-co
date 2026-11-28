@@ -91,7 +91,10 @@ const StepUpDialog: React.FC<{ onDone: (ok: boolean) => void }> = ({ onDone }) =
     setMessage(null)
     const result = await api('/next/members/step-up/confirm', { body: { challengeId, code } })
     setBusy(false)
-    if (!result.ok) return setMessage(result.data.message ?? 'That code was not accepted.')
+    if (!result.ok)
+      return setMessage(
+        result.data.message ?? 'We could not accept that code. Please ask for a new one.',
+      )
     dialog.current?.close()
     onDone(true)
   }

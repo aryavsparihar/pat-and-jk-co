@@ -34,9 +34,10 @@ const PURPOSES = ['signin', 'apply-artist', 'apply-partner'] satisfies (Purpose 
 const SIGN_IN_REPLY = 'A code is on its way to that address.'
 const APPLY_REPLY = 'A code is on its way to that address.'
 /** Signing in with an address nobody has applied with: the form links to /collaborate */
-const NOT_REGISTERED = 'That email address is not registered with us.'
+const NOT_REGISTERED =
+  'We could not find an account for that email address. Please check it for a typing slip, or start an application if you have not applied yet.'
 const SUSPENDED =
-  'This account is suspended, so it cannot sign in. Please write to hello@pjk.co.in.'
+  'This account is on hold, so it cannot sign in for now. Please write to hello@pjk.co.in.'
 
 /**
  * Step one for a member: email a one-time code.
@@ -61,7 +62,7 @@ export async function POST(request: Request) {
   const purpose = PURPOSES.find((p) => p === body?.purpose) ?? null
 
   if (!purpose || !isEmail(email)) {
-    return reply({ message: 'Enter your email address.' }, { status: 400 })
+    return reply({ message: 'Please enter your email address.' }, { status: 400 })
   }
   const generic = purpose === 'signin' ? SIGN_IN_REPLY : APPLY_REPLY
 
@@ -125,7 +126,7 @@ export async function POST(request: Request) {
       detail: purpose,
     })
     return reply(
-      { message: 'Too many codes have been asked for. Try again in an hour.' },
+      { message: 'You have asked for several codes in a short time. Please try again in an hour.' },
       { status: 429, headers: { 'Retry-After': String(limit.retryAfter) } },
     )
   }

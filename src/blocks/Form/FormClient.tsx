@@ -77,7 +77,9 @@ export const FormClient: React.FC<Props> = ({ form, helpEmail }) => {
 
         if (!res.ok) {
           const body = await res.json().catch(() => ({}))
-          setError(body?.errors?.[0]?.message || 'Something went wrong. Please try again.')
+          setError(
+            body?.errors?.[0]?.message || 'Something went wrong on our side. Please try again.',
+          )
           setIsSubmitting(false)
           return
         }

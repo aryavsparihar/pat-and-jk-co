@@ -106,7 +106,7 @@ describe('Help Center form', () => {
     for (const [field, message] of [
       ['requestType', 'Choose who you are.'],
       ['nature', 'Choose the nature of your request.'],
-      ['email', 'Enter your email address.'],
+      ['email', 'Please enter your email address.'],
       ['memberCode', 'Enter your Trade Partner ID.'],
       ['name', 'Enter your full name.'],
     ]) {

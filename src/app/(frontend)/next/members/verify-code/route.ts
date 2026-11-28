@@ -28,7 +28,7 @@ export const dynamic = 'force-dynamic'
 
 const rejected = () =>
   reply(
-    { message: 'That code is not right, or it has expired. Ask for a new one.' },
+    { message: 'That code is not right, or it has run out. Please ask for a new one.' },
     { status: 401 },
   )
 
@@ -62,7 +62,10 @@ export async function POST(request: Request) {
   if (!perIp.allowed) {
     await logSecurityEvent(payload, { event: 'member-code-rate-limited', ip, detail: 'verify' })
     return reply(
-      { message: 'Too many attempts. Try again in an hour.' },
+      {
+        message:
+          'That is too many wrong codes in a row. For your security, please try again in an hour.',
+      },
       { status: 429, headers: { 'Retry-After': String(perIp.retryAfter) } },
     )
   }

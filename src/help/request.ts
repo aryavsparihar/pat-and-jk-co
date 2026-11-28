@@ -191,7 +191,7 @@ export const parseHelpRequest = async (form: FormData): Promise<Parsed> => {
   if (!isNature(nature)) return { ok: false, message: 'Choose the nature of your request.' }
 
   const email = normaliseEmail(form.get('email'))
-  if (!isEmail(email)) return { ok: false, message: 'Enter your email address.' }
+  if (!isEmail(email)) return { ok: false, message: 'Please enter your email address.' }
   const memberCode = text(form.get('memberCode'), 40).toUpperCase()
   if (!memberCode)
     return { ok: false, message: `Enter your ${REQUEST_TYPES[requestType].idLabel}.` }
