@@ -1444,3 +1444,97 @@
   font-size: inherit;
   line-height: inherit;
 }
+
+/* The contact form, as in the founder's design (Contact.html): small capital labels, ruled
+   fields, the site's own arrow on the subject list with a gold rule on focus, and bold group
+   headings in the list */
+.contact-label {
+  display: block;
+  font-size: 0.75rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #3b4a40;
+  margin-bottom: 0.5rem;
+}
+.contact-input {
+  width: 100%;
+  height: 44px;
+  border: 0;
+  border-bottom: 1px solid #8f9b92;
+  border-radius: 0;
+  background: transparent;
+  font-size: 1.1875rem;
+  color: var(--primary);
+  padding: 0.5rem 0;
+}
+.contact-input:focus,
+.contact-textarea:focus {
+  outline: none;
+  border-bottom-color: var(--gold);
+  box-shadow: 0 1px 0 0 var(--gold);
+}
+.contact-input[aria-invalid='true'],
+.contact-textarea[aria-invalid='true'] {
+  border-bottom-color: var(--destructive);
+}
+.contact-select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 28px;
+  cursor: pointer;
+}
+.contact-select optgroup {
+  font-size: 1.125rem;
+  font-style: normal;
+  font-weight: 700;
+  color: #000;
+  background: var(--background);
+}
+.contact-select option {
+  font-size: 1.0625rem;
+  font-weight: 400;
+  color: var(--primary);
+  background: var(--background);
+}
+.contact-textarea {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid #8f9b92;
+  background: #efebe2;
+  font-size: 1.1875rem;
+  color: var(--primary);
+  padding: 0.75rem;
+  resize: vertical;
+}
+.contact-note {
+  font-size: 1rem;
+  line-height: 1.55;
+  padding: 0.875rem 1.125rem;
+  background: var(--phulhaar-cream);
+  border-left: 2px solid var(--gold);
+}
+.contact-attach {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem;
+  min-height: 44px;
+  border: 1px solid var(--primary);
+  padding: 0.625rem 1rem;
+  font-size: 0.8125rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--primary);
+  cursor: pointer;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+.contact-attach:hover,
+.contact-attach:focus-visible {
+  border-color: var(--gold);
+  box-shadow: inset 0 0 0 1px var(--gold);
+}
+.contact-attach:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

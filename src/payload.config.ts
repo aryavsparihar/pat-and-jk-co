@@ -7,6 +7,7 @@ import { buildConfig, PayloadRequest } from 'payload'
 import { fileURLToPath } from 'url'
 
 import { AccessRequests } from './collections/AccessRequests'
+import { Enquiries } from './collections/Enquiries'
 import { HelpTickets } from './collections/HelpTickets'
 import { Applications } from './collections/Applications'
 import { Categories } from './collections/Categories'
@@ -157,6 +158,7 @@ export default buildConfig({
     AgreementExecutions,
     AccessRequests,
     HelpTickets,
+    Enquiries,
     SecurityEvents,
     LoginChallenges,
     RateLimits,

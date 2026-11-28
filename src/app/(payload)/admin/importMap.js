@@ -44,6 +44,7 @@ import { KycPanel as KycPanel_0eb769a0ed0fcab70970f575327a3340 } from '@/compone
 import { AgreementPanel as AgreementPanel_51eb5c8a1888ed67e9e796937b7c7bf1 } from '@/components/admin/AgreementPanel'
 import { HelpTicketFiles as HelpTicketFiles_3b1db6e98f1cdb559c692075c532d980 } from '@/components/admin/HelpTicketFiles'
 import { HelpTicketTabs as HelpTicketTabs_a27e10f31266a895a8db2d4ae90bf26f } from '@/components/admin/HelpTicketTabs'
+import { EnquiryFiles as EnquiryFiles_3b1db6e98f1cdb559c692075c532d980 } from '@/components/admin/HelpTicketFiles'
 import { FolderTypeField as FolderTypeField_2b8867833a34864a02ddf429b0728a40 } from '@payloadcms/next/client'
 import { Icon as Icon_e60daefd9ca0ae7722c67ce9a39e1dd6 } from '@/components/admin/Graphics'
 import { Logo as Logo_e60daefd9ca0ae7722c67ce9a39e1dd6 } from '@/components/admin/Graphics'
@@ -108,6 +109,7 @@ export const importMap = {
   "@/components/admin/AgreementPanel#AgreementPanel": AgreementPanel_51eb5c8a1888ed67e9e796937b7c7bf1,
   "@/components/admin/HelpTicketFiles#HelpTicketFiles": HelpTicketFiles_3b1db6e98f1cdb559c692075c532d980,
   "@/components/admin/HelpTicketTabs#HelpTicketTabs": HelpTicketTabs_a27e10f31266a895a8db2d4ae90bf26f,
+  "@/components/admin/HelpTicketFiles#EnquiryFiles": EnquiryFiles_3b1db6e98f1cdb559c692075c532d980,
   "@payloadcms/next/client#FolderTypeField": FolderTypeField_2b8867833a34864a02ddf429b0728a40,
   "@/components/admin/Graphics#Icon": Icon_e60daefd9ca0ae7722c67ce9a39e1dd6,
   "@/components/admin/Graphics#Logo": Logo_e60daefd9ca0ae7722c67ce9a39e1dd6,

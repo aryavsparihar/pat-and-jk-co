@@ -4,8 +4,9 @@ import { useDocumentInfo } from '@payloadcms/ui'
 import React, { useEffect, useState } from 'react'
 
 /**
- * The files sent with a Help Center request, on the ticket. Pictures show here; each file opens
- * in a new tab, decrypted by the ticket's own route for the signed-in staff member.
+ * The files sent with a Help Center request or a contact message, on its record. Pictures show
+ * here; each file opens in a new tab, decrypted by the collection's own route for the signed-in
+ * staff member.
  */
 
 type File = { filename: string; contentType: string; size?: number | null }
@@ -17,38 +18,45 @@ const size = (bytes?: number | null) =>
       ? `${Math.max(1, Math.round(bytes / 1024))} KB`
       : `${(bytes / 1024 / 1024).toFixed(1)} MB`
 
-export const HelpTicketFiles: React.FC = () => {
+const kindOf = (type: string) =>
+  type === 'application/pdf' ? 'PDF' : type.startsWith('image/') ? 'Picture' : 'Word document'
+
+const StoredFiles: React.FC<{ collection: string; label: string; none: string }> = ({
+  collection,
+  label,
+  none,
+}) => {
   const { id } = useDocumentInfo()
   const [files, setFiles] = useState<File[] | null>(null)
 
   useEffect(() => {
     if (!id) return
-    void fetch(`/api/help-tickets/${id}?depth=0`, { credentials: 'include' })
+    void fetch(`/api/${collection}/${id}?depth=0`, { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : null))
       .then((doc) => setFiles((doc?.attachments as File[]) ?? []))
       .catch(() => setFiles([]))
-  }, [id])
+  }, [collection, id])
 
   return (
     <div className="field-type" style={{ marginBottom: 'var(--base)' }}>
-      <label className="field-label">Files sent with the request</label>
+      <label className="field-label">{label}</label>
       {files === null ? (
         <p>Loading…</p>
       ) : files.length === 0 ? (
-        <p>No files were sent with this request.</p>
+        <p>{none}</p>
       ) : (
         <ul
           style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 'var(--base)' }}
         >
           {files.map((file, n) => {
-            const url = `/api/help-tickets/${id}/files/${n}`
+            const url = `/api/${collection}/${id}/files/${n}`
             return (
               <li key={n}>
                 <a href={url} target="_blank" rel="noopener noreferrer">
                   {file.filename}
                 </a>{' '}
                 <span style={{ opacity: 0.7 }}>
-                  {file.contentType === 'application/pdf' ? 'PDF' : 'Picture'}
+                  {kindOf(file.contentType)}
                   {file.size ? `, ${size(file.size)}` : ''}
                 </span>
                 {file.contentType.startsWith('image/') && file.contentType !== 'image/heic' && (
@@ -75,3 +83,19 @@ export const HelpTicketFiles: React.FC = () => {
     </div>
   )
 }
+
+export const HelpTicketFiles: React.FC = () => (
+  <StoredFiles
+    collection="help-tickets"
+    label="Files sent with the request"
+    none="No files were sent with this request."
+  />
+)
+
+export const EnquiryFiles: React.FC = () => (
+  <StoredFiles
+    collection="enquiries"
+    label="Files sent with the message"
+    none="No files were sent with this message."
+  />
+)

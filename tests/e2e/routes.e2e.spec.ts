@@ -52,6 +52,7 @@ const ROUTES: Record<string, 'public' | 'member' | 'staff' | 'secret' | 'token'>
   '/collaborate/artist-agreement': 'public',
   '/collaborate/trade-agreement': 'public',
   '/admin-access': 'public',
+  '/contact': 'public',
   '/help': 'public',
   '/robots.txt': 'public',
   '/sitemap.xml': 'public',
@@ -71,6 +72,11 @@ const ROUTES: Record<string, 'public' | 'member' | 'staff' | 'secret' | 'token'>
   '/next/phulhaar/staff/sign-in/request': 'secret',
   '/next/phulhaar/staff/sign-in/verify': 'secret',
   // Route handlers
+  // The contact form: the message, then its files in parts, each part carrying the message's
+  // one-off upload token
+  '/next/contact': 'public',
+  '/next/contact/part': 'public',
+  '/next/contact/finish': 'public',
   '/next/admin-gate/request-access': 'public',
   '/next/admin-gate/request-code': 'public',
   '/next/admin-gate/verify-code': 'public',
@@ -147,6 +153,8 @@ const COLLECTIONS: Record<string, 'public' | 'own' | 'staff' | 'self' | 'admin' 
     'access-requests': 'admin',
     // Ticket numbers and the kind of request only; written by the Help Center, never through the API
     'help-tickets': 'staff',
+    // Contact messages: written by the contact page, never through the API
+    enquiries: 'staff',
     'security-events': 'admin',
     'login-challenges': 'none',
     'rate-limits': 'none',
@@ -268,6 +276,7 @@ test('public pages open for everyone', async () => {
     '/collaborate/artists',
     '/collaborate/signin',
     '/admin-access',
+    '/contact',
     '/help',
     '/robots.txt',
     '/sitemap.xml',
