@@ -146,7 +146,7 @@ test('payout details: staff ask, the artist adds them, and “this was not me”
 })
 
 test('a staff session and a member session share a browser', async ({ page, context }) => {
-  const { email, member } = await artist()
+  const { member } = await artist()
   await signInAs(context, member.id)
   await signInAsStaff(context)
 
@@ -155,5 +155,6 @@ test('a staff session and a member session share a browser', async ({ page, cont
   await expect(page.locator('span[title="Dashboard"]').first()).toBeVisible()
   // The member's own pages still see the member
   await page.goto('/account')
-  await expect(page.getByText(`Signed in as ${email}.`)).toBeVisible()
+  await expect(page.getByRole('heading', { name: /^Welcome/ })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'What to do next' })).toBeVisible()
 })

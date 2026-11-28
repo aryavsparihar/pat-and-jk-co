@@ -17,7 +17,8 @@ import { phulhaarSocialLinks } from '@/brands/socialIcons'
 import { defaultSiteSettings } from '@/members/openness'
 import { canReapply } from '@/members/reapply'
 import { STAGE_WORDS, WITHDRAWABLE } from '@/members/stages'
-import { applicationStatus } from '@/members/status'
+import { maskedKyc } from '@/kyc/service'
+import { applicationStatus, longDate } from '@/members/status'
 import type { Application } from '@/payload-types'
 import { ContactForm } from '@/components/portal/ProfileForm'
 import { PortalFrame } from '@/components/portal/PortalFrame'
@@ -27,7 +28,6 @@ import { AccountSwitcher } from '@/components/portal/AccountSwitcher'
 import { VIEW_COOKIE, chooseView } from '@/members/accountView'
 import { MEMBER_COOKIE } from '@/security/constants'
 import { readSession } from '@/security/memberSession'
-
 
 type MemberApplication = Application & { type: 'artist' | 'partner' }
 
@@ -247,51 +247,132 @@ export default async function AccountPage() {
 
   if (view === 'artist') {
     const profile = profileView(member)
+    const artistApp = current.find((a) => a.type === 'artist')
+    // "Welcome, Anaya": the name they go by, or the first of their legal name
+    const firstName =
+      (profile.displayName || artistApp?.about?.legalName || '').trim().split(/\s+/)[0] ?? ''
+    const signed = (
+      await payload.find({
+        collection: 'agreement-executions',
+        where: { and: [{ member: { equals: member.id } }, { kind: { equals: 'artist' } }] },
+        depth: 0,
+        limit: 1,
+        sort: '-signedAt',
+        overrideAccess: true,
+      })
+    ).docs[0]
+    const kyc = await maskedKyc(payload, member.id)
+    const hasBank = Boolean(kyc?.bank || kyc?.pendingBank)
+    const profileLine =
+      profile.review.state === 'pending'
+        ? 'Sent for review. We will email you once we have looked at it.'
+        : profile.review.state === 'changes-requested'
+          ? 'We have asked for a few changes.'
+          : profile.isPublic
+            ? 'Public. You can change it whenever you like.'
+            : 'Not sent for review yet. It is how you appear beside your work, and we have started it for you from your application.'
+    const steps = [
+      {
+        heading: 'Your profile',
+        line: profileLine,
+        link: {
+          href: '/account/profile',
+          label: profile.isPublic ? 'Edit your profile' : 'Finish your profile',
+        },
+      },
+      {
+        heading: 'Your works',
+        line: member.worksFolder
+          ? 'Your works are in your Google Drive folder.'
+          : 'Share the Google Drive folder that holds your works, set out as we describe.',
+        link: {
+          href: '/account/works',
+          label: member.worksFolder ? 'See how to set it out' : 'Add your folder',
+        },
+      },
+      {
+        heading: 'Payouts',
+        line: hasBank
+          ? 'Your bank details are in place.'
+          : 'Not needed until a work sells. You can add your bank details now if you prefer.',
+        link: {
+          href: '/account/payouts',
+          label: hasBank ? 'See your payouts' : 'Add bank details',
+        },
+      },
+    ]
+    const ids = [member.artistId, member.partnerId].filter(Boolean).join(' and ')
     return (
       <PortalFrame
         current="/account"
-        heading="Your account"
-        intro={<>Signed in as {member.email}.</>}
-      >
-        <section>
-          <h2 className="display-sm">Member IDs</h2>
-          <dl className="mt-4 grid gap-y-3 sm:grid-cols-[12rem_1fr]">
-            <dt className="label pt-1">Artist</dt>
-            <dd className="tracking-wider">{member.artistId}</dd>
+        heading={firstName ? `Welcome, ${firstName}` : 'Welcome'}
+        intro={
+          <>
+            Your member ID is <span className="tracking-wider">{member.artistId}</span>
             {member.partnerId && (
               <>
-                <dt className="label pt-1">Partner</dt>
-                <dd className="tracking-wider">{member.partnerId}</dd>
+                , and your trade partner ID is{' '}
+                <span className="tracking-wider">{member.partnerId}</span>
               </>
             )}
-          </dl>
+            . Please quote it whenever you write to us.
+          </>
+        }
+      >
+        <section>
+          <h2 className="display-sm">What to do next</h2>
+          <p className="measure mt-4">
+            Two things to finish before your work can be shown on Phulhaar, and one that can wait.
+            Take them in any order.
+          </p>
+          <ol className="mt-8 grid gap-y-8">
+            {steps.map((step, i) => (
+              <li className="grid gap-x-6 sm:grid-cols-[3rem_1fr]" key={step.heading}>
+                <span aria-hidden className="label pt-1">
+                  {['I', 'II', 'III'][i]}
+                </span>
+                <div>
+                  <h3 className="text-xl">{step.heading}</h3>
+                  <p className="measure mt-1">{step.line}</p>
+                  <a
+                    className="link link-caps mt-2 inline-flex min-h-11 items-center"
+                    href={step.link.href}
+                  >
+                    {step.link.label}
+                  </a>
+                </div>
+              </li>
+            ))}
+          </ol>
         </section>
+        {signed?.signedAt && (
+          <section className="mt-14 border-t border-border pt-8">
+            <h2 className="display-sm">Your agreement</h2>
+            <p className="measure mt-4">
+              You signed the Artist Consignment and Representation Agreement on{' '}
+              {longDate(signed.signedAt)}.
+            </p>
+            <a
+              className="link link-caps mt-2 inline-flex min-h-11 items-center"
+              href="/collaborate/artist-agreement"
+            >
+              Read your agreement
+            </a>
+          </section>
+        )}
         <section className="mt-14 border-t border-border pt-8">
-          <h2 className="display-sm">Where things stand</h2>
-          <ul className="measure mt-4 grid gap-y-2">
-            <li>
-              Your profile:{' '}
-              {profile.review.state === 'pending'
-                ? 'waiting for our review.'
-                : profile.review.state === 'changes-requested'
-                  ? 'we have asked for a few changes.'
-                  : profile.isPublic
-                    ? 'public.'
-                    : 'not sent yet.'}{' '}
-              <a className="link" href="/account/profile">
-                {profile.isPublic ? 'Edit' : 'Fill it in'}
-              </a>
-            </li>
-            <li>
-              Your works:{' '}
-              {member.worksFolder
-                ? 'in your Google Drive folder.'
-                : 'give us the Google Drive folder they are in.'}{' '}
-              <a className="link" href="/account/works">
-                {member.worksFolder ? 'See how to set it out' : 'Add your folder'}
-              </a>
-            </li>
-          </ul>
+          <h2 className="display-sm">Help</h2>
+          <p className="measure mt-4">
+            Questions about your work? Write to{' '}
+            <a className="link" href="mailto:hello@pjk.co.in">
+              hello@pjk.co.in
+            </a>
+            . Trouble with your account? Write to{' '}
+            <a className="link" href="mailto:tech@pjk.co.in">
+              tech@pjk.co.in
+            </a>
+            . Please quote {ids}.
+          </p>
         </section>
         <section className="mt-14 border-t border-border pt-8">
           <SignOutButtons />
