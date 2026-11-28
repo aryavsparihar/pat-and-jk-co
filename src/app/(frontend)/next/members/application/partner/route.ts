@@ -1,8 +1,9 @@
 import {
   type PartnerSubmission,
-  PRIVACY_NOTICE_VERSION,
+  savePartnerDraft,
   submitPartnerApplication,
 } from '@/members/application'
+import { TRADE_NOTICE_VERSION, tradeNoticeText } from '@/members/applicationNotice'
 import { consentEvidence } from '@/members/consentRecord'
 import { checkFormToken } from '@/members/formToken'
 import { applicationsOpenness, closedReply } from '@/members/openness'
@@ -15,7 +16,6 @@ import {
   requireMember,
   withRefresh,
 } from '@/members/http'
-import { requireRecentSignIn } from '@/members/recent'
 import { clientIp } from '@/security/constants'
 import { logSecurityEvent } from '@/security/events'
 import { hitLimit } from '@/security/rateLimit'
@@ -29,9 +29,11 @@ import {
 export const dynamic = 'force-dynamic'
 
 /**
- * Sends the partner application: the form is a single page after the email check. Its answers,
- * the identity details and agreement to the Partner/Trade Program all come in this one request,
- * behind the bot check (src/members/application.ts, submitPartnerApplication).
+ * The trade application, a single page after the email check (the ApplyPartner design). With
+ * `save: true` it keeps what is typed so far, unchecked, for "Save and finish later". Otherwise it
+ * sends it: the answers, consent with I AGREE, and that the details are true, behind the bot
+ * check (src/members/application.ts, submitPartnerApplication). No identity details are asked for
+ * until after approval.
  */
 export async function POST(request: Request) {
   if (!fromOurOrigin(request)) return refuseCrossSite()
@@ -42,17 +44,19 @@ export async function POST(request: Request) {
   const { open, note } = await applicationsOpenness(payload)
   if (!open) return closedReply(note)
 
-  const body = await readJson<PartnerSubmission & { formToken?: string }>(request)
+  const body = await readJson<PartnerSubmission & { formToken?: string; save?: boolean }>(request)
   if (filledHoneypot(body as Record<string, unknown>)) {
     return reply({ message: 'Your application could not be sent.' }, { status: 400 })
   }
   if (checkFormToken(body?.formToken) !== 'ok') {
     return reply({ message: 'Please reload the page and try again.' }, { status: 400 })
   }
-  // Identity details: a sign-in within the last 30 minutes, as for an artist's
-  if (body?.kyc !== undefined) {
-    const stale = requireRecentSignIn(auth.session)
-    if (stale) return stale
+
+  // Saving for later sends nothing to anyone, so it needs no bot check
+  if (body?.save === true) {
+    const saved = await savePartnerDraft(payload, member, body.data)
+    if (!saved.ok) return reply({ message: saved.message }, { status: saved.status })
+    return withRefresh(reply({ ok: true, saved: true }), auth.refresh)
   }
 
   const limit = await hitLimit(payload, {
@@ -87,7 +91,7 @@ export async function POST(request: Request) {
     payload,
     member,
     body,
-    await consentEvidence(request, PRIVACY_NOTICE_VERSION),
+    await consentEvidence(request, TRADE_NOTICE_VERSION, tradeNoticeText()),
   )
   if (!result.ok)
     return reply({ message: result.message, errors: result.errors }, { status: result.status })
