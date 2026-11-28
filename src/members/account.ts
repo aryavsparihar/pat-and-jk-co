@@ -14,6 +14,7 @@ import {
   sendMemberCode,
   sendStaffEmailChangeNotices,
 } from './emails'
+import { emailAddressProblem } from '@/security/emailAddress'
 import { PortalError } from './profile'
 import { actingFor } from '@/security/audit'
 
@@ -78,6 +79,9 @@ export const requestEmailChange = async (
   const next = normaliseEmail(String(email ?? ''))
   if (!isEmail(next)) throw new PortalError('Please give a full email address.')
   if (next === member.email) throw new PortalError('That is already the address on your account.')
+  // The new address must be one mail can reach, and not a throwaway one
+  const problem = await emailAddressProblem(next)
+  if (problem) throw new PortalError(problem)
 
   const challenge = await issueChallenge(payload, {
     email: next,

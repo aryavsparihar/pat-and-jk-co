@@ -2,6 +2,7 @@ import configPromise from '@payload-config'
 import { getPayload } from 'payload'
 
 import { checkCurator } from '@/curators/check'
+import { emailAddressProblem } from '@/security/emailAddress'
 import { CuratorError, startCuratorApplication } from '@/curators/flow'
 import { CURATOR_ERRORS, CURATOR_NOTICE_VERSION, curatorNoticeText } from '@/curators/rules'
 import { consentEvidence } from '@/members/consentRecord'
@@ -49,6 +50,10 @@ export async function POST(request: Request) {
   const checked = checkCurator(body)
   if (!checked.ok)
     return reply({ message: checked.message, errors: checked.errors }, { status: 422 })
+  // An address mail can reach, so that we can answer, and not a throwaway one
+  const addressProblem = await emailAddressProblem(checked.input.answers.email)
+  if (addressProblem)
+    return reply({ message: addressProblem, errors: { email: addressProblem } }, { status: 422 })
 
   const human = await verifyTurnstile(body[TURNSTILE_FIELD], 'curator', {
     hostname: requestHostname(request.headers) ?? new URL(request.url).hostname,

@@ -7,6 +7,7 @@ import { memberCanSignIn } from '@/members/idStanding'
 import { checkFormToken } from '@/members/formToken'
 import { applicationsOpenness, closedReply } from '@/members/openness'
 import { sendMemberCode } from '@/members/emails'
+import { emailAddressProblem } from '@/security/emailAddress'
 import { filledHoneypot, fromOurOrigin, readJson, refuseCrossSite, reply } from '@/members/http'
 import { issueChallenge, type Purpose } from '@/security/challenges'
 import {
@@ -130,6 +131,12 @@ export async function POST(request: Request) {
   }
 
   const member = await findMember(payload, email)
+  // A new account's address must be one mail can reach, and not a throwaway one. Checked after
+  // the limits, so a flood of requests does not become a flood of lookups.
+  if (purpose !== 'signin' && !member) {
+    const problem = await emailAddressProblem(email)
+    if (problem) return reply({ message: problem, errors: { email: problem } }, { status: 400 })
+  }
   const suspended = Boolean(member && !memberCanSignIn(member))
   const deliverable = !suspended && (purpose !== 'signin' || Boolean(member))
 
