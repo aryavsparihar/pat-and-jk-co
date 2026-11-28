@@ -16,13 +16,6 @@ import {
  * that counts. Messages explain plainly and never repeat the value back.
  */
 
-const text = (max: number, message: string) =>
-  z
-    .string({ error: message })
-    .trim()
-    .min(1, message)
-    .max(max, `Please keep this under ${max} characters.`)
-
 export const KYC_DOCUMENT_KINDS = [
   'pan-card',
   // Outside India: the passport's photo page, in place of the PAN card
