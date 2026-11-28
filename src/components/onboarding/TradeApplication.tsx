@@ -197,7 +197,11 @@ export const TradeApplication: React.FC<{ formToken: string }> = ({ formToken })
       body: { save: true, data: values, formToken, [HONEYPOT_FIELD]: honeypot },
     })
     setBusy(false)
-    if (!result.ok) return setMessage(result.data.message ?? 'It could not be saved just now.')
+    if (!result.ok)
+      return setMessage(
+        result.data.message ??
+          'We could not save your application. What you typed is still here: please try again.',
+      )
     setSaved(true)
   }
 
