@@ -6,6 +6,7 @@ import type { Run } from '@/help/request'
 import { BotCheckHelp } from '@/components/turnstile/BotCheckHelp'
 import { useVisibleTurnstile } from '@/components/turnstile/useTurnstile'
 import { TURNSTILE_FIELD } from '@/security/turnstile'
+import { houseValidity } from '@/components/ui/houseValidity'
 import { HONEYPOT_FIELD } from '@/utilities/honeypot'
 
 import styles from './help.module.css'
@@ -97,7 +98,7 @@ export const HelpForm: React.FC<{ formToken: string }> = ({ formToken }) => {
     const selection = window.getSelection()
     const range = selection?.rangeCount ? selection.getRangeAt(0) : null
     if (!range || range.collapsed || !area.current?.contains(range.commonAncestorContainer)) {
-      setError('Select the words to turn into a link first.')
+      setError('Select the words you want to turn into a link first.')
       return
     }
     setError(null)
@@ -135,14 +136,16 @@ export const HelpForm: React.FC<{ formToken: string }> = ({ formToken }) => {
         file.type !== 'application/pdf' &&
         !/\.hei[cf]$/i.test(file.name)
       ) {
-        setError(`"${file.name}" is not a picture or a PDF.`)
+        setError(`“${file.name}” is not a picture or a PDF.`)
         return
       }
       next.push(file)
     }
-    if (next.length > MAX_FILES) return setError(`Attach up to ${MAX_FILES} files.`)
+    if (next.length > MAX_FILES) return setError(`You can attach up to ${MAX_FILES} files.`)
     if (next.reduce((sum, f) => sum + f.size, 0) > MAX_BYTES)
-      return setError('The attachments come to more than 4 MB together.')
+      return setError(
+        'Together, the attachments come to more than 4 MB. Please remove one or send smaller copies.',
+      )
     setError(null)
     setFiles(next)
   }
@@ -152,12 +155,12 @@ export const HelpForm: React.FC<{ formToken: string }> = ({ formToken }) => {
     if (sending) return
     const details = area.current ? serialise(area.current) : []
     if (!details.some((runs) => runs.some((run) => run.t.trim()))) {
-      setError('Describe your request.')
+      setError('Please describe your request.')
       area.current?.focus()
       return
     }
     if (bot.enabled && !bot.token) {
-      setError('Please wait for the check below to finish, then send again.')
+      setError('Please wait for the security check below to finish, then send again.')
       return
     }
     const data = new FormData(event.currentTarget)
@@ -190,13 +193,13 @@ export const HelpForm: React.FC<{ formToken: string }> = ({ formToken }) => {
       } else {
         setError(
           response.status === 413
-            ? 'The attachments are too large. Please keep them under 4 MB together.'
+            ? 'Together, the attachments come to more than 4 MB. Please remove one or send smaller copies.'
             : (body.message ?? 'Something went wrong on our side. Please try again.'),
         )
       }
       bot.reset()
     } catch {
-      setError('Your request could not be sent. Check your connection and try again.')
+      setError('Your request could not be sent. Please check your connection and try again.')
       bot.reset()
     } finally {
       setSending(false)
@@ -220,7 +223,7 @@ export const HelpForm: React.FC<{ formToken: string }> = ({ formToken }) => {
     )
 
   return (
-    <form className={styles.card} onSubmit={submit}>
+    <form className={styles.card} onSubmit={submit} {...houseValidity}>
       <div className={styles.row}>
         <div className={styles.field}>
           <label className={styles.label} htmlFor="help-type">
@@ -229,6 +232,7 @@ export const HelpForm: React.FC<{ formToken: string }> = ({ formToken }) => {
           <select
             className={styles.input}
             id="help-type"
+            data-missing="Please choose who you are."
             name="requestType"
             onChange={(e) => setRequestType(e.target.value)}
             required
@@ -246,6 +250,7 @@ export const HelpForm: React.FC<{ formToken: string }> = ({ formToken }) => {
           <select
             className={styles.input}
             id="help-nature"
+            data-missing="Please choose what your request is about."
             name="nature"
             onChange={(e) => setNature(e.target.value)}
             required
@@ -266,6 +271,7 @@ export const HelpForm: React.FC<{ formToken: string }> = ({ formToken }) => {
           autoComplete="email"
           className={styles.input}
           id="help-email"
+          data-missing="Please enter your email address."
           maxLength={254}
           name="email"
           required
@@ -283,6 +289,7 @@ export const HelpForm: React.FC<{ formToken: string }> = ({ formToken }) => {
             autoComplete="off"
             className={styles.input}
             id="help-id"
+            data-missing={`Please enter your ${requestType === 'partner' ? 'trade partner ID' : 'artist ID'}.`}
             maxLength={40}
             name="memberCode"
             required
@@ -297,6 +304,7 @@ export const HelpForm: React.FC<{ formToken: string }> = ({ formToken }) => {
             autoComplete="name"
             className={styles.input}
             id="help-name"
+            data-missing="Please enter your full name."
             maxLength={120}
             name="name"
             required
@@ -372,9 +380,10 @@ export const HelpForm: React.FC<{ formToken: string }> = ({ formToken }) => {
                 autoComplete="off"
                 className={styles.input}
                 id="help-ticket"
+                data-missing="Please enter your ticket ID: the five letters and numbers in your email from us."
                 maxLength={10}
                 name="ticketId"
-                placeholder="e.g. 7K3Q9"
+                placeholder="for example 7K3Q9"
                 required
                 type="text"
               />

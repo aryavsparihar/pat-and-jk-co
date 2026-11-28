@@ -294,3 +294,28 @@ test('pages with nothing to show say so, and never break', async ({ page, contex
   await expect(page.getByRole('heading').first()).toBeVisible()
   await expect(page.getByText(/This page could not be shown/)).toHaveCount(0)
 })
+
+test('the Help Center gives the founder’s lines for an empty or mistyped field, not the browser’s', async ({
+  page,
+}) => {
+  await page.goto('/help')
+  const message = (selector: string) =>
+    page.locator(selector).evaluate((el) => (el as HTMLInputElement).validationMessage)
+  await page.getByRole('button', { name: 'Send Request' }).click()
+  expect(await message('#help-type')).toBe('Please choose who you are.')
+  expect(await message('#help-nature')).toBe('Please choose what your request is about.')
+  expect(await message('#help-name')).toBe('Please enter your full name.')
+
+  await page.locator('#help-type').selectOption('partner')
+  await page.locator('#help-email').fill('not an address')
+  await page.getByRole('button', { name: 'Send Request' }).click()
+  expect(await message('#help-type')).toBe('')
+  expect(await message('#help-email')).toBe(
+    'Please enter a full email address, for example name@example.com.',
+  )
+  expect(await message('#help-id')).toBe('Please enter your trade partner ID.')
+
+  // Corrected, the field is let through
+  await page.locator('#help-email').fill('someone@help.example.test')
+  expect(await message('#help-email')).toBe('')
+})

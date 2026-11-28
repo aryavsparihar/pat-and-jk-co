@@ -12,8 +12,12 @@ import { isEmail, normaliseEmail } from '@/security/constants'
  */
 
 export const REQUEST_TYPES = {
-  artist: { label: 'I am an Artist', idLabel: 'Artist ID' },
-  partner: { label: 'I am a Trade Partner', idLabel: 'Trade Partner ID' },
+  artist: { label: 'I am an Artist', idLabel: 'Artist ID', idName: 'artist ID' },
+  partner: {
+    label: 'I am a Trade Partner',
+    idLabel: 'Trade Partner ID',
+    idName: 'trade partner ID',
+  },
 } as const
 export type RequestType = keyof typeof REQUEST_TYPES
 
@@ -187,16 +191,16 @@ const isNature = (v: unknown): v is Nature => v === 'technical' || v === 'busine
 export const parseHelpRequest = async (form: FormData): Promise<Parsed> => {
   const requestType = form.get('requestType')
   const nature = form.get('nature')
-  if (!isRequestType(requestType)) return { ok: false, message: 'Choose who you are.' }
-  if (!isNature(nature)) return { ok: false, message: 'Choose the nature of your request.' }
+  if (!isRequestType(requestType)) return { ok: false, message: 'Please choose who you are.' }
+  if (!isNature(nature)) return { ok: false, message: 'Please choose what your request is about.' }
 
   const email = normaliseEmail(form.get('email'))
   if (!isEmail(email)) return { ok: false, message: 'Please enter your email address.' }
   const memberCode = text(form.get('memberCode'), 40).toUpperCase()
   if (!memberCode)
-    return { ok: false, message: `Enter your ${REQUEST_TYPES[requestType].idLabel}.` }
+    return { ok: false, message: `Please enter your ${REQUEST_TYPES[requestType].idName}.` }
   const name = text(form.get('name'), SHORT_MAX)
-  if (!name) return { ok: false, message: 'Enter your full name.' }
+  if (!name) return { ok: false, message: 'Please enter your full name.' }
 
   // "I already have a ticket": the ID they give, checked against the tickets by the route
   let existingTicket: string | null = null
@@ -207,19 +211,23 @@ export const parseHelpRequest = async (form: FormData): Promise<Parsed> => {
     if (!HELP_TICKET_PATTERN.test(existingTicket))
       return {
         ok: false,
-        message: 'Enter your ticket ID: the five letters and numbers in your email from us.',
+        message: 'Please enter your ticket ID: the five letters and numbers in your email from us.',
       }
   }
 
   const details = parseDetails(form.get('details'))
   if (!details) return { ok: false, message: 'Your request could not be read. Please try again.' }
-  if (detailsLength(details) === 0) return { ok: false, message: 'Describe your request.' }
+  if (detailsLength(details) === 0) return { ok: false, message: 'Please describe your request.' }
 
   const files = form.getAll('attachments').filter((f): f is File => f instanceof File && f.size > 0)
   if (files.length > ATTACHMENTS_MAX_COUNT)
-    return { ok: false, message: `Attach up to ${ATTACHMENTS_MAX_COUNT} files.` }
+    return { ok: false, message: `You can attach up to ${ATTACHMENTS_MAX_COUNT} files.` }
   if (files.reduce((sum, f) => sum + f.size, 0) > ATTACHMENTS_MAX_BYTES)
-    return { ok: false, message: 'The attachments come to more than 4 MB together.' }
+    return {
+      ok: false,
+      message:
+        'Together, the attachments come to more than 4 MB. Please remove one or send smaller copies.',
+    }
   const attachments: Attachment[] = []
   for (const [index, file] of files.entries()) {
     const content = Buffer.from(await file.arrayBuffer())
@@ -227,7 +235,7 @@ export const parseHelpRequest = async (form: FormData): Promise<Parsed> => {
     if (!kind)
       return {
         ok: false,
-        message: `"${attachmentName(file.name, 'file', index).replace(/\.file$/, '')}" is not a picture or a PDF.`,
+        message: `“${attachmentName(file.name, 'file', index).replace(/\.file$/, '')}” is not a picture or a PDF.`,
       }
     attachments.push({
       filename: attachmentName(file.name, kind.ext, index),
