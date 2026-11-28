@@ -23,10 +23,10 @@ export default async function PayoutsPage() {
     <PortalFrame
       current="/account/payouts"
       heading="Payouts"
-      intro={<>Where we pay you. We only ever show part of each number.</>}
+      intro={<>Where we pay you when a work sells. We only ever show part of each number.</>}
     >
       <StepUpProvider>
-        <PayoutsView kyc={kyc as never} locked={locked} />
+        <PayoutsView email={member.email} kyc={kyc as never} locked={locked} />
       </StepUpProvider>
     </PortalFrame>
   )
