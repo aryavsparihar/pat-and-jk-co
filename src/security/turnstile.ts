@@ -24,7 +24,13 @@ export const TURNSTILE_REFUSED =
 
 /** One per form, so a token earned on one cannot be spent on another */
 export type TurnstileAction =
-  'signin' | 'apply-artist' | 'apply-partner' | 'partner-submit' | 'contact' | 'help-request'
+  | 'signin'
+  | 'apply-artist'
+  | 'apply-partner'
+  | 'partner-submit'
+  | 'contact'
+  | 'help-request'
+  | 'curator'
 
 /**
  * Cloudflare's published test secrets (always pass, always fail, already spent). Their answers
