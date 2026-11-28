@@ -292,6 +292,20 @@ export const fillEarlySteps = async (page: Page) => {
 }
 
 /** Makes a member an approved artist (or partner) directly, as an approval would */
+/**
+ * Opens a step of the artist application by its title. After a reload the page opens on the first
+ * step not yet done, and only finished steps can be clicked in the row of steps, so it clicks
+ * only when the page is somewhere else.
+ */
+export const goToStep = async (page: Page, title: string) => {
+  // A finished step is a button in the list; the current one, and those not reached, are not.
+  // The review page repeats each step's title as a heading, so the heading alone proves nothing.
+  await expect(page.getByRole('list', { name: 'Application steps' })).toBeVisible()
+  const done = page.getByRole('button', { name: `${title}, done`, exact: true })
+  if (await done.count()) await done.click()
+  await expect(page.getByRole('heading', { name: title, exact: true }).first()).toBeVisible()
+}
+
 export const approveAs = async (memberId: number, kind: 'artist' | 'partner' = 'artist') => {
   const p = await payload()
   const field = kind === 'artist' ? 'artistId' : 'partnerId'
