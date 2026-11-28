@@ -289,3 +289,35 @@ export const checkVerify = (
     },
   }
 }
+
+/** "What we ask for", by who is asking and where they live */
+export const verifyAskFor = (kind: VerifyKind, primary: PrimaryId) =>
+  kind === 'partner'
+    ? 'Your PAN, or outside India your passport, and a photo of you holding a short code.'
+    : primary === 'pan'
+      ? 'Your PAN, a second ID that shows your address, and a photo of you holding a short code.'
+      : 'Your passport, a national identity card, residence permit or driving licence that shows your address, and a photo of you holding a short code.'
+
+/** How the details are used: the Verify design's words, shown above the tick box */
+export const verifyNotice = (askFor: string) => [
+  { term: 'What we ask for', text: askFor },
+  {
+    term: 'Why',
+    text: 'To be sure who you are before we sign an agreement, and to keep the records the tax laws ask of us when we pay you. Bank details are asked for separately, in your account, and never by email.',
+  },
+  {
+    term: 'How it is kept',
+    text: 'Encrypted when it reaches us and when it is stored. Only the few people at PJK who check it can see it, and every look is recorded. We never sell or share it.',
+  },
+  {
+    term: 'How long we keep it',
+    text: 'If the agreement is not signed, we delete these documents within 90 days. Once we have paid you, the tax laws require us to keep some records for up to eight years.',
+  },
+  {
+    term: 'Your rights',
+    text: 'You can see, correct or delete your details, or withdraw your consent, from your account or by writing to compliance@pjk.co.in. You can also complain to the Data Protection Board of India.',
+  },
+]
+
+export const VERIFY_CHECKBOX =
+  'I have read how PAT & J.K. Co. will use my identity details, and I agree to it.'
