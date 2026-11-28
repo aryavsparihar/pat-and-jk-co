@@ -1799,7 +1799,7 @@ export interface PortfolioImage {
   };
 }
 /**
- * Applications from artists and partners. Approving one issues the member ID and emails the applicant.
+ * Applications from artists, trade partners and guest curators. Approving an artist or partner issues the member ID and emails the applicant. Guest curators are followed on the Curators screen.
  *
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "applications".
@@ -1817,8 +1817,8 @@ export interface Application {
   identityCodeHash?: string | null;
   identityCodeIssuedAt?: string | null;
   identityCodeExpiresAt?: string | null;
-  member: number | Member;
-  type: 'artist' | 'partner';
+  member?: (number | null) | Member;
+  type: 'artist' | 'partner' | 'curator';
   /**
    * The AT or PT number this application earned on approval.
    */
@@ -1983,6 +1983,103 @@ export interface Application {
      */
     agreementDigest?: string | null;
   };
+  curator?: {
+    fullName?: string | null;
+    email?: string | null;
+    phone?: string | null;
+    country?: string | null;
+    city?: string | null;
+    role?: string | null;
+    years?: ('under-2' | '2-5' | '6-10' | 'over-10') | null;
+    areas?:
+      | (
+          | 'contemporary'
+          | 'modern'
+          | 'miniature-traditional'
+          | 'craft-design'
+          | 'sculpture-objects'
+          | 'interiors-hospitality'
+          | 'private-collections'
+          | 'events-sets'
+          | 'other'
+        )[]
+      | null;
+    languages?: string | null;
+    portfolioLink?: string | null;
+    projects?:
+      | {
+          title?: string | null;
+          year?: string | null;
+          place?: string | null;
+          role?: string | null;
+          link?: string | null;
+          id?: string | null;
+        }[]
+      | null;
+    wants?: ('phulhaar' | 'clients' | 'both') | null;
+    idea?: string | null;
+    fee?: string | null;
+    start?: string | null;
+  };
+  curatorDeclarations?: {
+    consentProcessing?: boolean | null;
+    adult?: boolean | null;
+    accurate?: boolean | null;
+    keepOnFile?: boolean | null;
+    /**
+     * The notice they agreed to.
+     */
+    privacyNoticeVersion?: string | null;
+  };
+  curatorFiles?:
+    | {
+        kind: 'portfolio' | 'cv';
+        filename: string;
+        contentType: string;
+        size?: number | null;
+        storageKey: string;
+        keyId: string;
+        wrappedKey: string;
+        id?: string | null;
+      }[]
+    | null;
+  curatorUpload?: {
+    tokenHash?: string | null;
+    expiresAt?: string | null;
+    folder?: string | null;
+    files?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+  };
+  /**
+   * Changed from the Curators screen, as its emails are sent.
+   */
+  curatorStatus?: ('new' | 'talking' | 'working' | 'on-file' | 'not-this-time') | null;
+  curatorProject?: string | null;
+  teamNotes?:
+    | {
+        note: string;
+        by?: string | null;
+        at?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  curatorEmails?:
+    | {
+        kind?: ('talk' | 'decline') | null;
+        subject?: string | null;
+        body?: string | null;
+        by?: string | null;
+        at?: string | null;
+        id?: string | null;
+      }[]
+    | null;
   /**
    * One row each time the application was sent. Recorded by the server and locked: it cannot be edited.
    */
@@ -3787,6 +3884,83 @@ export interface ApplicationsSelect<T extends boolean = true> {
         agreedAt?: T;
         agreementConfirmation?: T;
         agreementDigest?: T;
+      };
+  curator?:
+    | T
+    | {
+        fullName?: T;
+        email?: T;
+        phone?: T;
+        country?: T;
+        city?: T;
+        role?: T;
+        years?: T;
+        areas?: T;
+        languages?: T;
+        portfolioLink?: T;
+        projects?:
+          | T
+          | {
+              title?: T;
+              year?: T;
+              place?: T;
+              role?: T;
+              link?: T;
+              id?: T;
+            };
+        wants?: T;
+        idea?: T;
+        fee?: T;
+        start?: T;
+      };
+  curatorDeclarations?:
+    | T
+    | {
+        consentProcessing?: T;
+        adult?: T;
+        accurate?: T;
+        keepOnFile?: T;
+        privacyNoticeVersion?: T;
+      };
+  curatorFiles?:
+    | T
+    | {
+        kind?: T;
+        filename?: T;
+        contentType?: T;
+        size?: T;
+        storageKey?: T;
+        keyId?: T;
+        wrappedKey?: T;
+        id?: T;
+      };
+  curatorUpload?:
+    | T
+    | {
+        tokenHash?: T;
+        expiresAt?: T;
+        folder?: T;
+        files?: T;
+      };
+  curatorStatus?: T;
+  curatorProject?: T;
+  teamNotes?:
+    | T
+    | {
+        note?: T;
+        by?: T;
+        at?: T;
+        id?: T;
+      };
+  curatorEmails?:
+    | T
+    | {
+        kind?: T;
+        subject?: T;
+        body?: T;
+        by?: T;
+        at?: T;
+        id?: T;
       };
   consentRecord?:
     | T

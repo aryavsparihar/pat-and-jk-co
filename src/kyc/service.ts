@@ -36,6 +36,18 @@ import { actingFor } from '@/security/audit'
  * current details, so approving it moves ciphertext across without ever decrypting it.
  */
 
+
+/**
+ * The member an identity-bearing application belongs to. Only artist and partner applications
+ * are ever found here (they are looked up by member), and every one of those has a member; a
+ * guest curator's has none and holds no identity record
+ */
+const ownerOf = (application: { member?: number | { id: number } | null }): number => {
+  const member = application.member
+  if (member == null) throw new Error('An identity record belongs to a member’s application')
+  return typeof member === 'object' ? member.id : member
+}
+
 export class KycError extends Error {
   constructor(
     message: string,
@@ -1381,7 +1393,7 @@ export const kycPurgeCandidates = async (
       collection: 'applications',
       where: {
         member: {
-          in: stale.docs.map((a) => (typeof a.member === 'object' ? a.member.id : a.member)),
+          in: stale.docs.map((a) => ownerOf(a)),
         },
       },
       sort: 'createdAt',
@@ -1391,15 +1403,14 @@ export const kycPurgeCandidates = async (
       overrideAccess: true,
     })
     for (const a of theirs.docs) {
-      const memberId = typeof a.member === 'object' ? a.member.id : a.member
+      const memberId = ownerOf(a)
       if (!latest.has(memberId)) latest.set(memberId, new Map())
       latest.get(memberId)!.set(a.type, a.id)
     }
   }
   const staleIds = new Set(stale.docs.map((a) => a.id))
   for (const application of stale.docs) {
-    const memberId =
-      typeof application.member === 'object' ? application.member.id : application.member
+    const memberId = ownerOf(application)
     const current = [...(latest.get(memberId)?.values() ?? [])]
     if (!current.includes(application.id) || !current.every((id) => staleIds.has(id))) continue
     const record = byMember.get(memberId)

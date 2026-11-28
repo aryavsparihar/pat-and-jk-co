@@ -11,6 +11,7 @@ import { canMove, type Stage } from '../members/stages'
 import {
   artistApplicationFields,
   consentRecordFields,
+  curatorApplicationFields,
   partnerApplicationFields,
   progressFields,
 } from './applicationFields'
@@ -55,8 +56,11 @@ const writtenByApplicant = (field: Field): Field =>
     : field
 
 /**
- * How someone asks to work with PJK as an artist, or as a partner. The same person may apply as
- * both, under one sign-in, and has at most one current application of each kind. It exists from
+ * How someone asks to work with PJK: as an artist, as a trade partner, or as a guest curator (the
+ * brief of 25 November 2026: one store for every application, with a type). An artist or partner
+ * signs in, may apply as both, and has at most one current application of each kind. A guest
+ * curator needs no account: theirs is written by the server from the public form, and staff
+ * follow it on the Curators screen rather than deciding it here. It exists from
  * the moment an applicant verifies their email (as a draft), carries a reference they can quote
  * (A-7K3Q9X for an artist, PT-7K3Q9X for a partner), and moves through its stages as
  * src/members/stages.ts allows, and no other way:
@@ -87,7 +91,7 @@ export const Applications: CollectionConfig = {
     useAsTitle: 'reference',
     defaultColumns: ['reference', 'member', 'type', 'stage', 'issuedId', 'submittedAt'],
     description:
-      'Applications from artists and partners. Approving one issues the member ID and emails the applicant.',
+      'Applications from artists, trade partners and guest curators. Approving an artist or partner issues the member ID and emails the applicant. Guest curators are followed on the Curators screen.',
     listSearchableFields: ['reference', 'issuedId'],
   },
   defaultSort: '-createdAt',
@@ -148,13 +152,13 @@ export const Applications: CollectionConfig = {
       },
     },
     {
+      // Every artist and partner application has one; a guest curator's has none
       name: 'member',
       type: 'relationship',
       relationTo: 'members',
-      required: true,
       index: true,
       access: { update: nobody },
-      admin: { readOnly: true },
+      admin: { readOnly: true, condition: (data) => data?.type !== 'curator' },
     },
     {
       name: 'type',
@@ -163,6 +167,7 @@ export const Applications: CollectionConfig = {
       options: [
         { label: 'Artist', value: 'artist' },
         { label: 'Partner', value: 'partner' },
+        { label: 'Guest curator', value: 'curator' },
       ],
       access: { update: nobody },
       admin: { readOnly: true, position: 'sidebar' },
@@ -253,6 +258,7 @@ export const Applications: CollectionConfig = {
     },
     ...artistApplicationFields.map(writtenByApplicant),
     ...partnerApplicationFields.map(writtenByApplicant),
+    ...curatorApplicationFields,
     ...consentRecordFields,
     ...progressFields,
     {
@@ -328,6 +334,10 @@ export const Applications: CollectionConfig = {
       ({ data, operation, originalDoc }) => {
         if (operation === 'create' && !APPLICATION_REFERENCE_PATTERN.test(String(data.reference))) {
           throw publicError('Applications are given a reference by the server.', 400)
+        }
+        // Only a guest curator's application stands without an account
+        if (operation === 'create' && data.type !== 'curator' && !data.member) {
+          throw publicError('An artist or partner application belongs to a member.', 400)
         }
         // A new application is always its person's current one of its kind; the unique slot then
         // refuses a second beside it, however it is created (src/members/reapply.ts clears the

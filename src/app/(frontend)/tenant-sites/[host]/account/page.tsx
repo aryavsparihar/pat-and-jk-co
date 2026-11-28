@@ -23,6 +23,9 @@ import { VIEW_COOKIE, chooseView } from '@/members/accountView'
 import { MEMBER_COOKIE } from '@/security/constants'
 import { readSession } from '@/security/memberSession'
 
+
+type MemberApplication = Application & { type: 'artist' | 'partner' }
+
 export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
@@ -61,16 +64,18 @@ export default async function AccountPage() {
     user: { ...member, collection: 'members' } as never,
     overrideAccess: false,
   })
-  const has = (type: string) => applications.docs.some((a) => a.type === type)
+  // A member's own applications are an artist's or a partner's; a guest curator has no account
+  const docs = applications.docs.filter((a): a is MemberApplication => a.type !== 'curator')
+  const has = (type: string) => docs.some((a) => a.type === type)
   const current = (['artist', 'partner'] as const)
-    .map((type) => applications.docs.find((a) => a.type === type))
-    .filter((a): a is Application => Boolean(a))
-  const earlier = applications.docs.filter((a) => !current.includes(a))
+    .map((type) => docs.find((a) => a.type === type))
+    .filter((a): a is MemberApplication => Boolean(a))
+  const earlier = docs.filter((a) => !current.includes(a))
   const contact = profileView(member).contact
   const settings = await defaultSiteSettings(payload)
   const socials = phulhaarSocialLinks(settings?.phulhaarSocial)
 
-  const declined = (app: Application) => (
+  const declined = (app: MemberApplication) => (
     <DeclinedNotice
       action={canReapply(app) ? <ApplyAgainButton kind={app.type} /> : undefined}
       headingLevel="h3"
@@ -86,7 +91,7 @@ export default async function AccountPage() {
   const applicationsSection = (
     <section className="mt-14 border-t border-border pt-8">
       <h2 className="display-sm">Applications</h2>
-      {applications.docs.length === 0 && (
+      {docs.length === 0 && (
         <p className="muted mt-4">You have not started an application.</p>
       )}
       <ul className="mt-4">
@@ -260,7 +265,7 @@ export default async function AccountPage() {
           <h2 className="display-sm mb-6">Contact details</h2>
           <ContactForm initial={contact as never} />
         </section>
-        {applications.docs.some((a) => a.type === 'artist') && applicationsSection}
+        {docs.some((a) => a.type === 'artist') && applicationsSection}
         <section className="mt-14 border-t border-border pt-8">
           <SignOutButtons />
         </section>
