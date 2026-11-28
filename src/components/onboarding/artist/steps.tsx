@@ -159,18 +159,32 @@ const DateOfBirth: React.FC<{
 }
 
 /** "How we use your details", and the tick box that agrees to it (the Apply1 design) */
-const HowWeUseYourDetails: React.FC<{
+export const HowWeUseYourDetails: React.FC<{
   checked: boolean
   onValue: (checked: boolean) => void
   error?: string
-}> = ({ checked, onValue, error }) => (
+  /** The trade form's own rows (TRADE_NOTICE); the artist's by default */
+  rows?: { term: string; text: string }[]
+  /** The line under the heading; the trade form has none */
+  intro?: string | null
+  name?: string
+  children?: React.ReactNode
+}> = ({
+  checked,
+  onValue,
+  error,
+  rows = ARTIST_NOTICE,
+  intro = ARTIST_NOTICE_INTRO,
+  name = 'consentProcessing',
+  children,
+}) => (
   <div className="apply-notice">
     <h3 className="font-display text-[1.625rem] font-normal text-[var(--primary)]">
       {ARTIST_NOTICE_HEADING}
     </h3>
-    <p className="muted mb-1.5 mt-1">{ARTIST_NOTICE_INTRO}</p>
+    {intro && <p className="muted mb-1.5 mt-1">{intro}</p>}
     <dl>
-      {ARTIST_NOTICE.map(({ term, text }) => (
+      {rows.map(({ term, text }) => (
         <React.Fragment key={term}>
           <dt>{term}</dt>
           <dd>
@@ -198,9 +212,10 @@ const HowWeUseYourDetails: React.FC<{
       checked={checked}
       error={error}
       label={ARTIST_NOTICE_CHECKBOX}
-      name="consentProcessing"
+      name={name}
       onValue={onValue}
     />
+    {children}
   </div>
 )
 

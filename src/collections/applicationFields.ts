@@ -320,7 +320,7 @@ export const partnerApplicationFields: Field[] = [
     type: 'group',
     admin: { condition: isPartner, readOnly: true },
     fields: [
-      { name: 'subType', label: 'What describes them', type: 'text' },
+      { name: 'subType', label: 'Which describes them best', type: 'text' },
       {
         type: 'row',
         fields: [
@@ -338,19 +338,27 @@ export const partnerApplicationFields: Field[] = [
       {
         type: 'row',
         fields: [
-          { name: 'city', type: 'text', admin: { width: '50%' } },
-          { name: 'state', type: 'text', admin: { width: '50%' } },
+          { name: 'country', type: 'text', admin: { width: '33%' } },
+          { name: 'city', type: 'text', admin: { width: '33%' } },
+          { name: 'state', label: 'State or region', type: 'text', admin: { width: '33%' } },
         ],
       },
       {
         type: 'row',
         fields: [
-          { name: 'website', type: 'text', admin: { width: '50%' } },
-          { name: 'gstin', label: 'GSTIN', type: 'text', admin: { width: '50%' } },
+          { name: 'website', label: 'Website or portfolio', type: 'text', admin: { width: '50%' } },
+          {
+            // The one tax number: a GSTIN in India, a company registration or VAT number elsewhere
+            name: 'gstin',
+            label: 'GSTIN, or company registration or VAT number',
+            type: 'text',
+            admin: { width: '50%' },
+          },
         ],
       },
-      { name: 'interest', label: 'What they would like to do together', type: 'textarea' },
-      { name: 'message', type: 'textarea' },
+      { name: 'proof', label: 'Proof of practice', type: 'text' },
+      { name: 'interest', label: 'What they would like to do with us', type: 'textarea' },
+      { name: 'message', label: 'Anything else', type: 'textarea' },
     ],
   },
   {
@@ -364,7 +372,12 @@ export const partnerApplicationFields: Field[] = [
     fields: [
       {
         name: 'consentProcessing',
-        label: 'Consented to identity details being processed for verification',
+        label: 'Agreed to how PAT & J.K. Co. uses their details',
+        type: 'checkbox',
+      },
+      {
+        name: 'accurate',
+        label: 'The details they gave are true and complete',
         type: 'checkbox',
       },
       {

@@ -27,6 +27,8 @@ export async function GET(request: Request) {
         artistOpen: roleOpen(member, 'artist'),
         partnerOpen: roleOpen(member, 'partner'),
         displayName: member.displayName ?? null,
+        // Their own address, shown on forms as the one they signed in with
+        email: member.email,
       },
     },
     { headers: active.refreshCookie ? { 'Set-Cookie': active.refreshCookie } : undefined },

@@ -1,11 +1,11 @@
 import { z } from 'zod'
 
-import { PARTNER_CATEGORIES } from '../categories'
 import {
   ADDRESS_ERRORS,
   addressRule,
   INDIA,
   isCountry,
+  isForeignTaxNumber,
   isIndianState,
   PHONE_ERRORS,
   postalCodeProblem,
@@ -662,58 +662,78 @@ export const ARTIST_STEP_SCHEMAS = {
 
 /* ─── Partner ────────────────────────────────────────────────────────────── */
 
-export const PARTNER_SUBTYPES: Record<(typeof PARTNER_CATEGORIES)[number]['value'], string[]> = {
-  placement: [
-    'Curator',
-    'Art dealer / art consultant',
-    'Interior designer',
-    'Decorator',
-    'Architect',
-    'Stylist',
-    'Other',
-  ],
-  'design-technology': ['Designer', 'Engineer', 'Photographer', 'Writer', 'Other'],
-  partnership: [
-    'Gallery',
-    'Art dealer / art consultant',
-    'Institution',
-    'Business',
-    'Retail client',
-    'Hospitality',
-    'Other',
-  ],
-}
+/**
+ * Trade accounts are for professionals only (the brief, section 10): who they are, in the
+ * design's list. Anyone buying for their own home is sent to curatorial support instead.
+ */
+export const TRADE_ROLES = [
+  'Interior designer',
+  'Architect',
+  'Design or architecture firm',
+  'Decorator or stylist',
+  'Art adviser or consultant',
+  'Curator buying for clients',
+  'Gallery or art dealer',
+  'Hospitality specifier',
+  'Another trade professional',
+] as const
 
+/**
+ * The trade application (the ApplyPartner design): who they are, their practice and country, and
+ * what they have in mind. The region follows the country (India's from its list), and the one tax
+ * number is a GSTIN in India or a company registration or VAT number elsewhere. Every message is
+ * the founder's wording.
+ */
 export const partnerSchema = z
   .object({
-    category: z.enum(values(PARTNER_CATEGORIES), {
-      error: 'Please choose how you would like to work with us.',
-    }),
-    subType: text(60, 'Please choose what best describes you.'),
-    fullName: text(120, 'Please give your full name.'),
-    organisation: optionalText(160),
-    role: text(120, 'Please tell us your role.'),
-    phone: phoneSchema,
-    city: text(80, 'Please add your city.'),
-    state: text(80, 'Please choose your state.'),
-    website: optionalUrl,
-    gstin: z
-      .string()
+    subType: z
+      .string({ error: 'Please choose what best describes you.' })
       .trim()
-      .toUpperCase()
-      .optional()
+      .min(1, 'Please choose what best describes you.')
       .refine(
-        (v) => !v || isGstin(v),
-        'That GSTIN does not look right. It has 15 characters, e.g. 01ABCDE1234F1Z5.',
-      )
-      .transform((v) => (v ? v : undefined)),
+        (v) => (TRADE_ROLES as readonly string[]).includes(v),
+        'Please choose from the list.',
+      ),
+    fullName: text(120, 'Please give your full name.'),
+    role: text(120, 'Please tell us your role.'),
+    organisation: optionalText(160),
+    phone: phoneSchema,
+    country: countryName,
+    city: text(80, 'Please add your city.'),
+    state: optionalText(80),
+    website: optionalUrl,
+    gstin: optionalText(30),
+    proof: optionalText(300),
     interest: text(600, 'Please tell us what you would like to do together.'),
-    message: text(2000, 'A few lines about yourself, please.'),
+    message: optionalText(2000),
   })
-  .superRefine((value, ctx) => {
-    if (!PARTNER_SUBTYPES[value.category]?.includes(value.subType)) {
-      ctx.addIssue({ code: 'custom', path: ['subType'], message: 'Please choose from the list.' })
+  .transform((value, ctx) => {
+    const rule = addressRule(value.country)
+    let state = rule.region ? value.state : undefined
+    if (rule.region) {
+      if (rule.list && state && !isIndianState(state)) {
+        ctx.addIssue({ code: 'custom', path: ['state'], message: ADDRESS_ERRORS.stateNotListed })
+      } else if (rule.regionReq && !state) {
+        ctx.addIssue({ code: 'custom', path: ['state'], message: regionMissing(value.country) })
+      }
+    } else state = undefined
+    let gstin = value.gstin?.toUpperCase()
+    if (gstin && value.country === INDIA && !isGstin(gstin)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['gstin'],
+        message:
+          'That GSTIN does not look right. A GSTIN has 15 characters, for example 01ABCDE1234F1Z5.',
+      })
+    } else if (gstin && value.country !== INDIA && !isForeignTaxNumber(gstin)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['gstin'],
+        message: 'Please check the registration or VAT number.',
+      })
     }
+    if (gstin && value.country !== INDIA) gstin = gstin.replace(/\s+/g, ' ')
+    return { ...value, state, gstin }
   })
 
 /* ─── Errors ─────────────────────────────────────────────────────────────── */

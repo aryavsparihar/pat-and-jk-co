@@ -51,6 +51,7 @@ import * as migration_20261127_142211_journal_signature_and_categories from './2
 import * as migration_20261127_153939_member_country_change from './20261127_153939_member_country_change';
 import * as migration_20261128_011652_contact_messages from './20261128_011652_contact_messages';
 import * as migration_20261128_111507_artist_application_redesign from './20261128_111507_artist_application_redesign';
+import * as migration_20261128_114125_trade_application_redesign from './20261128_114125_trade_application_redesign';
 
 export const migrations = [
   {
@@ -317,5 +318,10 @@ export const migrations = [
     up: migration_20261128_111507_artist_application_redesign.up,
     down: migration_20261128_111507_artist_application_redesign.down,
     name: '20261128_111507_artist_application_redesign'
+  },
+  {
+    up: migration_20261128_114125_trade_application_redesign.up,
+    down: migration_20261128_114125_trade_application_redesign.down,
+    name: '20261128_114125_trade_application_redesign'
   },
 ];

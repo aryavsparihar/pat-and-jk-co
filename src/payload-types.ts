@@ -1959,15 +1959,18 @@ export interface Application {
     role?: string | null;
     organisation?: string | null;
     phone?: string | null;
+    country?: string | null;
     city?: string | null;
     state?: string | null;
     website?: string | null;
     gstin?: string | null;
+    proof?: string | null;
     interest?: string | null;
     message?: string | null;
   };
   partnerDeclarations?: {
     consentProcessing?: boolean | null;
+    accurate?: boolean | null;
     /**
      * The privacy notice they agreed to.
      */
@@ -3765,10 +3768,12 @@ export interface ApplicationsSelect<T extends boolean = true> {
         role?: T;
         organisation?: T;
         phone?: T;
+        country?: T;
         city?: T;
         state?: T;
         website?: T;
         gstin?: T;
+        proof?: T;
         interest?: T;
         message?: T;
       };
@@ -3776,6 +3781,7 @@ export interface ApplicationsSelect<T extends boolean = true> {
     | T
     | {
         consentProcessing?: T;
+        accurate?: T;
         privacyNoticeVersion?: T;
         agreementVersion?: T;
         agreedAt?: T;
