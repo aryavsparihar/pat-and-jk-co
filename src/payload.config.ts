@@ -69,8 +69,17 @@ export default buildConfig({
       ],
       beforeLogin: ['@/components/admin/BeforeLogin'],
       beforeDashboard: ['@/components/admin/Welcome'],
-      afterNavLinks: ['@/components/admin/GuideNavLink'],
+      afterNavLinks: [
+        '@/components/admin/curators/CuratorsNavLink#CuratorsNavLink',
+        '@/components/admin/GuideNavLink',
+      ],
       views: {
+        // Guest curators, as the founder's AdminCurators design lays them out
+        curators: {
+          Component: '@/components/admin/curators/CuratorsView#CuratorsView',
+          path: '/curators',
+          meta: { title: 'Guest curators' },
+        },
         guide: {
           Component: '@/components/admin/GuideView#GuideView',
           path: '/guide',

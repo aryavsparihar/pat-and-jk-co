@@ -49,6 +49,7 @@ import { FolderTypeField as FolderTypeField_2b8867833a34864a02ddf429b0728a40 } f
 import { Icon as Icon_e60daefd9ca0ae7722c67ce9a39e1dd6 } from '@/components/admin/Graphics'
 import { Logo as Logo_e60daefd9ca0ae7722c67ce9a39e1dd6 } from '@/components/admin/Graphics'
 import { GlobalViewRedirect as GlobalViewRedirect_d6d5f193a167989e2ee7d14202901e62 } from '@payloadcms/plugin-multi-tenant/rsc'
+import { CuratorsNavLink as CuratorsNavLink_c3f76b2a98c548d8c1454d3ef191bcb4 } from '@/components/admin/curators/CuratorsNavLink'
 import { default as default_511ab2518f39d47c0a252516feb7e172 } from '@/components/admin/GuideNavLink'
 import { default as default_3a9cca97fda07c2c15aaac4087f744f7 } from '@/components/admin/Welcome'
 import { default as default_89344134860f9bc63867ffefbf33f214 } from '@/components/admin/BeforeLogin'
@@ -56,6 +57,7 @@ import { TenantSelector as TenantSelector_d6d5f193a167989e2ee7d14202901e62 } fro
 import { SessionHintProvider as SessionHintProvider_ed318605cb2edb5cf05d7b1ccf3c61b5 } from '@/components/admin/SessionHintProvider'
 import { IdleSignOut as IdleSignOut_498d4fbcafc2fec417e8827c8fccf092 } from '@/components/admin/IdleSignOut'
 import { TenantSelectionProvider as TenantSelectionProvider_d6d5f193a167989e2ee7d14202901e62 } from '@payloadcms/plugin-multi-tenant/rsc'
+import { CuratorsView as CuratorsView_5734d893699c81f949fe8bb58296e7cf } from '@/components/admin/curators/CuratorsView'
 import { GuideView as GuideView_d0ae5dc84a6cd6685f90d82bd3364f2f } from '@/components/admin/GuideView'
 import { CollectionCards as CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1 } from '@payloadcms/next/rsc'
 import { S3ClientUploadHandler as S3ClientUploadHandler_f97aa6c64367fa259c5bc0567239ef24 } from '@payloadcms/storage-s3/client'
@@ -114,6 +116,7 @@ export const importMap = {
   "@/components/admin/Graphics#Icon": Icon_e60daefd9ca0ae7722c67ce9a39e1dd6,
   "@/components/admin/Graphics#Logo": Logo_e60daefd9ca0ae7722c67ce9a39e1dd6,
   "@payloadcms/plugin-multi-tenant/rsc#GlobalViewRedirect": GlobalViewRedirect_d6d5f193a167989e2ee7d14202901e62,
+  "@/components/admin/curators/CuratorsNavLink#CuratorsNavLink": CuratorsNavLink_c3f76b2a98c548d8c1454d3ef191bcb4,
   "@/components/admin/GuideNavLink#default": default_511ab2518f39d47c0a252516feb7e172,
   "@/components/admin/Welcome#default": default_3a9cca97fda07c2c15aaac4087f744f7,
   "@/components/admin/BeforeLogin#default": default_89344134860f9bc63867ffefbf33f214,
@@ -121,6 +124,7 @@ export const importMap = {
   "@/components/admin/SessionHintProvider#SessionHintProvider": SessionHintProvider_ed318605cb2edb5cf05d7b1ccf3c61b5,
   "@/components/admin/IdleSignOut#IdleSignOut": IdleSignOut_498d4fbcafc2fec417e8827c8fccf092,
   "@payloadcms/plugin-multi-tenant/rsc#TenantSelectionProvider": TenantSelectionProvider_d6d5f193a167989e2ee7d14202901e62,
+  "@/components/admin/curators/CuratorsView#CuratorsView": CuratorsView_5734d893699c81f949fe8bb58296e7cf,
   "@/components/admin/GuideView#GuideView": GuideView_d0ae5dc84a6cd6685f90d82bd3364f2f,
   "@payloadcms/next/rsc#CollectionCards": CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1,
   "@payloadcms/storage-s3/client#S3ClientUploadHandler": S3ClientUploadHandler_f97aa6c64367fa259c5bc0567239ef24,
