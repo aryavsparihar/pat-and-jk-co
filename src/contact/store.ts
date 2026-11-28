@@ -6,7 +6,8 @@ import { newDataKey, openFile, sealFile, unwrapDataKey, wrapDataKey } from '@/ky
 import { deleteEncrypted, kycPrefix, readEncrypted, storeEncrypted } from '@/kyc/documentStore'
 
 /**
- * The files sent with a contact message, kept the way Help Center files and KYC documents are:
+ * The files sent with a contact message or a guest curator's application, kept the way Help
+ * Center files and KYC documents are:
  * each encrypted with a key of its own, that key wrapped with the master key, and the ciphertext
  * in the private store, in this environment's folder. Nothing there has a public URL; staff open
  * a file through the message's own route in the admin, which decrypts it for them.
@@ -20,10 +21,17 @@ export type Sealed = { storageKey: string; keyId: string; wrappedKey: string }
 
 export type StoredFile = Sealed & { filename: string; contentType: string; size: number }
 
-const context = (storageName: string) => `contact-attachment:${storageName}`
+/** Where a file belongs: a contact message's, or a curator application's */
+export type FileArea = 'contact' | 'curator'
 
-const seal = async (folder: string, bytes: Buffer): Promise<Sealed> => {
-  const storageName = `contact/${folder}/${randomBytes(16).toString('hex')}.enc`
+/** What each key is bound to, so a key unwrapped for one file can open no other */
+const context = (storageName: string) =>
+  storageName.startsWith('curator/')
+    ? `curator-file:${storageName}`
+    : `contact-attachment:${storageName}`
+
+const seal = async (folder: string, bytes: Buffer, area: FileArea): Promise<Sealed> => {
+  const storageName = `${area}/${folder}/${randomBytes(16).toString('hex')}.enc`
   const key = newDataKey()
   const wrapped = wrapDataKey(key, context(storageName))
   const storageKey = await storeEncrypted(storageName, sealFile(key, bytes, context(storageName)))
@@ -43,11 +51,12 @@ export const deleteSealed = async (files: Pick<Sealed, 'storageKey'>[]) => {
   await Promise.all(files.map((f) => deleteEncrypted(f.storageKey).catch(() => undefined)))
 }
 
-/** A folder of its own for each message, so its files sit together */
+/** A folder of its own for each message or application, so its files sit together */
 export const newFolder = () => randomBytes(8).toString('hex')
 
 /** One part of a file, sealed and stored */
-export const storePart = (folder: string, bytes: Buffer) => seal(folder, bytes)
+export const storePart = (folder: string, bytes: Buffer, area: FileArea = 'contact') =>
+  seal(folder, bytes, area)
 
 /** The parts, opened and joined in order */
 export const joinParts = async (parts: Sealed[]): Promise<Buffer> =>
@@ -58,4 +67,5 @@ export const storeFile = async (
   folder: string,
   bytes: Buffer,
   meta: { filename: string; contentType: string },
-): Promise<StoredFile> => ({ ...(await seal(folder, bytes)), ...meta, size: bytes.length })
+  area: FileArea = 'contact',
+): Promise<StoredFile> => ({ ...(await seal(folder, bytes, area)), ...meta, size: bytes.length })
