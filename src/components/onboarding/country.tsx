@@ -131,7 +131,7 @@ export const PhoneField: React.FC<{
 }
 
 /** The region: India's states and union territories from a list, the country's own word elsewhere */
-const RegionField: React.FC<{
+export const RegionField: React.FC<{
   name: string
   country: string | undefined
   value: string | undefined
