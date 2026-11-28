@@ -53,3 +53,43 @@ export const withdrawApplication = async (
   }
   return updated
 }
+
+/**
+ * "Delete this draft" (the founder's AccountStart design): an application never sent is removed
+ * outright, with the pictures it held, rather than kept as withdrawn. Nobody at PJK has seen it.
+ */
+export const deleteDraft = async (
+  payload: Payload,
+  member: Member,
+  type: MemberKind,
+): Promise<{ reference: string }> => {
+  const { findOwnApplication } = await import('./application')
+  const application = await findOwnApplication(payload, member, type, 0)
+  if (!application || application.stage !== 'draft')
+    throw publicError('Only an application you have not sent can be deleted.', 409)
+
+  const pictures = (application.portfolio ?? [])
+    .map((work) => (typeof work.image === 'object' ? work.image?.id : work.image))
+    .filter((id): id is number => typeof id === 'number')
+  await payload.delete({
+    collection: 'applications',
+    id: application.id,
+    overrideAccess: true,
+    context: { disableRevalidate: true, ...actingFor(member, 'members') },
+  })
+  if (pictures.length) {
+    await payload.delete({
+      collection: 'portfolio-images',
+      where: { and: [{ id: { in: pictures } }, { owner: { equals: member.id } }] },
+      overrideAccess: true,
+      context: { disableRevalidate: true, ...actingFor(member, 'members') },
+    })
+  }
+  await logSecurityEvent(payload, {
+    event: 'application-withdrawn',
+    email: member.email,
+    subject: application.reference,
+    detail: `${type} draft deleted by the applicant`,
+  })
+  return { reference: application.reference }
+}

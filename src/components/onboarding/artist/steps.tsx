@@ -168,6 +168,8 @@ export const HowWeUseYourDetails: React.FC<{
   /** The line under the heading; the trade form has none */
   intro?: string | null
   name?: string
+  /** The tick box's words; the application's by default */
+  checkbox?: string
   children?: React.ReactNode
 }> = ({
   checked,
@@ -176,6 +178,7 @@ export const HowWeUseYourDetails: React.FC<{
   rows = ARTIST_NOTICE,
   intro = ARTIST_NOTICE_INTRO,
   name = 'consentProcessing',
+  checkbox = ARTIST_NOTICE_CHECKBOX,
   children,
 }) => (
   <div className="apply-notice">
@@ -211,7 +214,7 @@ export const HowWeUseYourDetails: React.FC<{
     <Check
       checked={checked}
       error={error}
-      label={ARTIST_NOTICE_CHECKBOX}
+      label={checkbox}
       name={name}
       onValue={onValue}
     />

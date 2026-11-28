@@ -16,18 +16,19 @@ import { agreementFor, agreementProblem } from './shared'
 export const dynamic = 'force-dynamic'
 
 /**
- * Signing the artist or trade agreement (src/agreements/service.ts). The member is signed in, and
- * every call carries the ID issued to them on approval, checked against their account.
- *   GET  ?kind=artist|partner&id=AT-XXXXX   who they are, as the agreement will name them, and
- *                                           how far signing has gone
- *   POST { kind, id, action: 'code' }       a new ten-minute code
- *   POST { kind, id, action: 'sign', ... }  sign, once the live photo is in (./photo)
+ * Signing the artist or trade agreement (src/agreements/service.ts). The member is signed in, their
+ * application of that kind is approved, and the team has checked who they are; the member ID is
+ * issued when they sign.
+ *   GET  ?kind=artist|partner           who they are, as the agreement will name them, and how
+ *                                       far signing has gone
+ *   POST { kind, action: 'code' }       a new ten-minute code
+ *   POST { kind, action: 'sign', ... }  sign, once the live photo is in (./photo)
  */
 export async function GET(request: Request) {
   const auth = await requireMember(request)
   if (!auth.ok) return auth.response
   const url = new URL(request.url)
-  const found = agreementFor(auth.member, url.searchParams.get('kind'), url.searchParams.get('id'))
+  const found = await agreementFor(auth.payload, auth.member, url.searchParams.get('kind'))
   if ('refused' in found) return found.refused
   const status = await agreementStatus(auth.payload, auth.member, found.agreement)
   return withRefresh(
@@ -49,7 +50,7 @@ export async function POST(request: Request) {
   if (stale) return stale
 
   const body = await readJson<Record<string, unknown>>(request)
-  const found = agreementFor(member, body?.kind, body?.id)
+  const found = await agreementFor(payload, member, body?.kind)
   if ('refused' in found) return found.refused
 
   const limit = await hitLimit(payload, {
@@ -59,7 +60,7 @@ export async function POST(request: Request) {
     windowSeconds: 3600,
   })
   if (!limit.allowed)
-    return reply({ message: 'Please wait a little before trying again.' }, { status: 429 })
+    return reply({ message: 'Please wait a moment before trying again.' }, { status: 429 })
 
   try {
     if (body?.action === 'code') {

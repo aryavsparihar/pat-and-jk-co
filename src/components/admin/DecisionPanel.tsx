@@ -96,7 +96,7 @@ export const DecisionPanel: React.FC = () => {
     setMessage(
       body.memberId
         ? `Approved. Member ID ${body.memberId}.`
-        : 'Done. The applicant has been emailed.',
+        : 'Done. The applicant has been emailed. Once approved, they confirm who they are next; their member ID is issued when they sign.',
     )
     router.refresh()
   }

@@ -10,7 +10,10 @@ import { cleanUp, payload, signInAsStaff, uniqueEmail } from '../helpers/e2e'
 test.beforeAll(cleanUp)
 test.afterAll(cleanUp)
 
-test('approving an application issues an artist ID', async ({ page, context }) => {
+test('approving an application asks the artist to confirm who they are, with no ID yet', async ({
+  page,
+  context,
+}) => {
   const p = await payload()
   const { member, application } = await ensureApplication(p, {
     email: uniqueEmail('approved'),
@@ -28,10 +31,12 @@ test('approving an application issues an artist ID', async ({ page, context }) =
   await page.goto(`/admin/collections/applications/${application.id}`)
   page.once('dialog', (dialog) => dialog.accept())
   await page.getByRole('button', { name: 'Approve', exact: true }).click()
-  await expect(page.getByText(/Approved\. Member ID AT-[2-9A-Z]{5}\./)).toBeVisible()
+  await expect(page.getByText(/they confirm who they are next/)).toBeVisible()
 
+  // The member ID is issued when the agreement is signed, not on approval
   const after = await p.findByID({ collection: 'members', id: member.id, overrideAccess: true })
-  expect(after.artistId).toMatch(/^AT-[2-9A-Z]{5}$/)
+  expect(after.artistId ?? null).toBeNull()
+  expect(after.artistApprovedAt).toBeTruthy()
   const decided = await p.findByID({
     collection: 'applications',
     id: application.id,

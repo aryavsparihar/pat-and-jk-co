@@ -16,15 +16,10 @@ import {
  * that counts. Messages explain plainly and never repeat the value back.
  */
 
-const text = (max: number, message: string) =>
-  z
-    .string({ error: message })
-    .trim()
-    .min(1, message)
-    .max(max, `Please keep this under ${max} characters.`)
-
 export const KYC_DOCUMENT_KINDS = [
   'pan-card',
+  // Outside India: the passport's photo page, in place of the PAN card
+  'passport-page',
   'masked-aadhaar',
   'other-id',
   'address-proof',
@@ -41,44 +36,127 @@ export type KycDocumentKind = (typeof KYC_DOCUMENT_KINDS)[number]
 
 const documentId = z.coerce.number().int().positive().optional()
 
+/** The founder's wording for payout details (error document of 25 November 2026, section 7) */
+export const BANK_ERRORS = {
+  holderName: 'Please give the name on the account, as the bank has it.',
+  notOwnName: 'The account must be in your own name. We cannot pay into anyone else’s account.',
+  accountNumber: 'Please give your account number.',
+  accountLength: 'An account number has 9 to 18 digits.',
+  accountAgain: 'Please type your account number again.',
+  accountsDiffer: 'The two account numbers do not match. Please type it again.',
+  ifsc: 'Please give the IFSC.',
+  ifscFormat: 'An IFSC has 11 characters: four letters, a zero, then six letters or digits.',
+  bankName: 'Please give the name of the bank.',
+  branchName: 'Please give the branch.',
+  accountType: 'Please choose savings or current.',
+  bankCountry: 'Please choose the country where your bank is.',
+  iban: 'Please give your IBAN or account number.',
+  ibanWrong: 'That IBAN does not look right. Please check it.',
+  swift: 'A SWIFT or BIC code has 8 or 11 characters.',
+  bankAddress: 'Please give the bank’s name and branch address.',
+  currency: 'Please give the account’s currency, for example GBP.',
+} as const
+
+/** Letters and digits only, in capitals: how IBANs, foreign account numbers and SWIFT codes are kept */
+export const normaliseCode = (value: string) => value.replace(/[^a-z0-9]/gi, '').toUpperCase()
+
+/** An IBAN's own check (ISO 13616): move the first four to the end, letters to numbers, mod 97 */
+export const ibanChecks = (iban: string) => {
+  const moved = iban.slice(4) + iban.slice(0, 4)
+  let rest = 0
+  for (const ch of moved) {
+    const digits = /[A-Z]/.test(ch) ? String(ch.charCodeAt(0) - 55) : ch
+    for (const d of digits) rest = (rest * 10 + Number(d)) % 97
+  }
+  return rest === 1
+}
+const looksLikeIban = (value: string) => /^[A-Z]{2}\d{2}[A-Z0-9]{10,30}$/.test(value)
+const SWIFT_PATTERN = /^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$/
+
+const optionalText = z.string().max(300, 'Please keep this to 300 characters or fewer.').optional()
+
 /**
  * Where an approved artist is paid. Not part of the application: asked for only when a sale needs
  * a payout, from the artist's account, after a fresh emailed code (docs/KYC.md#payout-details).
+ * A bank in India gives the IFSC and account details; a bank elsewhere gives its country, the
+ * IBAN or account number, the SWIFT or BIC code, its name and branch address, and the currency.
  */
 export const bankSchema = z
   .object({
-    holderName: text(120, 'Please give the name on the account, as the bank has it.'),
-    accountNumber: z
-      .string({ error: 'Please give your account number.' })
-      .transform(normaliseAccount)
-      .refine(isAccountNumber, 'An account number is 9 to 18 digits.'),
-    accountNumberConfirm: z
-      .string({ error: 'Please type your account number again.' })
-      .transform(normaliseAccount),
-    ifsc: z
-      .string({ error: 'Please give the IFSC.' })
-      .transform(normaliseIfsc)
-      .refine(
-        isIfsc,
-        'An IFSC has 11 characters: four letters, a zero, then six letters or digits.',
-      ),
-    bankName: text(120, 'Please give the name of the bank.'),
-    branchName: text(120, 'Please give the branch.'),
-    accountType: z.enum(['savings', 'current'], { error: 'Please choose savings or current.' }),
+    location: z.enum(['india', 'abroad']).default('india'),
+    holderName: optionalText,
+    accountNumber: z.string().max(60).optional(),
+    accountNumberConfirm: z.string().max(60).optional(),
+    ifsc: z.string().max(20).optional(),
+    bankName: optionalText,
+    branchName: optionalText,
+    accountType: z.enum(['savings', 'current']).optional(),
+    bankCountry: z.string().max(80).optional(),
+    swift: z.string().max(20).optional(),
+    bankAddress: optionalText,
+    currency: z.string().max(10).optional(),
   })
   .superRefine(
     (value, ctx) => {
-      if (value.accountNumber !== value.accountNumberConfirm) {
-        ctx.addIssue({
-          code: 'custom',
-          path: ['accountNumberConfirm'],
-          message: 'The two account numbers do not match. Please type it again.',
-        })
+      const issue = (path: string, message: string) =>
+        ctx.addIssue({ code: 'custom', path: [path], message })
+      const t = (x?: string) => (x ?? '').trim()
+      if (!t(value.holderName)) issue('holderName', BANK_ERRORS.holderName)
+      if (value.location === 'india') {
+        const account = normaliseAccount(value.accountNumber ?? '')
+        if (!account) issue('accountNumber', BANK_ERRORS.accountNumber)
+        else if (!isAccountNumber(account)) issue('accountNumber', BANK_ERRORS.accountLength)
+        const again = normaliseAccount(value.accountNumberConfirm ?? '')
+        if (!again) issue('accountNumberConfirm', BANK_ERRORS.accountAgain)
+        else if (account && again !== account)
+          issue('accountNumberConfirm', BANK_ERRORS.accountsDiffer)
+        const ifsc = normaliseIfsc(value.ifsc ?? '')
+        if (!ifsc) issue('ifsc', BANK_ERRORS.ifsc)
+        else if (!isIfsc(ifsc)) issue('ifsc', BANK_ERRORS.ifscFormat)
+        if (!t(value.bankName)) issue('bankName', BANK_ERRORS.bankName)
+        if (!t(value.branchName)) issue('branchName', BANK_ERRORS.branchName)
+        if (!value.accountType) issue('accountType', BANK_ERRORS.accountType)
+      } else {
+        if (!t(value.bankCountry)) issue('bankCountry', BANK_ERRORS.bankCountry)
+        const account = normaliseCode(value.accountNumber ?? '')
+        if (!account) issue('accountNumber', BANK_ERRORS.iban)
+        else if (looksLikeIban(account) && !ibanChecks(account))
+          issue('accountNumber', BANK_ERRORS.ibanWrong)
+        else if (account.length < 4 || account.length > 34) issue('accountNumber', BANK_ERRORS.iban)
+        const again = normaliseCode(value.accountNumberConfirm ?? '')
+        if (!again) issue('accountNumberConfirm', BANK_ERRORS.accountAgain)
+        else if (account && again !== account)
+          issue('accountNumberConfirm', BANK_ERRORS.accountsDiffer)
+        if (!SWIFT_PATTERN.test(normaliseCode(value.swift ?? ''))) issue('swift', BANK_ERRORS.swift)
+        if (!t(value.bankAddress)) issue('bankAddress', BANK_ERRORS.bankAddress)
+        if (!/^[A-Za-z]{3}$/.test(t(value.currency))) issue('currency', BANK_ERRORS.currency)
       }
     },
     // Run even when another field is wrong, so every problem is listed at once
     { when: () => true },
   )
+  .transform((value) => {
+    const t = (x?: string) => (x ?? '').trim()
+    return value.location === 'india'
+      ? {
+          location: 'india' as const,
+          holderName: t(value.holderName),
+          accountNumber: normaliseAccount(value.accountNumber ?? ''),
+          ifsc: normaliseIfsc(value.ifsc ?? ''),
+          bankName: t(value.bankName),
+          branchName: t(value.branchName),
+          accountType: value.accountType ?? ('savings' as const),
+        }
+      : {
+          location: 'abroad' as const,
+          holderName: t(value.holderName),
+          accountNumber: normaliseCode(value.accountNumber ?? ''),
+          bankCountry: t(value.bankCountry),
+          swift: normaliseCode(value.swift ?? ''),
+          bankAddress: t(value.bankAddress),
+          currency: t(value.currency).toUpperCase(),
+        }
+  })
 
 export type BankInput = z.infer<typeof bankSchema>
 

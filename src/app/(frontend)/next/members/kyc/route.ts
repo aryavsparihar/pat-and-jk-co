@@ -1,5 +1,20 @@
-import { recentlyConfirmed, requireRecentSignIn } from '@/members/recent'
-import { EDITABLE, findOwnApplication } from '@/members/application'
+import { after } from 'next/server'
+
+import { identityChecked, identitySent } from '@/kyc/check'
+import { identityFingerprint } from '@/kyc/identityCode'
+import {
+  checkStoredAadhaar,
+  identityPhotoFacts,
+  KycError,
+  maskedKyc,
+  recordAadhaarCheck,
+  runAadhaarCheck,
+  saveIdentity,
+  savedIdentityValues,
+} from '@/kyc/service'
+import { AADHAAR_CHECK_MODE } from '@/kyc/settings'
+import { checkVerify, VERIFY_ERRORS as E, VERIFY_NOTICE_VERSION } from '@/kyc/verify'
+import { findOwnApplication } from '@/members/application'
 import {
   fromOurOrigin,
   readJson,
@@ -8,28 +23,15 @@ import {
   requireMember,
   withRefresh,
 } from '@/members/http'
-import { applicationsOpenness, closedReply } from '@/members/openness'
-import { fieldErrors } from '@/members/forms/schemas'
-import { kycSchema } from '@/kyc/schema'
-import {
-  checkStoredAadhaar,
-  identityPhotoFacts,
-  KycError,
-  maskedKyc,
-  recordAadhaarCheck,
-  runAadhaarCheck,
-  saveKyc,
-} from '@/kyc/service'
-import { AADHAAR_CHECK_MODE } from '@/kyc/settings'
-import { after } from 'next/server'
+import { recentlyConfirmed, requireRecentSignIn } from '@/members/recent'
 import { hitLimit } from '@/security/rateLimit'
-import { identityFingerprint } from '@/kyc/identityCode'
-import { PRIVACY_NOTICE_VERSION } from '@/members/application'
-import { actingFor } from '@/security/audit'
 
 export const dynamic = 'force-dynamic'
 
-/** The artist's own identity details (and payout details, once added), masked: never a full value */
+/** Whose check this is: an artist's, or with { for: 'partner' } a trade partner's */
+const kindOf = (value: unknown) => (value === 'partner' ? 'partner' : 'artist')
+
+/** The member's own identity details (and payout details, once added), masked: never a full value */
 export async function GET(request: Request) {
   const auth = await requireMember(request)
   if (!auth.ok) return auth.response
@@ -41,15 +43,18 @@ export async function GET(request: Request) {
     reply({
       kyc: kyc && payoutsLocked ? { ...kyc, bank: null, pendingBank: null } : kyc,
       payoutsLocked,
-      noticeVersion: PRIVACY_NOTICE_VERSION,
+      noticeVersion: VERIFY_NOTICE_VERSION,
     }),
     auth.refresh,
   )
 }
 
 /**
- * Saves the KYC step: checked, then every sensitive value encrypted before it is stored. The full
- * values never come back; the reply is the masked view. Only while the artist application is open.
+ * "Confirm who you are", after approval (src/kyc/verify.ts). `send: true` checks everything and
+ * sends it for the team to check; without it, what is there is kept to finish later. Every
+ * sensitive value is encrypted before it is stored, and the reply is the masked view. Once sent,
+ * nothing changes here until the team has looked: they mark it checked, which unlocks the
+ * agreement, or send it back with a note.
  */
 export async function POST(request: Request) {
   if (!fromOurOrigin(request)) return refuseCrossSite()
@@ -60,9 +65,6 @@ export async function POST(request: Request) {
   const stale = requireRecentSignIn(auth.session)
   if (stale) return stale
 
-  const { open, note } = await applicationsOpenness(payload)
-  if (!open) return closedReply(note)
-
   const limit = await hitLimit(payload, {
     scope: 'kyc-save',
     subject: String(member.id),
@@ -70,58 +72,59 @@ export async function POST(request: Request) {
     windowSeconds: 3600,
   })
   if (!limit.allowed)
-    return reply({ message: 'Please wait a little before saving again.' }, { status: 429 })
+    return reply({ message: 'Please wait a moment before trying again.' }, { status: 429 })
 
-  const application = await findOwnApplication(payload, member, 'artist', 0)
-  if (!application || !EDITABLE.includes(application.stage)) {
-    return reply(
-      { message: 'These details can only be changed while your application is open.' },
-      { status: 409 },
-    )
-  }
+  const body = (await readJson<Record<string, unknown>>(request)) ?? {}
+  const kind = kindOf(body.for)
+  const send = body.send === true
+  const application = await findOwnApplication(payload, member, kind, 0)
+  if (!application || application.stage !== 'approved')
+    return reply({ message: E.notApproved }, { status: 409 })
 
-  const parsed = kycSchema.safeParse(await readJson(request))
-  if (!parsed.success) {
-    return reply(
-      { message: 'A few things need another look.', errors: fieldErrors(parsed.error) },
-      { status: 422 },
-    )
-  }
-
-  const input = parsed.data
-  if (input.noticeVersion !== PRIVACY_NOTICE_VERSION) {
-    return reply(
-      {
-        message:
-          'The privacy notice has changed since you read it. Please read it again and confirm.',
-        errors: { consent: 'Please read the privacy notice again, then confirm.' },
-      },
-      { status: 409 },
-    )
-  }
-
-  // The photo must show the name and date of birth given now, and its code is kept for reviewers
-  const photo = await identityPhotoFacts(payload, {
-    memberId: member.id,
-    documentId: input.documents['identity-photo']!,
+  const current = await payload.find({
+    collection: 'kyc-records',
+    where: { member: { equals: member.id } },
+    depth: 0,
+    limit: 1,
+    overrideAccess: true,
   })
-  if (
-    !photo ||
-    photo.fingerprint !== identityFingerprint(input.panName, application.about?.dateOfBirth)
-  ) {
+  const record = current.docs[0]
+  if (identitySent(record) || identityChecked(record))
+    return reply({ message: E.closed }, { status: 409 })
+
+  // What was saved to finish later stands unless it is typed again: it never comes back to the
+  // page, so the page leaves those boxes empty
+  const saved = await savedIdentityValues(payload, member.id)
+  for (const field of ['pan', 'panName', 'passportNumber', 'passportName', 'aadhaarLast4'] as const)
+    if (!String(body[field] ?? '').trim() && saved[field]) body[field] = saved[field]
+
+  const checked = checkVerify(kind, body, { draft: !send })
+  if (!checked.ok)
     return reply(
-      {
-        message: 'Please take the photo of you again.',
-        errors: {
-          'documents.identity-photo':
-            'Your name or date of birth has changed since this photo was taken. Please get a new code and take it again.',
-        },
-      },
+      { message: 'A few things need another look.', errors: checked.errors },
+      { status: 422 },
+    )
+  const input = checked.input
+
+  if (send && input.noticeVersion !== VERIFY_NOTICE_VERSION) {
+    return reply({ message: E.noticeChanged, errors: { consent: E.noticeChanged } }, { status: 409 })
+  }
+
+  // The photo must show the name given now (and an artist's date of birth); its code is kept
+  const dateOfBirth = kind === 'artist' ? (application.about?.dateOfBirth ?? null) : null
+  const photoId = input.documents['identity-photo']
+  const photo = photoId
+    ? await identityPhotoFacts(payload, { memberId: member.id, documentId: photoId })
+    : null
+  if (send && (!photo || photo.fingerprint !== identityFingerprint(input.nameOnId, dateOfBirth))) {
+    return reply(
+      { message: E.photoRetake, errors: { 'documents.identity-photo': E.photoChanged } },
       { status: 422 },
     )
   }
+
   const aadhaarDocument =
-    input.idChoice === 'aadhaar' ? input.documents['masked-aadhaar'] : undefined
+    send && input.idChoice === 'aadhaar' ? input.documents['masked-aadhaar'] : undefined
   const checkInput = aadhaarDocument
     ? {
         memberId: member.id,
@@ -130,11 +133,11 @@ export async function POST(request: Request) {
         password: input.aadhaarPassword,
         last4: input.aadhaarLast4,
         panName: input.panName,
-        dateOfBirth: application.about?.dateOfBirth ?? null,
+        dateOfBirth,
       }
     : null
 
-  // Enforcing: a masked e-Aadhaar that cannot be verified stops the step here, with the reason
+  // Enforcing: a masked e-Aadhaar that cannot be checked stops here, with the reason
   if (checkInput && AADHAAR_CHECK_MODE === 'enforcing') {
     try {
       const check = await checkStoredAadhaar(payload, checkInput)
@@ -142,7 +145,7 @@ export async function POST(request: Request) {
         if (check.unmasked) await recordAadhaarCheck(payload, checkInput, check)
         return reply(
           {
-            message: 'We could not verify your masked e-Aadhaar.',
+            message: E.aadhaarNotChecked,
             errors: { 'documents.masked-aadhaar': check.reasons[0] ?? 'Please upload it again.' },
           },
           { status: 422 },
@@ -155,51 +158,49 @@ export async function POST(request: Request) {
     }
   }
 
+  let kept
   try {
-    await saveKyc(payload, {
+    kept = await saveIdentity(payload, {
       member,
       input,
       reference: application.reference,
       identityCode: photo,
-      consent: {
-        noticeVersion: PRIVACY_NOTICE_VERSION,
-        confirmation: 'Read the privacy notice to the end, confirmed, and typed I AGREE',
-      },
+      send,
+      consent: send
+        ? {
+            noticeVersion: VERIFY_NOTICE_VERSION,
+            confirmation:
+              'Ticked "I have read how PAT & J.K. Co. will use my identity details, and I agree to it" and typed I AGREE',
+          }
+        : undefined,
     })
   } catch (error) {
     if (error instanceof KycError)
       return reply({ message: error.message }, { status: error.status })
-    payload.logger.error({ err: error, msg: 'KYC save failed' })
-    return reply({ message: 'Your details could not be saved. Please try again.' }, { status: 500 })
+    payload.logger.error({ err: error, msg: 'Saving identity details failed' })
+    return reply({ message: E.notSaved }, { status: 500 })
   }
 
-  if (checkInput) {
-    // Advisory (the default): the check runs after the artist has their answer, records its
-    // result for staff, and can never hold the application up
-    const work = () => runAadhaarCheck(payload, checkInput).then(() => undefined)
-    if (AADHAAR_CHECK_MODE === 'enforcing') await work()
-    else {
-      try {
-        after(work)
-      } catch {
-        // Outside a request (tests, scripts): run it now
-        await work()
-      }
+  if (send) {
+    const { notifyStaffOfIdentity } = await import('@/members/emails')
+    const later = async () => {
+      if (checkInput) await runAadhaarCheck(payload, checkInput)
+      const told = await notifyStaffOfIdentity(payload, { application, recordId: kept.id })
+      if (!told)
+        payload.logger.error(`Staff were not emailed about identity for ${application.reference}`)
+    }
+    // The check runs after the member has their answer, records its result for staff, and never
+    // holds anything up
+    try {
+      after(later)
+    } catch {
+      // Outside a request (tests, scripts): run it now
+      await later()
     }
   }
 
-  const completed = new Set(application.completedSteps ?? [])
-  completed.add('kyc')
-  await payload.update({
-    collection: 'applications',
-    id: application.id,
-    data: { completedSteps: [...completed] },
-    overrideAccess: true,
-    context: { disableRevalidate: true, ...actingFor(member, 'members') },
-  })
-
   return withRefresh(
-    reply({ ok: true, kyc: await maskedKyc(payload, member.id), completedSteps: [...completed] }),
+    reply({ ok: true, sent: send, kyc: await maskedKyc(payload, member.id) }),
     auth.refresh,
   )
 }

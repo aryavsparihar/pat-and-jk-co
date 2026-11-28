@@ -75,6 +75,17 @@ const identityDocuments = async (member: Member) => {
   return { 'other-id': passport.id, ...photos }
 }
 
+/**
+ * Identity details as they are now given: only once the application is approved. Tests of what
+ * happens to them on a later stage then put the application there directly, as records from
+ * before identity came after approval are.
+ */
+const withIdentity = async (member: Member, applicationId: number, cookie: string) => {
+  await putAt(applicationId, 'approved')
+  const photos = await identityDocuments(member)
+  expect((await call(saveKycStep, cookie, goodKyc(photos))).status).toBe(200)
+}
+
 /** Puts an application at a stage directly, as the database would hold it */
 const putAt = (id: number, stage: Stage, extra: Record<string, unknown> = {}) =>
   execute(
@@ -206,10 +217,10 @@ describe('withdrawing', () => {
   })
 
   it('deletes an artist’s identity details at once, and lets them start again whenever they like', async () => {
-    const { member, cookie } = await applicant()
+    const { member, application, cookie } = await applicant()
     expect((await call(saveStep, cookie, { step: 'about', data: aboutYou })).status).toBe(200)
-    const photos = await identityDocuments(member)
-    expect((await call(saveKycStep, cookie, goodKyc(photos))).status).toBe(200)
+    await withIdentity(member, application.id, cookie)
+    await putAt(application.id, 'submitted')
 
     expect((await call(withdraw, cookie, { type: 'artist' })).status).toBe(200)
     const records = await payload.count({
@@ -270,8 +281,7 @@ describe('applying again', () => {
   it('keeps an artist’s identity answers but asks for documents and photo again', async () => {
     const { member, application, cookie } = await applicant()
     expect((await call(saveStep, cookie, { step: 'about', data: aboutYou })).status).toBe(200)
-    const photos = await identityDocuments(member)
-    expect((await call(saveKycStep, cookie, goodKyc(photos))).status).toBe(200)
+    await withIdentity(member, application.id, cookie)
     await putAt(application.id, 'rejected', {
       decidedAt: new Date(Date.now() - 10 * DAY).toISOString(),
       reapplyFrom: new Date(Date.now() - DAY).toISOString(),
@@ -299,8 +309,7 @@ describe('applying again', () => {
   it('keeps the identity details of someone who started again from the weekly purge', async () => {
     const { member, application, cookie } = await applicant()
     expect((await call(saveStep, cookie, { step: 'about', data: aboutYou })).status).toBe(200)
-    const photos = await identityDocuments(member)
-    expect((await call(saveKycStep, cookie, goodKyc(photos))).status).toBe(200)
+    await withIdentity(member, application.id, cookie)
     await putAt(application.id, 'rejected', {
       decidedAt: new Date(Date.now() - 120 * DAY).toISOString(),
       reapplyFrom: new Date(Date.now() - 30 * DAY).toISOString(),

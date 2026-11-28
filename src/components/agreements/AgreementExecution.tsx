@@ -15,6 +15,7 @@ type Status = {
   signer: {
     name: string
     memberCode: string
+    reference: string
     taxIdMasked: string
     email: string
     phone: string
@@ -29,7 +30,6 @@ type Status = {
 }
 
 const AGREE = 'I AGREE'
-const ID_KEY = 'pjk-agreement-id'
 
 /** The time in India, to the second: what the audit readout shows as it ticks */
 const istNow = () =>
@@ -44,17 +44,9 @@ const istNow = () =>
     timeZone: 'Asia/Kolkata',
   })} IST`
 
-const remember = (id: string) => {
-  try {
-    sessionStorage.setItem(ID_KEY, id)
-  } catch {
-    // Private windows may refuse; the ID is simply asked for again
-  }
-}
-
 /**
- * Signing beneath the agreement: the member's ID first (a second check beside the emailed code),
- * then who they are as the agreement will name them, the live photo with its ten-minute code, the
+ * Signing beneath the agreement, once the team has checked who the member is: who they are as the
+ * agreement will name them, the live photo with its ten-minute code, the
  * founder's notice, the two declarations, I AGREE, and the button, which stays disabled until all
  * of them are done. The audit readout beneath it shows what will be recorded.
  */
@@ -65,73 +57,26 @@ export const AgreementExecution: React.FC<{ agreement: Wording }> = (props) => (
 )
 
 const Execution: React.FC<{ agreement: Wording }> = ({ agreement }) => {
-  const [id, setId] = useState('')
   const [status, setStatus] = useState<Status | null>(null)
-  const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
 
-  const load = async (memberId: string) => {
-    setBusy(true)
-    setMessage(null)
-    const result = await api<Status>(
-      `/next/members/agreement?kind=${agreement.kind}&id=${encodeURIComponent(memberId)}`,
-    )
-    setBusy(false)
-    if (!result.ok) return setMessage(result.data.message ?? 'That did not work.')
-    remember(memberId)
-    setStatus(result.data)
-  }
-
   useEffect(() => {
-    let saved = ''
-    try {
-      saved = sessionStorage.getItem(ID_KEY) ?? ''
-    } catch {
-      saved = ''
+    let current = true
+    void api<Status>(`/next/members/agreement?kind=${agreement.kind}`).then((result) => {
+      if (!current) return
+      if (!result.ok) return setMessage(result.data.message ?? 'That did not work.')
+      setStatus(result.data)
+    })
+    return () => {
+      current = false
     }
-    if (saved.startsWith(`${agreement.prefix}-`)) {
-      queueMicrotask(() => {
-        setId(saved)
-        void load(saved)
-      })
-    }
-    // Once, on arrival
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [agreement.kind])
 
   if (!status) {
     return (
-      <form
-        className="mt-14 grid max-w-md gap-y-4"
-        onSubmit={(e) => {
-          e.preventDefault()
-          void load(id.trim().toUpperCase())
-        }}
-      >
-        <h2 className="display-sm">Sign this agreement</h2>
-        <label className="label" htmlFor="agreement-id">
-          Your {agreement.signer} ID ({agreement.prefix}-xxxxx)
-        </label>
-        <input
-          autoCapitalize="characters"
-          autoComplete="off"
-          className="w-full border-0 border-b border-input bg-transparent px-0 py-2 text-[1.15rem] tracking-wider focus:border-primary focus:outline-none"
-          id="agreement-id"
-          onChange={(e) => setId(e.target.value)}
-          placeholder={`${agreement.prefix}-`}
-          spellCheck={false}
-          value={id}
-        />
-        <p className="muted text-base">It is in the email telling you that you were approved.</p>
-        <div>
-          <button className="btn btn-solid min-h-11" disabled={busy || !id.trim()} type="submit">
-            Continue
-          </button>
-        </div>
-        <p aria-live="polite" className="text-base" role="status">
-          {busy ? <Sending /> : message}
-        </p>
-      </form>
+      <p aria-live="polite" className="mt-14 text-base" role="status">
+        {message ?? <Sending />}
+      </p>
     )
   }
 
@@ -150,7 +95,7 @@ const Execution: React.FC<{ agreement: Wording }> = ({ agreement }) => {
     )
   }
 
-  return <SignForm agreement={agreement} id={id.trim().toUpperCase()} status={status} />
+  return <SignForm agreement={agreement} status={status} />
 }
 
 const Row: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
@@ -163,11 +108,7 @@ const Row: React.FC<{ label: string; children: React.ReactNode }> = ({ label, ch
 const inputClass =
   'w-full border-0 border-b border-input bg-transparent px-0 py-2 focus:border-primary focus:outline-none'
 
-const SignForm: React.FC<{ agreement: Wording; id: string; status: Status }> = ({
-  agreement,
-  id,
-  status,
-}) => {
+const SignForm: React.FC<{ agreement: Wording; status: Status }> = ({ agreement, status }) => {
   const { signer } = status
   const partner = agreement.kind === 'partner'
   const [photo, setPhoto] = useState<{ code: string } | null>(status.photo)
@@ -181,7 +122,7 @@ const SignForm: React.FC<{ agreement: Wording; id: string; status: Status }> = (
   const [now, setNow] = useState('')
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
-  const [signedAt, setSignedAt] = useState<string | null>(null)
+  const [signed, setSigned] = useState<{ at: string; memberId: string } | null>(null)
   const { guard } = useStepUp()
 
   useEffect(() => {
@@ -198,10 +139,9 @@ const SignForm: React.FC<{ agreement: Wording; id: string; status: Status }> = (
     setBusy(true)
     setMessage(null)
     const result = await guard(() =>
-      api<{ signedAtIst: string }>('/next/members/agreement', {
+      api<{ signedAtIst: string; memberId: string }>('/next/members/agreement', {
         body: {
           kind: agreement.kind,
-          id,
           action: 'sign',
           typed,
           agreedTerms: terms,
@@ -212,16 +152,26 @@ const SignForm: React.FC<{ agreement: Wording; id: string; status: Status }> = (
     )
     setBusy(false)
     if (!result.ok) return setMessage(result.data.message ?? 'That did not work. Please try again.')
-    setSignedAt(result.data.signedAtIst)
+    setSigned({ at: result.data.signedAtIst, memberId: result.data.memberId })
   }
 
-  if (signedAt) {
+  if (signed) {
     return (
       <div className="mt-14 grid gap-y-4" role="status">
-        <h2 className="display-sm">Signed</h2>
+        <h2 className="display-sm">Signed. Welcome</h2>
         <p className="measure">
-          Thank you. You signed this agreement on {signedAt}. PAT & J.K. Co. will now countersign it
-          with its digital signature certificate, and email the executed copy to {signer.email}.
+          Thank you. You signed this agreement on {signed.at}. Your member ID is{' '}
+          <strong className="tracking-wider">{signed.memberId}</strong>. Please quote it whenever
+          you write to us.
+        </p>
+        <p className="measure">
+          PAT & J.K. Co. will now countersign it with its digital signature certificate, and email
+          the executed copy to {signer.email}.
+        </p>
+        <p>
+          <a className="link link-caps" href="/account">
+            Go to your account
+          </a>
         </p>
         <p className="muted text-base">{agreement.version}</p>
       </div>
@@ -247,7 +197,7 @@ const SignForm: React.FC<{ agreement: Wording; id: string; status: Status }> = (
                   value={firm}
                 />
               </Row>
-              <Row label="PT ID">{signer.memberCode}</Row>
+              <Row label="PT ID">{signer.memberCode || 'Issued when you sign'}</Row>
               <Row label="PAN / Passport / Tax ID">{signer.taxIdMasked}</Row>
               <Row label="Firm GSTIN / COA ID / Foreign Reg. No.">
                 <input
@@ -275,7 +225,7 @@ const SignForm: React.FC<{ agreement: Wording; id: string; status: Status }> = (
           ) : (
             <>
               <Row label="Full Legal Name (as per PAN)">{signer.name}</Row>
-              <Row label="AT ID">{signer.memberCode}</Row>
+              <Row label="AT ID">{signer.memberCode || 'Issued when you sign'}</Row>
               <Row label="PAN / Passport / Tax ID">{signer.taxIdMasked}</Row>
               <Row label="Email (verified) and phone">
                 {[signer.email, signer.phone].filter(Boolean).join(' · ')}
@@ -322,7 +272,7 @@ const SignForm: React.FC<{ agreement: Wording; id: string; status: Status }> = (
             via={{
               code: '/next/members/agreement',
               photo: '/next/members/agreement/photo',
-              fields: { kind: agreement.kind, id },
+              fields: { kind: agreement.kind },
             }}
             onCode={setCode}
           />
@@ -403,7 +353,7 @@ const SignForm: React.FC<{ agreement: Wording; id: string; status: Status }> = (
         <dl aria-label="What will be recorded" className="muted grid gap-y-1 font-mono text-sm">
           <div>
             <dt className="inline">ID: </dt>
-            <dd className="inline">{signer.memberCode}</dd>
+            <dd className="inline">{signer.memberCode || signer.reference}</dd>
           </div>
           <div>
             <dt className="inline">IP: </dt>

@@ -8,13 +8,21 @@ import { useStepUp } from '../../StepUp'
 import { FilePreview } from './FilePreview'
 
 export type DocKind =
-  'pan-card' | 'masked-aadhaar' | 'other-id' | 'address-proof' | 'bank-proof' | 'identity-photo'
+  | 'pan-card'
+  | 'passport-page'
+  | 'masked-aadhaar'
+  | 'other-id'
+  | 'address-proof'
+  | 'bank-proof'
+  | 'identity-photo'
 
+/** The design's words for each upload on "Confirm who you are" */
 export const DOC_LABEL: Record<DocKind, string> = {
-  'pan-card': 'PAN card',
-  'masked-aadhaar': 'Masked e-Aadhaar',
-  'other-id': 'Your ID',
-  'address-proof': 'Proof of address',
+  'pan-card': 'A photo of your PAN card',
+  'passport-page': 'A photo of your passport’s photo page',
+  'masked-aadhaar': 'Your masked e-Aadhaar',
+  'other-id': 'Your second ID',
+  'address-proof': 'Proof of your current address',
   'bank-proof': 'Cancelled cheque or passbook',
   'identity-photo': 'Photo of you holding the paper',
 }

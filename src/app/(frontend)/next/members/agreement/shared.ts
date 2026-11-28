@@ -1,23 +1,27 @@
+import type { Payload } from 'payload'
+
 import { AGREEMENTS, type AgreementDocument } from '@/agreements/documents'
-import { AgreementError, checkMemberId } from '@/agreements/service'
+import { AgreementError, checkSigner } from '@/agreements/service'
 import { KycError } from '@/kyc/service'
 import { reply } from '@/members/http'
 import type { Member } from '@/payload-types'
 
-/** The agreement asked about, and the member's own ID for it, checked; or the reply refusing */
-export const agreementFor = (
+/** The agreement asked about, if this member may sign it now; or the reply refusing */
+export const agreementFor = async (
+  payload: Payload,
   member: Member,
   kind: unknown,
-  memberId: unknown,
-): { agreement: AgreementDocument } | { refused: Response } => {
-  const agreement = AGREEMENTS[kind === 'partner' ? 'partner' : 'artist']
+): Promise<{ agreement: AgreementDocument } | { refused: Response }> => {
   if (kind !== 'artist' && kind !== 'partner')
     return { refused: reply({ message: 'Which agreement?' }, { status: 400 }) }
+  const agreement = AGREEMENTS[kind]
   try {
-    checkMemberId(member, agreement, memberId)
+    await checkSigner(payload, member, agreement)
     return { agreement }
   } catch (error) {
-    return { refused: agreementProblem(error)! }
+    const problem = agreementProblem(error)
+    if (problem) return { refused: problem }
+    throw error
   }
 }
 

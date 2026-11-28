@@ -52,6 +52,8 @@ export const securityEventTypes = [
   'data-request',
   'kyc-legal-hold-changed',
   'kyc-aadhaar-checked',
+  'kyc-identity-checked',
+  'kyc-identity-returned',
   'portal-approved',
   'portal-changes-requested',
   'member-email-changed',

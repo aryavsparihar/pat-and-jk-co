@@ -8,7 +8,9 @@ import { CODE_PROBLEM, checkIdentityCode, IDENTITY_CODE_MINUTES } from '@/kyc/id
 import { signerTaxId, storeKycDocument } from '@/kyc/service'
 import { findOwnApplication } from '@/members/application'
 import { newIdentityCode } from '@/members/ids'
+import { issueMemberId } from '@/members/issueId'
 import { canChange } from '@/members/standing'
+import { identityChecked } from '@/kyc/check'
 import type { AgreementExecution, Member } from '@/payload-types'
 
 import type { AgreementDocument } from './documents'
@@ -18,11 +20,14 @@ import { buildAgreementPdf } from './pdf'
 /**
  * Signing an agreement after approval, at /collaborate/artist-agreement or
  * /collaborate/trade-agreement (docs/AGREEMENTS.md). The member is signed in with their emailed
- * code, and gives the ID issued on approval. Then, on one record (agreement-executions):
- *   1. a ten-minute code, kept only as an HMAC, as for the application's identity photo;
- *   2. a live photo of them holding the code, their name and their ID, encrypted in the vault;
- *   3. both boxes ticked and I AGREE typed: the PDF is built with their execution block filled
- *      in, kept in the vault, and the record waits for PAT & J.K. Co.'s DSC countersignature.
+ * code; their application is approved and the team has checked who they are (checkSigner). Then,
+ * on one record (agreement-executions):
+ *   1. a ten-minute code, kept only as an HMAC, as for the identity photo;
+ *   2. a live photo of them holding the code, their name and their application number,
+ *      encrypted in the vault;
+ *   3. both boxes ticked and I AGREE typed: the member ID is issued (src/members/issueId.ts), the
+ *      PDF is built with their execution block filled in, kept in the vault, and the record waits
+ *      for PAT & J.K. Co.'s DSC countersignature.
  * Nothing is sent to the member until the countersigned copy is uploaded (./staff.ts).
  */
 
@@ -63,30 +68,48 @@ const sha256 = (data: string | Buffer) => createHash('sha256').update(data).dige
 export const documentDigest = (agreement: AgreementDocument) =>
   sha256(JSON.stringify(agreement.text))
 
-/** The member's own ID for this agreement, checked against the one they typed */
-export const checkMemberId = (member: Member, agreement: AgreementDocument, given: unknown) => {
-  const own = member[agreement.idField]
-  if (!own) {
+/**
+ * Whether this member may sign this agreement now (founder's brief of 25 November 2026, section
+ * 11): their application of this kind is approved and the team has checked who they are. Someone
+ * already holding the ID (a new version of the agreement) may sign again. Their account must not
+ * be on hold. Throws the reason otherwise.
+ */
+export const checkSigner = async (
+  payload: Payload,
+  member: Member,
+  agreement: AgreementDocument,
+): Promise<{ reference: string }> => {
+  const application = await findOwnApplication(payload, member, agreement.kind, 0)
+  const holder = Boolean(member[agreement.idField])
+  if (!holder && application?.stage !== 'approved') {
     throw new AgreementError(
       agreement.kind === 'artist'
-        ? 'This page is for approved artists. Your account has no artist ID yet.'
-        : 'This page is for approved trade partners. Your account has no partner ID yet.',
+        ? 'This page is for artists we have approved. Your account has no approved artist application.'
+        : 'This page is for trade partners we have approved. Your account has no approved trade application.',
       403,
     )
   }
-  const typed = String(given ?? '')
-    .trim()
-    .toUpperCase()
-  if (typed !== own.toUpperCase()) {
-    throw new AgreementError(
-      `That is not the ${agreement.prefix} ID issued to this account. Please check your approval email.`,
-      403,
-    )
+  if (!holder) {
+    const record = (
+      await payload.find({
+        collection: 'kyc-records',
+        where: { member: { equals: member.id } },
+        depth: 0,
+        limit: 1,
+        overrideAccess: true,
+      })
+    ).docs[0]
+    if (!identityChecked(record)) {
+      throw new AgreementError(
+        'Your agreement unlocks once we have checked who you are. Please confirm who you are from your account, if you have not yet.',
+        403,
+      )
+    }
   }
   if (!canChange(member.standing)) {
     throw new AgreementError('Your account is on hold. Please write to us before signing.', 403)
   }
-  return own
+  return { reference: application?.reference ?? member[agreement.idField] ?? '' }
 }
 
 const addressLine = (address?: Record<string, unknown> | null) =>
@@ -99,7 +122,10 @@ const addressLine = (address?: Record<string, unknown> | null) =>
 
 export type Signer = {
   name: string
+  /** Empty until the agreement is signed: the ID is issued then */
   memberCode: string
+  /** The application number, written on the paper in the signing photo */
+  reference: string
   taxIdMasked: string
   email: string
   phone: string
@@ -125,6 +151,7 @@ export const signerFor = async (
       tax.panName ||
       String((agreement.kind === 'artist' ? about.legalName : partner.fullName) ?? ''),
     memberCode: member[agreement.idField] ?? '',
+    reference: application?.reference ?? '',
     taxIdMasked: tax.masked ?? '',
     email: member.email,
     phone: String((agreement.kind === 'artist' ? about.phone : partner.phone) ?? ''),
@@ -222,7 +249,7 @@ const openExecution = async (
     data: {
       member: member.id,
       kind: agreement.kind,
-      memberCode: member[agreement.idField],
+      memberCode: member[agreement.idField] ?? null,
       state: 'in-progress',
       version: agreement.version,
       documentDigest: documentDigest(agreement),
@@ -280,7 +307,7 @@ export const receiveAgreementPhoto = async (
       issuedAt: execution.codeIssuedAt ?? '',
       expiresAt: execution.codeExpiresAt ?? '',
       capturedWith,
-      fingerprint: blindIndex('identity', `${signer.name}|${signer.memberCode}`),
+      fingerprint: blindIndex('identity', `${signer.name}|${signer.reference}`),
     },
   })
   await save(payload, execution.id, {
@@ -355,6 +382,12 @@ export const signAgreement = async (
     throw new AgreementError('Your legal name is missing from your record. Please write to us.')
   }
 
+  // The member ID is issued now, on signing, and named in the signed copy
+  const issued = await issueMemberId(payload, member, agreement.kind, {
+    reference: signer.reference,
+  })
+  signer.memberCode = issued.id
+
   const tax = await signerTaxId(payload, member.id)
   const signedAtIst = istTimestamp(now)
   const portal = `https://pjk.co.in/collaborate/${agreement.slug}`
@@ -406,9 +439,10 @@ export const signAgreement = async (
     userAgent: clean(input.userAgent, 500),
     signedPdf: document.id,
     signedPdfSha256: document.sha256,
+    memberCode: issued.id,
   })
   await notifyStaffOfSignedAgreement(payload, { execution: signed, agreement }).catch((error) =>
     payload.logger.error({ err: error, msg: 'Could not tell staff an agreement was signed' }),
   )
-  return { signedAt: signed.signedAt, signedAtIst }
+  return { signedAt: signed.signedAt, signedAtIst, memberId: issued.id }
 }

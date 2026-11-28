@@ -4,7 +4,7 @@ import type { Payload } from 'payload'
 import { deleteEncrypted } from '@/kyc/documentStore'
 import { identityFingerprint } from '@/kyc/identityCode'
 import { storeKycDocument } from '@/kyc/service'
-import { PRIVACY_NOTICE_VERSION } from '@/members/application'
+import { VERIFY_NOTICE_VERSION } from '@/kyc/verify'
 import type { Member } from '@/payload-types'
 import { execute } from '@/utilities/sql'
 import sharp from 'sharp'
@@ -22,12 +22,12 @@ export const FAKE = {
   newAccount: '888800007733',
 } as const
 
+/** Confirm who you are, after approval, sent for the team to check (src/kyc/verify.ts) */
 export const goodKyc = (documents: Record<string, number> = {}) => ({
+  send: true,
   consent: true,
-  // The privacy notice read to its end, then I AGREE typed out
-  consentReadToEnd: true,
   consentTyped: 'I AGREE',
-  noticeVersion: PRIVACY_NOTICE_VERSION,
+  noticeVersion: VERIFY_NOTICE_VERSION,
   pan: FAKE.pan,
   panName: FAKE.panName,
   // The other-ID path by default; tests of the e-Aadhaar path set idChoice themselves
@@ -110,12 +110,13 @@ export const identityPhotos = async (
   return { 'pan-card': panCard.id, 'identity-photo': photo.id }
 }
 
-/** A partner's identity details: the PAN, the name on it, and the two photos (partnerKycSchema) */
+/** A partner's identity details: the PAN, the name on it, and the two photos */
 export const goodPartnerKyc = (documents: Record<string, number> = {}) => ({
+  for: 'partner',
+  send: true,
   consent: true,
-  consentReadToEnd: true,
   consentTyped: 'I AGREE',
-  noticeVersion: PRIVACY_NOTICE_VERSION,
+  noticeVersion: VERIFY_NOTICE_VERSION,
   pan: FAKE.pan,
   panName: FAKE.panName,
   documents,

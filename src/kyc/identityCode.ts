@@ -76,9 +76,9 @@ export const identityFingerprint = (name: string, dateOfBirth: string | null | u
 
 /** What the artist is told when a photo cannot be accepted */
 export const CODE_PROBLEM: Record<Exclude<CodeCheck, 'ok'>, string> = {
-  none: 'Please get your code first, then take the photo.',
+  none: 'Please ask for your code first, then take the photo.',
   wrong:
-    'This photo was taken with an earlier code. Please take it again, with the code shown now.',
+    'This photo was taken with an earlier code. Please take it again with the code shown now.',
   expired:
-    'Your code ran out before the photo arrived. Please get a new code and take the photo again.',
+    'Your code ran out before the photo arrived. Please ask for a new code and take the photo again.',
 }

@@ -5,7 +5,11 @@ import { redirect } from 'next/navigation'
 import { getPayload } from 'payload'
 import React from 'react'
 
-import { ApplyAgainButton, WithdrawButton } from '@/components/account/ApplicationActions'
+import {
+  ApplyAgainButton,
+  DeleteDraftButton,
+  WithdrawButton,
+} from '@/components/account/ApplicationActions'
 import { SignOutButtons } from '@/components/account/SignOutButtons'
 import { DeclinedNotice } from '@/components/onboarding/DeclinedNotice'
 import { PhulhaarPage } from '@/components/phulhaar/PhulhaarPage'
@@ -13,6 +17,8 @@ import { phulhaarSocialLinks } from '@/brands/socialIcons'
 import { defaultSiteSettings } from '@/members/openness'
 import { canReapply } from '@/members/reapply'
 import { STAGE_WORDS, WITHDRAWABLE } from '@/members/stages'
+import { maskedKyc } from '@/kyc/service'
+import { applicationStatus, longDate } from '@/members/status'
 import type { Application } from '@/payload-types'
 import { ContactForm } from '@/components/portal/ProfileForm'
 import { PortalFrame } from '@/components/portal/PortalFrame'
@@ -22,7 +28,6 @@ import { AccountSwitcher } from '@/components/portal/AccountSwitcher'
 import { VIEW_COOKIE, chooseView } from '@/members/accountView'
 import { MEMBER_COOKIE } from '@/security/constants'
 import { readSession } from '@/security/memberSession'
-
 
 type MemberApplication = Application & { type: 'artist' | 'partner' }
 
@@ -88,16 +93,57 @@ export default async function AccountPage() {
     />
   )
 
+  // Where the identity check has got to: one record per person, whichever kind it is for
+  const identityRecord = (
+    await payload.find({
+      collection: 'kyc-records',
+      where: { member: { equals: member.id } },
+      depth: 0,
+      limit: 1,
+      overrideAccess: true,
+    })
+  ).docs[0]
+  const identity = {
+    sent: Boolean(identityRecord?.identityCheck?.sentAt),
+    checked: Boolean(identityRecord?.identityCheck?.checkedAt),
+  }
+  const label = (type: 'artist' | 'partner') => (type === 'artist' ? 'Artist' : 'Trade account')
+  const notStarted = (['artist', 'partner'] as const).filter((type) => !has(type))
+  const startLinks = (
+    <>
+      {notStarted.includes('artist') && (
+        <a className="link link-caps" href="/collaborate/artists">
+          Apply as an artist
+        </a>
+      )}
+      {notStarted.includes('partner') && (
+        <a className="link link-caps" href="/collaborate/partners">
+          Apply for a trade account
+        </a>
+      )}
+    </>
+  )
+
   const applicationsSection = (
     <section className="mt-14 border-t border-border pt-8">
-      <h2 className="display-sm">Applications</h2>
-      {docs.length === 0 && (
-        <p className="muted mt-4">You have not started an application.</p>
+      <h2 className="display-sm">Your applications</h2>
+      {docs.length === 0 ? (
+        <>
+          <p className="measure mt-4">You have not started an application.</p>
+          <p className="muted measure mt-2">
+            Artists apply to show and sell through Phulhaar Gallery. Designers, architects and art
+            advisers apply for a trade account.
+          </p>
+          <div className="mt-6 flex flex-wrap gap-x-8 gap-y-3">{startLinks}</div>
+        </>
+      ) : (
+        <p className="muted measure mt-3">
+          Each application has its own number: AA- for artists, PA- for trade partners. If we work
+          together, you receive a member ID (AT- or PT-) once the agreement is signed.
+        </p>
       )}
       <ul className="mt-4">
         {current.map((app) => {
-          const open = app.stage === 'draft' || app.stage === 'changes-requested'
-          const href = app.type === 'artist' ? '/collaborate/artists' : '/collaborate/partners'
           if (app.stage === 'rejected') {
             return (
               <li className="border-b border-border py-8" key={app.id}>
@@ -105,22 +151,22 @@ export default async function AccountPage() {
               </li>
             )
           }
+          const status = applicationStatus(app, member, identity)
           return (
             <li
               className="grid gap-x-8 gap-y-2 border-b border-border py-6 sm:grid-cols-[12rem_1fr_auto]"
               key={app.id}
             >
-              <span className="label pt-1">{app.type === 'artist' ? 'Artist' : 'Partner'}</span>
-              <span>
+              <span className="pt-1">
+                <span className="label block">{label(app.type)}</span>
                 <span className="block tracking-wider">{app.reference}</span>
-                <span className="muted block">
-                  {STAGE_WORDS[app.stage] ?? app.stage}
-                  {app.stage === 'withdrawn' && app.withdrawnAt
-                    ? `, ${shortDate(app.withdrawnAt)}`
-                    : ''}
-                </span>
-                {app.stage === 'changes-requested' && app.decisionNote && (
-                  <span className="measure mt-3 block whitespace-pre-line">{app.decisionNote}</span>
+              </span>
+              <span>
+                <span className="block font-semibold">{status.line}</span>
+                {status.detail && (
+                  <span className="muted measure mt-1 block whitespace-pre-line">
+                    {status.detail}
+                  </span>
                 )}
                 {app.stage === 'withdrawn' && (
                   <span className="mt-4 block">
@@ -129,12 +175,15 @@ export default async function AccountPage() {
                 )}
               </span>
               <span className="flex flex-col items-start gap-1 self-center sm:items-end">
-                {open && (
-                  <a className="link link-caps min-h-11 content-center" href={href}>
-                    {app.stage === 'draft' ? 'Continue' : 'Make the changes'}
+                {status.link && (
+                  <a className="link link-caps min-h-11 content-center" href={status.link.href}>
+                    {status.link.label}
                   </a>
                 )}
-                {WITHDRAWABLE.includes(app.stage) && (
+                {app.stage === 'draft' && (
+                  <DeleteDraftButton kind={app.type} reference={app.reference} />
+                )}
+                {app.stage !== 'draft' && WITHDRAWABLE.includes(app.stage) && (
                   <WithdrawButton kind={app.type} reference={app.reference} />
                 )}
               </span>
@@ -151,7 +200,7 @@ export default async function AccountPage() {
                 className="grid gap-x-8 gap-y-1 border-b border-border py-4 sm:grid-cols-[12rem_1fr]"
                 key={app.id}
               >
-                <span className="muted">{app.type === 'artist' ? 'Artist' : 'Partner'}</span>
+                <span className="muted">{label(app.type)}</span>
                 <span>
                   <span className="tracking-wider">{app.reference}</span>
                   <span className="muted">
@@ -167,18 +216,29 @@ export default async function AccountPage() {
           </ul>
         </div>
       )}
-      <div className="mt-6 flex flex-wrap gap-x-8 gap-y-3">
-        {!has('artist') && (
-          <a className="link link-caps" href="/collaborate/artists">
-            Apply as an artist
-          </a>
-        )}
-        {!has('partner') && (
-          <a className="link link-caps" href="/collaborate/partners">
-            Apply as a partner
-          </a>
-        )}
-      </div>
+      {docs.length > 0 && notStarted.length > 0 && (
+        <div className="mt-10">
+          <h3 className="label">Start another</h3>
+          <div className="mt-3 flex flex-wrap gap-x-8 gap-y-3">{startLinks}</div>
+          <p className="muted mt-3 text-base">
+            Only applications you have not yet started are shown here.
+          </p>
+        </div>
+      )}
+    </section>
+  )
+
+  const signingOut = (
+    <section className="mt-14 border-t border-border pt-8">
+      <h2 className="sr-only">Signing out</h2>
+      <SignOutButtons />
+      <p className="muted mt-4 text-base">
+        Trouble with your account? Write to{' '}
+        <a className="link" href="mailto:tech@pjk.co.in">
+          tech@pjk.co.in
+        </a>
+        .
+      </p>
     </section>
   )
 
@@ -187,51 +247,132 @@ export default async function AccountPage() {
 
   if (view === 'artist') {
     const profile = profileView(member)
+    const artistApp = current.find((a) => a.type === 'artist')
+    // "Welcome, Anaya": the name they go by, or the first of their legal name
+    const firstName =
+      (profile.displayName || artistApp?.about?.legalName || '').trim().split(/\s+/)[0] ?? ''
+    const signed = (
+      await payload.find({
+        collection: 'agreement-executions',
+        where: { and: [{ member: { equals: member.id } }, { kind: { equals: 'artist' } }] },
+        depth: 0,
+        limit: 1,
+        sort: '-signedAt',
+        overrideAccess: true,
+      })
+    ).docs[0]
+    const kyc = await maskedKyc(payload, member.id)
+    const hasBank = Boolean(kyc?.bank || kyc?.pendingBank)
+    const profileLine =
+      profile.review.state === 'pending'
+        ? 'Sent for review. We will email you once we have looked at it.'
+        : profile.review.state === 'changes-requested'
+          ? 'We have asked for a few changes.'
+          : profile.isPublic
+            ? 'Public. You can change it whenever you like.'
+            : 'Not sent for review yet. It is how you appear beside your work, and we have started it for you from your application.'
+    const steps = [
+      {
+        heading: 'Your profile',
+        line: profileLine,
+        link: {
+          href: '/account/profile',
+          label: profile.isPublic ? 'Edit your profile' : 'Finish your profile',
+        },
+      },
+      {
+        heading: 'Your works',
+        line: member.worksFolder
+          ? 'Your works are in your Google Drive folder.'
+          : 'Share the Google Drive folder that holds your works, set out as we describe.',
+        link: {
+          href: '/account/works',
+          label: member.worksFolder ? 'See how to set it out' : 'Add your folder',
+        },
+      },
+      {
+        heading: 'Payouts',
+        line: hasBank
+          ? 'Your bank details are in place.'
+          : 'Not needed until a work sells. You can add your bank details now if you prefer.',
+        link: {
+          href: '/account/payouts',
+          label: hasBank ? 'See your payouts' : 'Add bank details',
+        },
+      },
+    ]
+    const ids = [member.artistId, member.partnerId].filter(Boolean).join(' and ')
     return (
       <PortalFrame
         current="/account"
-        heading="Your account"
-        intro={<>Signed in as {member.email}.</>}
-      >
-        <section>
-          <h2 className="display-sm">Member IDs</h2>
-          <dl className="mt-4 grid gap-y-3 sm:grid-cols-[12rem_1fr]">
-            <dt className="label pt-1">Artist</dt>
-            <dd className="tracking-wider">{member.artistId}</dd>
+        heading={firstName ? `Welcome, ${firstName}` : 'Welcome'}
+        intro={
+          <>
+            Your member ID is <span className="tracking-wider">{member.artistId}</span>
             {member.partnerId && (
               <>
-                <dt className="label pt-1">Partner</dt>
-                <dd className="tracking-wider">{member.partnerId}</dd>
+                , and your trade partner ID is{' '}
+                <span className="tracking-wider">{member.partnerId}</span>
               </>
             )}
-          </dl>
+            . Please quote it whenever you write to us.
+          </>
+        }
+      >
+        <section>
+          <h2 className="display-sm">What to do next</h2>
+          <p className="measure mt-4">
+            Two things to finish before your work can be shown on Phulhaar, and one that can wait.
+            Take them in any order.
+          </p>
+          <ol className="mt-8 grid gap-y-8">
+            {steps.map((step, i) => (
+              <li className="grid gap-x-6 sm:grid-cols-[3rem_1fr]" key={step.heading}>
+                <span aria-hidden className="label pt-1">
+                  {['I', 'II', 'III'][i]}
+                </span>
+                <div>
+                  <h3 className="text-xl">{step.heading}</h3>
+                  <p className="measure mt-1">{step.line}</p>
+                  <a
+                    className="link link-caps mt-2 inline-flex min-h-11 items-center"
+                    href={step.link.href}
+                  >
+                    {step.link.label}
+                  </a>
+                </div>
+              </li>
+            ))}
+          </ol>
         </section>
+        {signed?.signedAt && (
+          <section className="mt-14 border-t border-border pt-8">
+            <h2 className="display-sm">Your agreement</h2>
+            <p className="measure mt-4">
+              You signed the Artist Consignment and Representation Agreement on{' '}
+              {longDate(signed.signedAt)}.
+            </p>
+            <a
+              className="link link-caps mt-2 inline-flex min-h-11 items-center"
+              href="/collaborate/artist-agreement"
+            >
+              Read your agreement
+            </a>
+          </section>
+        )}
         <section className="mt-14 border-t border-border pt-8">
-          <h2 className="display-sm">Where things stand</h2>
-          <ul className="measure mt-4 grid gap-y-2">
-            <li>
-              Your profile:{' '}
-              {profile.review.state === 'pending'
-                ? 'waiting for our review.'
-                : profile.review.state === 'changes-requested'
-                  ? 'we have asked for a few changes.'
-                  : profile.isPublic
-                    ? 'public.'
-                    : 'not sent yet.'}{' '}
-              <a className="link" href="/account/profile">
-                {profile.isPublic ? 'Edit' : 'Fill it in'}
-              </a>
-            </li>
-            <li>
-              Your works:{' '}
-              {member.worksFolder
-                ? 'in your Google Drive folder.'
-                : 'give us the Google Drive folder they are in.'}{' '}
-              <a className="link" href="/account/works">
-                {member.worksFolder ? 'See how to set it out' : 'Add your folder'}
-              </a>
-            </li>
-          </ul>
+          <h2 className="display-sm">Help</h2>
+          <p className="measure mt-4">
+            Questions about your work? Write to{' '}
+            <a className="link" href="mailto:hello@pjk.co.in">
+              hello@pjk.co.in
+            </a>
+            . Trouble with your account? Write to{' '}
+            <a className="link" href="mailto:tech@pjk.co.in">
+              tech@pjk.co.in
+            </a>
+            . Please quote {ids}.
+          </p>
         </section>
         <section className="mt-14 border-t border-border pt-8">
           <SignOutButtons />
@@ -285,9 +426,7 @@ export default async function AccountPage() {
       >
         {declined(artist)}
         {(others.length > 0 || earlier.length > 0) && applicationsSection}
-        <section className="mt-14 border-t border-border pt-8">
-          <SignOutButtons />
-        </section>
+        {signingOut}
       </PhulhaarPage>
     )
   }
@@ -296,12 +435,10 @@ export default async function AccountPage() {
     <OnboardingPage
       heading="Your account"
       intro={<>Signed in as {member.email}.</>}
-      label="Members"
+      label="Your account"
     >
       {applicationsSection}
-      <section className="mt-14 border-t border-border pt-8">
-        <SignOutButtons />
-      </section>
+      {signingOut}
     </OnboardingPage>
   )
 }

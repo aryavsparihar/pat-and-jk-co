@@ -201,6 +201,8 @@ export const openFile = (dataKey: Buffer, sealed: Buffer, context: string): Buff
 
 const normalisers = {
   pan: (v: string) => v.replace(/\s+/g, '').toUpperCase(),
+  // A passport number, spaced or hyphenated however it was typed
+  passport: (v: string) => v.replace(/[\s-]/g, '').toUpperCase(),
   account: (v: string) => v.replace(/\D/g, ''),
   // "k7q 4mx" is the code K7Q-4MX
   'identity-code': (v: string) => v.replace(/[^a-z0-9]/gi, '').toUpperCase(),

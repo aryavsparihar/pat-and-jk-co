@@ -220,22 +220,24 @@ export const decisionEmail = async (
   }
 
   if (decision === 'approve') {
-    const id = application.issuedId ?? ''
+    // No member ID yet: it is issued when the agreement is signed (src/members/issueId.ts)
     return buildEmail({
-      subject: `Welcome to ${BRAND} | ${artist ? 'Artist' : 'Trade'} Application Approved`,
-      preheader: `Your application has been approved. Your ${artist ? 'Artist' : 'Partner'} ID is ${id}.`,
+      subject: `Your ${artist ? 'artist' : 'trade'} application to ${BRAND} is approved (${application.reference})`,
+      preheader: 'We would like to work with you. Please confirm who you are.',
       parts: [
         {
           kind: 'paragraph',
-          text: `We are pleased to inform you that your application to join ${BRAND} as ${artist ? 'a represented artist' : 'a Trade Partner'} has been approved. We are delighted to welcome you.`,
+          text: `We would like to work with you. Your application to join ${BRAND} as ${artist ? 'an artist' : 'a trade partner'} is approved.`,
         },
-        { kind: 'reference', label: artist ? 'Your Artist ID' : 'Your Partner ID', value: id },
         {
           kind: 'paragraph',
-          text: artist
-            ? 'Please retain this permanent ID and quote it whenever you write to us. You may now sign in to your account using a code sent to this email address to complete your agreement execution and profile onboarding.'
-            : 'Please retain this permanent ID and quote it whenever you write to us. You may now sign in to your account using a code sent to this email address to execute your Trade Partner Agreement and access your portal.',
+          text: 'Before we send our agreement, we need to be sure who you are. Sign in to your account and choose Confirm who you are. It takes about five minutes.',
         },
+        {
+          kind: 'paragraph',
+          text: `Once we have checked your details, the agreement is ready to sign in your account. Your member ID (${artist ? 'AT-' : 'PT-'}) is issued when you sign it.`,
+        },
+        { kind: 'reference', label: 'Application number', value: application.reference },
         { kind: 'link', label: 'Sign in', url: signInUrl() },
       ],
       footer,
@@ -1027,4 +1029,96 @@ export const notifyStaffOfReview = async (
     )
   }
   return told
+}
+
+/**
+ * After the team has checked who someone is: their agreement is ready to sign in their account.
+ * Their member ID is issued when they sign it.
+ */
+export const sendAgreementReady = async (
+  payload: Payload,
+  { member, kinds }: { member: Member; kinds: ('artist' | 'partner')[] },
+): Promise<boolean> =>
+  deliver(
+    payload,
+    { to: member.email },
+    buildEmail({
+      subject: `Your agreement with ${BRAND} is ready to sign`,
+      preheader: 'We have checked your details. Your agreement is ready to sign in your account.',
+      parts: [
+        {
+          kind: 'paragraph',
+          text: 'Thank you for confirming who you are. We have checked your details, and your agreement is ready to read and sign in your account.',
+        },
+        {
+          kind: 'paragraph',
+          text: 'Your member ID is issued when you sign. Please quote it whenever you write to us.',
+        },
+        ...kinds.map((kind) => ({
+          kind: 'link' as const,
+          label: kind === 'artist' ? 'Read and sign the artist agreement' : 'Read and sign the trade agreement',
+          url: `${site()}/collaborate/${kind === 'artist' ? 'artist-agreement' : 'trade-agreement'}`,
+        })),
+      ],
+      footer: await emailFooter(payload),
+      recipient: await toMember(payload, member),
+    }),
+  )
+
+/** The team needs something more before they can check who someone is: what, in their words */
+export const sendIdentityReturned = async (
+  payload: Payload,
+  { member, note }: { member: Member; note: string },
+): Promise<boolean> =>
+  deliver(
+    payload,
+    { to: member.email },
+    buildEmail({
+      subject: `We have a question about your details | ${BRAND}`,
+      preheader: 'Please look again at Confirm who you are in your account.',
+      parts: [
+        {
+          kind: 'paragraph',
+          text: 'Thank you for sending your details. Before we can check them, we need something more:',
+        },
+        { kind: 'reference', label: 'Note from our team', value: note },
+        {
+          kind: 'paragraph',
+          text: 'Please sign in, open Confirm who you are, make the change and send it again. We never ask for documents by email.',
+        },
+        { kind: 'link', label: 'Confirm who you are', url: `${site()}/account/verify` },
+      ],
+      footer: await emailFooter(payload),
+      recipient: await toMember(payload, member),
+    }),
+  )
+
+/** Someone approved has sent "Confirm who you are": to business@, to check and mark as checked */
+export const notifyStaffOfIdentity = async (
+  payload: Payload,
+  { application, recordId }: { application: Application; recordId: number },
+): Promise<boolean> => {
+  const who = applicantName(application) || 'An approved applicant'
+  return deliver(
+    payload,
+    { to: BUSINESS_INBOX },
+    buildEmail({
+      subject: `Identity to check: ${application.reference}`,
+      preheader: `${who} has sent their identity details for checking.`,
+      parts: [
+        {
+          kind: 'paragraph',
+          text: `${who} (${application.type === 'artist' ? 'artist' : 'trade partner'}) has sent their identity details for checking. Their agreement unlocks once a KYC reviewer marks them as checked.`,
+        },
+        { kind: 'reference', label: 'Application', value: application.reference },
+        {
+          kind: 'link',
+          label: 'Open the identity record',
+          url: `${site()}/admin/collections/kyc-records/${recordId}`,
+        },
+      ],
+      footer: await emailFooter(payload),
+      recipient: toBusiness,
+    }),
+  )
 }

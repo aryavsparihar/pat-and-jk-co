@@ -2142,13 +2142,17 @@ export interface KycRecord {
   memberCode?: string | null;
   keyId?: string | null;
   wrappedKey?: string | null;
-  idType?: ('pan' | 'aadhaar') | null;
+  idType?: ('pan' | 'passport' | 'aadhaar') | null;
   panSealed?: string | null;
   panNameSealed?: string | null;
   aadhaarLast4Sealed?: string | null;
   idMasked?: string | null;
+  passportSealed?: string | null;
+  passportNameSealed?: string | null;
+  passportCountry?: string | null;
+  passportExpiry?: string | null;
   idChoice?: ('aadhaar' | 'other') | null;
-  otherIdKind?: ('passport' | 'voter-id' | 'driving-licence') | null;
+  otherIdKind?: ('passport' | 'voter-id' | 'driving-licence' | 'national-id') | null;
   aadhaarMasked?: string | null;
   aadhaarCheck?: {
     result?: ('verified' | 'not-verified' | 'manual-review') | null;
@@ -2159,18 +2163,27 @@ export interface KycRecord {
     mode?: string | null;
   };
   addressOnIdMatches?: boolean | null;
+  addressNote?: string | null;
   /**
    * The code the artist was given, which they wrote with their full name and date of birth on the paper they hold in the identity photo. Check all three are there, legible, and match.
    */
   identityCode?: string | null;
   identityCodeIssuedAt?: string | null;
   identityCodeExpiresAt?: string | null;
+  identityCheck?: {
+    sentAt?: string | null;
+    checkedAt?: string | null;
+    checkedBy?: (number | null) | User;
+  };
   accountNumberSealed?: string | null;
   ifscSealed?: string | null;
   holderNameSealed?: string | null;
   branchNameSealed?: string | null;
   accountMasked?: string | null;
   ifscMasked?: string | null;
+  bankLocation?: ('india' | 'abroad') | null;
+  bankCountry?: string | null;
+  currency?: string | null;
   bankName?: string | null;
   accountType?: ('savings' | 'current') | null;
   /**
@@ -2198,6 +2211,9 @@ export interface KycRecord {
     pendingBranchNameSealed?: string | null;
     pendingAccountMasked?: string | null;
     pendingIfscMasked?: string | null;
+    pendingBankLocation?: ('india' | 'abroad') | null;
+    pendingBankCountry?: string | null;
+    pendingCurrency?: string | null;
     pendingBankName?: string | null;
     pendingAccountType?: ('savings' | 'current') | null;
     requestedAt?: string | null;
@@ -2234,6 +2250,7 @@ export interface KycDocument {
   kind:
     | 'pan-card'
     | 'masked-aadhaar'
+    | 'passport-page'
     | 'other-id'
     | 'address-proof'
     | 'bank-proof'
@@ -2477,6 +2494,8 @@ export interface SecurityEvent {
     | 'data-request'
     | 'kyc-legal-hold-changed'
     | 'kyc-aadhaar-checked'
+    | 'kyc-identity-checked'
+    | 'kyc-identity-returned'
     | 'portal-approved'
     | 'portal-changes-requested'
     | 'member-email-changed'
@@ -4057,6 +4076,10 @@ export interface KycRecordsSelect<T extends boolean = true> {
   panNameSealed?: T;
   aadhaarLast4Sealed?: T;
   idMasked?: T;
+  passportSealed?: T;
+  passportNameSealed?: T;
+  passportCountry?: T;
+  passportExpiry?: T;
   idChoice?: T;
   otherIdKind?: T;
   aadhaarMasked?: T;
@@ -4071,15 +4094,26 @@ export interface KycRecordsSelect<T extends boolean = true> {
         mode?: T;
       };
   addressOnIdMatches?: T;
+  addressNote?: T;
   identityCode?: T;
   identityCodeIssuedAt?: T;
   identityCodeExpiresAt?: T;
+  identityCheck?:
+    | T
+    | {
+        sentAt?: T;
+        checkedAt?: T;
+        checkedBy?: T;
+      };
   accountNumberSealed?: T;
   ifscSealed?: T;
   holderNameSealed?: T;
   branchNameSealed?: T;
   accountMasked?: T;
   ifscMasked?: T;
+  bankLocation?: T;
+  bankCountry?: T;
+  currency?: T;
   bankName?: T;
   accountType?: T;
   nameMismatch?: T;
@@ -4105,6 +4139,9 @@ export interface KycRecordsSelect<T extends boolean = true> {
         pendingBranchNameSealed?: T;
         pendingAccountMasked?: T;
         pendingIfscMasked?: T;
+        pendingBankLocation?: T;
+        pendingBankCountry?: T;
+        pendingCurrency?: T;
         pendingBankName?: T;
         pendingAccountType?: T;
         requestedAt?: T;

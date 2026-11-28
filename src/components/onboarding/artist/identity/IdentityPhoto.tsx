@@ -20,8 +20,10 @@ import { shrink } from './Upload'
 export const IdentityPhoto: React.FC<{
   /** Whose application: the server checks the code against it */
   type: 'artist' | 'partner'
-  /** The name as on their PAN, as typed now */
+  /** The name as on their PAN or passport, as typed now */
   name: string
+  /** Which document that name is from, as the page calls it: PAN by default */
+  docName?: string
   /** The photo was received: its document, and the name written on its paper */
   onSent: (documentId: number, name: string) => void
   /** Said when it first appears: why an earlier photo was cleared */
@@ -34,7 +36,7 @@ export const IdentityPhoto: React.FC<{
   via?: { code: string; photo: string; fields: Record<string, string> }
   /** Told each new code, for a page that shows it elsewhere too */
   onCode?: (code: string) => void
-}> = ({ type, name: typed, onSent, note = null, error, via, onCode }) => {
+}> = ({ type, name: typed, docName = 'PAN', onSent, note = null, error, via, onCode }) => {
   const name = typed.trim()
   const [code, setCode] = useState<Code | null>(null)
   const [codeBusy, setCodeBusy] = useState(false)
@@ -66,7 +68,7 @@ export const IdentityPhoto: React.FC<{
     setCamera(false)
     if (!code || codeLeft(code) <= 0) {
       return setPhotoNote(
-        'Your code ran out before the photo was taken. Please get a new code and take it again.',
+        'Your code ran out before the photo arrived. Please ask for a new code and take the photo again.',
       )
     }
     setPhoto(blob)
@@ -79,7 +81,8 @@ export const IdentityPhoto: React.FC<{
     } else {
       form.append('kind', 'identity-photo')
       form.append('type', type)
-      form.append('panName', name)
+      form.append('nameOnId', name)
+      form.append('primary', docName === 'passport' ? 'passport' : 'pan')
     }
     form.append('file', body, 'identity-photo.jpg')
     form.append('identityCode', code.code)
@@ -103,7 +106,8 @@ export const IdentityPhoto: React.FC<{
     <>
       {!name ? (
         <p className="muted measure text-base">
-          First, give your name as it is on your PAN, above. It is what you will write on the paper.
+          First, give your name as it is on your {docName}, above. It is what you will write on the
+          paper.
         </p>
       ) : (
         <>
@@ -176,4 +180,4 @@ export const IdentityPhoto: React.FC<{
 
 /** What the form says when a new name clears the photo taken for the old one */
 export const NAME_CHANGED =
-  'Your name has changed, so we have cleared the photo and its code. Please get a new code and take the photo again.'
+  'Your name has changed, so we have cleared the photo and its code. Please ask for a new code and take the photo again.'

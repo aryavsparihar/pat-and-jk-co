@@ -36,7 +36,11 @@ let reviewer: User
 
 const signing = { ip: '198.51.100.7', userAgent: 'test' }
 
-const approvedArtist = async () => {
+/**
+ * An artist as they are when the agreement unlocks: application approved, identity sent and
+ * marked as checked by the team. No member ID yet: signing issues it.
+ */
+const approvedArtist = async ({ checked = true }: { checked?: boolean } = {}) => {
   const { member, application } = await ensureApplication(payload, {
     email: `artist-${crypto.randomUUID().slice(0, 8)}${DOMAIN}`,
     type: 'artist',
@@ -57,12 +61,13 @@ const approvedArtist = async () => {
     reference: application.reference,
     consent: { noticeVersion: 'test', confirmation: 'I AGREE' },
   })
-  const artistId = `AT-${crypto
-    .randomUUID()
-    .replace(/[^A-F0-9]/gi, '')
-    .slice(0, 5)
-    .toUpperCase()}`
-  await execute(payload, sql`UPDATE members SET artist_id = ${artistId} WHERE id = ${member.id}`)
+  await execute(payload, sql`UPDATE applications SET stage = 'approved' WHERE id = ${application.id}`)
+  await execute(payload, sql`UPDATE members SET artist_approved_at = now() WHERE id = ${member.id}`)
+  if (checked)
+    await execute(
+      payload,
+      sql`UPDATE kyc_records SET identity_check_sent_at = now(), identity_check_checked_at = now() WHERE member_id = ${member.id}`,
+    )
   const fresh = (await payload.findByID({
     collection: 'members',
     id: member.id,
@@ -113,27 +118,34 @@ afterAll(async () => {
 })
 
 describe('signing the artist agreement', () => {
-  it('is refused with an ID that is not the member’s own, or for the other agreement', async () => {
-    const member = await approvedArtist()
-    const { value } = await createSession(payload, { memberId: member.id })
-    const ask = (kind: string, id: string) =>
-      readAgreement(
-        new Request(`http://localhost:3000/next/members/agreement?kind=${kind}&id=${id}`, {
+  it('is refused until the team has checked who they are, and for the other agreement', async () => {
+    const ask = async (member: Member, kind: string) => {
+      const { value } = await createSession(payload, { memberId: member.id })
+      return readAgreement(
+        new Request(`http://localhost:3000/next/members/agreement?kind=${kind}`, {
           headers: { cookie: `${MEMBER_COOKIE}=${encodeURIComponent(value)}` },
         }),
       )
-    expect((await ask('artist', 'AT-ZZZZZ')).status).toBe(403)
-    expect((await ask('partner', member.artistId!)).status).toBe(403)
-    const ok = await ask('artist', member.artistId!.toLowerCase())
+    }
+    const waiting = await approvedArtist({ checked: false })
+    const unchecked = await ask(waiting, 'artist')
+    expect(unchecked.status).toBe(403)
+    expect(((await unchecked.json()) as { message: string }).message).toMatch(/checked who you are/)
+
+    const member = await approvedArtist()
+    expect((await ask(member, 'partner')).status).toBe(403)
+    const ok = await ask(member, 'artist')
     expect(ok.status).toBe(200)
     const body = await ok.json()
     expect(body.state).toBe('not-started')
     expect(body.signer).toMatchObject({
       name: FAKE.panName,
-      memberCode: member.artistId,
       phone: '+91 98765 43210',
       address: '7 Example Lane, Kathua, 184101',
     })
+    // The member ID is issued when they sign, not before
+    expect(body.signer.memberCode || null).toBeNull()
+    expect(member.artistId ?? null).toBeNull()
     // The page shows the PAN's mask, never the PAN
     expect(JSON.stringify(body)).not.toContain(FAKE.pan)
   })
@@ -181,6 +193,14 @@ describe('signing the artist agreement', () => {
     await expect(sign({ typed: 'i agree' })).rejects.toThrow(/I AGREE/)
     const signed = await sign()
     expect(signed.signedAtIst).toMatch(/IST$/)
+    // Signing issues the artist's member ID
+    expect(signed.memberId).toMatch(/^AT-[A-Z0-9]{5}$/)
+    const signedMember = (await payload.findByID({
+      collection: 'members',
+      id: member.id,
+      overrideAccess: true,
+    })) as Member
+    expect(signedMember.artistId).toBe(signed.memberId)
     // Once signed, it cannot be signed again or given a new code
     await expect(sign()).rejects.toThrow(/already signed/)
     await expect(issueAgreementCode(payload, member, ARTIST_AGREEMENT)).rejects.toThrow(
@@ -197,7 +217,7 @@ describe('signing the artist agreement', () => {
     ).docs[0] as AgreementExecution
     expect(execution).toMatchObject({
       state: 'pending-countersignature',
-      memberCode: member.artistId,
+      memberCode: signed.memberId,
       version: ARTIST_AGREEMENT.version,
       verificationCode: second.code,
       typed: 'I AGREE',
