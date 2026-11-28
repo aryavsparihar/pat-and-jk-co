@@ -63,6 +63,8 @@ const ROUTES: Record<string, 'public' | 'member' | 'staff' | 'secret' | 'token'>
   '/account/profile': 'member',
   '/account/works': 'member',
   '/account/payouts': 'member',
+  // Confirm who you are, after approval
+  '/account/verify': 'member',
   // Reached from the "This was not me" link in an email; the token in the link is the key
   '/account/bank-change/cancel': 'token',
   '/admin/[[...segments]]': 'staff',
@@ -102,6 +104,7 @@ const ROUTES: Record<string, 'public' | 'member' | 'staff' | 'secret' | 'token'>
   '/next/members/sign-out-everywhere': 'member',
   '/next/members/kyc/bank-change/cancel': 'token',
   '/next/members/application': 'member',
+  '/next/members/application/delete-draft': 'member',
   '/next/members/application/partner': 'member',
   '/next/members/application/reapply': 'member',
   '/next/members/application/start': 'member',
@@ -187,6 +190,8 @@ const ACTIONS: { path: string; who: 'staff' | 'kyc' }[] = [
   { path: '/api/kyc-records/999999999/request-payout-details', who: 'kyc' },
   { path: '/api/kyc-records/999999999/record-withdrawal', who: 'kyc' },
   { path: '/api/kyc-records/999999999/legal-hold', who: 'kyc' },
+  { path: '/api/kyc-records/999999999/identity-checked', who: 'kyc' },
+  { path: '/api/kyc-records/999999999/identity-returned', who: 'kyc' },
   { path: '/api/kyc-documents/999999999/download', who: 'kyc' },
   { path: '/api/agreement-executions/999999999/download', who: 'kyc' },
   { path: '/api/agreement-executions/999999999/countersign', who: 'kyc' },
@@ -300,6 +305,7 @@ test('account pages are for the signed-in member only, typed straight in or not'
     '/account/profile',
     '/account/works',
     '/account/payouts',
+    '/account/verify',
   ]) {
     for (const who of ['anonymous', 'expired', 'editor', 'admin'] as const) {
       const response = await call('GET', url, who)

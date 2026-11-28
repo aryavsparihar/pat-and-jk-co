@@ -1,13 +1,9 @@
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
-
 import { expect, test } from '@playwright/test'
 import sharp from 'sharp'
 
 import {
   CODE,
   cleanUp,
-  fillEarlySteps,
   findMember,
   knowCode,
   openApplications,
@@ -20,8 +16,8 @@ import {
 
 /*
  * Applying, as a person would, in a real browser: an artist through the five steps (stopping
- * halfway and coming back), a partner, and signing in again with a code. The identity paths move
- * with identity itself to after approval (the overhaul's Stage 6), and are tested there.
+ * halfway and coming back), a partner, and signing in again with a code. Identity comes after
+ * approval, on its own page (verify.e2e.spec.ts).
  */
 
 let restore: () => Promise<void>
@@ -40,58 +36,6 @@ const picture = (i: number) =>
   })
     .jpeg()
     .toBuffer()
-
-type Page = import('@playwright/test').Page
-
-/** A photo of the PAN card: any picture will do in a test */
-const uploadPanCard = async (page: Page) => {
-  await page.locator('#field-documents-pan-card').setInputFiles({
-    name: 'pan-card.jpg',
-    mimeType: 'image/jpeg',
-    buffer: await picture(3),
-  })
-  await expect(page.getByRole('img', { name: 'Preview: PAN card' })).toBeVisible()
-}
-
-/**
- * The photo of the applicant holding their code, name and date of birth: the code is given for
- * ten minutes; a browser in a test has no camera, so the photo is uploaded
- */
-const uploadIdentityPhoto = async (page: Page) => {
-  await page.getByRole('button', { name: 'Show my code' }).click()
-  await expect(page.getByText(/^[2-9A-Z]{3}-[2-9A-Z]{3}$/)).toBeVisible()
-  await expect(page.getByText(/^Valid for \d:\d\d$/)).toBeVisible()
-  await page.locator('#identity-photo-file').setInputFiles({
-    name: 'me-holding-the-code.jpg',
-    mimeType: 'image/jpeg',
-    buffer: await picture(4),
-  })
-  await expect(page.getByRole('img', { name: 'Preview: the photo of you' })).toBeVisible()
-  // The preview shows at once; the photo has reached the server only when it says so
-  await expect(
-    page.locator('#field-documents-identity-photo').getByText('Received, and encrypted.'),
-  ).toBeVisible()
-}
-
-/** Consent: the policy opens in a dialog, is read to the end, confirmed, and I AGREE typed */
-const agreeToPrivacy = async (page: Page) => {
-  await expect(page.getByRole('button', { name: 'Save and continue' })).toBeDisabled()
-  // Ticking opens the policy; the box is ticked only once they have agreed
-  await page.getByLabel(/I agree to PAT & J\.K\. Co\. processing/).click()
-  const dialog = page.getByRole('dialog', { name: 'Privacy policy' })
-  await expect(dialog).toBeVisible()
-  await expect(dialog.getByRole('button', { name: 'Agree' })).toBeDisabled()
-  await dialog
-    .getByRole('region', { name: 'The privacy policy' })
-    .evaluate((el) => el.scrollTo({ top: el.scrollHeight }))
-  await dialog.getByLabel('I have read the privacy policy to the end.').check()
-  await dialog.getByLabel('Type I AGREE to confirm').fill('i agree')
-  await expect(dialog.getByRole('button', { name: 'Agree' })).toBeDisabled()
-  await dialog.getByLabel('Type I AGREE to confirm').fill('I AGREE')
-  await dialog.getByRole('button', { name: 'Agree' }).click()
-  await expect(dialog).toBeHidden()
-  await expect(page.getByLabel(/I agree to PAT & J\.K\. Co\. processing/)).toBeChecked()
-}
 
 test('an artist applies step by step, stops halfway, and comes back', async ({ page, context }) => {
   const email = uniqueEmail('artist')
@@ -216,65 +160,6 @@ test('an artist applies step by step, stops halfway, and comes back', async ({ p
   expect(application.portfolio?.[2]).toMatchObject({ unit: 'in', width: 60.5, widthCm: 153.67 })
   expect(application.about?.consentProcessing).toBe(true)
   expect(application.declarations?.notCopy).toBe(true)
-})
-
-// Identity is asked for after approval now; Stage 6 of the overhaul moves this test to that page
-test.fixme('PAN is required, and a masked e-Aadhaar goes through the check', async ({ page }) => {
-  const email = uniqueEmail('aadhaar')
-  await page.goto('/collaborate/artists')
-  await signInWithCode(page, email)
-  await expect(page.getByRole('heading', { name: 'About you' })).toBeVisible()
-  await fillEarlySteps(page)
-  await page.reload()
-  await expect(page.getByRole('heading', { name: 'Identity', exact: true })).toBeVisible()
-
-  // Without a PAN, nothing is saved
-  await agreeToPrivacy(page)
-  await page.getByRole('button', { name: 'Save and continue' }).click()
-  await expect(page.getByText('A PAN is ten characters', { exact: false }).first()).toBeVisible()
-
-  // The masked e-Aadhaar path, with a made-up signed PDF and its password
-  await page.getByLabel('PAN', { exact: true }).fill('ABCPE1234F')
-  await page.getByLabel('Name as on your PAN').fill('Asha Example')
-  await uploadPanCard(page)
-  await page
-    .locator('#field-documents-masked-aadhaar')
-    .setInputFiles(
-      path.resolve(
-        path.dirname(fileURLToPath(import.meta.url)),
-        '../fixtures/eaadhaar/masked-signed.pdf',
-      ),
-    )
-  // The PDF has a password: no preview until it is typed
-  await expect(
-    page
-      .getByText(/This PDF has a password/)
-      .or(page.getByRole('img', { name: /Preview of the first page: Masked e-Aadhaar/ })),
-  ).toBeVisible()
-  await page.getByLabel('Last four digits of your Aadhaar').fill('4821')
-  await page.getByLabel('The PDF’s password').fill('ASHA1990')
-  await uploadIdentityPhoto(page)
-  await page.getByLabel('Yes', { exact: true }).check()
-  await page.getByRole('button', { name: 'Save and continue' }).click()
-  await expect(page.getByRole('heading', { name: 'Review and send' })).toBeVisible()
-  await expect(page.getByText('XXXX XXXX 4821')).toBeVisible()
-
-  // The check ran and recorded a result for staff; the made-up chain is not India's
-  const member = await findMember(email)
-  await expect
-    .poll(async () => {
-      const record = (
-        await (
-          await payload()
-        ).find({
-          collection: 'kyc-records',
-          where: { member: { equals: member.id } },
-          overrideAccess: true,
-        })
-      ).docs[0]
-      return record?.aadhaarCheck?.result
-    })
-    .toBe('not-verified')
 })
 
 test('a trade partner applies in one go, with no identity documents', async ({ page }) => {
