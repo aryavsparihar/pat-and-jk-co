@@ -25,6 +25,8 @@ const text = (max: number, message: string) =>
 
 export const KYC_DOCUMENT_KINDS = [
   'pan-card',
+  // Outside India: the passport's photo page, in place of the PAN card
+  'passport-page',
   'masked-aadhaar',
   'other-id',
   'address-proof',

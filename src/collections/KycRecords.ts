@@ -116,12 +116,13 @@ export const KycRecords: CollectionConfig = {
     sealed('wrappedKey'),
 
     {
-      // Always "pan" now that every artist gives a PAN; kept for records saved before
+      // A PAN in India, a passport anywhere else (founder's brief of 25 November 2026)
       name: 'idType',
       label: 'Identity document',
       type: 'select',
       options: [
         { label: 'PAN', value: 'pan' },
+        { label: 'Passport', value: 'passport' },
         { label: 'Aadhaar (last four digits)', value: 'aadhaar' },
       ],
       access: { create: nobody, update: nobody },
@@ -130,7 +131,29 @@ export const KycRecords: CollectionConfig = {
     sealed('panSealed'),
     sealed('panNameSealed'),
     sealed('aadhaarLast4Sealed'),
-    masked('idMasked', 'PAN'),
+    masked('idMasked', 'PAN or passport'),
+    // A passport: the number and the name on it sealed; the country and expiry, which say nothing
+    // on their own, kept plain for the team to read
+    sealed('passportSealed'),
+    sealed('passportNameSealed'),
+    {
+      name: 'passportCountry',
+      label: 'Passport issued by',
+      type: 'text',
+      access: { create: nobody, update: nobody },
+      admin: { readOnly: true, condition: (data) => data?.idType === 'passport' },
+    },
+    {
+      name: 'passportExpiry',
+      label: 'Passport valid until',
+      type: 'date',
+      access: { create: nobody, update: nobody },
+      admin: {
+        readOnly: true,
+        condition: (data) => data?.idType === 'passport',
+        date: { pickerAppearance: 'dayOnly', displayFormat: 'd MMMM yyyy' },
+      },
+    },
     {
       name: 'idChoice',
       label: 'Second identity document',
@@ -150,6 +173,7 @@ export const KycRecords: CollectionConfig = {
         { label: 'Passport', value: 'passport' },
         { label: 'Voter ID', value: 'voter-id' },
         { label: 'Driving licence', value: 'driving-licence' },
+        { label: 'National identity card or residence permit', value: 'national-id' },
       ],
       access: { create: nobody, update: nobody },
       admin: { readOnly: true, condition: (data) => data?.idChoice === 'other' },
@@ -187,6 +211,14 @@ export const KycRecords: CollectionConfig = {
       admin: { readOnly: true },
     },
     {
+      // When it does not: why, in their own words ("I have moved"), beside the proof of address
+      name: 'addressNote',
+      label: 'Why the address differs',
+      type: 'textarea',
+      access: { create: nobody, update: nobody },
+      admin: { readOnly: true, condition: (data) => data?.addressOnIdMatches === false },
+    },
+    {
       name: 'identityCode',
       label: 'Code on the identity photo',
       type: 'text',
@@ -210,6 +242,20 @@ export const KycRecords: CollectionConfig = {
       type: 'date',
       access: { create: nobody, update: nobody },
       admin: { readOnly: true, date: { pickerAppearance: 'dayAndTime' } },
+    },
+
+    {
+      // The team's check of who this is, after approval: it unlocks the agreement (src/kyc/check.ts)
+      name: 'identityCheck',
+      label: 'Identity check',
+      type: 'group',
+      access: { create: nobody, update: nobody },
+      admin: { readOnly: true },
+      fields: [
+        { name: 'sentAt', label: 'Sent for checking', type: 'date' },
+        { name: 'checkedAt', label: 'Checked', type: 'date' },
+        { name: 'checkedBy', label: 'Checked by', type: 'relationship', relationTo: 'users' },
+      ],
     },
 
     ...bankFields(''),
@@ -359,6 +405,54 @@ export const KycRecords: CollectionConfig = {
     },
   ],
   endpoints: [
+    {
+      // POST /api/kyc-records/:id/identity-checked. KYC reviewers only; logged. Unlocks the
+      // agreement and emails the member that it is ready to sign
+      path: '/:id/identity-checked',
+      method: 'post',
+      handler: async (req) => {
+        if (!isKycReviewer(req.user)) return refuse(req, 'Not allowed.')
+        const { markIdentityChecked } = await import('../kyc/check')
+        const { KycError } = await import('../kyc/service')
+        try {
+          const { emailed } = await markIdentityChecked(req.payload, {
+            recordId: Number(req.routeParams?.id),
+            actor: req.user,
+          })
+          return Response.json({ ok: true, emailed }, { headers: { 'Cache-Control': 'no-store' } })
+        } catch (error) {
+          if (error instanceof KycError)
+            return Response.json({ message: error.message }, { status: error.status })
+          req.payload.logger.error({ err: error, msg: 'Marking identity as checked failed' })
+          return Response.json({ message: 'That could not be saved.' }, { status: 500 })
+        }
+      },
+    },
+    {
+      // POST /api/kyc-records/:id/identity-returned { note }. KYC reviewers only; logged. The
+      // member is emailed the note and may send their details again
+      path: '/:id/identity-returned',
+      method: 'post',
+      handler: async (req) => {
+        if (!isKycReviewer(req.user)) return refuse(req, 'Not allowed.')
+        const { returnIdentity } = await import('../kyc/check')
+        const { KycError } = await import('../kyc/service')
+        const body = (await req.json?.().catch(() => ({}))) as { note?: string }
+        try {
+          const { emailed } = await returnIdentity(req.payload, {
+            recordId: Number(req.routeParams?.id),
+            actor: req.user,
+            note: body?.note,
+          })
+          return Response.json({ ok: true, emailed }, { headers: { 'Cache-Control': 'no-store' } })
+        } catch (error) {
+          if (error instanceof KycError)
+            return Response.json({ message: error.message }, { status: error.status })
+          req.payload.logger.error({ err: error, msg: 'Sending identity back failed' })
+          return Response.json({ message: 'That could not be saved.' }, { status: 500 })
+        }
+      },
+    },
     {
       // POST /api/kyc-records/:id/reveal  { reason }. KYC reviewers only; logged with the reason
       path: '/:id/reveal',
