@@ -25,7 +25,7 @@ import type { User } from '@/payload-types'
 import { execute } from '@/utilities/sql'
 
 import { openApplicationsForTests } from '../helpers/applicationsOpen'
-import { goodPartnerKyc, identityPhotos, removeKycFor } from '../helpers/kyc'
+import { identityPhotos, removeKycFor } from '../helpers/kyc'
 import {
   ARTIST_DECLARATIONS,
   ARTIST_NOTICE_CHECKBOX,
@@ -579,15 +579,15 @@ describe('applying again after a decline', () => {
 })
 
 describe('a partner application', () => {
-  const consent = { checked: true, readToEnd: true, typed: 'I AGREE' }
+  const consent = { checked: true, typed: 'I AGREE' }
 
   const partner = {
-    category: 'placement',
     subType: 'Interior designer',
     fullName: 'Ravi Example',
     organisation: 'Example Interiors',
     role: 'Principal',
     phone: '+91 98765 43210',
+    country: 'India',
     city: 'Jammu',
     state: 'Jammu and Kashmir',
     website: 'https://example.com',
@@ -612,8 +612,8 @@ describe('a partner application', () => {
 
     const sent = await call(savePartner, cookie, {
       data: partner,
-      kyc: goodPartnerKyc(await identityPhotos(payload, member, { dateOfBirth: '' })),
       consent,
+      accurate: true,
       formToken: createFormToken(Date.now() - 30_000),
     })
     expect(sent.status).toBe(200)

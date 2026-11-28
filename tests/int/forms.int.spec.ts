@@ -5,6 +5,7 @@ import {
   addressStepSchema,
   fieldErrors,
   partnerSchema,
+  TRADE_ROLES,
   portfolioSchema,
   portfolioWorkSchema,
   practiceSchema,
@@ -448,40 +449,44 @@ describe('step schemas', () => {
     expect(portfolioSchema.safeParse({ works: Array(11).fill(work) }).success).toBe(false)
   })
 
-  it('check a partner GSTIN only when one is given', () => {
+  it('check a trade GSTIN only when one is given, and only in India', () => {
     const partner = {
-      category: 'placement',
       subType: 'Interior designer',
       fullName: 'Ravi Example',
       role: 'Principal',
       phone: '+91 98765 43210',
+      country: 'India',
       city: 'Jammu',
       state: 'Jammu and Kashmir',
       interest: 'Placing original work in residential projects.',
-      message: 'We design homes in Jammu and would like to source art locally.',
     }
     expect(partnerSchema.safeParse(partner).success).toBe(true)
     expect(partnerSchema.safeParse({ ...partner, gstin: '27AAPFU0939F1ZW' }).success).toBe(false)
     expect(partnerSchema.safeParse({ ...partner, subType: 'Gallery' }).success).toBe(false)
+    const abroad = { ...partner, country: 'France', state: '', phone: '+33 6 12 34 56 78' }
+    expect(partnerSchema.safeParse({ ...abroad, gstin: 'FR 40 303 265 045' }).success).toBe(true)
+    expect(partnerSchema.safeParse({ ...abroad, gstin: '#####' }).success).toBe(false)
   })
 
-  it('offer art dealers and art consultants among curators and among partners', () => {
+  it('offer the nine trade roles of the design', () => {
     const partner = {
-      category: 'placement',
-      subType: 'Art dealer / art consultant',
+      subType: 'Curator buying for clients',
       fullName: 'Meera Example',
       role: 'Art consultant',
       phone: '+91 98765 43210',
+      country: 'India',
       city: 'Jammu',
       state: 'Jammu and Kashmir',
       interest: 'Finding original work for collectors I advise.',
-      message: 'I advise private collectors in Jammu and Delhi on contemporary work.',
     }
-    expect(partnerSchema.safeParse(partner).success).toBe(true)
-    expect(partnerSchema.safeParse({ ...partner, category: 'partnership' }).success).toBe(true)
-    expect(partnerSchema.safeParse({ ...partner, category: 'design-technology' }).success).toBe(
-      false,
-    )
+    expect(TRADE_ROLES).toHaveLength(9)
+    for (const subType of TRADE_ROLES)
+      expect(partnerSchema.safeParse({ ...partner, subType }).success).toBe(true)
+    expect(
+      partnerSchema.safeParse({ ...partner, subType: 'Art dealer / art consultant' }).success,
+    ).toBe(false)
+    // The state comes from India's list
+    expect(partnerSchema.safeParse({ ...partner, state: 'Kashmir' }).success).toBe(false)
   })
 })
 
