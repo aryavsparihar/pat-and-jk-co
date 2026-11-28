@@ -284,12 +284,14 @@ describe('saving the KYC step', () => {
     const response = await call(saveKycStep, cookie, kycFor(cookie))
     expect(response.status).toBe(200)
     const body = (await response.json()) as {
-      kyc: { panMasked: string; bank: unknown }
-      completedSteps: string[]
+      kyc: { panMasked: string; bank: unknown; sentAt: string | null }
+      sent: boolean
     }
     expect(body.kyc.panMasked).toBe('ABCxxxxx4F')
     expect(body.kyc.bank).toBeNull()
-    expect(body.completedSteps).toContain('kyc')
+    // Sent for the team to check
+    expect(body.sent).toBe(true)
+    expect(body.kyc.sentAt).toBeTruthy()
     expect(JSON.stringify(body)).not.toContain(FAKE.pan)
 
     // What a stolen database dump would show
@@ -313,12 +315,14 @@ describe('saving the KYC step', () => {
     expect(seen).toContain('ABCxxxxx4F')
     expect(seen).not.toMatch(/Sealed|wrappedKey|panIndex|accountIndex/)
 
+    // Identity is no longer a step of the application, which stays as it was sent
     const stored = await payload.findByID({
       collection: 'applications',
       id: application.id,
       overrideAccess: true,
     })
-    expect(stored.completedSteps).toContain('kyc')
+    expect(stored.stage).toBe('approved')
+    expect(stored.completedSteps ?? []).not.toContain('kyc')
   })
 
   it('takes no bank details with the application, even if they are sent', async () => {
@@ -348,8 +352,8 @@ describe('saving the KYC step', () => {
         `documents.${kind}`,
       )
     }
-    // Consent must come with the policy read to its end and I AGREE typed out, in capitals
-    for (const change of [{ consentTyped: 'i agree' }, { consentReadToEnd: false }]) {
+    // Consent must come with the box ticked and I AGREE typed out, in capitals
+    for (const change of [{ consentTyped: 'i agree' }, { consent: false }]) {
       const refused = await call(saveKycStep, cookie, { ...kycFor(cookie), ...change })
       expect(refused.status).toBe(422)
     }
@@ -476,13 +480,10 @@ describe('saving the KYC step', () => {
     expect(aadhaarErrors).toHaveProperty(['documents.masked-aadhaar'])
     expect(aadhaarErrors).toHaveProperty(['aadhaarLast4'])
 
-    const other = await call(saveKycStep, cookie, {
-      ...goodKyc(photoOf(cookie)),
-      otherIdKind: undefined,
-    })
+    // A passport, voter ID or driving licence: which one is for the team to see, not to ask
+    const other = await call(saveKycStep, cookie, goodKyc(photoOf(cookie)))
     const otherErrors = ((await other.json()) as { errors: Record<string, string> }).errors
     expect(otherErrors).toHaveProperty(['documents.other-id'])
-    expect(otherErrors).toHaveProperty(['otherIdKind'])
   })
 
   it('takes another ID as an equal choice, for staff to check by hand', async () => {
@@ -490,9 +491,11 @@ describe('saving the KYC step', () => {
     const response = await call(saveKycStep, cookie, kycFor(cookie))
     expect(response.status).toBe(200)
     const { kyc } = (await response.json()) as {
-      kyc: { idChoice: string; otherIdKind: string; aadhaarMasked: string | null }
+      kyc: { aadhaarMasked: string | null; otherIdKind: string | null }
     }
-    expect(kyc).toMatchObject({ idChoice: 'other', otherIdKind: 'passport', aadhaarMasked: null })
+    expect(kyc).toMatchObject({ aadhaarMasked: null, otherIdKind: null })
+    const record = await recordOf(member.id)
+    expect(record.idChoice).toBe('other')
     expect((await recordOf(member.id)).aadhaarCheck?.result ?? null).toBeNull()
   })
 
@@ -683,12 +686,12 @@ describe('identity documents', () => {
     const other = await artist()
     const pdf = Buffer.from('%PDF-1.7\n% a made-up document\n%%EOF\n')
     const { document } = (await (
-      await upload(owner.cookie, 'bank-proof', pdf, 'cheque.pdf', 'application/pdf')
+      await upload(owner.cookie, 'other-id', pdf, 'passport.pdf', 'application/pdf')
     ).json()) as { document: { id: number } }
     const response = await call(
       saveKycStep,
       other.cookie,
-      kycFor(other.cookie, { 'bank-proof': document.id }),
+      kycFor(other.cookie, { 'other-id': document.id }),
     )
     expect(response.status).toBeGreaterThanOrEqual(400)
   })
@@ -960,7 +963,9 @@ describe('retention and keys', () => {
     )
     await execute(
       payload,
-      sql`UPDATE applications SET updated_at = ${new Date(Date.now() - 86_400_000 * 200).toISOString()} WHERE id = ${stale.application.id}`,
+      // Identity left on an application that never went further: from before identity came after
+      // approval, or one sent back to a draft
+      sql`UPDATE applications SET stage = 'draft', updated_at = ${new Date(Date.now() - 86_400_000 * 200).toISOString()} WHERE id = ${stale.application.id}`,
     )
 
     const { members } = await kycPurgeCandidates(payload)
