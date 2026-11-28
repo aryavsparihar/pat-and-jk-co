@@ -45,10 +45,12 @@ const call = (handler: (r: Request) => Promise<Response>, cookie: string, body?:
     }),
   )
 
-/** An artist signed in `minutesAgo` minutes ago */
+/** An approved artist signed in `minutesAgo` minutes ago */
 const artist = async (minutesAgo: number) => {
   const email = `artist-${Math.random().toString(36).slice(2, 10)}${DOMAIN}`
-  const { member } = await ensureApplication(payload, { email, type: 'artist' })
+  const { member, application } = await ensureApplication(payload, { email, type: 'artist' })
+  // Approved, so that the identity code is theirs to ask for
+  await execute(payload, sql`UPDATE applications SET stage = 'approved' WHERE id = ${application.id}`)
   const { value, sid } = await createSession(payload, { memberId: member.id })
   await execute(
     payload,
