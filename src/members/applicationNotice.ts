@@ -56,3 +56,37 @@ export const artistNoticeText = (): string =>
     ...Object.values(ARTIST_DECLARATIONS),
     'To confirm, type I AGREE',
   ].join('\n\n')
+
+/**
+ * The trade form's own notice and statement (the ApplyPartner design): agreed to at the top of the
+ * form, with I AGREE typed, and the details confirmed as true at the end.
+ */
+export const TRADE_NOTICE_VERSION = '2026-11-25'
+
+export const TRADE_NOTICE: { term: string; text: string }[] = [
+  {
+    term: 'What we ask for',
+    text: 'Your name, role, firm, phone number, country and city, your GSTIN (or, outside India, a company registration or VAT number) if you have one, and details of your practice.',
+  },
+  {
+    term: 'Why',
+    text: 'To consider your application for a trade account, and to write to you about it.',
+  },
+  {
+    term: 'Who sees it',
+    text: 'Only the few people at PAT & J.K. Co. who review applications. We never sell it.',
+  },
+  ARTIST_NOTICE[3]!,
+  ARTIST_NOTICE[4]!,
+]
+
+export const TRADE_ACCURATE = 'The details I have given are true and complete.'
+
+export const tradeNoticeText = (): string =>
+  [
+    ARTIST_NOTICE_HEADING,
+    ...TRADE_NOTICE.map(({ term, text }) => `${term}: ${text}`),
+    ARTIST_NOTICE_CHECKBOX,
+    'To confirm, type I AGREE',
+    TRADE_ACCURATE,
+  ].join('\n\n')
