@@ -10,6 +10,7 @@ import { POST as signOutEverywhere } from '@/app/(frontend)/next/members/sign-ou
 import { POST as verifyCode } from '@/app/(frontend)/next/members/verify-code/route'
 import { ensureApplication } from '@/members/accounts'
 import { decideApplication } from '@/members/decide'
+import { issueMemberId } from '@/members/issueId'
 import { createFormToken } from '@/members/formToken'
 import {
   APPLICATION_REFERENCE_PATTERN,
@@ -22,7 +23,7 @@ import { checkChallenge, issueChallenge } from '@/security/challenges'
 import { MEMBER_COOKIE, OTP_MAX_ATTEMPTS } from '@/security/constants'
 import { createSession, readSession } from '@/security/memberSession'
 import { hashOtp } from '@/security/otp'
-import type { User } from '@/payload-types'
+import type { Member, User } from '@/payload-types'
 import { execute } from '@/utilities/sql'
 
 import { openApplicationsForTests } from '../helpers/applicationsOpen'
@@ -570,10 +571,9 @@ describe('approval and member IDs', () => {
     return { member, application }
   }
 
-  it('issues an ID only on approval, from the right sequence', async () => {
+  it('issues no ID on approval; signing issues one of the right kind', async () => {
     const artist = await submitted('artist')
     const partner = await submitted('partner')
-    expect(artist.member.artistId ?? null).toBeNull()
 
     const a = await decideApplication(payload, {
       applicationId: artist.application.id,
@@ -585,26 +585,34 @@ describe('approval and member IDs', () => {
       decision: 'approve',
       actor: staff,
     })
-    expect(a.member.artistId).toMatch(/^AT-[2-9A-Z]{5}$/)
-    expect(a.member.partnerId ?? null).toBeNull()
-    expect(p.member.partnerId).toMatch(/^PT-[2-9A-Z]{5}$/)
-    expect(p.member.artistId ?? null).toBeNull()
+    // Approved, but the member ID waits for the signed agreement
     expect(a.application.stage).toBe('approved')
-    expect(a.application.issuedId).toBe(a.member.artistId)
+    expect(a.member.artistApprovedAt).toBeTruthy()
+    expect(a.member.artistId ?? null).toBeNull()
+    expect(a.application.issuedId ?? null).toBeNull()
+    expect(p.member.partnerId ?? null).toBeNull()
+
+    const signedArtist = await issueMemberId(payload, a.member, 'artist', {
+      reference: a.application.reference,
+    })
+    const signedPartner = await issueMemberId(payload, p.member, 'partner', {
+      reference: p.application.reference,
+    })
+    expect(signedArtist.id).toMatch(/^AT-[2-9A-Z]{5}$/)
+    expect(signedArtist.member.partnerId ?? null).toBeNull()
+    expect(signedPartner.id).toMatch(/^PT-[2-9A-Z]{5}$/)
+    expect(signedPartner.member.artistId ?? null).toBeNull()
+    // Asking again keeps the ID already issued
+    const again = await issueMemberId(payload, signedArtist.member, 'artist')
+    expect(again).toMatchObject({ id: signedArtist.id, issued: false })
   })
 
-  it('gives every approval its own ID when many happen at once', async () => {
+  it('gives every signer their own ID when many sign at once', async () => {
     const applicants = await Promise.all(Array.from({ length: 12 }, () => submitted('artist')))
     const results = await Promise.all(
-      applicants.map(({ application }) =>
-        decideApplication(payload, {
-          applicationId: application.id,
-          decision: 'approve',
-          actor: staff,
-        }),
-      ),
+      applicants.map(({ member }) => issueMemberId(payload, member as Member, 'artist')),
     )
-    const ids = results.map((r) => r.member.artistId!)
+    const ids = results.map((r) => r.id)
     expect(new Set(ids).size).toBe(12)
     for (const id of ids) expect(id).toMatch(MEMBER_ID_PATTERN)
   })
@@ -636,11 +644,12 @@ describe('approval and member IDs', () => {
 
   it('never lets a member ID change once issued', async () => {
     const { application } = await submitted('artist')
-    const { member } = await decideApplication(payload, {
+    const decided = await decideApplication(payload, {
       applicationId: application.id,
       decision: 'approve',
       actor: staff,
     })
+    const { member } = await issueMemberId(payload, decided.member, 'artist')
     await expect(
       payload.update({
         collection: 'members',
@@ -649,7 +658,7 @@ describe('approval and member IDs', () => {
         overrideAccess: true,
       }),
     ).rejects.toThrow(/cannot be set or changed/)
-    // Nor can the empty slot be filled by hand, even by the server outside an approval
+    // Nor can the empty slot be filled by hand, even by the server outside a signing
     await expect(
       payload.update({
         collection: 'members',
@@ -694,11 +703,13 @@ describe('approval and member IDs', () => {
   it('lets one person be both an artist and a partner, under one sign-in', async () => {
     const email = unique('both')
     const artist = await submitted('artist', email)
-    const { member: asArtist } = await decideApplication(payload, {
+    const decided = await decideApplication(payload, {
       applicationId: artist.application.id,
       decision: 'approve',
       actor: staff,
     })
+    // Signed the artist agreement
+    const { member: asArtist } = await issueMemberId(payload, decided.member, 'artist')
 
     // The same person applies as a partner through the real endpoints, signed in as themselves
     const ip = nextIp()
@@ -735,7 +746,12 @@ describe('approval and member IDs', () => {
     })
     expect(both.id).toBe(asArtist.id)
     expect(both.artistId).toBe(asArtist.artistId)
-    expect(both.partnerId).toMatch(/^PT-[2-9A-Z]{5}$/)
+    expect(both.partnerApprovedAt).toBeTruthy()
+    // Their trade partner ID waits for the trade agreement
+    expect(both.partnerId ?? null).toBeNull()
+    const signed = await issueMemberId(payload, both, 'partner')
+    expect(signed.id).toMatch(/^PT-[2-9A-Z]{5}$/)
+    expect(signed.member.artistId).toBe(asArtist.artistId)
 
     // A second application of a kind is never made beside the current one: ensureApplication
     // returns it, and the database refuses a second however it is created
@@ -762,17 +778,25 @@ describe('approval and member IDs', () => {
       decision: 'approve',
       actor: staff,
     })
-    const events = await payload.find({
-      collection: 'security-events',
-      where: { email: { equals: member.email } },
-      overrideAccess: true,
-      depth: 0,
-    })
-    const approvedEvent = events.docs.find((e) => e.event === 'application-approved')!
+    const eventsOf = async () =>
+      (
+        await payload.find({
+          collection: 'security-events',
+          where: { email: { equals: member.email } },
+          overrideAccess: true,
+          depth: 0,
+        })
+      ).docs
+    const approvedEvent = (await eventsOf()).find((e) => e.event === 'application-approved')!
     expect(approvedEvent.actor).toBe(staff.id)
-    expect(approvedEvent.subject).toBe(approved.artistId)
+    expect(approvedEvent.subject).toBe(application.reference)
+    // The member ID, and its record, come with signing
+    expect((await eventsOf()).some((e) => e.event === 'member-id-issued')).toBe(false)
+    const { id } = await issueMemberId(payload, approved, 'artist', {
+      reference: application.reference,
+    })
     expect(
-      events.docs.some((e) => e.event === 'member-id-issued' && e.subject === approved.artistId),
+      (await eventsOf()).some((e) => e.event === 'member-id-issued' && e.subject === id),
     ).toBe(true)
   })
 })
