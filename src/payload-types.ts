@@ -87,6 +87,7 @@ export interface Config {
     'agreement-executions': AgreementExecution;
     'access-requests': AccessRequest;
     'help-tickets': HelpTicket;
+    enquiries: Enquiry;
     'security-events': SecurityEvent;
     'login-challenges': LoginChallenge;
     'rate-limits': RateLimit;
@@ -126,6 +127,7 @@ export interface Config {
     'agreement-executions': AgreementExecutionsSelect<false> | AgreementExecutionsSelect<true>;
     'access-requests': AccessRequestsSelect<false> | AccessRequestsSelect<true>;
     'help-tickets': HelpTicketsSelect<false> | HelpTicketsSelect<true>;
+    enquiries: EnquiriesSelect<false> | EnquiriesSelect<true>;
     'security-events': SecurityEventsSelect<false> | SecurityEventsSelect<true>;
     'login-challenges': LoginChallengesSelect<false> | LoginChallengesSelect<true>;
     'rate-limits': RateLimitsSelect<false> | RateLimitsSelect<true>;
@@ -2253,6 +2255,67 @@ export interface HelpTicket {
   createdAt: string;
 }
 /**
+ * Every message sent from the contact page. Each was also emailed to the inbox shown, so it can be answered with Reply. Once it has been dealt with, set its status to Resolved and save.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "enquiries".
+ */
+export interface Enquiry {
+  id: number;
+  name: string;
+  email: string;
+  topic:
+    | 'general'
+    | 'partnership'
+    | 'working-for-pjk'
+    | 'suppliers'
+    | 'press'
+    | 'visiting'
+    | 'commission'
+    | 'trade-account'
+    | 'represented'
+    | 'guest-curator'
+    | 'curatorial-collection'
+    | 'curatorial-set'
+    | 'account'
+    | 'website'
+    | 'privacy';
+  inbox: 'business' | 'tech' | 'compliance';
+  message: string;
+  /**
+   * Set to Resolved and save once the message has been dealt with.
+   */
+  status: 'receiving' | 'active' | 'resolved';
+  resolvedAt?: string | null;
+  attachments?:
+    | {
+        filename: string;
+        contentType: string;
+        size?: number | null;
+        storageKey: string;
+        keyId: string;
+        wrappedKey: string;
+        id?: string | null;
+      }[]
+    | null;
+  upload?: {
+    tokenHash?: string | null;
+    expiresAt?: string | null;
+    folder?: string | null;
+    files?:
+      | {
+          [k: string]: unknown;
+        }
+      | unknown[]
+      | string
+      | number
+      | boolean
+      | null;
+  };
+  updatedAt: string;
+  createdAt: string;
+}
+/**
  * Every sign-in attempt, access request and decision, staff and members alike; every record added, changed or deleted anywhere on the site, and by whom; changes to staff accounts; and server errors. Read-only. A member’s own entries are also listed on their record.
  *
  * This interface was referenced by `Config`'s JSON-Schema
@@ -2624,6 +2687,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'help-tickets';
         value: number | HelpTicket;
+      } | null)
+    | ({
+        relationTo: 'enquiries';
+        value: number | Enquiry;
       } | null)
     | ({
         relationTo: 'security-events';
@@ -3966,6 +4033,40 @@ export interface HelpTicketsSelect<T extends boolean = true> {
         keyId?: T;
         wrappedKey?: T;
         id?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "enquiries_select".
+ */
+export interface EnquiriesSelect<T extends boolean = true> {
+  name?: T;
+  email?: T;
+  topic?: T;
+  inbox?: T;
+  message?: T;
+  status?: T;
+  resolvedAt?: T;
+  attachments?:
+    | T
+    | {
+        filename?: T;
+        contentType?: T;
+        size?: T;
+        storageKey?: T;
+        keyId?: T;
+        wrappedKey?: T;
+        id?: T;
+      };
+  upload?:
+    | T
+    | {
+        tokenHash?: T;
+        expiresAt?: T;
+        folder?: T;
+        files?: T;
       };
   updatedAt?: T;
   createdAt?: T;
