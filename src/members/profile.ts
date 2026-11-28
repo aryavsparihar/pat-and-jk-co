@@ -7,6 +7,7 @@ import { logSecurityEvent } from '@/security/events'
 import { memberIdsOf } from '../collections/Members'
 import { notifyStaffOfPersonalChange, notifyStaffOfReview, sendReviewDecision } from './emails'
 import type { ContactInput, ProfileInput } from './forms/portal'
+import { INDIA } from '@/forms/country/rules'
 import { actingFor } from '@/security/audit'
 
 /**
@@ -147,13 +148,51 @@ export const saveWorksFolder = async (payload: Payload, member: Member, url: str
 }
 
 /** Contact details change at once: they are never shown to the public */
+/** The country an address is in; an address saved before countries were asked for is Indian */
+const countryOf = (address: Member['contactAddress'] | null | undefined): string | null => {
+  if (!address) return null
+  const written = ['line1', 'line2', 'city', 'postalCode'].some((key) =>
+    String((address as Record<string, unknown>)[key] ?? '').trim(),
+  )
+  return address.country?.trim() || (written ? INDIA : null)
+}
+
+const EMPTY_ADDRESS = Object.fromEntries(
+  [
+    'line1',
+    'line2',
+    'landmark',
+    'city',
+    'district',
+    'state',
+    'postalCode',
+    'country',
+    'latitude',
+    'longitude',
+  ].map((k) => [k, null]),
+)
+
 export const saveContact = async (payload: Payload, member: Member, input: ContactInput) => {
+  const before = countryOf(member.contactAddress)
+  const after =
+    input.contactAddress === undefined ? before : (input.contactAddress?.country ?? null)
+  // A move to another country is flagged for the team: it can change the share and the ID
+  const moved = Boolean(before && after && before !== after)
   const updated = await payload.update({
     collection: 'members',
     id: member.id,
     data: {
       ...(input.phone !== undefined ? { phone: input.phone || null } : {}),
-      ...(input.contactAddress ? { contactAddress: input.contactAddress } : {}),
+      ...(input.contactAddress !== undefined
+        ? {
+            contactAddress: input.contactAddress
+              ? { ...EMPTY_ADDRESS, ...input.contactAddress }
+              : EMPTY_ADDRESS,
+          }
+        : {}),
+      ...(moved
+        ? { countryChange: { from: before, to: after, at: new Date().toISOString() } }
+        : {}),
     } as never,
     overrideAccess: true,
     context: { ...ctx, ...actingFor(member, 'members') },
@@ -164,6 +203,7 @@ export const saveContact = async (payload: Payload, member: Member, input: Conta
     adminPath: `/admin/collections/members/${member.id}`,
     // 33B: they are told too (an email change has its own notice)
     member,
+    ...(moved ? { countryChange: { from: before!, to: after! } } : {}),
   })
   return profileView(updated).contact
 }

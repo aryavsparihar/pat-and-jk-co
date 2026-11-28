@@ -55,11 +55,15 @@ type PinProps = {
   /** The town (or else the district) they typed, so OpenStreetMap's map can start there */
   town?: string
   country?: string
+  /** The heading, its "(optional)" or "(recommended)", and the help, which follow the country */
+  label?: string
+  note?: string
+  help?: string
   onValue: (latitude: number | undefined, longitude: number | undefined) => void
 }
 
 /**
- * "Pin your location on a map": optional, for an address that is hard to follow. Google's map,
+ * "Pin it on a map": optional, or recommended where there are no postal codes. Google's map,
  * with address search, where a key is set (NEXT_PUBLIC_GOOGLE_MAPS_KEY); otherwise, or if Google
  * refuses the key, OpenStreetMap's. Either way nothing loads until the artist asks for the map.
  */
@@ -93,6 +97,9 @@ const OpenStreetMapPin: React.FC<PinProps & { replacingGoogle?: boolean }> = ({
   state,
   town,
   country,
+  label = 'Pin it on a map',
+  note = '(optional)',
+  help = 'Useful when an address is hard to follow. The map loads only if you open it.',
   onValue,
   replacingGoogle = false,
 }) => {
@@ -242,7 +249,9 @@ const OpenStreetMapPin: React.FC<PinProps & { replacingGoogle?: boolean }> = ({
           })
         }
       } catch {
-        setProblem('The map could not load just now. Your address is all we need.')
+        setProblem(
+          'The map could not load just now. Your address is enough for now, and you can add a pin later from your account.',
+        )
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -276,11 +285,11 @@ const OpenStreetMapPin: React.FC<PinProps & { replacingGoogle?: boolean }> = ({
 
   return (
     <div className="border-t border-border pt-8">
-      <p className="label">Pin your location on a map</p>
-      <p className="muted measure mt-1 text-base">
-        Optional. A pin helps us find you when an address is hard to follow. The map is
-        OpenStreetMap&rsquo;s, and it loads only if you open it.
+      <p className="label">
+        {label}
+        <span className="ml-2 normal-case tracking-normal text-muted-foreground">{note}</span>
       </p>
+      <p className="muted measure mt-1 text-base">{help} The map is OpenStreetMap&rsquo;s.</p>
       {!open && (
         <div className="mt-4 flex flex-wrap items-center gap-x-8 gap-y-3">
           <button className="btn btn-outline min-h-11" onClick={() => setOpen(true)} type="button">
@@ -294,11 +303,13 @@ const OpenStreetMapPin: React.FC<PinProps & { replacingGoogle?: boolean }> = ({
             }}
             type="button"
           >
-            Use my location
+            Use my current location
           </button>
           {pinned && (
             <>
-              <span className="text-base">Your pin is placed.</span>
+              <span className="text-base">
+                Your pin is placed. We keep only this point, never your live location.
+              </span>
               <button
                 className="link link-caps min-h-11"
                 onClick={() => onValue(undefined, undefined)}
@@ -329,7 +340,7 @@ const OpenStreetMapPin: React.FC<PinProps & { replacingGoogle?: boolean }> = ({
               onClick={locateMe}
               type="button"
             >
-              {where.busy ? 'Finding you…' : 'Use my location'}
+              {where.busy ? 'Finding you…' : 'Use my current location'}
             </button>
             <span className="muted text-base">
               Your browser asks before it shares your location.
@@ -370,7 +381,7 @@ const OpenStreetMapPin: React.FC<PinProps & { replacingGoogle?: boolean }> = ({
           )}
           <div className="mt-3 flex flex-wrap gap-x-8">
             <button className="link link-caps min-h-11" onClick={close} type="button">
-              Close the map
+              Close
             </button>
             {pinned && (
               <button

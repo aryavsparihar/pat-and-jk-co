@@ -29,8 +29,8 @@ export const useMyLocation = ({ canSearch }: { canSearch: boolean }) => {
   const [fix, setFix] = useState<Fix | null>(null)
   const stopWatching = useRef<(() => void) | null>(null)
   const instead = canSearch
-    ? 'Search for your address instead, or move the pin yourself.'
-    : 'Move the pin to your home yourself instead.'
+    ? 'Search for your address, or move the pin yourself.'
+    : 'Move the pin to your home yourself.'
 
   // Never leave the device watching after the map has gone
   useEffect(() => () => stopWatching.current?.(), [])
@@ -45,7 +45,7 @@ export const useMyLocation = ({ canSearch }: { canSearch: boolean }) => {
       setMessage(null)
       setFix(null)
       if (typeof navigator === 'undefined' || !('geolocation' in navigator)) {
-        setMessage(`This browser cannot share a location. ${instead}`)
+        setMessage(`This browser cannot share your location. ${instead}`)
         return
       }
       setBusy(true)
@@ -93,7 +93,7 @@ export const useMyLocation = ({ canSearch }: { canSearch: boolean }) => {
           stop()
           setMessage(
             error.code === error.PERMISSION_DENIED
-              ? `That is fine; your location stays with you. ${instead}`
+              ? `That is fine: your location stays with you. ${instead}`
               : `We could not find where you are just now. ${instead}`,
           )
         },

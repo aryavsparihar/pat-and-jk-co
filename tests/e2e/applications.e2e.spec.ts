@@ -128,7 +128,7 @@ test('an artist applies step by step, stops halfway, and comes back', async ({ p
 
   // Where you live
   await expect(page.getByRole('heading', { name: 'Where you live' })).toBeVisible()
-  await page.getByLabel('Address line 1').fill('House 1, Example Lane')
+  await page.getByLabel('House or flat, and street').fill('House 1, Example Lane')
   await page.getByLabel('City or town').fill('Kathua')
   await page.getByLabel('District').fill('Kathua')
   await page.getByLabel('State or union territory').selectOption('Jammu and Kashmir')
@@ -417,7 +417,7 @@ test('a save that cannot reach the server says so, and the button comes back', a
   await page.route('**/next/members/application/step', (route) =>
     route.abort('internetdisconnected'),
   )
-  await page.getByLabel('Address line 1').fill('House 1, Example Lane')
+  await page.getByLabel('House or flat, and street').fill('House 1, Example Lane')
   await page.getByLabel('City or town').fill('Kathua')
   await page.getByLabel('District').fill('Kathua')
   await page.getByLabel('State or union territory').selectOption('Jammu and Kashmir')

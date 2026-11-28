@@ -1,8 +1,21 @@
 import { z } from 'zod'
 
 import { PARTNER_CATEGORIES } from '../categories'
-import { STATES_AND_TERRITORIES } from './india'
-import { ageOn, facebookUrl, instagramUrl, isGstin, isPin, isWebUrl, toE164 } from './validators'
+import {
+  ADDRESS_ERRORS,
+  addressRule,
+  INDIA,
+  isCountry,
+  isIndianState,
+  PHONE_ERRORS,
+  postalCodeProblem,
+  regionMissing,
+  splitPhone,
+  tidyPostalCode,
+  toInternational,
+} from '@/forms/country/rules'
+
+import { ageOn, facebookUrl, instagramUrl, isGstin, isWebUrl } from './validators'
 
 /**
  * What each step of the onboarding accepts. The browser uses these for gentle inline hints; the
@@ -37,20 +50,24 @@ const optionalText = (max: number) =>
     .optional()
     .transform((v) => (v ? v : undefined))
 
-const phone = z
-  .string({ error: 'Please add a phone number.' })
+/**
+ * A phone number as the country code picker and the number box send it ("+44 07911 123456"), or
+ * a bare Indian number saved before the picker, as one international number (E.164). The
+ * wording is the founder's, and names the country when the number is too short for it.
+ */
+export const phoneSchema = z
+  .string({ error: PHONE_ERRORS.empty })
   .trim()
   .transform((value, ctx) => {
-    const e164 = toE164(value)
-    if (!e164) {
-      ctx.addIssue({
-        code: 'custom',
-        message:
-          'That number does not look complete. Include the country code if it is not Indian, e.g. +44 20 7946 0000.',
-      })
+    const parts = value.startsWith('+') ? splitPhone(value) : { country: INDIA, number: value }
+    const result = parts
+      ? toInternational(parts.country, parts.number)
+      : ({ ok: false, message: PHONE_ERRORS.code } as const)
+    if (!result.ok) {
+      ctx.addIssue({ code: 'custom', message: result.message })
       return z.NEVER
     }
-    return e164
+    return result.e164
   })
 
 const optionalUrl = z
@@ -102,43 +119,151 @@ export const aboutSchema = z.object({
       'Thank you for thinking of us. We can only work with artists who are 18 or over, and we would be glad to hear from you then.',
     )
     .refine((v) => (ageOn(v) ?? 0) <= 120, 'Please check the year.'),
-  phone,
+  phone: phoneSchema,
   language: z.enum(LANGUAGES, { error: 'Please choose a language.' }),
 })
 
+/** What is left of an optional part of an address: the trimmed text, or nothing */
+const tidyOptional = (value: unknown) =>
+  typeof value === 'string' && value.trim() ? value.trim() : undefined
+
+/**
+ * Checks the parts of an address the country decides: the postal code (its name, whether it is
+ * needed and its format), the district (India only) and the region (a list in India, the
+ * country's own word elsewhere, and none where addresses have none). What the country does not
+ * use is dropped, so nothing from a country chosen earlier is kept by mistake.
+ */
+const countryParts = (
+  value: { country: string; postalCode?: string; district?: string; state?: string },
+  ctx: z.RefinementCtx,
+  { district = true }: { district?: boolean } = {},
+) => {
+  const rule = addressRule(value.country)
+  const out: { postalCode?: string; district?: string; state?: string } = {}
+  if (rule.code) {
+    const problem = postalCodeProblem(value.country, value.postalCode)
+    if (problem) ctx.addIssue({ code: 'custom', path: ['postalCode'], message: problem })
+    out.postalCode = tidyPostalCode(value.postalCode ?? '').slice(0, 12) || undefined
+  }
+  if (district && rule.district) {
+    out.district = tidyOptional(value.district)?.slice(0, 80)
+    if (!out.district) {
+      ctx.addIssue({ code: 'custom', path: ['district'], message: ADDRESS_ERRORS.district })
+    }
+  }
+  if (rule.region) {
+    out.state = tidyOptional(value.state)?.slice(0, 80)
+    if (rule.list && out.state && !isIndianState(out.state)) {
+      ctx.addIssue({ code: 'custom', path: ['state'], message: ADDRESS_ERRORS.stateNotListed })
+    } else if (rule.regionReq && !out.state) {
+      ctx.addIssue({ code: 'custom', path: ['state'], message: regionMissing(value.country) })
+    }
+  }
+  return out
+}
+
+const countryName = z
+  .string({ error: ADDRESS_ERRORS.country })
+  .trim()
+  .refine(isCountry, ADDRESS_ERRORS.country)
+
+/**
+ * A home address, written the way its country writes one (the Apply2 design): the country first,
+ * then the postal code where there is one, the first line, area, landmark, town, the district in
+ * India and the region where the country has one, and an optional map pin.
+ */
+/** Free text an address may hold; required parts are checked with the rest, so all show at once */
+const addressText = z
+  .string()
+  .optional()
+  .transform((v) => v ?? '')
+
+/** A required part of an address: its trimmed text, or the founder's message for it */
+const required = (
+  value: string,
+  max: number,
+  message: string,
+  path: string,
+  ctx: z.RefinementCtx,
+) => {
+  const text = value.trim()
+  if (!text) ctx.addIssue({ code: 'custom', path: [path], message })
+  else if (text.length > max) {
+    ctx.addIssue({
+      code: 'custom',
+      path: [path],
+      message: `Please keep this under ${max} characters.`,
+    })
+  }
+  return text
+}
+
+/** An optional part: its trimmed text, or nothing */
+const optionalPart = (value: string, max: number, path: string, ctx: z.RefinementCtx) => {
+  const text = value.trim()
+  if (text.length > max) {
+    ctx.addIssue({
+      code: 'custom',
+      path: [path],
+      message: `Please keep this under ${max} characters.`,
+    })
+  }
+  return text || undefined
+}
+
+/**
+ * A home address, written the way its country writes one (the Apply2 design): the country first,
+ * then the postal code where there is one, the first line, area, landmark, town, the district in
+ * India and the region where the country has one, and an optional map pin. Every part is checked
+ * together, so the person sees everything that needs another look at once.
+ */
 export const addressSchema = z
   .object({
-    line1: text(120, 'Please add the first line of your address.'),
-    line2: optionalText(120),
-    landmark: optionalText(120),
-    city: text(80, 'Please add your city or town.'),
-    district: text(80, 'Please add your district.'),
-    state: text(80, 'Please choose your state.'),
-    postalCode: text(12, 'Please add your PIN code.'),
-    country: text(60).default('India'),
+    country: countryName.default(INDIA),
+    postalCode: addressText,
+    line1: addressText,
+    line2: addressText,
+    landmark: addressText,
+    city: addressText,
+    district: addressText,
+    state: addressText,
     latitude: coordinate(-90, 90),
     longitude: coordinate(-180, 180),
   })
-  .superRefine((value, ctx) => {
-    const india = /^(india|bharat)$/i.test(value.country)
-    if (india && !(STATES_AND_TERRITORIES as readonly string[]).includes(value.state)) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['state'],
-        message: 'Please choose your state from the list.',
-      })
-    }
+  .transform((value, ctx) => {
     if ((value.latitude === undefined) !== (value.longitude === undefined)) {
-      ctx.addIssue({ code: 'custom', path: ['latitude'], message: 'Please place the pin again.' })
+      ctx.addIssue({ code: 'custom', path: ['latitude'], message: ADDRESS_ERRORS.pin })
     }
-    if (india && !isPin(value.postalCode)) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['postalCode'],
-        message: 'A PIN code is six digits, e.g. 184101.',
-      })
+    return {
+      country: value.country,
+      line1: required(value.line1, 120, ADDRESS_ERRORS.line1, 'line1', ctx),
+      line2: optionalPart(value.line2, 120, 'line2', ctx),
+      landmark: optionalPart(value.landmark, 120, 'landmark', ctx),
+      city: required(value.city, 80, ADDRESS_ERRORS.city, 'city', ctx),
+      ...countryParts(value, ctx),
+      latitude: value.latitude,
+      longitude: value.longitude,
     }
   })
+
+/**
+ * The postal address, when "Send post to this address" is unticked: its own country, the address
+ * in one box, the town, and the postal code and region where that country has them.
+ */
+export const postalAddressSchema = z
+  .object({
+    country: countryName.default(INDIA),
+    line1: addressText,
+    city: addressText,
+    postalCode: addressText,
+    state: addressText,
+  })
+  .transform((value, ctx) => ({
+    country: value.country,
+    line1: required(value.line1, 400, ADDRESS_ERRORS.postal, 'line1', ctx),
+    city: required(value.city, 80, ADDRESS_ERRORS.city, 'city', ctx),
+    ...countryParts(value, ctx, { district: false }),
+  }))
 
 export const addressStepSchema = z
   .object({
@@ -148,7 +273,7 @@ export const addressStepSchema = z
   })
   .transform((value, ctx) => {
     if (value.correspondenceSame) return { ...value, correspondence: undefined }
-    const parsed = addressSchema.safeParse(value.correspondence ?? {})
+    const parsed = postalAddressSchema.safeParse(value.correspondence ?? {})
     if (!parsed.success) {
       for (const issue of parsed.error.issues) {
         ctx.addIssue({ ...issue, path: ['correspondence', ...issue.path] } as never)
@@ -464,7 +589,7 @@ export const partnerSchema = z
     fullName: text(120, 'Please give your full name.'),
     organisation: optionalText(160),
     role: text(120, 'Please tell us your role.'),
-    phone,
+    phone: phoneSchema,
     city: text(80, 'Please add your city.'),
     state: text(80, 'Please choose your state.'),
     website: optionalUrl,

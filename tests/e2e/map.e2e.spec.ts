@@ -83,7 +83,7 @@ test.describe('with permission, on a phone-like fix', () => {
     await toAddressStep(page)
     // Nothing from the map loads until it is asked for
     expect(await page.locator('.leaflet-container').count()).toBe(0)
-    await page.getByRole('button', { name: 'Use my location' }).first().click()
+    await page.getByRole('button', { name: 'Use my current location' }).first().click()
     await expect(page.getByText('Pin at 32.37000° N, 75.52000° E')).toBeVisible({
       timeout: 30_000,
     })
@@ -101,20 +101,20 @@ test.describe('with permission, on a phone-like fix', () => {
   }) => {
     await answerMapRequests(page)
     await toAddressStep(page)
-    await page.getByRole('button', { name: 'Use my location' }).first().click()
+    await page.getByRole('button', { name: 'Use my current location' }).first().click()
     await expect(page.getByText('Your device placed you within about 20 m')).toBeVisible({
       timeout: 30_000,
     })
     await expect(page.locator('.location-map path.location-accuracy')).toHaveCount(1)
     await expect(tilesAtZoom(page, 18).first()).toBeAttached()
     await expect(page.getByText('This is approximate on computers')).toHaveCount(0)
-    await expect(page.getByRole('button', { name: 'Use my location' })).toBeEnabled()
+    await expect(page.getByRole('button', { name: 'Use my current location' })).toBeEnabled()
   })
 
   test('switches between Map, Satellite and Terrain', async ({ page }) => {
     await answerMapRequests(page)
     await toAddressStep(page)
-    await page.getByRole('button', { name: 'Use my location' }).first().click()
+    await page.getByRole('button', { name: 'Use my current location' }).first().click()
     await expect(page.getByText('Pin at 32.37000° N, 75.52000° E')).toBeVisible({
       timeout: 30_000,
     })
@@ -174,7 +174,7 @@ test.describe('with permission, on a computer-like fix', () => {
   test('says it is approximate, shows the circle, and zooms to the town', async ({ page }) => {
     await answerMapRequests(page)
     await toAddressStep(page)
-    await page.getByRole('button', { name: 'Use my location' }).first().click()
+    await page.getByRole('button', { name: 'Use my current location' }).first().click()
     // After a few seconds of waiting for a better fix
     await expect(
       page.getByRole('alert').filter({
@@ -189,14 +189,14 @@ test.describe('with permission, on a computer-like fix', () => {
   test('moving the pin is never undone by a better fix arriving after', async ({ page }) => {
     await answerMapRequests(page)
     await toAddressStep(page)
-    await page.getByRole('button', { name: 'Use my location' }).first().click()
+    await page.getByRole('button', { name: 'Use my current location' }).first().click()
     await expect(page.getByText('Pin at 32.37000° N, 75.52000° E')).toBeVisible({
       timeout: 30_000,
     })
     // From the keyboard: the arrow keys nudge the pin, which ends the wait for a better fix
     await page.locator('.location-map .location-pin').focus()
     await page.keyboard.press('ArrowUp')
-    await expect(page.getByRole('button', { name: 'Use my location' })).toBeEnabled()
+    await expect(page.getByRole('button', { name: 'Use my current location' })).toBeEnabled()
     const status = page.getByRole('status').filter({ hasText: 'Pin at' })
     const moved = await status.textContent()
     expect(moved).not.toContain('32.37000° N, 75.52000° E')
@@ -223,12 +223,12 @@ test('opens at the typed town, asking OpenStreetMap for the town only', async ({
 
 test('says so kindly when location is refused, and the map still works', async ({ page }) => {
   await toAddressStep(page)
-  await page.getByRole('button', { name: 'Use my location' }).first().click()
+  await page.getByRole('button', { name: 'Use my current location' }).first().click()
   await expect(
     page.getByRole('alert').filter({ hasText: 'your location stays with you' }),
   ).toBeVisible({
     timeout: 30_000,
   })
   await expect(page.locator('.leaflet-container')).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Close the map' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Close', exact: true })).toBeVisible()
 })

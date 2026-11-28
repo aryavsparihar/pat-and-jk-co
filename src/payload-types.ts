@@ -1662,6 +1662,14 @@ export interface Member {
     latitude?: number | null;
     longitude?: number | null;
   };
+  /**
+   * This can change their share of each sale and the ID we hold. Write to them about both before anything changes, then clear the date.
+   */
+  countryChange?: {
+    from?: string | null;
+    to?: string | null;
+    at?: string | null;
+  };
   worksFolder?: string | null;
   worksFolderUpdatedAt?: string | null;
   profileReview?: {
@@ -3496,6 +3504,13 @@ export interface MembersSelect<T extends boolean = true> {
         country?: T;
         latitude?: T;
         longitude?: T;
+      };
+  countryChange?:
+    | T
+    | {
+        from?: T;
+        to?: T;
+        at?: T;
       };
   worksFolder?: T;
   worksFolderUpdatedAt?: T;

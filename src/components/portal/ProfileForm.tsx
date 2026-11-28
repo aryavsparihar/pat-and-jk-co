@@ -3,6 +3,7 @@
 import React, { useRef, useState } from 'react'
 
 import { api } from '../onboarding/api'
+import { AddressFields, PhoneField } from '../onboarding/country'
 import { CheckGroup, ErrorSummary, type Errors, TextArea, TextField } from '../onboarding/fields'
 import { UploadProgress } from '../onboarding/UploadProgress'
 import { usePictures } from '../onboarding/usePictures'
@@ -317,18 +318,32 @@ export const ProfileForm: React.FC<{
   )
 }
 
-/** Phone and postal address: changed at once, never shown to the public */
+const CONTACT_KEYS = [
+  'country',
+  'postalCode',
+  'line1',
+  'line2',
+  'landmark',
+  'city',
+  'district',
+  'state',
+  'latitude',
+  'longitude',
+] as const
+
+/**
+ * Phone and postal address: changed at once, never shown to the public. They follow the same
+ * country rules as the application, and a new country brings the founder's warning: it can
+ * change the member's share and the ID held, and the team writes before anything changes.
+ */
 export const ContactForm: React.FC<{
-  initial: { phone: string; contactAddress: Record<string, string | null | undefined> }
+  initial: { phone: string; contactAddress: Record<string, unknown> }
 }> = ({ initial }) => {
   const [phone, setPhone] = useState(initial.phone)
-  const [address, setAddress] = useState<Record<string, string>>(
-    Object.fromEntries(
-      ['line1', 'line2', 'landmark', 'city', 'district', 'state', 'postalCode', 'country'].map(
-        (k) => [k, initial.contactAddress[k] ?? ''],
-      ),
-    ),
+  const [address, setAddress] = useState<Record<string, unknown>>(
+    Object.fromEntries(CONTACT_KEYS.map((k) => [k, initial.contactAddress[k] ?? ''])),
   )
+  const savedCountry = String(initial.contactAddress.country ?? '') || 'India'
   const [errors, setErrors] = useState<Errors>({})
   const [message, setMessage] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -350,49 +365,37 @@ export const ContactForm: React.FC<{
     setMessage('Saved.')
   }
 
-  const field = (key: string, label: string, optional = true) => (
-    <TextField
-      errors={errors}
-      label={label}
-      name={`contactAddress.${key}`}
-      onValue={(x) => setAddress((a) => ({ ...a, [key]: x }))}
-      optional={optional}
-      value={address[key]}
-    />
-  )
+  const moving = String(address.country || 'India') !== savedCountry
 
   return (
     <form noValidate onSubmit={save}>
       <ErrorSummary errors={errors} />
-      <div className="grid gap-y-8">
-        <TextField
-          autoComplete="tel"
-          className="max-w-sm"
+      <div className="grid gap-y-9">
+        <PhoneField
           errors={errors}
-          label="Phone"
+          label="Mobile number"
           name="phone"
           onValue={setPhone}
-          optional
-          type="tel"
           value={phone}
         />
-        <fieldset className="grid gap-y-8">
-          <legend className="label mb-2">Postal address</legend>
-          <div className="grid gap-x-10 gap-y-8 sm:grid-cols-2">
-            {field('line1', 'Address line 1')}
-            {field('line2', 'Address line 2')}
-          </div>
-          {field('landmark', 'Landmark')}
-          <div className="grid gap-x-10 gap-y-8 sm:grid-cols-3">
-            {field('city', 'City or town')}
-            {field('district', 'District')}
-            {field('state', 'State')}
-          </div>
-          <div className="grid gap-x-10 gap-y-8 sm:grid-cols-2">
-            {field('postalCode', 'PIN code')}
-            {field('country', 'Country')}
-          </div>
-        </fieldset>
+        <AddressFields
+          errors={errors}
+          legend="Postal address"
+          prefix="contactAddress"
+          set={(path, value) =>
+            setAddress((a) => ({ ...a, [path.slice('contactAddress.'.length)]: value }))
+          }
+          values={{ contactAddress: address }}
+        />
+        {moving && (
+          <p
+            className="measure border-l-2 border-[var(--gold)] bg-surface py-4 pl-5 pr-4 text-base"
+            role="status"
+          >
+            Moving to another country can change your share of each sale and the ID we hold for you.
+            Once you save, we will write to you about both before anything changes.
+          </p>
+        )}
       </div>
       <div className="mt-10 flex flex-wrap items-center gap-x-8 gap-y-4">
         <button className="btn btn-outline min-h-11" disabled={saving} type="submit">

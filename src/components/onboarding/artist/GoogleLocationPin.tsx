@@ -48,6 +48,9 @@ type Props = {
   state?: string
   /** What the artist has typed so far, to start the map there */
   address?: string
+  label?: string
+  note?: string
+  help?: string
   onValue: (latitude: number | undefined, longitude: number | undefined) => void
   /** Google refused the key or could not be reached: show OpenStreetMap's map instead */
   onUnavailable: () => void
@@ -64,6 +67,9 @@ export const GoogleLocationPin: React.FC<Props> = ({
   longitude,
   state,
   address,
+  label = 'Pin it on a map',
+  note = '(optional)',
+  help = 'Useful when an address is hard to follow. The map loads only if you open it.',
   onValue,
   onUnavailable,
 }) => {
@@ -253,11 +259,11 @@ export const GoogleLocationPin: React.FC<Props> = ({
 
   return (
     <div className="border-t border-border pt-8">
-      <p className="label">Pin your location on a map</p>
-      <p className="muted measure mt-1 text-base">
-        Optional. A pin helps us find you when an address is hard to follow. The map is
-        Google&rsquo;s, and it loads only if you open it.
+      <p className="label">
+        {label}
+        <span className="ml-2 normal-case tracking-normal text-muted-foreground">{note}</span>
       </p>
+      <p className="muted measure mt-1 text-base">{help} The map is Google&rsquo;s.</p>
       {!open && (
         <div className="mt-4 flex flex-wrap items-center gap-x-8 gap-y-3">
           <button className="btn btn-outline min-h-11" onClick={() => setOpen(true)} type="button">
@@ -271,11 +277,13 @@ export const GoogleLocationPin: React.FC<Props> = ({
             }}
             type="button"
           >
-            Use my location
+            Use my current location
           </button>
           {pinned && (
             <>
-              <span className="text-base">Your pin is placed.</span>
+              <span className="text-base">
+                Your pin is placed. We keep only this point, never your live location.
+              </span>
               <button
                 className="link link-caps min-h-11"
                 onClick={() => onValue(undefined, undefined)}
@@ -306,7 +314,7 @@ export const GoogleLocationPin: React.FC<Props> = ({
               onClick={locateMe}
               type="button"
             >
-              {where.busy ? 'Finding you…' : 'Use my location'}
+              {where.busy ? 'Finding you…' : 'Use my current location'}
             </button>
           </div>
           <p className="muted mt-2 text-base">Your browser asks before it shares your location.</p>
@@ -339,7 +347,7 @@ export const GoogleLocationPin: React.FC<Props> = ({
           )}
           <div className="mt-3 flex flex-wrap gap-x-8">
             <button className="link link-caps min-h-11" onClick={close} type="button">
-              Close the map
+              Close
             </button>
             {pinned && (
               <button

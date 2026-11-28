@@ -380,6 +380,25 @@ export const Members: CollectionConfig = {
       admin: { condition: (data) => Boolean(data?.artistId || data?.partnerId) },
       fields: addressFields(),
     },
+    {
+      // Set when a member gives a new country in their contact details (the brief, section 10):
+      // it can change their share of each sale and the ID we hold, so the team writes to them
+      // about both before anything changes. Staff clear it once that is done.
+      name: 'countryChange',
+      label: 'Country changed',
+      type: 'group',
+      admin: {
+        position: 'sidebar',
+        condition: (data) => Boolean(data?.countryChange?.at),
+        description:
+          'This can change their share of each sale and the ID we hold. Write to them about both before anything changes, then clear the date.',
+      },
+      fields: [
+        { name: 'from', type: 'text', maxLength: 80, admin: { readOnly: true } },
+        { name: 'to', type: 'text', maxLength: 80, admin: { readOnly: true } },
+        { name: 'at', label: 'Changed on', type: 'date' },
+      ],
+    },
 
     // The artist's works live in one Google Drive folder of theirs, a folder per work inside it
     // (docs/ADMIN_GUIDE.md, "Artists' works"). Set by the artist from their account
