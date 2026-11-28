@@ -13,7 +13,9 @@ import {
   signInAs,
   signInWithCode,
   uniqueEmail,
-  agreeToNotice,
+  confirmArtistApplication,
+  fillAboutYou,
+  goToStep,
 } from '../helpers/e2e'
 import { execute } from '../../src/utilities/sql.js'
 
@@ -41,17 +43,8 @@ test.afterAll(async () => {
   })
 })
 
-const aboutYou = async (page: Page, overrides: Record<string, string> = {}) => {
-  const values = {
-    'Your full legal name': 'Asha Example',
-    'The name you work under': 'Asha',
-    'Date of birth': '1990-04-12',
-    'Mobile number': '98765 43210',
-    ...overrides,
-  }
-  for (const [label, value] of Object.entries(values)) await page.getByLabel(label).fill(value)
-  await page.getByLabel('The language you would like us to write in').selectOption('English')
-}
+const aboutYou = (page: Page, overrides: Parameters<typeof fillAboutYou>[1] = {}) =>
+  fillAboutYou(page, overrides)
 
 const startApplication = async (page: Page) => {
   const email = uniqueEmail('unhappy')
@@ -87,16 +80,13 @@ test('wrong and malformed input is refused with a reason, on every form', async 
   await startApplication(page)
   const tooYoung = new Date()
   tooYoung.setFullYear(tooYoung.getFullYear() - 16)
-  await aboutYou(page, {
-    'Date of birth': tooYoung.toISOString().slice(0, 10),
-    'Mobile number': '12',
-  })
+  await aboutYou(page, { dateOfBirth: tooYoung.toISOString().slice(0, 10), phone: '12' })
   await page.getByRole('button', { name: 'Save and continue' }).click()
   await expect(page.getByText('A few things need another look')).toBeVisible()
   await expect(page.getByText(/18 or over/).first()).toBeVisible()
   await expect(page.getByText(/looks too short for India/).first()).toBeVisible()
   // Names in any script, with apostrophes and hyphens, are fine
-  await aboutYou(page, { 'Your full legal name': "आशा D'Souza-Rao عاشہ" })
+  await aboutYou(page, { name: "आशा D'Souza-Rao عاشہ" })
   await page.getByRole('button', { name: 'Save and continue' }).click()
   await expect(page.getByRole('heading', { name: 'Where you live' })).toBeVisible()
   await page.getByLabel('House or flat, and street').fill('House 1, Example Lane')
@@ -165,13 +155,6 @@ test('a double click saves once, and sends an application once', async ({ page }
   await fillEarlySteps(page)
   const member = await findMember(email)
   const p = await payload()
-  const { identityPhotos, goodKyc } = await import('../helpers/kyc')
-  const { saveKyc, storeKycDocument } = await import('../../src/kyc/service.js')
-  const passport = await storeKycDocument(p, {
-    member,
-    kind: 'other-id',
-    bytes: Buffer.from('%PDF-1.7\n% made up\n%%EOF\n'),
-  })
   const application = (
     await p.find({
       collection: 'applications',
@@ -179,29 +162,12 @@ test('a double click saves once, and sends an application once', async ({ page }
       overrideAccess: true,
     })
   ).docs[0]!
-  await saveKyc(p, {
-    member,
-    reference: application.reference,
-    consent: { noticeVersion: 'test', confirmation: 'test' },
-    input: goodKyc({
-      'other-id': passport.id,
-      ...(await identityPhotos(p, member, { dateOfBirth: '1990-04-12' })),
-    }) as never,
-  })
-  await p.update({
-    collection: 'applications',
-    id: application.id,
-    data: { completedSteps: ['about', 'address', 'practice', 'portfolio', 'kyc'] },
-    overrideAccess: true,
-  })
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Review and send' })).toBeVisible()
-  await page.getByLabel(/my own original work/).check()
-  await page.getByLabel(/information I have given is accurate/).check()
-  await agreeToNotice(page)
+  await confirmArtistApplication(page)
   await page.getByRole('button', { name: 'Send my application' }).dblclick()
   await expect(
-    page.getByRole('heading', { name: 'Thank you. We have your application.' }),
+    page.getByRole('heading', { name: 'Thank you. Your application has reached us.' }),
   ).toBeVisible()
   const sent = await p.count({
     collection: 'security-events',
@@ -226,7 +192,7 @@ test('the back button mid-application loses nothing', async ({ page }) => {
   await page.goBack()
   await page.goForward()
   await expect(page.getByRole('heading', { name: 'Where you live' })).toBeVisible()
-  await page.getByRole('button', { name: /Step 1: About you, saved/ }).click()
+  await page.getByRole('button', { name: 'About you, done' }).click()
   await expect(page.getByLabel('The name you work under')).toHaveValue('Asha')
 })
 
@@ -244,7 +210,7 @@ test('a session that runs out mid-form lets them sign in again without losing wh
   )
   await page.getByRole('button', { name: 'Save and continue' }).click()
   await expect(page.getByText(/You have been signed out/)).toBeVisible()
-  await expect(page.getByLabel('Your full legal name')).toHaveValue('Asha Example')
+  await expect(page.getByLabel('Your full name')).toHaveValue('Asha Example')
   // Signing in again, in place
   await page.getByLabel('Email address').fill(email)
   await page.waitForTimeout(2200)
@@ -252,7 +218,7 @@ test('a session that runs out mid-form lets them sign in again without losing wh
   await page.getByLabel('Six-digit code').fill(await knowCode(email, 'signin'))
   await page.getByRole('button', { name: 'Continue', exact: true }).click()
   await expect(page.getByText(/You have been signed out/)).toHaveCount(0)
-  await expect(page.getByLabel('Your full legal name')).toHaveValue('Asha Example')
+  await expect(page.getByLabel('Your full name')).toHaveValue('Asha Example')
   await page.getByRole('button', { name: 'Save and continue' }).click()
   await expect(page.getByRole('heading', { name: 'Where you live' })).toBeVisible()
 })
@@ -263,9 +229,9 @@ test('an upload that fails says so and adds nothing; a cancelled one changes not
   await startApplication(page)
   await fillEarlySteps(page)
   await page.reload()
-  await page.getByRole('button', { name: /Step 4: Your work/ }).click()
+  await goToStep(page, 'Your work')
   await expect(page.getByRole('heading', { name: 'Your work', exact: true })).toBeVisible()
-  const before = await page.getByText(/of 10 works added/).textContent()
+  const before = await page.getByText(/of 10 added/).textContent()
   // Cancelled: the chooser closes with nothing chosen
   await page.locator('input[type="file"]').setInputFiles([])
   await expect(page.getByText(before!)).toBeVisible()

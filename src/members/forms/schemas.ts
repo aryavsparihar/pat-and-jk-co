@@ -23,12 +23,12 @@ import { ageOn, facebookUrl, instagramUrl, isGstin, isWebUrl } from './validator
  * form would. Messages are written for the person filling the form in: plain, short, never alarming.
  */
 
+/** "Please keep this to 1,000 characters or fewer." */
+export const tooLong = (max: number) =>
+  `Please keep this to ${max.toLocaleString('en-IN')} characters or fewer.`
+
 const text = (max: number, message = 'Please fill this in.') =>
-  z
-    .string({ error: message })
-    .trim()
-    .min(1, message)
-    .max(max, `Please keep this under ${max} characters.`)
+  z.string({ error: message }).trim().min(1, message).max(max, tooLong(max))
 
 /**
  * A description someone must write: at least `min` characters, so there is something to read. The
@@ -39,14 +39,14 @@ const description = (min: number, max: number, message: string) =>
     .string({ error: message })
     .trim()
     .min(1, message)
-    .min(min, `A little more, please: at least ${min} characters.`)
-    .max(max, `Please keep this under ${max} characters.`)
+    .min(min, `Please write a little more: at least ${min} characters.`)
+    .max(max, tooLong(max))
 
 const optionalText = (max: number) =>
   z
     .string()
     .trim()
-    .max(max, `Please keep this under ${max} characters.`)
+    .max(max, tooLong(max))
     .optional()
     .transform((v) => (v ? v : undefined))
 
@@ -74,7 +74,10 @@ const optionalUrl = z
   .string()
   .trim()
   .optional()
-  .refine((v) => !v || isWebUrl(v), 'Please use a full web address, e.g. https://example.com')
+  .refine(
+    (v) => !v || isWebUrl(v),
+    'Please give the full web address, starting https:// (for example, https://example.com).',
+  )
   .transform((v) => (v ? v : undefined))
 
 const thisYear = new Date().getUTCFullYear()
@@ -107,20 +110,31 @@ export const LANGUAGES = [
   'Other',
 ] as const
 
+/**
+ * About you (the Apply1 design): the name, the name they work under, the date of birth from its
+ * day, month and year, the mobile number with its country code, and consent to the notice on how
+ * PAT & J.K. Co. uses the details (src/members/applicationNotice.ts). The design no longer asks
+ * for a language; one given before is kept.
+ */
 export const aboutSchema = z.object({
-  legalName: text(120, 'Please give your full name as it appears on your documents.'),
-  displayName: text(80, 'Please tell us the name you work under.'),
+  legalName: text(120, 'Please give your full name as it appears on your ID.'),
+  displayName: text(80, 'Please give the name you work under, even if it is your own.'),
   dateOfBirth: z
     .string({ error: 'Please add your date of birth.' })
     .trim()
-    .refine((v) => ageOn(v) !== null, 'Please use the date picker, or the form YYYY-MM-DD.')
+    .min(1, 'Please add your date of birth.')
+    .refine((v) => ageOn(v) !== null, 'Please choose your date of birth from the calendar.')
     .refine(
       (v) => (ageOn(v) ?? 0) >= 18,
-      'Thank you for thinking of us. We can only work with artists who are 18 or over, and we would be glad to hear from you then.',
+      'Thank you for thinking of us. Phulhaar can only represent artists who are 18 or over, and we would be glad to hear from you then.',
     )
     .refine((v) => (ageOn(v) ?? 0) <= 120, 'Please check the year.'),
   phone: phoneSchema,
-  language: z.enum(LANGUAGES, { error: 'Please choose a language.' }),
+  language: z.enum(LANGUAGES).optional().catch(undefined),
+  consentProcessing: z.literal(true, {
+    error:
+      'Please tick the box to give your consent, so that we can check your details and, if we work together, pay you.',
+  }),
 })
 
 /** What is left of an optional part of an address: the trimmed text, or nothing */
@@ -283,15 +297,20 @@ export const addressStepSchema = z
     return { ...value, correspondence: parsed.data }
   })
 
-/** Stored values never change once used; labels may */
+/**
+ * Every medium ever offered. Stored values never change once used; labels may. Phulhaar takes
+ * original, hand-made work only, each piece one of a kind (the brief, section 10), so the ones
+ * marked retired are no longer offered: they stay here only so that what was chosen before can
+ * still be read, and named in the line asking the artist to untick it.
+ */
 export const MEDIUMS = [
   { value: 'painting', label: 'Painting' },
   { value: 'miniature-painting', label: 'Miniature painting' },
   { value: 'drawing', label: 'Drawing' },
   { value: 'illustration', label: 'Illustration' },
   { value: 'calligraphy', label: 'Calligraphy' },
-  { value: 'printmaking', label: 'Printmaking' },
-  { value: 'photography', label: 'Photography' },
+  { value: 'printmaking', label: 'Printmaking', retired: true },
+  { value: 'photography', label: 'Photography', retired: true },
   { value: 'sculpture', label: 'Sculpture' },
   { value: 'ceramics', label: 'Ceramics and pottery' },
   { value: 'wood', label: 'Wood carving' },
@@ -301,23 +320,64 @@ export const MEDIUMS = [
   { value: 'textile', label: 'Textile and fibre art' },
   { value: 'embroidery', label: 'Embroidery' },
   { value: 'folk-tribal', label: 'Folk and tribal art' },
-  { value: 'murals', label: 'Murals and public art' },
-  { value: 'installation', label: 'Installation' },
-  { value: 'performance', label: 'Performance' },
-  { value: 'video', label: 'Video and film' },
-  { value: 'digital', label: 'Digital and new media' },
+  { value: 'murals', label: 'Murals and public art', retired: true },
+  { value: 'installation', label: 'Installation', retired: true },
+  { value: 'performance', label: 'Performance', retired: true },
+  { value: 'video', label: 'Video and film', retired: true },
+  { value: 'digital', label: 'Digital and new media', retired: true },
   { value: 'collage', label: 'Collage' },
   { value: 'mixed-media', label: 'Mixed media' },
   { value: 'other', label: 'Other' },
 ] as const
 
+/** The media an artist can choose now, in the design's order */
+export const TAKEN_MEDIUMS = MEDIUMS.filter((m) => !('retired' in m))
+
+const isRetired = (value: string) =>
+  MEDIUMS.some((m) => m.value === value && 'retired' in m && m.retired)
+
+/** "Phulhaar takes original, hand-made work only, so Photography can no longer be chosen." */
+export const retiredMediumLine = (value: string) =>
+  `Phulhaar takes original, hand-made work only, so ${
+    MEDIUMS.find((m) => m.value === value)?.label ?? value
+  } can no longer be chosen. Please untick it.`
+
+/**
+ * Typical prices, in rupees for every artist wherever they live. The last two of the list are
+ * from before the design's bands and are no longer offered; they stay so old answers can be read.
+ */
 export const PRICE_RANGES = [
-  { value: 'under-25k', label: 'Under ₹25,000' },
+  { value: 'under-10k', label: 'Under ₹10,000' },
+  { value: '10k-25k', label: '₹10,000 to ₹25,000' },
   { value: '25k-1l', label: '₹25,000 to ₹1 lakh' },
   { value: '1l-5l', label: '₹1 lakh to ₹5 lakh' },
   { value: 'over-5l', label: 'Over ₹5 lakh' },
-  { value: 'not-sure', label: 'Not sure yet' },
+  { value: 'under-25k', label: 'Under ₹25,000', retired: true },
+  { value: 'not-sure', label: 'Not sure yet', retired: true },
 ] as const
+
+export const OFFERED_PRICE_RANGES = PRICE_RANGES.filter((p) => !('retired' in p))
+
+/**
+ * How long they have been making work, in the design's five bands. Each is stored as the number
+ * of years it starts at, so answers given before the bands (any number of years) still fall in one.
+ */
+export const EXPERIENCE_BANDS = [
+  { value: 0, label: 'Less than a year' },
+  { value: 1, label: '1 to 2 years' },
+  { value: 3, label: '3 to 5 years' },
+  { value: 6, label: '6 to 10 years' },
+  { value: 11, label: 'More than 10 years' },
+] as const
+
+export const experienceLabel = (years: unknown): string | undefined => {
+  if (typeof years !== 'number' || !Number.isFinite(years) || years < 0) return undefined
+  return [...EXPERIENCE_BANDS].reverse().find((b) => years >= b.value)?.label
+}
+
+/** The band a stored number of years falls in, as the form's choice */
+export const experienceBand = (years: unknown): number | undefined =>
+  EXPERIENCE_BANDS.find((b) => b.label === experienceLabel(years))?.value
 
 export const RECOGNITION_KINDS = [
   { value: 'exhibition', label: 'Exhibition' },
@@ -354,7 +414,7 @@ export const practiceSchema = z.preprocess(
     .object({
       mediums: z
         .array(z.enum(values(MEDIUMS)))
-        .min(1, 'Please choose at least one.')
+        .min(1, 'Please choose at least one medium.')
         .max(MEDIUMS.length),
       mediumOther: optionalText(80),
       stylesThemes: description(
@@ -362,13 +422,20 @@ export const practiceSchema = z.preprocess(
         500,
         'Please tell us a little about the styles and themes in your work.',
       ),
-      yearsPractising: z.coerce
-        .number({ error: 'Please choose how many years.' })
-        .int('Please choose how many years.')
-        .min(0, 'Please choose how many years.')
-        .max(YEARS_PRACTISING_MAX, 'Please choose how many years.'),
+      yearsPractising: z.preprocess(
+        (v) => (v === '' || v === null ? undefined : v),
+        z.coerce
+          .number({ error: 'Please choose how long you have been practising.' })
+          .int('Please choose how long you have been practising.')
+          .min(0, 'Please choose how long you have been practising.')
+          .max(YEARS_PRACTISING_MAX, 'Please choose how long you have been practising.'),
+      ),
       training: optionalText(1000),
-      bio: description(MIN_LENGTH.bio, BIO_LIMIT, 'Please write a short biography.'),
+      bio: description(
+        MIN_LENGTH.bio,
+        BIO_LIMIT,
+        'Please write a short biography. A few lines is enough.',
+      ),
       statement: optionalText(2000),
       website: optionalUrl,
       instagram: z
@@ -381,7 +448,7 @@ export const practiceSchema = z.preprocess(
           if (!url) {
             ctx.addIssue({
               code: 'custom',
-              message: 'Please give your Instagram handle, e.g. @yourname.',
+              message: 'Please give your Instagram handle, for example @yourname.',
             })
             return z.NEVER
           }
@@ -407,18 +474,23 @@ export const practiceSchema = z.preprocess(
         .array(
           z.object({
             platform: text(60, 'Please name the platform.'),
-            handle: text(200, 'Please add your link or ID.'),
+            handle: text(200, 'Please add the link or your username.'),
           }),
         )
-        .max(OTHER_SOCIALS_MAX, `Up to ${OTHER_SOCIALS_MAX}, please.`)
+        .max(OTHER_SOCIALS_MAX, `You can add up to ${OTHER_SOCIALS_MAX} platforms.`)
         .default([]),
-      priceRange: z.enum(values(PRICE_RANGES), { error: 'Please choose a price range.' }),
+      priceRange: z
+        .enum(values(PRICE_RANGES), { error: 'Please choose a price range.' })
+        .refine(
+          (v) => OFFERED_PRICE_RANGES.some((p) => p.value === v),
+          'Please choose a price range.',
+        ),
       recognition: z
         .array(
           z.object({
             kind: z.enum(values(RECOGNITION_KINDS)),
-            title: text(160, 'Please give its name.'),
-            venue: text(160, 'Please say where it was.'),
+            title: text(160, 'Please give the name of the exhibition or award.'),
+            venue: text(160, 'Please say where it took place.'),
             year: z.coerce
               .number({ error: 'Please choose the year.' })
               .int('Please choose the year.')
@@ -431,7 +503,7 @@ export const practiceSchema = z.preprocess(
             ),
           }),
         )
-        .max(20, 'Twenty is plenty: please choose the ones that matter most.')
+        .max(20, 'You can list up to 20. Please choose the ones that matter most.')
         .default([]),
       // Said plainly instead of leaving the section empty
       recognitionNone: z.boolean().default(false),
@@ -441,14 +513,18 @@ export const practiceSchema = z.preprocess(
         ctx.addIssue({
           code: 'custom',
           path: ['recognition'],
-          message: 'Please add at least one, or choose "None yet".',
+          message: 'Please add at least one, or choose “None yet”.',
         })
+      }
+      const retired = value.mediums.find(isRetired)
+      if (retired) {
+        ctx.addIssue({ code: 'custom', path: ['mediums'], message: retiredMediumLine(retired) })
       }
       if (value.mediums.includes('other') && !value.mediumOther) {
         ctx.addIssue({
           code: 'custom',
           path: ['mediumOther'],
-          message: 'Please say which other medium.',
+          message: 'Please tell us which other medium.',
         })
       }
     }),
@@ -457,11 +533,18 @@ export const practiceSchema = z.preprocess(
 export const PORTFOLIO_MIN = 3
 export const PORTFOLIO_MAX = 10
 
+/**
+ * Sizes may be given in centimetres or inches, and are kept in centimetres as well for the
+ * certificate and the listing. Metres were offered before the design and are no longer; a work
+ * saved in metres comes back to the form in centimetres (src/members/forms/values.ts).
+ */
 export const DIMENSION_UNITS = [
   { value: 'cm', label: 'cm', cm: 1 },
   { value: 'in', label: 'inches', cm: 2.54 },
-  { value: 'm', label: 'metres', cm: 100 },
+  { value: 'm', label: 'metres', cm: 100, retired: true },
 ] as const
+
+export const OFFERED_UNITS = DIMENSION_UNITS.filter((u) => !('retired' in u))
 
 /** A measurement as typed: decimals welcome, with a comma or a point */
 const size = (message: string) =>
@@ -470,7 +553,7 @@ const size = (message: string) =>
     z.coerce
       .number({ error: message })
       .positive(message)
-      .max(100_000, 'Please check this measurement.'),
+      .max(100_000, 'That measurement looks unusual. Please check it.'),
   )
 
 export const toCm = (value: number, unit: (typeof DIMENSION_UNITS)[number]['value']) =>
@@ -480,16 +563,16 @@ export const toCm = (value: number, unit: (typeof DIMENSION_UNITS)[number]['valu
 const MAX_CM = 2000
 
 const portfolioWorkFields = z.object({
-  image: z.coerce.number({ error: 'Please add a picture of this work.' }).int().positive(),
-  title: text(160, 'Please give the work a title.'),
+  image: z.coerce.number({ error: 'Please add a photograph of this work.' }).int().positive(),
+  title: text(160, 'Please give the work a title, or write “Untitled”.'),
   year: z.coerce
     .number({ error: 'Please choose the year.' })
     .int('Please choose the year.')
     .min(thisYear - YEARS_BACK, 'Please choose the year.')
     .max(thisYear, 'Please choose the year.'),
-  medium: text(120, 'Please give the medium, e.g. oil on canvas.'),
+  medium: text(120, 'Please give the medium, for example oil on canvas.'),
   // As the artist gave them, in their unit; the centimetre values are worked out below
-  unit: z.enum(values(DIMENSION_UNITS), { error: 'Please choose a unit.' }).default('cm'),
+  unit: z.enum(['cm', 'in'], { error: 'Please choose centimetres or inches.' }).default('cm'),
   width: size('Please give the width.'),
   height: size('Please give the height.'),
   depth: size('Please give the depth.')
@@ -501,14 +584,26 @@ const portfolioWorkFields = z.object({
     .number({ error: 'Please give the price in rupees, as a number.' })
     .int('Please give the price in whole rupees.')
     .positive('Please give the price in rupees, as a number.')
-    .max(1e9, 'Please check the price.')
+    .max(1e9, 'That price looks unusual. Please check it.')
     .optional()
     .or(z.literal('').transform(() => undefined)),
+  // "Is it for sale?": Yes needs a price; No, or no answer with no price, is not for sale
+  forSale: z.boolean().optional(),
 })
 
 export const portfolioWorkSchema = portfolioWorkFields
-  .transform((work) => ({
+  .superRefine((work, ctx) => {
+    if (work.forSale === true && work.priceInr === undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['priceInr'],
+        message: 'Please give the price in rupees, as a number.',
+      })
+    }
+  })
+  .transform(({ forSale, ...work }) => ({
     ...work,
+    priceInr: forSale === false ? undefined : work.priceInr,
     widthCm: toCm(work.width, work.unit),
     heightCm: toCm(work.height, work.unit),
     depthCm: work.depth === undefined ? undefined : toCm(work.depth, work.unit),
@@ -517,7 +612,11 @@ export const portfolioWorkSchema = portfolioWorkFields
     for (const key of ['width', 'height', 'depth'] as const) {
       const cm = work[`${key}Cm`]
       if (cm !== undefined && cm > MAX_CM) {
-        ctx.addIssue({ code: 'custom', path: [key], message: 'Please check this measurement.' })
+        ctx.addIssue({
+          code: 'custom',
+          path: [key],
+          message: 'That measurement looks unusual. Please check it.',
+        })
       }
     }
   })
@@ -526,25 +625,31 @@ export const portfolioSchema = z.object({
   works: z
     .array(portfolioWorkSchema)
     .min(PORTFOLIO_MIN, `Please add at least ${PORTFOLIO_MIN} works.`)
-    .max(PORTFOLIO_MAX, `Please choose up to ${PORTFOLIO_MAX} works.`),
+    .max(PORTFOLIO_MAX, `You can add up to ${PORTFOLIO_MAX} works.`),
 })
 
+/**
+ * Review and send (the Apply5 design): three statements to tick, then I AGREE typed in capitals.
+ * Consent to the notice was given in step 1. New in the design: that nothing is a print, a copy,
+ * or made wholly or partly with AI. The confirmation of that line reuses the founder's wording
+ * for the declarations nearest to it.
+ */
 export const declarationsSchema = z.object({
-  originalWork: z.literal(true, { error: 'Please confirm the work is your own.' }),
-  accurate: z.literal(true, { error: 'Please confirm the information is accurate.' }),
-  consentProcessing: z.literal(true, {
-    error: 'We need your consent to process your details for verification and payouts.',
+  originalWork: z.literal(true, { error: 'Please confirm that the work is your own.' }),
+  notCopy: z.literal(true, {
+    error: 'Please confirm that none of the works is a print, a copy, or made with AI.',
   }),
+  accurate: z.literal(true, { error: 'Please confirm that the information is accurate.' }),
   // Asked for only while terms are published (src/members/terms.ts), and checked there
   agreeTerms: z.boolean().optional(),
   agreeTyped: z.string().trim().max(40).optional(),
 })
 
 /**
- * The artist's steps, in order. Identity details (kyc) have their own endpoint and their
- * own checks (src/kyc), so the generic step saver refuses that step and its schema here is empty.
+ * The artist's five steps, in order (the brief, section 10). Identity is no longer one of them:
+ * it is asked for after approval, on its own page, before the agreement.
  */
-export const ARTIST_STEPS = ['about', 'address', 'practice', 'portfolio', 'kyc', 'review'] as const
+export const ARTIST_STEPS = ['about', 'address', 'practice', 'portfolio', 'review'] as const
 export type ArtistStep = (typeof ARTIST_STEPS)[number]
 
 export const ARTIST_STEP_SCHEMAS = {
@@ -552,7 +657,6 @@ export const ARTIST_STEP_SCHEMAS = {
   address: addressStepSchema,
   practice: practiceSchema,
   portfolio: portfolioSchema,
-  kyc: z.object({}),
   review: declarationsSchema,
 } as const
 

@@ -66,15 +66,18 @@ const policyText = async (headers: Headers, fallbackHost: string): Promise<strin
 export const consentEvidence = async (
   request: Request,
   policyVersion: string,
+  /**
+   * The notice and statements the person agreed to, as shown. The artist application has its
+   * own (src/members/applicationNotice.ts); the trade form still shows the pre-submission notice.
+   */
+  notice: string = [DPDP_NOTICE_HEADING, DPDP_NOTICE, DPDP_CHECKBOX].join('\n\n'),
 ): Promise<ConsentEvidence> => {
   const headers = request.headers
   const policy = await policyText(headers, new URL(request.url).hostname)
   const text = [
     PRIVACY_POLICY_TITLE,
     policy || '(The privacy policy page could not be read when this was recorded.)',
-    DPDP_NOTICE_HEADING,
-    DPDP_NOTICE,
-    DPDP_CHECKBOX,
+    notice,
   ].join('\n\n')
   return {
     ip: clientIp(headers),

@@ -8,6 +8,8 @@ import {
   portfolioSchema,
   portfolioWorkSchema,
   practiceSchema,
+  TAKEN_MEDIUMS,
+  experienceLabel,
 } from '@/members/forms/schemas'
 import { STATES_AND_TERRITORIES } from '@/members/forms/india'
 import {
@@ -197,7 +199,7 @@ describe('step schemas', () => {
       legalName: 'Example Person',
       displayName: 'Example',
       dateOfBirth: '1990-01-01',
-      language: 'English',
+      consentProcessing: true,
     }
     const parse = (phone: string) => aboutSchema.safeParse({ ...about, phone })
     expect(parse('+44 07911 123456').data?.phone).toBe('+447911123456')
@@ -208,6 +210,81 @@ describe('step schemas', () => {
       'That number looks too short for India. Please check it.',
     )
     expect(fieldErrors(parse('').error!).phone).toBe('Please add a phone number.')
+  })
+
+  it('ask for consent to the notice in step 1, and no longer for a language', () => {
+    const about = {
+      legalName: 'Example Person',
+      displayName: 'Example',
+      dateOfBirth: '1990-01-01',
+      phone: '+91 98765 43210',
+    }
+    expect(aboutSchema.safeParse({ ...about, consentProcessing: true }).success).toBe(true)
+    expect(fieldErrors(aboutSchema.safeParse(about).error!).consentProcessing).toBe(
+      'Please tick the box to give your consent, so that we can check your details and, if we work together, pay you.',
+    )
+    const young = new Date()
+    young.setFullYear(young.getFullYear() - 17)
+    expect(
+      fieldErrors(
+        aboutSchema.safeParse({
+          ...about,
+          consentProcessing: true,
+          dateOfBirth: young.toISOString().slice(0, 10),
+        }).error!,
+      ).dateOfBirth,
+    ).toMatch(/^Thank you for thinking of us. Phulhaar can only represent artists who are 18/)
+    expect(
+      fieldErrors(
+        aboutSchema.safeParse({ ...about, consentProcessing: true, dateOfBirth: '1990-02-31' })
+          .error!,
+      ).dateOfBirth,
+    ).toBe('Please choose your date of birth from the calendar.')
+  })
+
+  it('offer only original, hand-made media and the new price bands', () => {
+    const base = {
+      mediums: ['painting'],
+      stylesThemes:
+        'Landscapes of the Shivalik foothills, painted outdoors in every season, in oil and watercolour.',
+      yearsPractising: 6,
+      bio: 'A painter working in oils and watercolour. '.repeat(6),
+      priceRange: 'under-10k',
+      recognitionNone: true,
+    }
+    expect(practiceSchema.safeParse(base).success).toBe(true)
+    // A draft started before the change still has photography: it is named, to be unticked
+    expect(
+      fieldErrors(
+        practiceSchema.safeParse({ ...base, mediums: ['painting', 'photography'] }).error!,
+      ).mediums,
+    ).toBe(
+      'Phulhaar takes original, hand-made work only, so Photography can no longer be chosen. Please untick it.',
+    )
+    expect(TAKEN_MEDIUMS.map((m) => m.label)).toEqual([
+      'Painting',
+      'Miniature painting',
+      'Drawing',
+      'Illustration',
+      'Calligraphy',
+      'Sculpture',
+      'Ceramics and pottery',
+      'Wood carving',
+      'Metalwork',
+      'Glass',
+      'Papier-mâché',
+      'Textile and fibre art',
+      'Embroidery',
+      'Folk and tribal art',
+      'Collage',
+      'Mixed media',
+      'Other',
+    ])
+    // The bands before the design can be read, but not chosen again
+    expect(practiceSchema.safeParse({ ...base, priceRange: 'not-sure' }).success).toBe(false)
+    expect(experienceLabel(4)).toBe('3 to 5 years')
+    expect(experienceLabel(0)).toBe('Less than a year')
+    expect(experienceLabel(40)).toBe('More than 10 years')
   })
 
   it('ask what "other" means, and hold the biography to its limit', () => {
@@ -263,7 +340,7 @@ describe('step schemas', () => {
         'Landscapes of the Shivalik foothills, painted outdoors in every season, in oil and watercolour.',
       yearsPractising: 3,
       bio: 'A potter working in local clay. '.repeat(9),
-      priceRange: 'not-sure',
+      priceRange: '10k-25k',
     }
     expect(fieldErrors(practiceSchema.safeParse(base).error!).recognition).toMatch(/None yet/)
     const entry = {
@@ -313,7 +390,7 @@ describe('step schemas', () => {
     ).toBe(false)
   })
 
-  it('take sizes with decimals in cm, inches or metres, and keep them in cm too', () => {
+  it('take sizes with decimals in cm or inches, and keep them in cm too', () => {
     const work = {
       image: 1,
       title: 'Untitled',
@@ -323,12 +400,29 @@ describe('step schemas', () => {
     const inches = portfolioWorkSchema.parse({ ...work, width: '12,5', height: 20, unit: 'in' })
     expect(inches).toMatchObject({ width: 12.5, unit: 'in', widthCm: 31.75, heightCm: 50.8 })
     expect(inches.depthCm).toBeUndefined()
+    // Metres are no longer offered; a work saved in them comes back in centimetres
     expect(
-      portfolioWorkSchema.parse({ ...work, width: 1.2, height: 0.8, depth: 0.05, unit: 'm' }),
-    ).toMatchObject({ widthCm: 120, heightCm: 80, depthCm: 5 })
+      fieldErrors(portfolioWorkSchema.safeParse({ ...work, width: 1, height: 1, unit: 'm' }).error!)
+        .unit,
+    ).toBe('Please choose centimetres or inches.')
     expect(
-      portfolioWorkSchema.safeParse({ ...work, width: 25, height: 1, unit: 'm' }).success,
+      portfolioWorkSchema.safeParse({ ...work, width: 2500, height: 1, unit: 'cm' }).success,
     ).toBe(false)
+    // For sale needs a price in whole rupees; not for sale keeps none
+    expect(
+      fieldErrors(
+        portfolioWorkSchema.safeParse({ ...work, width: 1, height: 1, forSale: true }).error!,
+      ).priceInr,
+    ).toBe('Please give the price in rupees, as a number.')
+    const notForSale = portfolioWorkSchema.parse({
+      ...work,
+      width: 1,
+      height: 1,
+      forSale: false,
+      priceInr: 5000,
+    })
+    expect(notForSale.priceInr).toBeUndefined()
+    expect('forSale' in notForSale).toBe(false)
     expect(
       portfolioWorkSchema.safeParse({
         ...work,

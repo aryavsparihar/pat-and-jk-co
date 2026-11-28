@@ -50,6 +50,7 @@ import * as migration_20261126_084142_help_ticket_follow_ups from './20261126_08
 import * as migration_20261127_142211_journal_signature_and_categories from './20261127_142211_journal_signature_and_categories';
 import * as migration_20261127_153939_member_country_change from './20261127_153939_member_country_change';
 import * as migration_20261128_011652_contact_messages from './20261128_011652_contact_messages';
+import * as migration_20261128_111507_artist_application_redesign from './20261128_111507_artist_application_redesign';
 
 export const migrations = [
   {
@@ -310,6 +311,11 @@ export const migrations = [
   {
     up: migration_20261128_011652_contact_messages.up,
     down: migration_20261128_011652_contact_messages.down,
-    name: '20261128_011652_contact_messages'
+    name: '20261128_011652_contact_messages',
+  },
+  {
+    up: migration_20261128_111507_artist_application_redesign.up,
+    down: migration_20261128_111507_artist_application_redesign.down,
+    name: '20261128_111507_artist_application_redesign'
   },
 ];

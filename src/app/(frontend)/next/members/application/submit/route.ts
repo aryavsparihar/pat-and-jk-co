@@ -1,4 +1,5 @@
-import { PRIVACY_NOTICE_VERSION, submitArtistApplication } from '@/members/application'
+import { submitArtistApplication } from '@/members/application'
+import { ARTIST_NOTICE_VERSION, artistNoticeText } from '@/members/applicationNotice'
 import { consentEvidence } from '@/members/consentRecord'
 import { applicationsOpenness, closedReply } from '@/members/openness'
 import {
@@ -26,7 +27,10 @@ export async function POST(request: Request) {
 
   const body = await readJson<Record<string, unknown>>(request)
   if (filledHoneypot(body))
-    return reply({ message: 'Your application could not be sent.' }, { status: 400 })
+    return reply(
+      { message: 'Your application could not be sent. Please try again in a minute.' },
+      { status: 400 },
+    )
 
   const limit = await hitLimit(payload, {
     scope: 'application-submit',
@@ -35,12 +39,12 @@ export async function POST(request: Request) {
     windowSeconds: 3600,
   })
   if (!limit.allowed)
-    return reply({ message: 'Please wait a little before trying again.' }, { status: 429 })
+    return reply({ message: 'Please wait a moment before trying again.' }, { status: 429 })
 
   const result = await submitArtistApplication(
     payload,
     member,
-    await consentEvidence(request, PRIVACY_NOTICE_VERSION),
+    await consentEvidence(request, ARTIST_NOTICE_VERSION, artistNoticeText()),
   )
   if (!result.ok)
     return reply({ message: result.message, errors: result.errors }, { status: result.status })

@@ -219,7 +219,7 @@ export const fillEarlySteps = async (page: Page) => {
             displayName: 'Asha',
             dateOfBirth: '1990-04-12',
             phone: '98765 43210',
-            language: 'English',
+            consentProcessing: true,
           },
         })
       ).status,
@@ -292,6 +292,20 @@ export const fillEarlySteps = async (page: Page) => {
 }
 
 /** Makes a member an approved artist (or partner) directly, as an approval would */
+/**
+ * Opens a step of the artist application by its title. After a reload the page opens on the first
+ * step not yet done, and only finished steps can be clicked in the row of steps, so it clicks
+ * only when the page is somewhere else.
+ */
+export const goToStep = async (page: Page, title: string) => {
+  // A finished step is a button in the list; the current one, and those not reached, are not.
+  // The review page repeats each step's title as a heading, so the heading alone proves nothing.
+  await expect(page.getByRole('list', { name: 'Application steps' })).toBeVisible()
+  const done = page.getByRole('button', { name: `${title}, done`, exact: true })
+  if (await done.count()) await done.click()
+  await expect(page.getByRole('heading', { name: title, exact: true }).first()).toBeVisible()
+}
+
 export const approveAs = async (memberId: number, kind: 'artist' | 'partner' = 'artist') => {
   const p = await payload()
   const field = kind === 'artist' ? 'artistId' : 'partnerId'
@@ -333,6 +347,49 @@ export const findMember = async (email: string) =>
       overrideAccess: true,
     })
   ).docs[0]!
+
+/**
+ * Step 1 of the artist application as the design asks for it: the names, the date of birth by
+ * day, month and year, the mobile number after its country code, and the tick box under "How we
+ * use your details". A date is given as YYYY-MM-DD; an empty value leaves its field empty.
+ */
+export const fillAboutYou = async (
+  page: Page,
+  {
+    name = 'Asha Example',
+    workName = 'Asha',
+    dateOfBirth = '1990-04-12',
+    phone = '98765 43210',
+    consent = true,
+  }: {
+    name?: string
+    workName?: string
+    dateOfBirth?: string
+    phone?: string
+    consent?: boolean
+  } = {},
+) => {
+  await page.getByLabel('Your full name').fill(name)
+  await page.getByLabel('The name you work under').fill(workName)
+  const [year = '', month = '', day = ''] = dateOfBirth.split('-')
+  await page.getByLabel('Day', { exact: true }).fill(day ? String(Number(day)) : '')
+  await page.getByLabel('Month', { exact: true }).selectOption(month ? String(Number(month)) : '')
+  await page.getByLabel('Year', { exact: true }).fill(year)
+  await page.getByLabel('Mobile number').fill(phone)
+  const box = page.getByLabel(
+    'I have read how PAT & J.K. Co. will use my details, and I agree to it.',
+  )
+  if (consent) await box.check()
+  else await box.uncheck()
+}
+
+/** Review and send: the three statements ticked, and I AGREE typed */
+export const confirmArtistApplication = async (page: Page) => {
+  await page.getByLabel(/my own original work/).check()
+  await page.getByLabel(/None of them is a print, a copy/).check()
+  await page.getByLabel(/The details I have given are true and complete/).check()
+  await page.getByLabel('To confirm, type I AGREE').fill('I AGREE')
+}
 
 /** The pre-submission notice: the policy scrolled to its end, the box ticked, I AGREE typed */
 export const agreeToNotice = async (page: Page) => {

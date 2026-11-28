@@ -15,11 +15,14 @@ import {
   signInWithCode,
   uniqueEmail,
   agreeToNotice,
+  confirmArtistApplication,
+  fillAboutYou,
 } from '../helpers/e2e'
 
 /*
- * Applying, as a person would, in a real browser: an artist through every step (stopping halfway
- * and coming back), the two identity paths, a partner, and signing in again with a code.
+ * Applying, as a person would, in a real browser: an artist through the five steps (stopping
+ * halfway and coming back), a partner, and signing in again with a code. The identity paths move
+ * with identity itself to after approval (the overhaul's Stage 6), and are tested there.
  */
 
 let restore: () => Promise<void>
@@ -91,27 +94,6 @@ const agreeToPrivacy = async (page: Page) => {
   await expect(page.getByLabel(/I agree to PAT & J\.K\. Co\. processing/)).toBeChecked()
 }
 
-const fillKycOtherId = async (page: Page) => {
-  await page.getByLabel('PAN', { exact: true }).fill('ABCPE1234F')
-  await page.getByLabel('Name as on your PAN').fill('Asha Example')
-  await uploadPanCard(page)
-  await page.getByLabel('I’d rather use another ID').check()
-  await page.getByRole('radio', { name: 'Passport', exact: true }).check()
-  // A one-page PDF with made-up text, so its first page can be previewed in the browser
-  await page
-    .locator('#field-documents-other-id')
-    .setInputFiles(
-      path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../fixtures/sample-passport.pdf'),
-    )
-  await expect(page.getByRole('img', { name: /Preview of the first page: Your ID/ })).toBeVisible()
-  await page.getByLabel('Yes', { exact: true }).check()
-  await uploadIdentityPhoto(page)
-  await expect(page.getByText('Received, and encrypted.')).toHaveCount(3)
-  // No bank details: those are asked for only when a sale needs a payout
-  await expect(page.getByLabel('Account number', { exact: true })).toHaveCount(0)
-  await agreeToPrivacy(page)
-}
-
 test('an artist applies step by step, stops halfway, and comes back', async ({ page, context }) => {
   const email = uniqueEmail('artist')
   await page.goto('/collaborate/artists')
@@ -119,11 +101,7 @@ test('an artist applies step by step, stops halfway, and comes back', async ({ p
 
   // About you
   await expect(page.getByRole('heading', { name: 'About you' })).toBeVisible()
-  await page.getByLabel('Your full legal name').fill('Asha Example')
-  await page.getByLabel('The name you work under').fill('Asha')
-  await page.getByLabel('Date of birth').fill('1990-04-12')
-  await page.getByLabel('Mobile number').fill('98765 43210')
-  await page.getByLabel('Language you would like us to write in').selectOption('English')
+  await fillAboutYou(page)
   await page.getByRole('button', { name: 'Save and continue' }).click()
 
   // Where you live
@@ -141,45 +119,36 @@ test('an artist applies step by step, stops halfway, and comes back', async ({ p
   await page.goto('/collaborate/artists')
   await signInWithCode(page, email)
   await expect(page.getByRole('heading', { name: 'Your practice' })).toBeVisible()
-  await expect(page.getByRole('button', { name: /Step 1: About you, saved/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'About you, done' })).toBeVisible()
 
   // Your practice
+  // Original, hand-made work only: no photography, prints or digital work on the list
+  await expect(page.getByLabel('Photography', { exact: true })).toHaveCount(0)
   await page.getByLabel('Painting', { exact: true }).check()
   await page.getByLabel('Papier-mâché').check()
   await page
-    .getByLabel('Styles and themes')
+    .getByLabel('Your style and subjects')
     .fill('Landscapes of the Shivalik foothills, painted outdoors in every season.')
   // Short of the minimum, the count says how far there is to go
   await expect(page.getByText(/of at least 80/)).toBeVisible()
   await page
-    .getByLabel('Styles and themes')
+    .getByLabel('Your style and subjects')
     .fill('Landscapes of the Shivalik foothills, painted outdoors in every season, in oils.')
-  const years = page.getByRole('listbox', { name: 'How long you have been practising' })
-  await years.focus()
-  await page.keyboard.press('ArrowDown')
-  await expect(years.getByRole('option', { name: 'Less than one' })).toHaveAttribute(
-    'aria-selected',
-    'true',
-  )
-  await years.getByRole('option', { name: '6 years', exact: true }).click()
-  await expect(years.getByRole('option', { name: '6 years', exact: true })).toHaveAttribute(
-    'aria-selected',
-    'true',
-  )
+  await page.getByLabel('How long have you been making work?').selectOption('6 to 10 years')
   await page
     .getByLabel('A short biography')
     .fill(
       'A painter working in oils and watercolour, mostly outdoors, across the seasons. '.repeat(4),
     )
   await page.getByLabel(/^Instagram/).fill('@asha.example')
-  await page.getByRole('button', { name: 'Add another platform' }).click()
+  await page.getByRole('button', { name: 'Add another link' }).click()
   await page.getByLabel('Platform').fill('Behance')
   await page.getByLabel('Link or ID').fill('asha-example')
-  await page.getByLabel('Typical price range').selectOption({ index: 2 })
+  await page.getByLabel('Your usual price range').selectOption('₹25,000 to ₹1 lakh')
   // The section is required, with a plain way to say there is nothing yet
   await page.getByRole('button', { name: 'Save and continue' }).click()
   await expect(
-    page.getByText('Please add at least one, or choose "None yet".').first(),
+    page.getByText('Please add at least one, or choose “None yet”.').first(),
   ).toBeVisible()
   await page.getByLabel('None yet').check()
   await page.getByRole('button', { name: 'Save and continue' }).click()
@@ -195,7 +164,7 @@ test('an artist applies step by step, stops halfway, and comes back', async ({ p
       })),
     ),
   )
-  await expect(page.getByText('3 of 10 works added.')).toBeVisible({ timeout: 60_000 })
+  await expect(page.getByText('3 of 10 added')).toBeVisible({ timeout: 60_000 })
   for (const [i, title] of ['Dusk', 'River', 'Hills'].entries()) {
     await page.getByLabel('Title', { exact: true }).nth(i).fill(title)
     await page
@@ -203,28 +172,26 @@ test('an artist applies step by step, stops halfway, and comes back', async ({ p
       .nth(i)
       .getByRole('option', { name: '2024', exact: true })
       .click()
-    await page.getByLabel('Medium', { exact: true }).nth(i).fill('Oil on canvas')
+    await page.getByLabel('Medium and surface').nth(i).fill('Oil on canvas')
     await page.getByLabel('Width', { exact: true }).nth(i).fill('60,5')
     await page.getByLabel('Height', { exact: true }).nth(i).fill('90')
   }
   // Inches for the last one: kept as given, and in centimetres
   await page.getByLabel('Unit', { exact: true }).nth(2).selectOption('in')
+  // The first is for sale at a price, the others not
+  await page.getByRole('radio', { name: 'Yes, at' }).first().check()
+  await page.getByLabel('Price in rupees').first().fill('45000')
+  await page.getByRole('radio', { name: 'No, not for sale' }).nth(1).check()
   await page.getByRole('button', { name: 'Save and continue' }).click()
 
-  // Identity: the other-ID path
-  await expect(page.getByRole('heading', { name: 'Identity', exact: true })).toBeVisible()
-  await fillKycOtherId(page)
-  await page.getByRole('button', { name: 'Save and continue' }).click()
-
-  // Review and send
+  // Review and send: no identity step any more
   await expect(page.getByRole('heading', { name: 'Review and send' })).toBeVisible()
-  await expect(page.getByText('ABCxxxxx4F')).toBeVisible()
-  await page.getByLabel(/my own original work/).check()
-  await page.getByLabel(/information I have given is accurate/).check()
-  await agreeToNotice(page)
+  await expect(page.getByText('12 April 1990')).toBeVisible()
+  await expect(page.getByText('6 to 10 years')).toBeVisible()
+  await confirmArtistApplication(page)
   await page.getByRole('button', { name: 'Send my application' }).click()
   await expect(
-    page.getByRole('heading', { name: 'Thank you. We have your application.' }),
+    page.getByRole('heading', { name: 'Thank you. Your application has reached us.' }),
   ).toBeVisible()
 
   const member = await findMember(email)
@@ -240,22 +207,20 @@ test('an artist applies step by step, stops halfway, and comes back', async ({ p
   expect(application.stage).toBe('submitted')
   expect(application.practice?.yearsPractising).toBe(6)
   expect(application.practice?.recognitionNone).toBe(true)
-  expect(application.portfolio?.[0]).toMatchObject({ year: 2024, width: 60.5, widthCm: 60.5 })
+  expect(application.portfolio?.[0]).toMatchObject({
+    year: 2024,
+    width: 60.5,
+    widthCm: 60.5,
+    priceInr: 45000,
+  })
+  expect(application.portfolio?.[1]?.priceInr ?? null).toBeNull()
   expect(application.portfolio?.[2]).toMatchObject({ unit: 'in', width: 60.5, widthCm: 153.67 })
-  const record = (
-    await (
-      await payload()
-    ).find({
-      collection: 'kyc-records',
-      where: { member: { equals: member.id } },
-      overrideAccess: true,
-    })
-  ).docs[0]!
-  expect(record.identityCode).toMatch(/^[2-9A-Z]{3}-[2-9A-Z]{3}$/)
-  expect(record.consentConfirmation).toMatch(/I AGREE/)
+  expect(application.about?.consentProcessing).toBe(true)
+  expect(application.declarations?.notCopy).toBe(true)
 })
 
-test('PAN is required, and a masked e-Aadhaar goes through the check', async ({ page }) => {
+// Identity is asked for after approval now; Stage 6 of the overhaul moves this test to that page
+test.fixme('PAN is required, and a masked e-Aadhaar goes through the check', async ({ page }) => {
   const email = uniqueEmail('aadhaar')
   await page.goto('/collaborate/artists')
   await signInWithCode(page, email)
@@ -405,11 +370,7 @@ test('a save that cannot reach the server says so, and the button comes back', a
   await page.goto('/collaborate/artists')
   await signInWithCode(page, email)
   await expect(page.getByRole('heading', { name: 'About you' })).toBeVisible()
-  await page.getByLabel('Your full legal name').fill('Asha Example')
-  await page.getByLabel('The name you work under').fill('Asha')
-  await page.getByLabel('Date of birth').fill('1990-04-12')
-  await page.getByLabel('Mobile number').fill('98765 43210')
-  await page.getByLabel('Language you would like us to write in').selectOption('English')
+  await fillAboutYou(page)
   await page.getByRole('button', { name: 'Save and continue' }).click()
   await expect(page.getByRole('heading', { name: 'Where you live' })).toBeVisible()
 
@@ -444,11 +405,7 @@ test('a save dropped once on the way goes through by itself', async ({ page }) =
     if (dropped++ === 0) return route.abort('connectionreset')
     return route.continue()
   })
-  await page.getByLabel('Your full legal name').fill('Asha Example')
-  await page.getByLabel('The name you work under').fill('Asha')
-  await page.getByLabel('Date of birth').fill('1990-04-12')
-  await page.getByLabel('Mobile number').fill('98765 43210')
-  await page.getByLabel('Language you would like us to write in').selectOption('English')
+  await fillAboutYou(page)
   await page.getByRole('button', { name: 'Save and continue' }).click()
   await expect(page.getByRole('heading', { name: 'Where you live' })).toBeVisible()
   await expect(page.getByText(/We could not reach PJK/)).toHaveCount(0)

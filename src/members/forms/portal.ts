@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-import { addressSchema, MEDIUMS, phoneSchema } from './schemas'
+import { addressSchema, MEDIUMS, phoneSchema, retiredMediumLine, TAKEN_MEDIUMS } from './schemas'
 import { isWebUrl } from './validators'
 
 /**
@@ -71,7 +71,15 @@ export const profileSchema = z.object({
     .max(5, 'Up to five links, please.')
     .default([]),
   portrait: z.coerce.number().int().positive().optional(),
-  mediums: z.array(z.enum(MEDIUM_VALUES)).max(10).default([]),
+  // From the media Phulhaar takes now; one no longer taken is named, to be unticked
+  mediums: z
+    .array(z.enum(MEDIUM_VALUES))
+    .max(10)
+    .default([])
+    .superRefine((list, ctx) => {
+      const retired = list.find((m) => !TAKEN_MEDIUMS.some((t) => t.value === m))
+      if (retired) ctx.addIssue({ code: 'custom', message: retiredMediumLine(retired) })
+    }),
   exhibitions: z
     .array(
       z.object({

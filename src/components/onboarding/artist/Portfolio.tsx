@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react'
 
-import { DIMENSION_UNITS, PORTFOLIO_MAX, PORTFOLIO_MIN, yearChoices } from '@/members/forms/schemas'
+import { OFFERED_UNITS, PORTFOLIO_MAX, PORTFOLIO_MIN, yearChoices } from '@/members/forms/schemas'
 import { cn } from '@/utilities/ui'
 
 import { api } from '../api'
@@ -32,6 +32,74 @@ const decimal = (value: string) =>
     .replace(',', '.')
     .replace(/[^\d.]/g, '')
     .replace(/(\..*)\./g, '$1')
+
+/**
+ * "Is it for sale?" Yes, at a price in whole rupees, or No. The price box is filled only for Yes;
+ * choosing No clears it, so a work is either for sale at a price or not for sale.
+ */
+const ForSale: React.FC<{
+  index: number
+  sale: boolean | undefined
+  price: unknown
+  onSale: (sale: boolean) => void
+  onPrice: (price: string) => void
+  error?: string
+}> = ({ index, sale, price, onSale, onPrice, error }) => {
+  const id = `field-works-${index}-priceInr`
+  return (
+    <fieldset aria-describedby={error ? `${id}-error` : undefined}>
+      <legend className="label mb-2">Is it for sale?</legend>
+      <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
+        <label className="flex min-h-11 cursor-pointer items-center gap-3">
+          <input
+            checked={sale === true}
+            className="size-5 cursor-pointer"
+            name={`works-${index}-sale`}
+            onChange={() => onSale(true)}
+            type="radio"
+          />
+          Yes, at
+        </label>
+        <label className="sr-only" htmlFor={id}>
+          Price in rupees
+        </label>
+        <span className="flex items-end gap-2">
+          <span aria-hidden className="pb-2 text-[1.15rem]">
+            ₹
+          </span>
+          <input
+            aria-invalid={error ? true : undefined}
+            className="w-40 rounded-none border-0 border-b border-input bg-transparent px-0 py-2 text-[1.15rem] focus:outline-none disabled:opacity-50"
+            disabled={sale !== true}
+            id={id}
+            inputMode="numeric"
+            onChange={(e) => onPrice(e.target.value)}
+            type="text"
+            value={sale === true ? String(price ?? '') : ''}
+          />
+        </span>
+      </div>
+      <label className="mt-1 flex min-h-11 cursor-pointer items-center gap-3">
+        <input
+          checked={sale === false}
+          className="size-5 cursor-pointer"
+          name={`works-${index}-sale`}
+          onChange={() => {
+            onSale(false)
+            onPrice('')
+          }}
+          type="radio"
+        />
+        No, not for sale
+      </label>
+      {error && (
+        <p className="mt-2 text-base italic text-destructive" id={`${id}-error`}>
+          {error}
+        </p>
+      )}
+    </fieldset>
+  )
+}
 
 /**
  * Three to ten works, each a picture and a few facts. A chosen picture shows straight away, from
@@ -64,9 +132,7 @@ export const PortfolioStep: React.FC<StepProps> = ({ values, set, errors }) => {
     setPending((all) => all.map((p) => (p.key === key ? { ...p, ...change } : p)))
 
   const sendOne = async (file: File, key: string): Promise<Image | null> => {
-    const result = await sendPicture<{ image: Image }>(file, (state) =>
-      update(key, { state }),
-    )
+    const result = await sendPicture<{ image: Image }>(file, (state) => update(key, { state }))
     if (!result.ok) {
       setProblem(`${file.name}: ${result.data.message ?? 'That picture could not be added.'}`)
       return null
@@ -134,12 +200,12 @@ export const PortfolioStep: React.FC<StepProps> = ({ values, set, errors }) => {
   return (
     <div>
       <p className="measure">
-        Add between {PORTFOLIO_MIN} and {PORTFOLIO_MAX} works that show what you do best. A few
-        clear, evenly lit photographs say more than many. JPEG, PNG or WebP, up to 25 MB each.
+        A few clear photographs say more than many. Photograph each work straight on, in even
+        daylight, and without glass if you can. JPEG, PNG or WebP, up to 25 MB each.
       </p>
       <p className="muted measure mt-3 text-base">
-        We remove the hidden details cameras add to photographs, including where they were taken,
-        before keeping them. Only our team sees these pictures.
+        Before we store your photographs, we remove the hidden details cameras add to them, such as
+        where they were taken. Only our team sees them.
       </p>
 
       {errors.works && (
@@ -183,7 +249,7 @@ export const PortfolioStep: React.FC<StepProps> = ({ values, set, errors }) => {
                     onClick={() => move(i, i - 1)}
                     type="button"
                   >
-                    Up<span className="sr-only"> (move work {i + 1} earlier)</span>
+                    Move up<span className="sr-only"> (work {i + 1})</span>
                   </button>
                   <button
                     className="link link-caps min-h-11"
@@ -191,7 +257,7 @@ export const PortfolioStep: React.FC<StepProps> = ({ values, set, errors }) => {
                     onClick={() => move(i, i + 1)}
                     type="button"
                   >
-                    Down<span className="sr-only"> (move work {i + 1} later)</span>
+                    Move down<span className="sr-only"> (work {i + 1})</span>
                   </button>
                   <button
                     className="link link-caps min-h-11"
@@ -217,46 +283,28 @@ export const PortfolioStep: React.FC<StepProps> = ({ values, set, errors }) => {
                 />
                 <TextField
                   errors={errors}
-                  hint="For example, oil on canvas."
-                  label="Medium"
+                  label="Medium and surface"
                   name={`works.${i}.medium`}
                   onValue={(v) => set(`works.${i}.medium`, v)}
+                  placeholder="For example, oil on canvas"
                   value={work.medium}
                 />
-                <div className="grid gap-x-10 gap-y-7 sm:grid-cols-[1fr_13rem]">
-                  <TextField
-                    errors={errors}
-                    hint="Leave it empty if the work is not for sale."
-                    inputMode="numeric"
-                    label="Price (₹)"
-                    name={`works.${i}.priceInr`}
-                    onValue={(v) => set(`works.${i}.priceInr`, v.replace(/[^\d]/g, ''))}
-                    optional
-                    value={work.priceInr}
-                  />
-                  <Roller
-                    error={errors[`works.${i}.year`]}
-                    label="Year made"
-                    name={`works.${i}.year`}
-                    onValue={(v) => set(`works.${i}.year`, v)}
-                    options={YEARS}
-                    value={work.year}
-                  />
-                </div>
+                <Roller
+                  className="max-w-[13rem]"
+                  error={errors[`works.${i}.year`]}
+                  label="Year made"
+                  name={`works.${i}.year`}
+                  onValue={(v) => set(`works.${i}.year`, v)}
+                  options={YEARS}
+                  value={work.year}
+                />
                 <fieldset>
                   <legend className="label mb-1">Size</legend>
                   <p className="muted mb-3 text-base">
-                    Decimals are fine. Leave depth empty for a flat work.
+                    Height first, then width. Leave depth empty for a flat work. Inches are fine:
+                    the certificate and listing show centimetres, converted for you.
                   </p>
                   <div className="grid grid-cols-2 gap-x-6 gap-y-6 sm:grid-cols-4">
-                    <TextField
-                      errors={errors}
-                      inputMode="decimal"
-                      label="Width"
-                      name={`works.${i}.width`}
-                      onValue={(v) => set(`works.${i}.width`, decimal(v))}
-                      value={work.width}
-                    />
                     <TextField
                       errors={errors}
                       inputMode="decimal"
@@ -264,6 +312,14 @@ export const PortfolioStep: React.FC<StepProps> = ({ values, set, errors }) => {
                       name={`works.${i}.height`}
                       onValue={(v) => set(`works.${i}.height`, decimal(v))}
                       value={work.height}
+                    />
+                    <TextField
+                      errors={errors}
+                      inputMode="decimal"
+                      label="Width"
+                      name={`works.${i}.width`}
+                      onValue={(v) => set(`works.${i}.width`, decimal(v))}
+                      value={work.width}
                     />
                     <TextField
                       errors={errors}
@@ -279,11 +335,19 @@ export const PortfolioStep: React.FC<StepProps> = ({ values, set, errors }) => {
                       label="Unit"
                       name={`works.${i}.unit`}
                       onValue={(v) => set(`works.${i}.unit`, v)}
-                      options={DIMENSION_UNITS.map(({ value, label }) => ({ value, label }))}
+                      options={OFFERED_UNITS.map(({ value, label }) => ({ value, label }))}
                       value={unit}
                     />
                   </div>
                 </fieldset>
+                <ForSale
+                  error={errors[`works.${i}.priceInr`]}
+                  index={i}
+                  onPrice={(v) => set(`works.${i}.priceInr`, v.replace(/[^\d]/g, ''))}
+                  onSale={(v) => set(`works.${i}.forSale`, v)}
+                  price={work.priceInr}
+                  sale={work.forSale ?? (work.priceInr ? true : undefined)}
+                />
               </div>
             </li>
           )
@@ -327,8 +391,15 @@ export const PortfolioStep: React.FC<StepProps> = ({ values, set, errors }) => {
         <p aria-live="polite" className="text-base" role="status">
           {sending
             ? `Adding ${pending.filter((p) => p.state.phase !== 'failed').length === 1 ? 'a picture' : 'pictures'}. You can keep writing meanwhile.`
-            : `${works.length} of ${PORTFOLIO_MAX} works added.`}
+            : `${works.length} of ${PORTFOLIO_MAX} added`}
         </p>
+        {!sending && works.length < PORTFOLIO_MIN && (
+          <p className="muted mt-1 text-base">
+            {works.length === 0
+              ? `Add at least ${PORTFOLIO_MIN}. Put the work you would most like us to see at the top.`
+              : `Add at least ${PORTFOLIO_MIN - works.length === 1 ? 'one' : PORTFOLIO_MIN - works.length} more. Put the work you would most like us to see at the top.`}
+          </p>
+        )}
         {problem && (
           <p className="mt-2 text-base italic text-destructive" role="alert">
             {problem}
@@ -341,7 +412,7 @@ export const PortfolioStep: React.FC<StepProps> = ({ values, set, errors }) => {
               sending && 'pointer-events-none opacity-60',
             )}
           >
-            {works.length === 0 ? 'Choose pictures' : 'Add more pictures'}
+            {works.length === 0 ? 'Choose photographs' : 'Add more photographs'}
             <input
               accept={ACCEPT}
               className="sr-only"

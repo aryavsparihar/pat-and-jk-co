@@ -17,8 +17,9 @@ import { stepValues } from './forms/values'
 import { identityFingerprint } from '@/kyc/identityCode'
 import { discardUnkeptPictures } from './portfolio'
 import { partnerKycSchema, type PartnerKycInput } from '@/kyc/schema'
-import { identityPhotoFacts, kycProblems, partnerKycProblems, savePartnerKyc } from '@/kyc/service'
+import { identityPhotoFacts, partnerKycProblems, savePartnerKyc } from '@/kyc/service'
 import { actingFor } from '@/security/audit'
+import { ARTIST_NOTICE_VERSION } from './applicationNotice'
 import { type ConsentEvidence, consentRow } from './consentRecord'
 
 /**
@@ -30,8 +31,11 @@ import { type ConsentEvidence, consentRow } from './consentRecord'
  * moved on submission with the server's authority, after everything stored has been re-checked.
  */
 
-/** The privacy notice an applicant is agreeing to; bump it when the notice changes materially */
+/** The privacy notice a trade applicant is agreeing to; bump it when the notice changes materially */
 export const PRIVACY_NOTICE_VERSION = '2026-11-12'
+
+/** The founder's line for I AGREE not typed as asked */
+const AGREE_LINE = `Please type ${TERMS_PHRASE} in capitals to confirm.`
 
 export const EDITABLE: Application['stage'][] = ['draft', 'changes-requested']
 
@@ -80,14 +84,12 @@ const toFields = (step: ArtistStep, data: Record<string, unknown>): Partial<Appl
       return { practice: data as never }
     case 'portfolio':
       return { portfolio: data.works as unknown[] as never }
-    case 'kyc':
-      return {}
     case 'review':
       return {
         declarations: {
           ...data,
           consentedAt: new Date().toISOString(),
-          privacyNoticeVersion: PRIVACY_NOTICE_VERSION,
+          privacyNoticeVersion: ARTIST_NOTICE_VERSION,
         } as never,
       }
   }
@@ -105,9 +107,6 @@ export const saveArtistStep = async (
     return { ok: false, status: 400, message: 'That is not a step of the application.' }
   }
   const name = step as ArtistStep
-  if (name === 'kyc') {
-    return { ok: false, status: 400, message: 'Identity details are saved separately.' }
-  }
   const application = await findOwnApplication(payload, member, 'artist', 0)
   if (!application)
     return { ok: false, status: 404, message: 'There is no artist application to save.' }
@@ -115,7 +114,7 @@ export const saveArtistStep = async (
     return {
       ok: false,
       status: 409,
-      message: 'This application has been sent and can no longer be changed.',
+      message: 'This application has been sent, so it can no longer be changed.',
     }
   }
 
@@ -124,7 +123,7 @@ export const saveArtistStep = async (
     return {
       ok: false,
       status: 422,
-      message: 'A few things need another look.',
+      message: 'A few things need another look. They are marked below.',
       errors: fieldErrors(parsed.error),
     }
   }
@@ -138,7 +137,7 @@ export const saveArtistStep = async (
       overrideAccess: true,
     })
     if (owned.totalDocs !== new Set(ids).size || new Set(ids).size !== ids.length) {
-      return { ok: false, status: 422, message: 'Each work needs its own picture, uploaded here.' }
+      return { ok: false, status: 422, message: 'Each work needs its own photograph.' }
     }
   }
 
@@ -150,28 +149,28 @@ export const saveArtistStep = async (
       return {
         ok: false,
         status: 422,
-        message: 'A few things need another look.',
-        errors: { agreeTyped: `Please type ${TERMS_PHRASE} to confirm.` },
+        message: 'A few things need another look. They are marked below.',
+        errors: { agreeTyped: AGREE_LINE },
       }
     }
   }
 
   const completed = new Set(application.completedSteps ?? [])
   completed.add(name)
-  // The identity photo shows the date of birth: a new one means a new photo, so Identity is to do
-  // again (its save checks the photo against the details given now)
+  const fields = toFields(name, parsed.data as Record<string, unknown>)
+  // Consent is given in step 1; the time kept is when it was first given, not every later save
   if (name === 'about') {
-    const before = application.about?.dateOfBirth?.slice(0, 10)
-    const after = String((parsed.data as { dateOfBirth?: string }).dateOfBirth ?? '')
-    if (before && before !== after) completed.delete('kyc')
+    fields.about = {
+      ...fields.about,
+      consentedAt: application.about?.consentProcessing
+        ? (application.about.consentedAt ?? new Date().toISOString())
+        : new Date().toISOString(),
+    } as never
   }
   const updated = await payload.update({
     collection: 'applications',
     id: application.id,
-    data: {
-      ...toFields(name, parsed.data as Record<string, unknown>),
-      completedSteps: [...completed],
-    },
+    data: { ...fields, completedSteps: [...completed] },
     depth: 1,
     ...asMember(member),
     context: { disableRevalidate: true },
@@ -246,28 +245,27 @@ export const submitArtistApplication = async (
   const declarations = application.declarations as
     { agreeTyped?: string | null; consentProcessing?: boolean | null } | undefined
   if (!agreedInWords(declarations?.agreeTyped)) {
-    problems.review = { ...problems.review, agreeTyped: `Please type ${TERMS_PHRASE} to confirm.` }
+    problems.review = { ...problems.review, agreeTyped: AGREE_LINE }
   }
-  const kyc = await kycProblems(payload, member.id)
-  if (kyc.length > 0) problems.kyc = { _form: kyc[0]! }
-  else if (!(application.completedSteps ?? []).includes('kyc'))
-    // Reopened when the date of birth changed after the identity photo was taken
-    problems.kyc = {
-      _form: 'Your date of birth has changed. Please take the photo of you again, in Identity.',
-    }
+  // Identity is no longer part of the application: it is asked for after approval
   if (Object.keys(problems).length > 0) {
     const errors = Object.fromEntries(
       Object.entries(problems).flatMap(([step, fields]) =>
         Object.entries(fields).map(([field, message]) => [`${step}.${field}`, message]),
       ),
     )
-    return { ok: false, status: 422, message: 'Some steps are not finished yet.', errors }
+    return {
+      ok: false,
+      status: 422,
+      message: 'Some steps are not finished yet. They are marked in the list of steps above.',
+      errors,
+    }
   }
   await discardUnkeptPictures(payload, member, new Date())
   return {
     ok: true,
     application: await submit(payload, member, application, evidence, {
-      checked: declarations?.consentProcessing === true,
+      checked: application.about?.consentProcessing === true,
       typed: declarations?.agreeTyped,
     }),
   }

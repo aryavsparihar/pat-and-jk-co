@@ -1834,6 +1834,8 @@ export interface Application {
     dateOfBirth?: string | null;
     phone?: string | null;
     language?: ('English' | 'Hindi' | 'Dogri' | 'Urdu' | 'Punjabi' | 'Kashmiri' | 'Other') | null;
+    consentProcessing?: boolean | null;
+    consentedAt?: string | null;
   };
   address?: {
     residence?: {
@@ -1893,6 +1895,9 @@ export interface Application {
       | null;
     mediumOther?: string | null;
     stylesThemes?: string | null;
+    /**
+     * The start of the band they chose: 0 is less than a year, 1 is 1 to 2, 3 is 3 to 5, 6 is 6 to 10, 11 is more than 10.
+     */
     yearsPractising?: number | null;
     training?: string | null;
     bio?: string | null;
@@ -1907,7 +1912,7 @@ export interface Application {
           id?: string | null;
         }[]
       | null;
-    priceRange?: ('under-25k' | '25k-1l' | '1l-5l' | 'over-5l' | 'not-sure') | null;
+    priceRange?: ('under-10k' | '10k-25k' | '25k-1l' | '1l-5l' | 'over-5l' | 'under-25k' | 'not-sure') | null;
     recognition?:
       | {
           kind?: ('exhibition' | 'award' | 'residency' | 'publication') | null;
@@ -1939,6 +1944,7 @@ export interface Application {
     | null;
   declarations?: {
     originalWork?: boolean | null;
+    notCopy?: boolean | null;
     accurate?: boolean | null;
     consentProcessing?: boolean | null;
     consentedAt?: string | null;
@@ -3652,6 +3658,8 @@ export interface ApplicationsSelect<T extends boolean = true> {
         dateOfBirth?: T;
         phone?: T;
         language?: T;
+        consentProcessing?: T;
+        consentedAt?: T;
       };
   address?:
     | T
@@ -3740,6 +3748,7 @@ export interface ApplicationsSelect<T extends boolean = true> {
     | T
     | {
         originalWork?: T;
+        notCopy?: T;
         accurate?: T;
         consentProcessing?: T;
         consentedAt?: T;

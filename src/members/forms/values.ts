@@ -1,6 +1,6 @@
 import type { Application } from '@/payload-types'
 
-import type { ArtistStep } from './schemas'
+import { experienceBand, type ArtistStep } from './schemas'
 
 /**
  * A stored application, put back into the shape each step's form (and schema) works with. Shared by
@@ -47,32 +47,35 @@ export const stepValues = (
         otherSocials: [],
         recognitionNone: false,
         ...app.practice,
+        // A number of years given before the bands is shown as the band it falls in
+        yearsPractising: experienceBand(app.practice?.yearsPractising),
       }) as Record<string, unknown>
     case 'portfolio':
       return {
-        works: (app.portfolio ?? []).map((work) =>
-          tidy({
+        works: (app.portfolio ?? []).map((work) => {
+          // Works saved before units were asked for were in centimetres, and metres are no
+          // longer offered: both come back in centimetres
+          const inCm = !work.unit || work.unit === 'm'
+          return tidy({
             ...work,
             image: idOf(work.image),
-            // Works saved before units were asked for were in centimetres
-            unit: work.unit ?? 'cm',
-            width: work.width ?? work.widthCm,
-            height: work.height ?? work.heightCm,
-            depth: work.depth ?? work.depthCm,
+            unit: inCm ? 'cm' : work.unit,
+            width: inCm ? (work.widthCm ?? work.width) : work.width,
+            height: inCm ? (work.heightCm ?? work.height) : work.height,
+            depth: inCm ? (work.depthCm ?? work.depth) : work.depth,
             widthCm: undefined,
             heightCm: undefined,
             depthCm: undefined,
-          }),
-        ),
+            // A saved work with no price was saved as not for sale
+            forSale: typeof work.priceInr === 'number',
+          })
+        }),
       }
-    case 'kyc':
-      // Never returned to the browser: the KYC step shows masked values from its own endpoint
-      return {}
     case 'review':
       return tidy({
         originalWork: app.declarations?.originalWork ?? false,
+        notCopy: app.declarations?.notCopy ?? false,
         accurate: app.declarations?.accurate ?? false,
-        consentProcessing: app.declarations?.consentProcessing ?? false,
       }) as Record<string, unknown>
   }
 }

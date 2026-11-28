@@ -7,6 +7,7 @@ import {
   openApplications,
   signInWithCode,
   uniqueEmail,
+  goToStep,
 } from '../helpers/e2e'
 
 /*
@@ -56,10 +57,10 @@ test('a large picture on a slow connection shows real progress, then its prepara
   await expect(page.getByRole('heading', { name: 'About you' })).toBeVisible()
   await fillEarlySteps(page)
   await page.reload()
-  await page.getByRole('button', { name: /Step 4: Your work/ }).click()
+  await goToStep(page, 'Your work')
   await expect(page.getByRole('heading', { name: 'Your work', exact: true })).toBeVisible()
 
-  const before = Number((await page.getByText(/of 10 works added/).textContent())!.match(/\d+/)![0])
+  const before = Number((await page.getByText(/of 10 added/).textContent())!.match(/\d+/)![0])
   const picture = await largePicture()
   expect(picture.length).toBeGreaterThan(2_000_000)
 
@@ -97,7 +98,7 @@ test('a large picture on a slow connection shows real progress, then its prepara
     downloadThroughput: -1,
     uploadThroughput: -1,
   })
-  await expect(page.getByText(`${before + 1} of 10 works added`)).toBeVisible({ timeout: 60_000 })
+  await expect(page.getByText(`${before + 1} of 10 added`)).toBeVisible({ timeout: 60_000 })
 
   const seen = await page.evaluate(
     () => (window as unknown as { seen: { values: number[]; words: string[] } }).seen,
@@ -120,9 +121,9 @@ test('an upload lost before any of it had gone goes through by itself', async ({
   await expect(page.getByRole('heading', { name: 'About you' })).toBeVisible()
   await fillEarlySteps(page)
   await page.reload()
-  await page.getByRole('button', { name: /Step 4: Your work/ }).click()
+  await goToStep(page, 'Your work')
   await expect(page.getByRole('heading', { name: 'Your work', exact: true })).toBeVisible()
-  const before = Number((await page.getByText(/of 10 works added/).textContent())!.match(/\d+/)![0])
+  const before = Number((await page.getByText(/of 10 added/).textContent())!.match(/\d+/)![0])
 
   // The first attempt is lost on its way out, the way a connection the browser believed was still
   // open fails; the second is let through
@@ -137,7 +138,7 @@ test('an upload lost before any of it had gone goes through by itself', async ({
     .setInputFiles({ name: 'kept.jpg', mimeType: 'image/jpeg', buffer: await smallPicture() })
 
   // The work arrives, and the artist is never told anything went wrong
-  await expect(page.getByText(`${before + 1} of 10 works added`)).toBeVisible({ timeout: 60_000 })
+  await expect(page.getByText(`${before + 1} of 10 added`)).toBeVisible({ timeout: 60_000 })
   expect(attempts).toBe(2)
   await expect(page.getByText(/We could not reach PJK/)).toHaveCount(0)
   await expect(page.getByText('Not added')).toHaveCount(0)

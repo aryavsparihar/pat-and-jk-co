@@ -5,18 +5,34 @@ import React from 'react'
 import {
   BIO_LIMIT,
   DETAILS_LIMIT,
-  LANGUAGES,
+  EXPERIENCE_BANDS,
   MEDIUMS,
+  OFFERED_PRICE_RANGES,
+  TAKEN_MEDIUMS,
   MIN_LENGTH,
   OTHER_SOCIALS_MAX,
-  PRICE_RANGES,
   RECOGNITION_KINDS,
-  YEARS_PRACTISING_MAX,
   yearChoices,
 } from '@/members/forms/schemas'
+import {
+  ARTIST_NOTICE,
+  ARTIST_NOTICE_CHECKBOX,
+  ARTIST_NOTICE_HEADING,
+  ARTIST_NOTICE_INTRO,
+} from '@/members/applicationNotice'
+import { cn } from '@/utilities/ui'
 
 import { AddressFields, PhoneField, PostalAddressFields, SendPostHere } from '../country'
-import { Check, CheckGroup, type Errors, SelectField, TextArea, TextField } from '../fields'
+import {
+  Check,
+  CheckGroup,
+  type Errors,
+  fieldClass,
+  idFor,
+  SelectField,
+  TextArea,
+  TextField,
+} from '../fields'
 import { Roller, type RollerOption } from '../Roller'
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- step values are free-form until the schema checks them */
@@ -27,60 +43,203 @@ export type StepProps = {
   errors: Errors
 }
 
-/** The latest date of birth that makes someone 18 today */
-const eighteenYearsAgo = () => {
-  const d = new Date()
-  d.setFullYear(d.getFullYear() - 18)
-  return d.toISOString().slice(0, 10)
+const MONTHS = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+]
+
+/**
+ * The date of birth as the design asks for it: the day, the month from a list, and the year. It
+ * is kept as one date (YYYY-MM-DD) once all three are given, and checked on the server.
+ */
+const DateOfBirth: React.FC<{
+  value?: string
+  onValue: (value: string) => void
+  error?: string
+}> = ({ value, onValue, error }) => {
+  const [y = '', m = '', d = ''] = (value ?? '').split('-')
+  const [parts, setParts] = React.useState({
+    day: d ? String(Number(d)) : '',
+    month: m ? String(Number(m)) : '',
+    year: y,
+  })
+  const update = (next: Partial<typeof parts>) => {
+    const all = { ...parts, ...next }
+    setParts(all)
+    const day = all.day.replace(/\D/g, '')
+    const year = all.year.replace(/\D/g, '')
+    onValue(
+      day && all.month && year.length === 4
+        ? `${year}-${all.month.padStart(2, '0')}-${day.padStart(2, '0')}`
+        : '',
+    )
+  }
+  const id = idFor('dateOfBirth')
+  return (
+    <fieldset
+      aria-describedby={[`${id}-hint`, error && `${id}-error`].filter(Boolean).join(' ')}
+      className="min-w-0"
+      id={id}
+    >
+      <legend className="label mb-1">Date of birth</legend>
+      <p className="muted mb-2 text-base" id={`${id}-hint`}>
+        You need to be 18 or over to apply.
+      </p>
+      <div className="flex flex-wrap gap-5">
+        <div className="w-[90px]">
+          <label className="muted block" htmlFor={`${id}-day`}>
+            Day
+          </label>
+          <input
+            aria-invalid={error ? true : undefined}
+            autoComplete="bday-day"
+            className={fieldClass}
+            id={`${id}-day`}
+            inputMode="numeric"
+            maxLength={2}
+            onChange={(e) => update({ day: e.target.value })}
+            type="text"
+            value={parts.day}
+          />
+        </div>
+        <div className="w-[200px] max-w-full">
+          <label className="muted block" htmlFor={`${id}-month`}>
+            Month
+          </label>
+          <select
+            aria-invalid={error ? true : undefined}
+            autoComplete="bday-month"
+            className={cn(fieldClass, 'cursor-pointer')}
+            id={`${id}-month`}
+            onChange={(e) => update({ month: e.target.value })}
+            value={parts.month}
+          >
+            <option value="">Choose…</option>
+            {MONTHS.map((name, i) => (
+              <option key={name} value={String(i + 1)}>
+                {name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="w-[120px]">
+          <label className="muted block" htmlFor={`${id}-year`}>
+            Year
+          </label>
+          <input
+            aria-invalid={error ? true : undefined}
+            autoComplete="bday-year"
+            className={fieldClass}
+            id={`${id}-year`}
+            inputMode="numeric"
+            maxLength={4}
+            onChange={(e) => update({ year: e.target.value })}
+            type="text"
+            value={parts.year}
+          />
+        </div>
+      </div>
+      {error && (
+        <p className="mt-2 text-base italic text-destructive" id={`${id}-error`}>
+          {error}
+        </p>
+      )}
+    </fieldset>
+  )
 }
+
+/** "How we use your details", and the tick box that agrees to it (the Apply1 design) */
+const HowWeUseYourDetails: React.FC<{
+  checked: boolean
+  onValue: (checked: boolean) => void
+  error?: string
+}> = ({ checked, onValue, error }) => (
+  <div className="apply-notice">
+    <h3 className="font-display text-[1.625rem] font-normal text-[var(--primary)]">
+      {ARTIST_NOTICE_HEADING}
+    </h3>
+    <p className="muted mb-1.5 mt-1">{ARTIST_NOTICE_INTRO}</p>
+    <dl>
+      {ARTIST_NOTICE.map(({ term, text }) => (
+        <React.Fragment key={term}>
+          <dt>{term}</dt>
+          <dd>
+            {term === 'Your rights' ? (
+              <>
+                {text.split('compliance@pjk.co.in')[0]}
+                <a className="link" href="mailto:compliance@pjk.co.in">
+                  compliance@pjk.co.in
+                </a>
+                {text.split('compliance@pjk.co.in')[1]}
+              </>
+            ) : (
+              text
+            )}
+          </dd>
+        </React.Fragment>
+      ))}
+    </dl>
+    <p className="mb-5 mt-[18px] text-base">
+      <a className="link" href="/privacy" rel="noopener" target="_blank">
+        Read the full privacy notice
+      </a>
+    </p>
+    <Check
+      checked={checked}
+      error={error}
+      label={ARTIST_NOTICE_CHECKBOX}
+      name="consentProcessing"
+      onValue={onValue}
+    />
+  </div>
+)
 
 export const AboutStep: React.FC<StepProps> = ({ values, set, errors }) => (
   <div className="grid gap-y-9">
     <TextField
       autoComplete="name"
       errors={errors}
-      hint="As it appears on your PAN card. We use it only to confirm who you are."
-      label="Your full legal name"
+      hint="We use it when we write to you. It is never shown publicly."
+      label="Your full name"
       name="legalName"
       onValue={(v) => set('legalName', v)}
       value={values.legalName}
     />
     <TextField
       errors={errors}
-      hint="The name your work is known by. It can be your own name."
+      hint="The name your work is known by. It can be your own."
       label="The name you work under"
       name="displayName"
       onValue={(v) => set('displayName', v)}
       value={values.displayName}
     />
-    <div className="grid gap-x-10 gap-y-9 sm:grid-cols-2">
-      <TextField
-        autoComplete="bday"
-        errors={errors}
-        hint="You need to be 18 or over to apply."
-        label="Date of birth"
-        max={eighteenYearsAgo()}
-        name="dateOfBirth"
-        onValue={(v) => set('dateOfBirth', v)}
-        type="date"
-        value={values.dateOfBirth}
-      />
-      <PhoneField
-        errors={errors}
-        label="Mobile number"
-        name="phone"
-        onValue={(v) => set('phone', v)}
-        value={values.phone}
-      />
-    </div>
-    <SelectField
-      className="max-w-sm"
+    <DateOfBirth
+      error={errors.dateOfBirth}
+      onValue={(v) => set('dateOfBirth', v)}
+      value={values.dateOfBirth}
+    />
+    <PhoneField
+      className="max-w-[480px]"
       errors={errors}
-      label="The language you would like us to write in"
-      name="language"
-      onValue={(v) => set('language', v)}
-      options={LANGUAGES}
-      value={values.language}
+      label="Mobile number"
+      name="phone"
+      onValue={(v) => set('phone', v)}
+      value={values.phone}
+    />
+    <HowWeUseYourDetails
+      checked={values.consentProcessing === true}
+      error={errors.consentProcessing}
+      onValue={(v) => set('consentProcessing', v)}
     />
   </div>
 )
@@ -99,13 +258,7 @@ export const AddressStep: React.FC<StepProps> = ({ values, set, errors }) => (
   </div>
 )
 
-const YEARS_PRACTISING: RollerOption[] = [
-  { value: 0, label: 'Less than one' },
-  ...Array.from({ length: YEARS_PRACTISING_MAX }, (_, i) => ({
-    value: i + 1,
-    label: i === 0 ? '1 year' : `${i + 1} years`,
-  })),
-]
+const EXPERIENCE_OPTIONS = EXPERIENCE_BANDS.map((b) => ({ value: String(b.value), label: b.label }))
 
 const YEARS: RollerOption[] = yearChoices().map((y) => ({ value: y, label: String(y) }))
 
@@ -114,17 +267,29 @@ export const PracticeStep: React.FC<StepProps> = ({ values, set, errors }) => {
   const recognition: Values[] = values.recognition ?? []
   const otherSocials: Values[] = values.otherSocials ?? []
   const none = values.recognitionNone === true
+  // A medium no longer taken stays on the list, ticked, only while a draft still has it, so the
+  // artist can see the line about it and untick it
+  const offered = [
+    ...TAKEN_MEDIUMS,
+    ...MEDIUMS.filter((m) => 'retired' in m && mediums.includes(m.value)),
+  ]
   return (
     <div className="grid gap-y-11">
-      <CheckGroup
-        error={errors.mediums}
-        hint="Choose all that apply."
-        legend="What do you work in?"
-        name="mediums"
-        onValue={(v) => set('mediums', v)}
-        options={MEDIUMS}
-        value={mediums}
-      />
+      <div>
+        <CheckGroup
+          error={errors.mediums}
+          hint="Choose all that apply."
+          legend="What do you work in?"
+          name="mediums"
+          onValue={(v) => set('mediums', v)}
+          options={offered}
+          value={mediums}
+        />
+        <p className="muted mt-2 text-base">
+          Choosing “Other” asks you to name it. Phulhaar takes original, hand-made work only, each
+          piece one of a kind: no prints, photographs or digital work.
+        </p>
+      </div>
       {mediums.includes('other') && (
         <TextField
           className="max-w-md"
@@ -137,8 +302,8 @@ export const PracticeStep: React.FC<StepProps> = ({ values, set, errors }) => {
       )}
       <TextArea
         errors={errors}
-        hint={`What your work looks like, and what it keeps returning to. At least ${MIN_LENGTH.general} characters: a sentence or two.`}
-        label="Styles and themes"
+        hint="What your work looks like, and what it keeps returning to. A sentence or two is enough."
+        label="Your style and subjects"
         limit={500}
         min={MIN_LENGTH.general}
         name="stylesThemes"
@@ -146,19 +311,25 @@ export const PracticeStep: React.FC<StepProps> = ({ values, set, errors }) => {
         rows={3}
         value={values.stylesThemes}
       />
-      <Roller
-        error={errors.yearsPractising}
-        hint="Count from when you began making work seriously."
-        label="How long you have been practising"
+      <SelectField
+        className="max-w-[340px]"
+        errors={errors}
+        hint="Count from when you began to work seriously."
+        label="How long have you been making work?"
         name="yearsPractising"
-        onValue={(v) => set('yearsPractising', v)}
-        options={YEARS_PRACTISING}
-        value={values.yearsPractising}
+        onValue={(v) => set('yearsPractising', v === '' ? '' : Number(v))}
+        options={EXPERIENCE_OPTIONS}
+        placeholder="Choose…"
+        value={
+          values.yearsPractising === undefined || values.yearsPractising === ''
+            ? ''
+            : String(values.yearsPractising)
+        }
       />
       <TextArea
         errors={errors}
-        hint="Art school, an apprenticeship, workshops, a family tradition, or teaching yourself."
-        label="Training and education"
+        hint="Art school, an apprenticeship, workshops, a family tradition, or self-taught."
+        label="Training"
         limit={1000}
         name="training"
         onValue={(v) => set('training', v)}
@@ -168,7 +339,7 @@ export const PracticeStep: React.FC<StepProps> = ({ values, set, errors }) => {
       />
       <TextArea
         errors={errors}
-        hint={`Written in the third person, as it might appear beside your work. At least ${MIN_LENGTH.bio} characters: four or five sentences.`}
+        hint="Written in the third person, as it might appear beside your work. Four or five sentences, at least 250 characters. For example: “Anaya paints the river towns of the Jammu plains in small, close-worked pictures…”"
         label="A short biography"
         limit={BIO_LIMIT}
         min={MIN_LENGTH.bio}
@@ -190,8 +361,10 @@ export const PracticeStep: React.FC<StepProps> = ({ values, set, errors }) => {
       />
 
       <fieldset className="grid gap-y-8">
-        <legend className="label mb-1">Where we can see your work online</legend>
-        <p className="muted text-base">All optional.</p>
+        <legend className="label mb-1">
+          Where we can see your work online{' '}
+          <span className="normal-case tracking-normal text-muted-foreground">(optional)</span>
+        </legend>
         <TextField
           autoComplete="url"
           className="max-w-xl"
@@ -207,8 +380,7 @@ export const PracticeStep: React.FC<StepProps> = ({ values, set, errors }) => {
         <div className="grid gap-x-10 gap-y-8 sm:grid-cols-2">
           <TextField
             errors={errors}
-            hint="Your handle, or a link."
-            label="Instagram"
+            label="Instagram: your handle or a link"
             name="instagram"
             onValue={(v) => set('instagram', v)}
             optional
@@ -217,8 +389,7 @@ export const PracticeStep: React.FC<StepProps> = ({ values, set, errors }) => {
           />
           <TextField
             errors={errors}
-            hint="Your page's link, or your username."
-            label="Facebook"
+            label="Facebook: your page’s link or username"
             name="facebook"
             onValue={(v) => set('facebook', v)}
             optional
@@ -269,7 +440,7 @@ export const PracticeStep: React.FC<StepProps> = ({ values, set, errors }) => {
             onClick={() => set('otherSocials', [...otherSocials, {}])}
             type="button"
           >
-            Add another platform
+            Add another link
           </button>
         )}
       </fieldset>
@@ -277,11 +448,12 @@ export const PracticeStep: React.FC<StepProps> = ({ values, set, errors }) => {
       <SelectField
         className="max-w-sm"
         errors={errors}
-        hint="For a typical original work. It helps us place you, and commits you to nothing."
-        label="Typical price range"
+        hint="For a typical original work, in Indian rupees, as every price on Phulhaar is set wherever you live (one lakh is ₹1,00,000). It helps us place you, and commits you to nothing."
+        label="Your usual price range"
         name="priceRange"
         onValue={(v) => set('priceRange', v)}
-        options={PRICE_RANGES}
+        options={OFFERED_PRICE_RANGES}
+        placeholder="Choose…"
         value={values.priceRange}
       />
 
@@ -292,7 +464,7 @@ export const PracticeStep: React.FC<StepProps> = ({ values, set, errors }) => {
       >
         <legend className="label mb-1">Exhibitions and awards</legend>
         <p className="muted measure mb-4 text-base">
-          The ones that matter most to you. If there are none yet, say so: everyone begins
+          The ones that matter most to you. If there are none yet, tick the box: everyone begins
           somewhere.
         </p>
         <Check
