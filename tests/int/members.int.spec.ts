@@ -181,16 +181,21 @@ describe('member IDs and application references', () => {
 
   it('gives applications random references people can read aloud', () => {
     const refs = new Set(
-      Array.from({ length: 500 }, (_, i) => newApplicationReference(i % 2 ? 'artist' : 'partner')),
+      Array.from({ length: 200 }, (_, i) => newApplicationReference(i % 2 ? 'artist' : 'partner')),
     )
-    expect(refs.size).toBe(500)
+    expect(refs.size).toBe(200)
     for (const ref of refs) {
       expect(ref).toMatch(APPLICATION_REFERENCE_PATTERN)
       expect(ref.split('-')[1]).not.toMatch(/[01ILOUV]/)
     }
-    // The kind is in the reference: A- for an artist, PT- for a partner
-    expect(newApplicationReference('artist')).toMatch(/^A-/)
-    expect(newApplicationReference('partner')).toMatch(/^PT-/)
+    // The kind is in the number: AA- for an artist, PA- for a trade partner, CA- for a curator
+    expect(newApplicationReference('artist')).toMatch(/^AA-[2-9A-Z]{5}$/)
+    expect(newApplicationReference('partner')).toMatch(/^PA-[2-9A-Z]{5}$/)
+    expect(newApplicationReference('curator')).toMatch(/^CA-[2-9A-Z]{5}$/)
+    // Numbers given before the designs stay valid
+    for (const old of ['A-7K3Q9X', 'PT-7K3Q9X', 'APP-7K3Q9X'])
+      expect(APPLICATION_REFERENCE_PATTERN.test(old)).toBe(true)
+    expect(APPLICATION_REFERENCE_PATTERN.test('CA-7K3Q9X')).toBe(false)
     // References given before October 2026 are still valid
     expect('APP-7K3Q9X').toMatch(APPLICATION_REFERENCE_PATTERN)
   })

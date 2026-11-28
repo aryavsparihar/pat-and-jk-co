@@ -1,5 +1,6 @@
 import type { Field } from 'payload'
 
+import { CURATOR_AREAS, CURATOR_STATUSES, CURATOR_WANTS, CURATOR_YEARS } from '../curators/rules'
 import {
   DIMENSION_UNITS,
   LANGUAGES,
@@ -18,6 +19,7 @@ import {
 
 const isArtist = (data: Record<string, unknown>) => data?.type === 'artist'
 const isPartner = (data: Record<string, unknown>) => data?.type === 'partner'
+const isCurator = (data: Record<string, unknown>) => data?.type === 'curator'
 
 export const addressFields = (): Field[] => [
   {
@@ -414,8 +416,221 @@ export const partnerApplicationFields: Field[] = [
   },
 ]
 
-/** Where the applicant has got to: steps saved so far, and when they began */
 const locked = () => false
+
+const options = (list: readonly { value: string; label: string }[]) =>
+  list.map(({ value, label }) => ({ value, label }))
+
+/**
+ * A guest curator's application (the ApplyCurator design): everything on the form, as sent. No
+ * account stands behind it, so it is written by the server alone and read only by staff. The
+ * portfolio and CV are encrypted in the private store and opened through the Curators screen.
+ */
+export const curatorApplicationFields: Field[] = [
+  {
+    name: 'curator',
+    label: 'About the curator',
+    type: 'group',
+    access: { create: locked, update: locked },
+    admin: { condition: isCurator, readOnly: true },
+    fields: [
+      {
+        type: 'row',
+        fields: [
+          { name: 'fullName', type: 'text', admin: { width: '50%' } },
+          { name: 'email', type: 'email', index: true, admin: { width: '50%' } },
+        ],
+      },
+      {
+        type: 'row',
+        fields: [
+          { name: 'phone', type: 'text', admin: { width: '33%' } },
+          { name: 'country', type: 'text', admin: { width: '33%' } },
+          { name: 'city', type: 'text', admin: { width: '33%' } },
+        ],
+      },
+      {
+        type: 'row',
+        fields: [
+          { name: 'role', label: 'Current role', type: 'text', admin: { width: '50%' } },
+          {
+            name: 'years',
+            label: 'Years curating',
+            type: 'select',
+            options: options(CURATOR_YEARS),
+            admin: { width: '50%' },
+          },
+        ],
+      },
+      {
+        name: 'areas',
+        label: 'What they curate',
+        type: 'select',
+        hasMany: true,
+        options: options(CURATOR_AREAS),
+      },
+      { name: 'languages', label: 'Languages they work in', type: 'text' },
+      { name: 'portfolioLink', label: 'Portfolio link', type: 'text' },
+      {
+        name: 'projects',
+        label: 'Past projects',
+        type: 'array',
+        fields: [
+          {
+            type: 'row',
+            fields: [
+              { name: 'title', type: 'text', admin: { width: '70%' } },
+              { name: 'year', type: 'text', admin: { width: '30%' } },
+            ],
+          },
+          {
+            type: 'row',
+            fields: [
+              { name: 'place', label: 'Where, or for whom', type: 'text', admin: { width: '50%' } },
+              { name: 'role', label: 'Their role', type: 'text', admin: { width: '50%' } },
+            ],
+          },
+          { name: 'link', type: 'text' },
+        ],
+      },
+      {
+        name: 'wants',
+        label: 'Would like to work on',
+        type: 'select',
+        options: options(CURATOR_WANTS),
+      },
+      { name: 'idea', label: 'A collection they would like to curate', type: 'textarea' },
+      {
+        type: 'row',
+        fields: [
+          { name: 'fee', label: 'Usual fee', type: 'text', admin: { width: '50%' } },
+          { name: 'start', label: 'Could start', type: 'text', admin: { width: '50%' } },
+        ],
+      },
+    ],
+  },
+  {
+    // What the curator ticked, recorded by the server when the application was sent
+    name: 'curatorDeclarations',
+    label: 'Consent',
+    type: 'group',
+    access: { create: locked, update: locked },
+    admin: { condition: isCurator, readOnly: true },
+    fields: [
+      {
+        name: 'consentProcessing',
+        label: 'Agreed to how PAT & J.K. Co. uses their details',
+        type: 'checkbox',
+      },
+      { name: 'adult', label: 'Confirmed they are 18 or over', type: 'checkbox' },
+      {
+        name: 'accurate',
+        label: 'Their portfolio and projects are described accurately',
+        type: 'checkbox',
+      },
+      { name: 'keepOnFile', label: 'Asked to be kept on file for 12 months', type: 'checkbox' },
+      {
+        name: 'privacyNoticeVersion',
+        type: 'text',
+        admin: { description: 'The notice they agreed to.' },
+      },
+    ],
+  },
+  {
+    // The portfolio PDF and the CV, written by the server once every part has arrived
+    name: 'curatorFiles',
+    type: 'array',
+    access: { create: locked, update: locked },
+    admin: { hidden: true },
+    fields: [
+      {
+        name: 'kind',
+        type: 'select',
+        required: true,
+        options: [
+          { label: 'Portfolio', value: 'portfolio' },
+          { label: 'CV', value: 'cv' },
+        ],
+      },
+      { name: 'filename', type: 'text', required: true },
+      { name: 'contentType', type: 'text', required: true },
+      { name: 'size', type: 'number' },
+      { name: 'storageKey', type: 'text', required: true, access: { read: locked } },
+      { name: 'keyId', type: 'text', required: true, access: { read: locked } },
+      { name: 'wrappedKey', type: 'text', required: true, access: { read: locked } },
+    ],
+  },
+  {
+    // While the files arrive: a hash of the upload token, when it lapses, the folder, and the
+    // files promised with the parts received so far. Cleared once the application is sent
+    name: 'curatorUpload',
+    type: 'group',
+    access: { read: locked, create: locked, update: locked },
+    admin: { hidden: true },
+    fields: [
+      { name: 'tokenHash', type: 'text' },
+      { name: 'expiresAt', type: 'date' },
+      { name: 'folder', type: 'text' },
+      { name: 'files', type: 'json' },
+    ],
+  },
+  {
+    // Set to New by the server when the application arrives; empty on artist and partner ones
+    name: 'curatorStatus',
+    label: 'Status',
+    type: 'select',
+    index: true,
+    options: options(CURATOR_STATUSES),
+    admin: {
+      position: 'sidebar',
+      condition: isCurator,
+      description: 'Changed from the Curators screen, as its emails are sent.',
+    },
+  },
+  {
+    name: 'curatorProject',
+    label: 'Project',
+    type: 'text',
+    admin: { position: 'sidebar', condition: isCurator },
+  },
+  {
+    // Added from the Curators screen; never changed afterwards
+    name: 'teamNotes',
+    label: 'Team notes',
+    type: 'array',
+    access: { create: locked, update: locked },
+    admin: { condition: isCurator, readOnly: true },
+    fields: [
+      { name: 'note', type: 'textarea', required: true },
+      { name: 'by', type: 'text' },
+      { name: 'at', type: 'date', admin: { date: { pickerAppearance: 'dayAndTime' } } },
+    ],
+  },
+  {
+    // Each email the team sent from the Curators screen, as it went
+    name: 'curatorEmails',
+    label: 'Emails sent',
+    type: 'array',
+    access: { create: locked, update: locked },
+    admin: { condition: isCurator, readOnly: true, initCollapsed: true },
+    fields: [
+      {
+        name: 'kind',
+        type: 'select',
+        options: [
+          { label: 'We would like to talk', value: 'talk' },
+          { label: 'Not this time', value: 'decline' },
+        ],
+      },
+      { name: 'subject', type: 'text' },
+      { name: 'body', type: 'textarea' },
+      { name: 'by', type: 'text' },
+      { name: 'at', type: 'date', admin: { date: { pickerAppearance: 'dayAndTime' } } },
+    ],
+  },
+]
+
+/** Where the applicant has got to: steps saved so far, and when they began */
 
 /**
  * The consent given each time an application is sent, artist or partner (src/members/consentRecord.ts):

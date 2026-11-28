@@ -176,7 +176,7 @@ const countryParts = (
   return out
 }
 
-const countryName = z
+export const countryName = z
   .string({ error: ADDRESS_ERRORS.country })
   .trim()
   .refine(isCountry, ADDRESS_ERRORS.country)

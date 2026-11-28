@@ -1,4 +1,13 @@
-import type { Access, CollectionConfig, Field, FieldAccess, Where } from 'payload'
+import type {
+  Access,
+  CollectionConfig,
+  Endpoint,
+  Field,
+  FieldAccess,
+  PayloadRequest,
+  Where,
+} from 'payload'
+import type { User } from '../payload-types'
 import { publicError } from '@/utilities/publicError'
 import { APIError } from 'payload'
 
@@ -11,6 +20,7 @@ import { canMove, type Stage } from '../members/stages'
 import {
   artistApplicationFields,
   consentRecordFields,
+  curatorApplicationFields,
   partnerApplicationFields,
   progressFields,
 } from './applicationFields'
@@ -54,9 +64,101 @@ const writtenByApplicant = (field: Field): Field =>
       } as Field)
     : field
 
+/** What went wrong, as staff should read it: a known refusal in its words, anything else plainly */
+const failed = (req: PayloadRequest, error: unknown, what: string) => {
+  const status = error instanceof APIError ? error.status : 500
+  if (status === 500) req.payload.logger.error({ err: error, msg: `${what} failed` })
+  return Response.json(
+    { message: error instanceof APIError ? error.message : 'That could not be done.' },
+    { status },
+  )
+}
+
 /**
- * How someone asks to work with PJK as an artist, or as a partner. The same person may apply as
- * both, under one sign-in, and has at most one current application of each kind. It exists from
+ * The Curators screen's actions (src/curators/admin.ts), staff only: send one of the two letters
+ * as edited, put a curator on a project, add a team note, and open their portfolio or CV.
+ */
+const curatorEndpoints = (): Endpoint[] => {
+  const action =
+    (
+      run: (req: PayloadRequest, id: number, body: Record<string, unknown>) => Promise<unknown>,
+      what: string,
+    ) =>
+    async (req: PayloadRequest) => {
+      if (!isStaff(req.user)) return refuse(req, 'Only staff can do that.')
+      const body = ((await req.json?.().catch(() => ({}))) ?? {}) as Record<string, unknown>
+      try {
+        await run(req, Number(req.routeParams?.id), body)
+        return Response.json({ ok: true })
+      } catch (error) {
+        return failed(req, error, what)
+      }
+    }
+  return [
+    {
+      // POST /api/applications/:id/curator-email  { kind: 'talk' | 'decline', subject, body }
+      path: '/:id/curator-email',
+      method: 'post',
+      handler: action(async (req, id, body) => {
+        const { sendFromCuratorsScreen } = await import('../curators/admin')
+        await sendFromCuratorsScreen(req.payload, req.user as User, {
+          id,
+          kind: body.kind as 'talk' | 'decline',
+          subject: String(body.subject ?? ''),
+          body: String(body.body ?? ''),
+        })
+      }, 'Curator email'),
+    },
+    {
+      // POST /api/applications/:id/curator-project  { project }
+      path: '/:id/curator-project',
+      method: 'post',
+      handler: action(async (req, id, body) => {
+        const { setCuratorProject } = await import('../curators/admin')
+        await setCuratorProject(req.payload, req.user as User, {
+          id,
+          project: String(body.project ?? ''),
+        })
+      }, 'Curator project'),
+    },
+    {
+      // POST /api/applications/:id/curator-note  { note }
+      path: '/:id/curator-note',
+      method: 'post',
+      handler: action(async (req, id, body) => {
+        const { addCuratorNote } = await import('../curators/admin')
+        await addCuratorNote(req.payload, req.user as User, { id, note: String(body.note ?? '') })
+      }, 'Curator note'),
+    },
+    {
+      // GET /api/applications/:id/curator-file/portfolio or /cv. Staff only; never cached
+      path: '/:id/curator-file/:kind',
+      method: 'get',
+      handler: async (req) => {
+        if (!isStaff(req.user)) return refuse(req, 'Only staff can open these files.')
+        try {
+          const { curatorFile } = await import('../curators/admin')
+          const { fileResponse } = await import('../utilities/fileResponse')
+          const { file, bytes } = await curatorFile(
+            req.payload,
+            Number(req.routeParams?.id),
+            String(req.routeParams?.kind),
+          )
+          return fileResponse(bytes, file)
+        } catch (error) {
+          return failed(req, error, 'Curator file')
+        }
+      },
+    },
+  ]
+}
+
+/**
+ * How someone asks to work with PJK: as an artist, as a trade partner, or as a guest curator (the
+ * brief of 25 November 2026: one store for every application, with a type). An artist or partner
+ * signs in, may apply as both, and has at most one current application of each kind. A guest
+ * curator needs no account: theirs is written by the server from the public form, and staff
+ * follow it on the Curators screen rather than deciding it here. It exists from
  * the moment an applicant verifies their email (as a draft), carries a reference they can quote
  * (A-7K3Q9X for an artist, PT-7K3Q9X for a partner), and moves through its stages as
  * src/members/stages.ts allows, and no other way:
@@ -87,7 +189,7 @@ export const Applications: CollectionConfig = {
     useAsTitle: 'reference',
     defaultColumns: ['reference', 'member', 'type', 'stage', 'issuedId', 'submittedAt'],
     description:
-      'Applications from artists and partners. Approving one issues the member ID and emails the applicant.',
+      'Applications from artists, trade partners and guest curators. Approving an artist or partner issues the member ID and emails the applicant. Guest curators are followed on the Curators screen.',
     listSearchableFields: ['reference', 'issuedId'],
   },
   defaultSort: '-createdAt',
@@ -148,13 +250,13 @@ export const Applications: CollectionConfig = {
       },
     },
     {
+      // Every artist and partner application has one; a guest curator's has none
       name: 'member',
       type: 'relationship',
       relationTo: 'members',
-      required: true,
       index: true,
       access: { update: nobody },
-      admin: { readOnly: true },
+      admin: { readOnly: true, condition: (data) => data?.type !== 'curator' },
     },
     {
       name: 'type',
@@ -163,6 +265,7 @@ export const Applications: CollectionConfig = {
       options: [
         { label: 'Artist', value: 'artist' },
         { label: 'Partner', value: 'partner' },
+        { label: 'Guest curator', value: 'curator' },
       ],
       access: { update: nobody },
       admin: { readOnly: true, position: 'sidebar' },
@@ -253,6 +356,7 @@ export const Applications: CollectionConfig = {
     },
     ...artistApplicationFields.map(writtenByApplicant),
     ...partnerApplicationFields.map(writtenByApplicant),
+    ...curatorApplicationFields,
     ...consentRecordFields,
     ...progressFields,
     {
@@ -329,6 +433,10 @@ export const Applications: CollectionConfig = {
         if (operation === 'create' && !APPLICATION_REFERENCE_PATTERN.test(String(data.reference))) {
           throw publicError('Applications are given a reference by the server.', 400)
         }
+        // Only a guest curator's application stands without an account
+        if (operation === 'create' && data.type !== 'curator' && !data.member) {
+          throw publicError('An artist or partner application belongs to a member.', 400)
+        }
         // A new application is always its person's current one of its kind; the unique slot then
         // refuses a second beside it, however it is created (src/members/reapply.ts clears the
         // earlier one's first)
@@ -349,6 +457,7 @@ export const Applications: CollectionConfig = {
   // Every application of a person, of a kind, found quickly; at most one is current (currentSlot)
   indexes: [{ fields: ['member', 'type'] }],
   endpoints: [
+    ...curatorEndpoints(),
     {
       // POST /api/applications/:id/allow-reapply. Staff only; logged
       path: '/:id/allow-reapply',

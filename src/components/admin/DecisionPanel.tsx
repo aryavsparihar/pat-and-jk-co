@@ -14,12 +14,23 @@ export const DecisionPanel: React.FC = () => {
   const { id } = useDocumentInfo()
   const stage = useFormFields(([fields]) => fields.stage?.value as string | undefined)
   const issued = useFormFields(([fields]) => fields.issuedId?.value as string | undefined)
+  const type = useFormFields(([fields]) => fields.type?.value as string | undefined)
   const router = useRouter()
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
 
   if (!id) return null
+  // A guest curator is answered from the Curators screen, with its own emails
+  if (type === 'curator')
+    return (
+      <div style={{ marginBottom: 'var(--base)' }}>
+        <p className="field-label">Guest curator</p>
+        <p>
+          <a href={`/admin/curators?selected=${id}`}>Open on the Curators screen</a>
+        </p>
+      </div>
+    )
   const decidable =
     stage === 'submitted' || stage === 'under-review' || stage === 'changes-requested'
 
