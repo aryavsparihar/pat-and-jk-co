@@ -183,21 +183,8 @@ export const Enquiries: CollectionConfig = {
         // Loaded here so the Payload CLI, which reads this file, never loads the store
         const { openSealed } = await import('../contact/store')
         try {
-          const bytes = await openSealed(file as never)
-          const name = file.filename.replace(/[^\w .()-]+/g, '_')
-          // Pictures and PDFs open in the browser; Word documents are saved
-          const inline = /^(image\/(jpeg|png)|application\/pdf)$/.test(file.contentType)
-          return new Response(new Uint8Array(bytes), {
-            headers: {
-              'Content-Type': file.contentType,
-              'Content-Disposition': `${inline ? 'inline' : 'attachment'}; filename="${name}"`,
-              'Content-Length': String(bytes.length),
-              'Cache-Control': 'no-store, max-age=0',
-              'X-Content-Type-Options': 'nosniff',
-              'Content-Security-Policy':
-                "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'",
-            },
-          })
+          const { fileResponse } = await import('../utilities/fileResponse')
+          return fileResponse(new Uint8Array(await openSealed(file as never)), file)
         } catch (error) {
           req.payload.logger.error({ err: error, msg: 'Contact message file could not be opened' })
           return Response.json({ message: 'The file could not be opened.' }, { status: 500 })
