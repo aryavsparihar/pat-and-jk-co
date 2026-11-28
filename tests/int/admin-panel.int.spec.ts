@@ -409,10 +409,18 @@ describe('the security log records every addition, change and deletion', () => {
   it('by a member from their account, naming the fields and never what they typed', async () => {
     const { member, cookie } = await someone()
     const phone = `98${String(Date.now()).slice(-8)}`
+    // A whole address, as the country form asks for one: India needs its district, state and PIN
     const saved = await contactRoute(
       request('POST', cookie, '/next/members/portal/contact', {
-        phone,
-        contactAddress: { line1: `${tag()} Admin Lane`, city: 'Kathua' },
+        phone: `+91 ${phone}`,
+        contactAddress: {
+          country: 'India',
+          line1: `${tag()} Admin Lane`,
+          city: 'Kathua',
+          district: 'Kathua',
+          state: 'Jammu and Kashmir',
+          postalCode: '184101',
+        },
       }),
     )
     expect(saved.status).toBe(200)
