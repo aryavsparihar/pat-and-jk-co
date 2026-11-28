@@ -1090,3 +1090,33 @@ export const sendIdentityReturned = async (
       recipient: await toMember(payload, member),
     }),
   )
+
+/** Someone approved has sent "Confirm who you are": to business@, to check and mark as checked */
+export const notifyStaffOfIdentity = async (
+  payload: Payload,
+  { application, recordId }: { application: Application; recordId: number },
+): Promise<boolean> => {
+  const who = applicantName(application) || 'An approved applicant'
+  return deliver(
+    payload,
+    { to: BUSINESS_INBOX },
+    buildEmail({
+      subject: `Identity to check: ${application.reference}`,
+      preheader: `${who} has sent their identity details for checking.`,
+      parts: [
+        {
+          kind: 'paragraph',
+          text: `${who} (${application.type === 'artist' ? 'artist' : 'trade partner'}) has sent their identity details for checking. Their agreement unlocks once a KYC reviewer marks them as checked.`,
+        },
+        { kind: 'reference', label: 'Application', value: application.reference },
+        {
+          kind: 'link',
+          label: 'Open the identity record',
+          url: `${site()}/admin/collections/kyc-records/${recordId}`,
+        },
+      ],
+      footer: await emailFooter(payload),
+      recipient: toBusiness,
+    }),
+  )
+}

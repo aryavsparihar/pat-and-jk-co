@@ -1,10 +1,13 @@
 import { requireRecentSignIn } from '@/members/recent'
-import { EDITABLE, findOwnApplication } from '@/members/application'
 import { fromOurOrigin, refuseCrossSite, reply, requireMember, withRefresh } from '@/members/http'
+import { openForChecking } from '@/kyc/check'
 import { KYC_DOCUMENT_KINDS, type KycDocumentKind } from '@/kyc/schema'
+import { VERIFY_ERRORS } from '@/kyc/verify'
 
-/** What a partner's application asks for: no second ID, address or bank */
-const PARTNER_KINDS: KycDocumentKind[] = ['pan-card', 'identity-photo']
+/** What a trade partner's check asks for: the PAN or passport and the photo, nothing more */
+const PARTNER_KINDS: KycDocumentKind[] = ['pan-card', 'passport-page', 'identity-photo']
+/** What a member with an ID adds from their account: the proof for payout details */
+const ACCOUNT_KINDS: KycDocumentKind[] = ['bank-proof']
 import { CODE_PROBLEM, checkIdentityCode, identityFingerprint } from '@/kyc/identityCode'
 import {
   type IdentityPhotoFacts,
@@ -36,15 +39,13 @@ export async function POST(request: Request) {
   } catch {
     return reply({ message: 'Please choose a file.' }, { status: 400 })
   }
-  // A partner gives only their PAN card and the photo of them, while their application is open
+  // Identity documents while "Confirm who you are" is open; a payout proof from the account
   const type = form.get('type') === 'partner' ? 'partner' : 'artist'
-  const application = await findOwnApplication(payload, member, type, 0)
-  const open = application && EDITABLE.includes(application.stage)
-  if (!open && (type === 'partner' || !member.artistId)) {
-    return reply(
-      { message: 'Documents can only be added while your application is open.' },
-      { status: 409 },
-    )
+  const application = await openForChecking(payload, member, type)
+  const kindAsked = String(form.get('kind') ?? '') as KycDocumentKind
+  const fromAccount = Boolean(member.artistId) && ACCOUNT_KINDS.includes(kindAsked)
+  if (!application && !fromAccount) {
+    return reply({ message: VERIFY_ERRORS.closed }, { status: 409 })
   }
 
   const limit = await hitLimit(payload, {
@@ -54,9 +55,9 @@ export async function POST(request: Request) {
     windowSeconds: 3600,
   })
   if (!limit.allowed)
-    return reply({ message: 'Please wait a little before uploading again.' }, { status: 429 })
+    return reply({ message: 'Please wait a moment before uploading again.' }, { status: 429 })
 
-  const kind = String(form.get('kind') ?? '') as KycDocumentKind
+  const kind = kindAsked
   const file = form.get('file')
   // Agreement files are made only by the signing pages and by staff (src/agreements)
   if (
@@ -67,17 +68,17 @@ export async function POST(request: Request) {
     return reply({ message: 'What kind of document is this?' }, { status: 400 })
   if (!(file instanceof File)) return reply({ message: 'Please choose a file.' }, { status: 400 })
   if (file.size > KYC_DOCUMENT_MAX_BYTES)
-    return reply({ message: 'That file is larger than 4 MB.' }, { status: 413 })
+    return reply(
+      { message: 'That file is larger than 4 MB. Please send a smaller copy.' },
+      { status: 413 },
+    )
 
   // The identity photo must be taken with the current code, while it holds, and for the name (and,
   // for an artist, the date of birth) they have given; the code is kept with it for reviewers
   let identity: IdentityPhotoFacts | undefined
   if (kind === 'identity-photo') {
-    if (!application || !open) {
-      return reply(
-        { message: 'The photo can only be added while your application is open.' },
-        { status: 409 },
-      )
+    if (!application) {
+      return reply({ message: VERIFY_ERRORS.photoWindow }, { status: 409 })
     }
     const held = (await payload.findByID({
       collection: 'applications',
@@ -95,12 +96,11 @@ export async function POST(request: Request) {
     if (check !== 'ok') {
       return reply({ message: CODE_PROBLEM[check], codeProblem: check }, { status: 422 })
     }
-    const name = String(form.get('panName') ?? '').trim()
+    // The name as on the PAN or passport, whichever the page is using
+    const name = String(form.get('nameOnId') ?? form.get('panName') ?? '').trim()
     if (!name || name.length > 120) {
-      return reply(
-        { message: 'Please give your name as on your PAN before adding the photo.' },
-        { status: 422 },
-      )
+      const doc = form.get('primary') === 'passport' ? 'passport' : 'PAN'
+      return reply({ message: VERIFY_ERRORS.nameFirst(doc) }, { status: 422 })
     }
     identity = {
       code: code.toUpperCase(),

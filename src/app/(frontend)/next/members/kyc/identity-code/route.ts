@@ -1,6 +1,7 @@
 import { requireRecentSignIn } from '@/members/recent'
 import { IDENTITY_CODE_MINUTES, issueIdentityCode } from '@/kyc/identityCode'
-import { EDITABLE, findOwnApplication } from '@/members/application'
+import { openForChecking } from '@/kyc/check'
+import { VERIFY_ERRORS } from '@/kyc/verify'
 import {
   fromOurOrigin,
   readJson,
@@ -9,14 +10,13 @@ import {
   requireMember,
   withRefresh,
 } from '@/members/http'
-import { applicationsOpenness, closedReply } from '@/members/openness'
 import { hitLimit } from '@/security/rateLimit'
 
 export const dynamic = 'force-dynamic'
 
 /**
- * A new identity code, good for ten minutes, for the artist's application or, with
- * { type: 'partner' }, the partner's. Any earlier code stops working at once. The code comes back
+ * A new identity code, good for ten minutes, for "Confirm who you are" after approval: the
+ * artist's, or with { type: 'partner' } the trade partner's. Any earlier code stops working at once. The code comes back
  * in this reply only; the server keeps a hash of it (src/kyc/identityCode.ts).
  */
 export async function POST(request: Request) {
@@ -28,18 +28,10 @@ export async function POST(request: Request) {
   const stale = requireRecentSignIn(auth.session)
   if (stale) return stale
 
-  const { open, note } = await applicationsOpenness(payload)
-  if (!open) return closedReply(note)
-
   const body = await readJson<{ type?: unknown }>(request)
   const type = body?.type === 'partner' ? 'partner' : 'artist'
-  const application = await findOwnApplication(payload, member, type, 0)
-  if (!application || !EDITABLE.includes(application.stage)) {
-    return reply(
-      { message: 'A code can only be given while your application is open.' },
-      { status: 409 },
-    )
-  }
+  const application = await openForChecking(payload, member, type)
+  if (!application) return reply({ message: VERIFY_ERRORS.codeWindow }, { status: 409 })
 
   const limit = await hitLimit(payload, {
     scope: 'identity-code',
@@ -49,7 +41,7 @@ export async function POST(request: Request) {
   })
   if (!limit.allowed)
     return reply(
-      { message: 'Please wait a little before asking for another code.' },
+      { message: 'Please wait a moment before asking for another code.' },
       { status: 429 },
     )
 
