@@ -11,6 +11,8 @@ const LABELS: Record<string, string> = {
   pan: 'PAN',
   panName: 'Name on PAN',
   aadhaarLast4: 'Aadhaar, last four',
+  passport: 'Passport number',
+  passportName: 'Name on passport',
   holderName: 'Account holder',
   accountNumber: 'Account number',
   ifsc: 'IFSC',
@@ -23,8 +25,9 @@ const LABELS: Record<string, string> = {
 
 const KIND_LABELS: Record<string, string> = {
   'pan-card': 'PAN card',
+  'passport-page': 'Passport photo page',
   'masked-aadhaar': 'Masked Aadhaar',
-  'other-id': 'Passport, voter ID or driving licence',
+  'other-id': 'Second ID',
   'address-proof': 'Proof of address',
   'bank-proof': 'Cheque or passbook',
   'identity-photo': 'Identity photo',
@@ -92,6 +95,12 @@ export const KycPanel: React.FC = () => {
     ([fields]) => fields.payoutRequestedAt?.value as string | undefined,
   )
   const idChoice = useFormFields(([fields]) => fields.idChoice?.value as string | undefined)
+  const sentAt = useFormFields(
+    ([fields]) => fields['identityCheck.sentAt']?.value as string | undefined,
+  )
+  const checkedAt = useFormFields(
+    ([fields]) => fields['identityCheck.checkedAt']?.value as string | undefined,
+  )
   const check = useFormFields(([fields]) => ({
     result: fields['aadhaarCheck.result']?.value as string | undefined,
     reasons: fields['aadhaarCheck.reasons']?.value as string | undefined,
@@ -231,6 +240,31 @@ export const KycPanel: React.FC = () => {
     )
   }
 
+  /** After approval: the documents match the person, so their agreement can be signed */
+  const markChecked = async () => {
+    const answer = await askDialog({
+      title: 'Mark identity as checked?',
+      description:
+        'Only once the documents, the photo and its code, the name and the date of birth all match. The agreement unlocks, and the member is emailed that it is ready to sign.',
+      confirmLabel: 'Mark as checked',
+    })
+    if (!answer) return
+    await act('identity-checked', {}, 'Checked. The member has been told their agreement is ready.')
+  }
+
+  /** Something is missing or unclear: the member is told what, and can send again */
+  const sendBack = async () => {
+    const answer = await askDialog({
+      title: 'Ask for something more?',
+      description:
+        'The member is emailed your note and can change their details and send them again. Never ask for documents by email.',
+      confirmLabel: 'Send the note',
+      reason: { label: 'What is needed?' },
+    })
+    if (!answer) return
+    await act('identity-returned', { note: answer.reason }, 'Sent. The member has your note.')
+  }
+
   /** A logged staff action on the record: POST with a reason, then reload the record */
   const act = async (path: string, body: Record<string, unknown>, done: string) => {
     setBusy(true)
@@ -365,6 +399,37 @@ export const KycPanel: React.FC = () => {
         </div>
       ) : null}
 
+      <p className="field-label">Identity check</p>
+      <div style={{ marginBottom: 'var(--base)' }} role="status">
+        {checkedAt ? (
+          <p>Checked on {new Date(checkedAt).toLocaleDateString('en-IN')}. The agreement is unlocked.</p>
+        ) : sentAt ? (
+          <>
+            <p>Sent for checking on {new Date(sentAt).toLocaleDateString('en-IN')}.</p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.5rem' }}>
+              <button
+                className="btn btn--style-primary btn--size-small"
+                disabled={busy}
+                onClick={markChecked}
+                type="button"
+              >
+                Mark identity as checked
+              </button>
+              <button
+                className="btn btn--style-secondary btn--size-small"
+                disabled={busy}
+                onClick={sendBack}
+                type="button"
+              >
+                Ask for something more
+              </button>
+            </div>
+          </>
+        ) : (
+          <p style={{ opacity: 0.7 }}>Not sent for checking yet.</p>
+        )}
+      </div>
+
       <p className="field-label">Full details</p>
       {values ? (
         <div>
@@ -424,7 +489,8 @@ export const KycPanel: React.FC = () => {
                       `, ${new Date(codeIssuedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}`}
                     {codeExpiresAt &&
                       ` to ${new Date(codeExpiresAt).toLocaleTimeString('en-IN', { timeStyle: 'short' })}`}
-                    . The paper should show this code, the name on the PAN and the date of birth.
+                    . The paper should show this code, the name on the PAN or passport and, for an
+                    artist, the date of birth.
                   </p>
                 )}
               </li>

@@ -1028,3 +1028,65 @@ export const notifyStaffOfReview = async (
   }
   return told
 }
+
+/**
+ * After the team has checked who someone is: their agreement is ready to sign in their account.
+ * Their member ID is issued when they sign it.
+ */
+export const sendAgreementReady = async (
+  payload: Payload,
+  { member, kinds }: { member: Member; kinds: ('artist' | 'partner')[] },
+): Promise<boolean> =>
+  deliver(
+    payload,
+    { to: member.email },
+    buildEmail({
+      subject: `Your agreement with ${BRAND} is ready to sign`,
+      preheader: 'We have checked your details. Your agreement is ready to sign in your account.',
+      parts: [
+        {
+          kind: 'paragraph',
+          text: 'Thank you for confirming who you are. We have checked your details, and your agreement is ready to read and sign in your account.',
+        },
+        {
+          kind: 'paragraph',
+          text: 'Your member ID is issued when you sign. Please quote it whenever you write to us.',
+        },
+        ...kinds.map((kind) => ({
+          kind: 'link' as const,
+          label: kind === 'artist' ? 'Read and sign the artist agreement' : 'Read and sign the trade agreement',
+          url: `${site()}/collaborate/${kind === 'artist' ? 'artist-agreement' : 'trade-agreement'}`,
+        })),
+      ],
+      footer: await emailFooter(payload),
+      recipient: await toMember(payload, member),
+    }),
+  )
+
+/** The team needs something more before they can check who someone is: what, in their words */
+export const sendIdentityReturned = async (
+  payload: Payload,
+  { member, note }: { member: Member; note: string },
+): Promise<boolean> =>
+  deliver(
+    payload,
+    { to: member.email },
+    buildEmail({
+      subject: `We have a question about your details | ${BRAND}`,
+      preheader: 'Please look again at Confirm who you are in your account.',
+      parts: [
+        {
+          kind: 'paragraph',
+          text: 'Thank you for sending your details. Before we can check them, we need something more:',
+        },
+        { kind: 'reference', label: 'Note from our team', value: note },
+        {
+          kind: 'paragraph',
+          text: 'Please sign in, open Confirm who you are, make the change and send it again. We never ask for documents by email.',
+        },
+        { kind: 'link', label: 'Confirm who you are', url: `${site()}/account/verify` },
+      ],
+      footer: await emailFooter(payload),
+      recipient: await toMember(payload, member),
+    }),
+  )
