@@ -63,6 +63,8 @@ const call = (
 const artist = async () => {
   const email = `artist-${Math.random().toString(36).slice(2, 10)}${DOMAIN}`
   const { member, application } = await ensureApplication(payload, { email, type: 'artist' })
+  // Approved: identity documents are taken only after approval
+  await execute(payload, sql`UPDATE applications SET stage = 'approved' WHERE id = ${application.id}`)
   const { value } = await createSession(payload, { memberId: member.id })
   return { member, application, cookie: `${MEMBER_COOKIE}=${encodeURIComponent(value)}` }
 }
