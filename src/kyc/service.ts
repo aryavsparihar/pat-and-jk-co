@@ -24,7 +24,8 @@ import {
 import { checkMaskedAadhaar, type AadhaarCheck } from './aadhaarCheck'
 import { deleteEncrypted, kycPrefix, readEncrypted, storeEncrypted } from './documentStore'
 import { AADHAAR_CHECK_MODE } from './settings'
-import type { BankInput, KycDocumentKind, KycInput, PartnerKycInput } from './schema'
+import type { BankInput, KycDocumentKind, KycInput } from './schema'
+import { maskPassport, type VerifyInput } from './verify'
 import { maskAadhaar, maskAccount, maskIfsc, maskPan, namesPlausiblyMatch } from './values'
 import { actingFor } from '@/security/audit'
 
@@ -68,6 +69,8 @@ const SEALED_FIELDS = [
   'ifsc',
   'holderName',
   'branchName',
+  'passport',
+  'passportName',
 ] as const
 type SealedField = (typeof SEALED_FIELDS)[number]
 
@@ -79,6 +82,8 @@ const COLUMN: Record<SealedField, keyof KycRecord> = {
   ifsc: 'ifscSealed' as never,
   holderName: 'holderNameSealed' as never,
   branchName: 'branchNameSealed' as never,
+  passport: 'passportSealed' as never,
+  passportName: 'passportNameSealed' as never,
 }
 
 const findRecord = async (payload: Payload, memberId: number): Promise<KycRecord | null> => {
@@ -134,7 +139,7 @@ const duplicatesOf = async (
 const ownDocuments = async (
   payload: Payload,
   memberId: number,
-  documents: KycInput['documents'],
+  documents: Partial<Record<KycDocumentKind, number | undefined>>,
 ) => {
   const ids: number[] = []
   for (const [kind, id] of Object.entries(documents)) {
@@ -152,12 +157,22 @@ const ownDocuments = async (
   return ids
 }
 
+/** The kinds a trade partner gives; anything else on a shared record is from an artist's check */
+const PARTNER_KINDS: KycDocumentKind[] = ['pan-card', 'passport-page', 'identity-photo']
+
+const documentIdsOf = (record: KycRecord) =>
+  (record.documents ?? []).map((d) => (typeof d === 'object' ? d.id : d))
+
 /**
- * Encrypts and keeps an artist's identity details from the application. Replaces the earlier
- * identity details in full. Bank details are not part of it: an account already on file (given
- * before bank details moved to payout time, or added since) is left exactly as it is.
+ * Encrypts and keeps what "Confirm who you are" gives (src/kyc/verify.ts), after approval. One
+ * record per person. `send` marks it sent for checking, with the consent given; without it, it is
+ * kept as a draft ("Save and finish later"). Either way the team's earlier check no longer holds:
+ * new details are checked again.
+ *
+ * A trade partner's check replaces only what a partner gives (the PAN or passport and the photo):
+ * someone who is also an artist keeps their second ID, their address answer and its check.
  */
-export const saveKyc = async (
+export const saveIdentity = async (
   payload: Payload,
   {
     member,
@@ -165,14 +180,16 @@ export const saveKyc = async (
     reference,
     identityCode,
     consent,
+    send,
   }: {
     member: Member
-    input: KycInput
+    input: VerifyInput
     reference: string
     /** The code in the identity photo, for reviewers to check against what is written */
     identityCode?: { code: string; issuedAt: string; expiresAt: string } | null
-    /** Which privacy notice was agreed to, and how */
-    consent: { noticeVersion: string; confirmation: string }
+    /** Which privacy notice was agreed to, and how; only when sent */
+    consent?: { noticeVersion: string; confirmation: string }
+    send: boolean
   },
 ): Promise<KycRecord> => {
   const existing = await findRecord(payload, member.id)
@@ -180,130 +197,60 @@ export const saveKyc = async (
   const seal = (field: SealedField, value: string | undefined) =>
     value ? sealField(key, value, fieldContext(member.id, field)) : null
 
-  const panIndex = input.pan ? blindIndex('pan', input.pan) : null
-  const accountIndex = existing?.accountIndex ?? null
-  const documents = await ownDocuments(payload, member.id, input.documents)
-
-  const data = {
-    member: member.id,
-    reference,
-    ...wrapped,
-    // Every artist gives a PAN; the column is kept for records saved before that was so
-    idType: 'pan' as const,
-    panSealed: seal('pan', input.pan),
-    panNameSealed: seal('panName', input.panName),
-    aadhaarLast4Sealed: seal('aadhaarLast4', input.aadhaarLast4),
-    idMasked: maskPan(input.pan),
-    idChoice: input.idChoice,
-    otherIdKind: input.otherIdKind ?? null,
-    aadhaarMasked: input.aadhaarLast4 ? maskAadhaar(input.aadhaarLast4) : null,
-    // Filled in by runAadhaarCheck once the masked e-Aadhaar has been checked
-    aadhaarCheck: {
-      result: null,
-      reasons: null,
-      signer: null,
-      signedOn: null,
-      checkedAt: null,
-      mode: null,
-    },
-    addressOnIdMatches: input.addressOnIdMatches ?? null,
-    identityCode: identityCode?.code ?? null,
-    identityCodeIssuedAt: identityCode?.issuedAt || null,
-    identityCodeExpiresAt: identityCode?.expiresAt || null,
-    panIndex,
-    accountIndex,
-    duplicates: (await duplicatesOf(payload, member.id, panIndex, accountIndex)) || null,
-    documents,
-    verification: { status: 'unverified' as const },
-    consentedAt: new Date().toISOString(),
-    consentNoticeVersion: consent.noticeVersion,
-    consentConfirmation: consent.confirmation,
-    consentWithdrawnAt: null,
-  }
-
-  const record = existing
-    ? await payload.update({
-        collection: 'kyc-records',
-        id: existing.id,
-        data: data as never,
-        overrideAccess: true,
-        context: { disableRevalidate: true, ...actingFor(member, 'members') },
-      })
-    : await payload.create({
-        collection: 'kyc-records',
-        data: data as never,
-        overrideAccess: true,
-        context: { disableRevalidate: true, ...actingFor(member, 'members') },
-      })
-
-  await logSecurityEvent(payload, {
-    event: 'kyc-saved',
-    email: member.email,
-    subject: reference,
-    detail: `pan and ${input.idChoice === 'aadhaar' ? 'masked aadhaar' : (input.otherIdKind ?? 'other id')}${data.duplicates ? ', possible duplicate' : ''}`,
-  })
-  return record
-}
-
-/** The kinds a partner gives again each time; anything else on the record is an artist's */
-const PARTNER_KINDS: KycDocumentKind[] = ['pan-card', 'identity-photo']
-
-const documentIdsOf = (record: KycRecord) =>
-  (record.documents ?? []).map((d) => (typeof d === 'object' ? d.id : d))
-
-/**
- * Encrypts and keeps a partner's identity details: the PAN, the name on it, the PAN card and the
- * photo with its code. One record per person, so someone who has also applied as an artist keeps
- * their second ID, their address answer and its check; only what a partner gives is replaced,
- * and the documents it replaces are left for the purge of unattached documents.
- */
-export const savePartnerKyc = async (
-  payload: Payload,
-  {
-    member,
-    input,
-    reference,
-    identityCode,
-    consent,
-  }: {
-    member: Member
-    input: PartnerKycInput
-    reference: string
-    identityCode?: { code: string; issuedAt: string; expiresAt: string } | null
-    consent: { noticeVersion: string; confirmation: string }
-  },
-): Promise<KycRecord> => {
-  const existing = await findRecord(payload, member.id)
-  const { key, wrapped } = dataKeyFor(existing, member.id)
-  const seal = (field: SealedField, value: string) =>
-    sealField(key, value, fieldContext(member.id, field))
-
-  const panIndex = blindIndex('pan', input.pan)
+  const passport = input.primary === 'passport'
+  const idValue = passport ? input.passportNumber : input.pan
+  const panIndex = idValue ? blindIndex(passport ? 'passport' : 'pan', idValue) : null
   const accountIndex = existing?.accountIndex ?? null
   const given = await ownDocuments(payload, member.id, input.documents)
-  const kept = existing
-    ? (
-        await payload.find({
-          collection: 'kyc-documents',
-          where: {
-            and: [{ id: { in: documentIdsOf(existing) } }, { kind: { not_in: PARTNER_KINDS } }],
-          },
-          limit: 100,
-          depth: 0,
-          overrideAccess: true,
-        })
-      ).docs.map((d) => d.id)
-    : []
+  const artist = input.kind === 'artist'
+  const kept =
+    !artist && existing
+      ? (
+          await payload.find({
+            collection: 'kyc-documents',
+            where: {
+              and: [{ id: { in: documentIdsOf(existing) } }, { kind: { not_in: PARTNER_KINDS } }],
+            },
+            limit: 100,
+            depth: 0,
+            overrideAccess: true,
+          })
+        ).docs.map((d) => d.id)
+      : []
 
+  const now = new Date().toISOString()
   const data = {
     member: member.id,
-    // An artist's record keeps the reference it was made under
+    // A record keeps the reference it was first made under
     reference: existing?.reference || reference,
     ...wrapped,
-    idType: 'pan' as const,
-    panSealed: seal('pan', input.pan),
-    panNameSealed: seal('panName', input.panName),
-    idMasked: maskPan(input.pan),
+    idType: input.primary,
+    panSealed: passport ? null : seal('pan', input.pan),
+    panNameSealed: passport ? null : seal('panName', input.panName),
+    passportSealed: passport ? seal('passport', input.passportNumber) : null,
+    passportNameSealed: passport ? seal('passportName', input.passportName) : null,
+    passportCountry: passport ? (input.passportCountry ?? null) : null,
+    passportExpiry: passport && input.passportExpiry ? `${input.passportExpiry}T00:00:00.000Z` : null,
+    idMasked: idValue ? (passport ? maskPassport(idValue) : maskPan(idValue)) : null,
+    ...(artist
+      ? {
+          aadhaarLast4Sealed: seal('aadhaarLast4', input.aadhaarLast4),
+          idChoice: input.idChoice ?? null,
+          otherIdKind: input.otherIdKind ?? null,
+          aadhaarMasked: input.aadhaarLast4 ? maskAadhaar(input.aadhaarLast4) : null,
+          // Filled in by runAadhaarCheck once the masked e-Aadhaar has been checked
+          aadhaarCheck: {
+            result: null,
+            reasons: null,
+            signer: null,
+            signedOn: null,
+            checkedAt: null,
+            mode: null,
+          },
+          addressOnIdMatches: input.addressOnIdMatches ?? null,
+          addressNote: input.addressNote ?? null,
+        }
+      : {}),
     identityCode: identityCode?.code ?? null,
     identityCodeIssuedAt: identityCode?.issuedAt || null,
     identityCodeExpiresAt: identityCode?.expiresAt || null,
@@ -311,12 +258,15 @@ export const savePartnerKyc = async (
     accountIndex,
     duplicates: (await duplicatesOf(payload, member.id, panIndex, accountIndex)) || null,
     documents: [...kept, ...given],
-    // New details, so checked again
-    verification: { status: 'unverified' as const },
-    consentedAt: new Date().toISOString(),
-    consentNoticeVersion: consent.noticeVersion,
-    consentConfirmation: consent.confirmation,
-    consentWithdrawnAt: null,
+    identityCheck: { sentAt: send ? now : null, checkedAt: null, checkedBy: null },
+    ...(send && consent
+      ? {
+          consentedAt: now,
+          consentNoticeVersion: consent.noticeVersion,
+          consentConfirmation: consent.confirmation,
+          consentWithdrawnAt: null,
+        }
+      : {}),
   }
 
   const context = { disableRevalidate: true, ...actingFor(member, 'members') }
@@ -335,36 +285,88 @@ export const savePartnerKyc = async (
         context,
       })
 
+  const second = !artist
+    ? ''
+    : input.idChoice === 'aadhaar'
+      ? ' and masked aadhaar'
+      : input.otherIdKind
+        ? ` and ${input.otherIdKind}`
+        : input.idChoice
+          ? ' and other id'
+          : ''
   await logSecurityEvent(payload, {
     event: 'kyc-saved',
     email: member.email,
     subject: reference,
-    detail: `partner: pan and identity photo${data.duplicates ? ', possible duplicate' : ''}`,
+    detail: `${input.kind}: ${input.primary}${second}${send ? ', sent for checking' : ', saved to finish later'}${data.duplicates ? ', possible duplicate' : ''}`,
   })
   return record
 }
 
-/** Whether a partner's identity details are complete enough to send their application */
-export const partnerKycProblems = async (payload: Payload, memberId: number): Promise<string[]> => {
+/**
+ * An artist's identity details as the old application step gave them: a PAN and a second ID,
+ * sent for checking. Kept for scripts and tests that make a checked artist directly.
+ */
+export const saveKyc = async (
+  payload: Payload,
+  {
+    member,
+    input,
+    reference,
+    identityCode,
+    consent,
+  }: {
+    member: Member
+    input: KycInput
+    reference: string
+    identityCode?: { code: string; issuedAt: string; expiresAt: string } | null
+    consent: { noticeVersion: string; confirmation: string }
+  },
+): Promise<KycRecord> =>
+  saveIdentity(payload, {
+    member,
+    reference,
+    identityCode,
+    consent,
+    send: true,
+    input: {
+      kind: 'artist',
+      primary: 'pan',
+      pan: input.pan,
+      panName: input.panName,
+      nameOnId: input.panName,
+      idChoice: input.idChoice,
+      aadhaarLast4: input.aadhaarLast4,
+      otherIdKind: null,
+      addressOnIdMatches: input.addressOnIdMatches,
+      documents: input.documents,
+      consentTyped: 'I AGREE',
+    },
+  })
+
+/**
+ * The values a member saved to finish later, opened on the server only to fill what they did not
+ * type again: they never go back to the browser. Used when "Confirm who you are" is sent.
+ */
+export const savedIdentityValues = async (
+  payload: Payload,
+  memberId: number,
+): Promise<Partial<Record<'pan' | 'panName' | 'passportNumber' | 'passportName' | 'aadhaarLast4', string>>> => {
   const record = await findRecord(payload, memberId)
-  if (!record || record.idType !== 'pan' || !(record as { panSealed?: string }).panSealed)
-    return ['Please add your PAN and the photo of you.']
-  const kinds = new Set(
-    (
-      await payload.find({
-        collection: 'kyc-documents',
-        where: { id: { in: documentIdsOf(record) } },
-        limit: 100,
-        depth: 0,
-        overrideAccess: true,
-      })
-    ).docs.map((d) => d.kind),
-  )
-  if (!kinds.has('pan-card')) return ['Please add the photo of your PAN card.']
-  if (!kinds.has('identity-photo')) return ['Please add the photo of you holding the code.']
-  return record.consentWithdrawnAt
-    ? ['Please give your consent again to send your application.']
-    : []
+  if (!record) return {}
+  const { key } = dataKeyFor(record, memberId)
+  const raw = record as unknown as Record<string, string | null | undefined>
+  const open = (field: SealedField) => {
+    const sealed = raw[COLUMN[field] as string]
+    return sealed ? openField(key, sealed, fieldContext(memberId, field)) : undefined
+  }
+  return {
+    pan: open('pan'),
+    panName: open('panName'),
+    passportNumber: open('passport'),
+    passportName: open('passportName'),
+    aadhaarLast4: open('aadhaarLast4'),
+  }
 }
 
 /** What a member sees of their own details: masks only, never a full value */
@@ -378,7 +380,21 @@ export const maskedKyc = async (payload: Payload, memberId: number) => {
     overrideAccess: true,
   })
   return {
+    idType: record.idType ?? null,
     panMasked: record.idType === 'pan' ? record.idMasked : null,
+    passportMasked: record.idType === 'passport' ? record.idMasked : null,
+    passportCountry: record.passportCountry ?? null,
+    passportExpiry: record.passportExpiry ? record.passportExpiry.slice(0, 10) : null,
+    // Which names are on file, without the names: the page asks again only for what is missing
+    saved: {
+      pan: Boolean((record as { panSealed?: string }).panSealed),
+      panName: Boolean((record as { panNameSealed?: string }).panNameSealed),
+      passportNumber: Boolean((record as { passportSealed?: string }).passportSealed),
+      passportName: Boolean((record as { passportNameSealed?: string }).passportNameSealed),
+      aadhaarLast4: Boolean((record as { aadhaarLast4Sealed?: string }).aadhaarLast4Sealed),
+    },
+    sentAt: record.identityCheck?.sentAt ?? null,
+    checkedAt: record.identityCheck?.checkedAt ?? null,
     aadhaarMasked: record.aadhaarMasked ?? (record.idType === 'aadhaar' ? record.idMasked : null),
     idChoice: record.idChoice ?? (record.aadhaarMasked ? 'aadhaar' : null),
     otherIdKind: record.otherIdKind ?? null,
