@@ -9,10 +9,12 @@ import { randomInt } from 'node:crypto'
  * about how many members there are. IDs issued before November 2026 (AT000001, from a Postgres
  * sequence per kind) stay as they were.
  *
- * Application references exist from the first step and stay with the person for good: A-7K3Q9X
- * for an artist, PT-7K3Q9X for a partner (APP-7K3Q9X before October 2026, kept as they were).
- * They are random rather than sequential so they reveal nothing about how many people have
- * applied, and use an alphabet without the characters people misread or mistype (0/O, 1/I/L, U/V).
+ * Application numbers exist from the first step and stay with the application for good: AA-7K3Q9
+ * for an artist, PA-6SGRZ for a trade partner and CA-7KD2M for a guest curator (the founder's
+ * designs, November 2026). Earlier ones (A-7K3Q9X, PT-7K3Q9X, and APP-7K3Q9X before October 2026)
+ * stay as they were. They are random rather than sequential so they reveal nothing about how many
+ * people have applied, and use an alphabet without the characters people misread or mistype
+ * (0/O, 1/I/L, U/V).
  */
 
 export type MemberKind = 'artist' | 'partner'
@@ -45,11 +47,18 @@ const randomCode = (length: number): string => {
 /** AT-X63G8 or PT-8GH37: 29^5, about 20 million of each kind. The caller checks it is unused. */
 export const newMemberId = (kind: MemberKind): string =>
   `${MEMBER_ID_PREFIX[kind]}-${randomCode(5)}`
-export const APPLICATION_REFERENCE_PREFIX: Record<MemberKind, string> = {
-  artist: 'A',
-  partner: 'PT',
+/** Every kind of application: the two that lead to a member ID, and guest curators */
+export type ApplicationKind = MemberKind | 'curator'
+
+export const APPLICATION_REFERENCE_PREFIX: Record<ApplicationKind, string> = {
+  artist: 'AA',
+  partner: 'PA',
+  curator: 'CA',
 }
-export const APPLICATION_REFERENCE_PATTERN = new RegExp(`^(A|PT|APP)-[${REFERENCE_ALPHABET}]{6}$`)
+/** AA-, PA- or CA- and five characters; or the earlier A-, PT- or APP- and six */
+export const APPLICATION_REFERENCE_PATTERN = new RegExp(
+  `^((AA|PA|CA)-[${REFERENCE_ALPHABET}]{5}|(A|PT|APP)-[${REFERENCE_ALPHABET}]{6})$`,
+)
 
 /**
  * The code an artist writes by hand, with their name, and photographs themselves holding: proof
@@ -61,9 +70,12 @@ export const newIdentityCode = (): string => {
   return `${code.slice(0, 3)}-${code.slice(3)}`
 }
 
-/** A-7K3Q9X or PT-7K3Q9X: 29^6, about 600 million each, so a clash is rare and simply retried */
-export const newApplicationReference = (kind: MemberKind): string =>
-  `${APPLICATION_REFERENCE_PREFIX[kind]}-${randomCode(6)}`
+/**
+ * AA-7K3Q9, PA-6SGRZ or CA-7KD2M: 29^5, about 20 million of each kind. A clash is rare, and the
+ * unique index refuses it, so the caller simply tries again
+ */
+export const newApplicationReference = (kind: ApplicationKind): string =>
+  `${APPLICATION_REFERENCE_PREFIX[kind]}-${randomCode(5)}`
 
 /**
  * A Help Center ticket: five characters from the unambiguous alphabet, like 7K3Q9 (29^5, about
