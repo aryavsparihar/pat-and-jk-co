@@ -220,22 +220,24 @@ export const decisionEmail = async (
   }
 
   if (decision === 'approve') {
-    const id = application.issuedId ?? ''
+    // No member ID yet: it is issued when the agreement is signed (src/members/issueId.ts)
     return buildEmail({
-      subject: `Welcome to ${BRAND} | ${artist ? 'Artist' : 'Trade'} Application Approved`,
-      preheader: `Your application has been approved. Your ${artist ? 'Artist' : 'Partner'} ID is ${id}.`,
+      subject: `Your ${artist ? 'artist' : 'trade'} application to ${BRAND} is approved (${application.reference})`,
+      preheader: 'We would like to work with you. Please confirm who you are.',
       parts: [
         {
           kind: 'paragraph',
-          text: `We are pleased to inform you that your application to join ${BRAND} as ${artist ? 'a represented artist' : 'a Trade Partner'} has been approved. We are delighted to welcome you.`,
+          text: `We would like to work with you. Your application to join ${BRAND} as ${artist ? 'an artist' : 'a trade partner'} is approved.`,
         },
-        { kind: 'reference', label: artist ? 'Your Artist ID' : 'Your Partner ID', value: id },
         {
           kind: 'paragraph',
-          text: artist
-            ? 'Please retain this permanent ID and quote it whenever you write to us. You may now sign in to your account using a code sent to this email address to complete your agreement execution and profile onboarding.'
-            : 'Please retain this permanent ID and quote it whenever you write to us. You may now sign in to your account using a code sent to this email address to execute your Trade Partner Agreement and access your portal.',
+          text: 'Before we send our agreement, we need to be sure who you are. Sign in to your account and choose Confirm who you are. It takes about five minutes.',
         },
+        {
+          kind: 'paragraph',
+          text: `Once we have checked your details, the agreement is ready to sign in your account. Your member ID (${artist ? 'AT-' : 'PT-'}) is issued when you sign it.`,
+        },
+        { kind: 'reference', label: 'Application number', value: application.reference },
         { kind: 'link', label: 'Sign in', url: signInUrl() },
       ],
       footer,

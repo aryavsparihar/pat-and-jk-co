@@ -12,18 +12,18 @@ import type { Application, Member, User } from '@/payload-types'
 import { logSecurityEvent } from '@/security/events'
 
 import { sendDecisionEmail } from './emails'
+import { idFieldOf } from './issueId'
 import { reapplyDays, reapplyFrom } from './reapply'
-import { newMemberId, type MemberKind } from './ids'
 
 /**
  * Staff decisions on an application: start reviewing it, approve, reject, or ask for changes.
  *
- * Approval is the one place a member ID is issued. Everything that must happen together happens
- * in one database transaction: take the next number from the kind's sequence, write the member ID
- * and approved standing onto the member, and mark the application approved. If any step fails the
- * whole approval rolls back (the sequence number is simply skipped; gaps are expected). Only after
- * the transaction commits is the applicant emailed and the decision written to the security log,
- * so nobody is ever told about an approval that did not happen.
+ * Approval does not issue a member ID (founder's brief of 25 November 2026). An approved applicant
+ * is asked to confirm who they are (/account/verify); once the team has checked it, the agreement
+ * unlocks, and the ID is issued when it is signed (src/members/issueId.ts). What must happen
+ * together happens in one database transaction: the approval date on the member and the stage on
+ * the application. Only after it commits is the applicant emailed and the decision logged, so
+ * nobody is ever told about an approval that did not happen.
  */
 
 export type Decision = 'review' | 'approve' | 'reject' | 'request-changes'
@@ -58,31 +58,7 @@ const EVENT: Record<
   'request-changes': 'application-changes-requested',
 }
 
-/**
- * Draws a new random member ID of a kind (AT-X63G8) that no one has, deleted people included.
- * Must be called inside the approval transaction. With 20 million IDs of each kind a clash is
- * rare; ten in a row means something is wrong, so the approval stops rather than loop.
- */
-export const nextMemberId = async (
-  payload: Payload,
-  req: PayloadRequest,
-  kind: MemberKind,
-): Promise<string> => {
-  const field = kind === 'artist' ? 'artistId' : 'partnerId'
-  for (let attempt = 0; attempt < 10; attempt++) {
-    const candidate = newMemberId(kind)
-    const taken = await payload.count({
-      collection: 'members',
-      where: { [field]: { equals: candidate } },
-      overrideAccess: true,
-      req,
-    })
-    if (taken.totalDocs === 0) return candidate
-  }
-  throw new Error(`Could not find an unused ${kind} member ID`)
-}
-
-export type DecisionResult = { application: Application; member: Member; memberId?: string }
+export type DecisionResult = { application: Application; member: Member }
 
 export const decideApplication = async (
   payload: Payload,
@@ -131,10 +107,6 @@ export const decideApplication = async (
       req,
     })
 
-    // The ID slot this kind of application fills: an artist approval never touches a partner ID
-    const slot = application.type === 'artist' ? 'artistId' : 'partnerId'
-    let issued: string | undefined
-    let earned: string | null = null
     if (decision === 'approve') {
       const data: Partial<Member> =
         application.type === 'artist'
@@ -143,20 +115,13 @@ export const decideApplication = async (
               partnerApprovedAt: new Date().toISOString(),
               partnerCategory: application.partnerCategory ?? member.partnerCategory,
             }
-      // Someone already approved as this kind keeps the ID they were given
-      earned = member[slot] ?? null
-      if (!earned) {
-        issued = await nextMemberId(payload, req, application.type)
-        data[slot] = issued
-        earned = issued
-      }
       member = await payload.update({
         collection: 'members',
         id: member.id,
         data,
         overrideAccess: true,
         req,
-        context: { issuingMemberId: slot, disableRevalidate: true },
+        context: { disableRevalidate: true },
       })
     }
 
@@ -175,7 +140,10 @@ export const decideApplication = async (
             }),
         // A decline says when they may apply again
         ...(decision === 'reject' ? { reapplyFrom: reapplyFrom(await reapplyDays(payload)) } : {}),
-        ...(earned ? { issuedId: earned } : {}),
+        // Someone already holding an ID of this kind (applying again) is known by it
+        ...(decision === 'approve' && member[idFieldOf(application.type)]
+          ? { issuedId: member[idFieldOf(application.type)] }
+          : {}),
       },
       overrideAccess: true,
       req,
@@ -183,7 +151,7 @@ export const decideApplication = async (
     })
 
     await commitTransaction(req)
-    result = { application: updated, member, memberId: issued }
+    result = { application: updated, member }
   } catch (error) {
     await killTransaction(req)
     throw error
@@ -197,23 +165,6 @@ export const decideApplication = async (
     subject: result.application.issuedId ?? result.application.reference,
     detail: `${result.application.reference} ${STAGE_AFTER[decision]} by ${actor.email}`,
   })
-  if (result.memberId) {
-    const { labelKycRecord } = await import('@/kyc/service')
-    await labelKycRecord(payload, {
-      id: result.member.id,
-      artistId:
-        result.member.artistId ?? (result.application.type === 'artist' ? result.memberId : null),
-      partnerId:
-        result.member.partnerId ?? (result.application.type === 'partner' ? result.memberId : null),
-    })
-    await logSecurityEvent(payload, {
-      event: 'member-id-issued',
-      email: result.member.email,
-      actor: actor.id,
-      subject: result.memberId,
-      detail: result.application.reference,
-    })
-  }
   if (decision !== 'review') {
     await sendDecisionEmail(payload, {
       decision,

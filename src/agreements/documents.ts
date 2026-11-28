@@ -83,7 +83,7 @@ export const ARTIST_AGREEMENT: AgreementDocument = {
     intro:
       'To authenticate your identity and prevent unauthorized digital execution under the Information Technology Act, 2000 and Section 15 of the Digital Personal Data Protection Act, 2023, please complete the live visual verification below before signing:',
     steps: [
-      'Take a blank sheet of physical paper and clearly write down by hand: (a) The 6-character Verification Code displayed on screen below (valid for 10 minutes), (b) Your Full Legal Name, and (c) Your Assigned Artist Application ID (AT-xxxxx).',
+      'Take a blank sheet of physical paper and clearly write down by hand: (a) The 6-character Verification Code displayed on screen below (valid for 10 minutes), (b) Your Full Legal Name, and (c) Your Artist Application Number (AA-xxxxx).',
       PHOTO_STEP_2,
     ],
   },
@@ -146,7 +146,7 @@ export const TRADE_AGREEMENT: AgreementDocument = {
     intro:
       'To authenticate your identity and prevent unauthorized B2B digital execution under the Information Technology Act, 2000 and Section 15 of the Digital Personal Data Protection Act, 2023, please complete the live visual verification below before signing:',
     steps: [
-      'Take a blank sheet of physical paper and clearly write down by hand: (a) The 6-character Verification Code displayed on screen below (valid for 10 minutes), (b) Your Full Legal Name, and (c) Your Assigned Trade Partner Application ID (PT-xxx).',
+      'Take a blank sheet of physical paper and clearly write down by hand: (a) The 6-character Verification Code displayed on screen below (valid for 10 minutes), (b) Your Full Legal Name, and (c) Your Trade Partner Application Number (PA-xxxxx).',
       PHOTO_STEP_2,
     ],
   },

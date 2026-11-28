@@ -10,7 +10,8 @@ export const dynamic = 'force-dynamic'
 
 /**
  * The live photo for signing an agreement: the member holding a paper with the ten-minute code,
- * their full legal name and their ID. Multipart: kind, id, identityCode, capturedWith, file.
+ * their full legal name and their application number. Multipart: kind, identityCode,
+ * capturedWith, file.
  * Encrypted on the server into the KYC vault, as the application's identity photo is.
  */
 export async function POST(request: Request) {
@@ -27,7 +28,7 @@ export async function POST(request: Request) {
   } catch {
     return reply({ message: 'Please choose a photo.' }, { status: 400 })
   }
-  const found = agreementFor(member, form.get('kind'), form.get('id'))
+  const found = await agreementFor(payload, member, form.get('kind'))
   if ('refused' in found) return found.refused
 
   const limit = await hitLimit(payload, {
@@ -37,7 +38,7 @@ export async function POST(request: Request) {
     windowSeconds: 3600,
   })
   if (!limit.allowed)
-    return reply({ message: 'Please wait a little before trying again.' }, { status: 429 })
+    return reply({ message: 'Please wait a moment before trying again.' }, { status: 429 })
 
   const file = form.get('file')
   if (!(file instanceof File)) return reply({ message: 'Please choose a photo.' }, { status: 400 })

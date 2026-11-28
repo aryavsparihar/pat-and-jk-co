@@ -4,6 +4,7 @@ import { getPayload } from 'payload'
 import React from 'react'
 
 import type { AgreementDocument } from '@/agreements/documents'
+import { AgreementError, checkSigner } from '@/agreements/service'
 import { sectionGroups } from '@/blocks/Content/SectionNav'
 import { OnboardingPage } from '@/components/onboarding/OnboardingPage'
 import { SignInForm } from '@/components/onboarding/SignInForm'
@@ -16,10 +17,10 @@ import { AgreementExecution } from './AgreementExecution'
 
 /**
  * /collaborate/artist-agreement and /collaborate/trade-agreement: where an approved artist or trade
- * partner signs. Signed out, the page asks for the emailed code; signed in without the right ID,
- * it says the page is not for them. Only then is the agreement shown, in full, in a scrolling
- * frame with a menu of its seven segments, and beneath it the signing (AgreementExecution), which
- * asks for their ID again before it shows anything about them.
+ * partner signs. Signed out, the page asks for the emailed code; signed in before approval, or
+ * before the team has checked who they are, it says why not yet. Only then is the agreement
+ * shown, in full, in a scrolling frame with a menu of its seven segments, and beneath it the
+ * signing (AgreementExecution). The member ID is issued when it is signed.
  */
 export const AgreementPage = async ({ agreement }: { agreement: AgreementDocument }) => {
   const payload = await getPayload({ config: configPromise })
@@ -37,13 +38,14 @@ export const AgreementPage = async ({ agreement }: { agreement: AgreementDocumen
       </OnboardingPage>
     )
   }
-  if (!active.member[agreement.idField]) {
+  // Approved, and the team has checked who they are; otherwise, why not yet
+  const refusal = await checkSigner(payload, active.member, agreement).then(
+    () => null,
+    (error: unknown) => (error instanceof AgreementError ? error.message : null),
+  )
+  if (refusal) {
     return (
-      <OnboardingPage
-        heading="Sign your agreement"
-        intro={`This page is for ${who}. Your account has no ${agreement.prefix} ID yet: it is issued when your application is approved, and we email it to you then.`}
-        label="Agreement"
-      >
+      <OnboardingPage heading="Sign your agreement" intro={refusal} label="Agreement">
         <a className="link link-caps" href="/account">
           Go to your account
         </a>
