@@ -5,7 +5,11 @@ import { redirect } from 'next/navigation'
 import { getPayload } from 'payload'
 import React from 'react'
 
-import { ApplyAgainButton, WithdrawButton } from '@/components/account/ApplicationActions'
+import {
+  ApplyAgainButton,
+  DeleteDraftButton,
+  WithdrawButton,
+} from '@/components/account/ApplicationActions'
 import { SignOutButtons } from '@/components/account/SignOutButtons'
 import { DeclinedNotice } from '@/components/onboarding/DeclinedNotice'
 import { PhulhaarPage } from '@/components/phulhaar/PhulhaarPage'
@@ -13,6 +17,7 @@ import { phulhaarSocialLinks } from '@/brands/socialIcons'
 import { defaultSiteSettings } from '@/members/openness'
 import { canReapply } from '@/members/reapply'
 import { STAGE_WORDS, WITHDRAWABLE } from '@/members/stages'
+import { applicationStatus } from '@/members/status'
 import type { Application } from '@/payload-types'
 import { ContactForm } from '@/components/portal/ProfileForm'
 import { PortalFrame } from '@/components/portal/PortalFrame'
@@ -88,16 +93,57 @@ export default async function AccountPage() {
     />
   )
 
+  // Where the identity check has got to: one record per person, whichever kind it is for
+  const identityRecord = (
+    await payload.find({
+      collection: 'kyc-records',
+      where: { member: { equals: member.id } },
+      depth: 0,
+      limit: 1,
+      overrideAccess: true,
+    })
+  ).docs[0]
+  const identity = {
+    sent: Boolean(identityRecord?.identityCheck?.sentAt),
+    checked: Boolean(identityRecord?.identityCheck?.checkedAt),
+  }
+  const label = (type: 'artist' | 'partner') => (type === 'artist' ? 'Artist' : 'Trade account')
+  const notStarted = (['artist', 'partner'] as const).filter((type) => !has(type))
+  const startLinks = (
+    <>
+      {notStarted.includes('artist') && (
+        <a className="link link-caps" href="/collaborate/artists">
+          Apply as an artist
+        </a>
+      )}
+      {notStarted.includes('partner') && (
+        <a className="link link-caps" href="/collaborate/partners">
+          Apply for a trade account
+        </a>
+      )}
+    </>
+  )
+
   const applicationsSection = (
     <section className="mt-14 border-t border-border pt-8">
-      <h2 className="display-sm">Applications</h2>
-      {docs.length === 0 && (
-        <p className="muted mt-4">You have not started an application.</p>
+      <h2 className="display-sm">Your applications</h2>
+      {docs.length === 0 ? (
+        <>
+          <p className="measure mt-4">You have not started an application.</p>
+          <p className="muted measure mt-2">
+            Artists apply to show and sell through Phulhaar Gallery. Designers, architects and art
+            advisers apply for a trade account.
+          </p>
+          <div className="mt-6 flex flex-wrap gap-x-8 gap-y-3">{startLinks}</div>
+        </>
+      ) : (
+        <p className="muted measure mt-3">
+          Each application has its own number: AA- for artists, PA- for trade partners. If we work
+          together, you receive a member ID (AT- or PT-) once the agreement is signed.
+        </p>
       )}
       <ul className="mt-4">
         {current.map((app) => {
-          const open = app.stage === 'draft' || app.stage === 'changes-requested'
-          const href = app.type === 'artist' ? '/collaborate/artists' : '/collaborate/partners'
           if (app.stage === 'rejected') {
             return (
               <li className="border-b border-border py-8" key={app.id}>
@@ -105,22 +151,22 @@ export default async function AccountPage() {
               </li>
             )
           }
+          const status = applicationStatus(app, member, identity)
           return (
             <li
               className="grid gap-x-8 gap-y-2 border-b border-border py-6 sm:grid-cols-[12rem_1fr_auto]"
               key={app.id}
             >
-              <span className="label pt-1">{app.type === 'artist' ? 'Artist' : 'Partner'}</span>
-              <span>
+              <span className="pt-1">
+                <span className="label block">{label(app.type)}</span>
                 <span className="block tracking-wider">{app.reference}</span>
-                <span className="muted block">
-                  {STAGE_WORDS[app.stage] ?? app.stage}
-                  {app.stage === 'withdrawn' && app.withdrawnAt
-                    ? `, ${shortDate(app.withdrawnAt)}`
-                    : ''}
-                </span>
-                {app.stage === 'changes-requested' && app.decisionNote && (
-                  <span className="measure mt-3 block whitespace-pre-line">{app.decisionNote}</span>
+              </span>
+              <span>
+                <span className="block font-semibold">{status.line}</span>
+                {status.detail && (
+                  <span className="muted measure mt-1 block whitespace-pre-line">
+                    {status.detail}
+                  </span>
                 )}
                 {app.stage === 'withdrawn' && (
                   <span className="mt-4 block">
@@ -129,12 +175,15 @@ export default async function AccountPage() {
                 )}
               </span>
               <span className="flex flex-col items-start gap-1 self-center sm:items-end">
-                {open && (
-                  <a className="link link-caps min-h-11 content-center" href={href}>
-                    {app.stage === 'draft' ? 'Continue' : 'Make the changes'}
+                {status.link && (
+                  <a className="link link-caps min-h-11 content-center" href={status.link.href}>
+                    {status.link.label}
                   </a>
                 )}
-                {WITHDRAWABLE.includes(app.stage) && (
+                {app.stage === 'draft' && (
+                  <DeleteDraftButton kind={app.type} reference={app.reference} />
+                )}
+                {app.stage !== 'draft' && WITHDRAWABLE.includes(app.stage) && (
                   <WithdrawButton kind={app.type} reference={app.reference} />
                 )}
               </span>
@@ -151,7 +200,7 @@ export default async function AccountPage() {
                 className="grid gap-x-8 gap-y-1 border-b border-border py-4 sm:grid-cols-[12rem_1fr]"
                 key={app.id}
               >
-                <span className="muted">{app.type === 'artist' ? 'Artist' : 'Partner'}</span>
+                <span className="muted">{label(app.type)}</span>
                 <span>
                   <span className="tracking-wider">{app.reference}</span>
                   <span className="muted">
@@ -167,18 +216,29 @@ export default async function AccountPage() {
           </ul>
         </div>
       )}
-      <div className="mt-6 flex flex-wrap gap-x-8 gap-y-3">
-        {!has('artist') && (
-          <a className="link link-caps" href="/collaborate/artists">
-            Apply as an artist
-          </a>
-        )}
-        {!has('partner') && (
-          <a className="link link-caps" href="/collaborate/partners">
-            Apply as a partner
-          </a>
-        )}
-      </div>
+      {docs.length > 0 && notStarted.length > 0 && (
+        <div className="mt-10">
+          <h3 className="label">Start another</h3>
+          <div className="mt-3 flex flex-wrap gap-x-8 gap-y-3">{startLinks}</div>
+          <p className="muted mt-3 text-base">
+            Only applications you have not yet started are shown here.
+          </p>
+        </div>
+      )}
+    </section>
+  )
+
+  const signingOut = (
+    <section className="mt-14 border-t border-border pt-8">
+      <h2 className="sr-only">Signing out</h2>
+      <SignOutButtons />
+      <p className="muted mt-4 text-base">
+        Trouble with your account? Write to{' '}
+        <a className="link" href="mailto:tech@pjk.co.in">
+          tech@pjk.co.in
+        </a>
+        .
+      </p>
     </section>
   )
 
@@ -285,9 +345,7 @@ export default async function AccountPage() {
       >
         {declined(artist)}
         {(others.length > 0 || earlier.length > 0) && applicationsSection}
-        <section className="mt-14 border-t border-border pt-8">
-          <SignOutButtons />
-        </section>
+        {signingOut}
       </PhulhaarPage>
     )
   }
@@ -296,12 +354,10 @@ export default async function AccountPage() {
     <OnboardingPage
       heading="Your account"
       intro={<>Signed in as {member.email}.</>}
-      label="Members"
+      label="Your account"
     >
       {applicationsSection}
-      <section className="mt-14 border-t border-border pt-8">
-        <SignOutButtons />
-      </section>
+      {signingOut}
     </OnboardingPage>
   )
 }
