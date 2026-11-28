@@ -82,7 +82,8 @@ export const Upload: React.FC<{
       api<{ document: { id: number } }>('/next/members/kyc/document', { body: form }),
     )
     setBusy(false)
-    if (!result.ok) return setState(result.data.message ?? 'That file could not be sent.')
+    if (!result.ok)
+      return setState(result.data.message ?? 'That file could not be uploaded. Please try again.')
     onUploaded(result.data.document.id)
     setState('Received, and encrypted.')
   }

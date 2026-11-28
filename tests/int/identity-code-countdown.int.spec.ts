@@ -62,7 +62,7 @@ test('a tab whose timers were frozen catches up the moment it is looked at again
     root.render(React.createElement(IdentityCode, { busy: false, code: code(10), onNew: () => {} }))
   })
   const says = () =>
-    /Valid for \d+:\d\d|This code has run out\./.exec(host.textContent ?? '')?.[0] ?? '(nothing)'
+    /Valid for \d+:\d\d|Your code has run out\./.exec(host.textContent ?? '')?.[0] ?? '(nothing)'
   expect(says()).toBe('Valid for 10:00')
 
   // Seven minutes pass with the tab frozen: time moves on, no timer fires
@@ -77,7 +77,7 @@ test('a tab whose timers were frozen catches up the moment it is looked at again
   await act(async () => {
     window.dispatchEvent(new Event('focus'))
   })
-  expect(says()).toBe('This code has run out.')
+  expect(says()).toBe('Your code has run out.')
 
   await act(async () => root.unmount())
   host.remove()

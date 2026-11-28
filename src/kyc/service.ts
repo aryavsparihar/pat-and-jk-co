@@ -37,7 +37,6 @@ import { actingFor } from '@/security/audit'
  * current details, so approving it moves ciphertext across without ever decrypting it.
  */
 
-
 /**
  * The member an identity-bearing application belongs to. Only artist and partner applications
  * are ever found here (they are looked up by member), and every one of those has a member; a
@@ -150,7 +149,7 @@ const ownDocuments = async (
     const owner =
       document && (typeof document.member === 'object' ? document.member.id : document.member)
     if (!document || owner !== memberId || document.kind !== kind) {
-      throw new KycError('One of the documents could not be found. Please upload it again.')
+      throw new KycError('We could not find one of your documents. Please upload it again.')
     }
     ids.push(id)
   }
@@ -230,7 +229,8 @@ export const saveIdentity = async (
     passportSealed: passport ? seal('passport', input.passportNumber) : null,
     passportNameSealed: passport ? seal('passportName', input.passportName) : null,
     passportCountry: passport ? (input.passportCountry ?? null) : null,
-    passportExpiry: passport && input.passportExpiry ? `${input.passportExpiry}T00:00:00.000Z` : null,
+    passportExpiry:
+      passport && input.passportExpiry ? `${input.passportExpiry}T00:00:00.000Z` : null,
     idMasked: idValue ? (passport ? maskPassport(idValue) : maskPan(idValue)) : null,
     ...(artist
       ? {
@@ -351,7 +351,9 @@ export const saveKyc = async (
 export const savedIdentityValues = async (
   payload: Payload,
   memberId: number,
-): Promise<Partial<Record<'pan' | 'panName' | 'passportNumber' | 'passportName' | 'aadhaarLast4', string>>> => {
+): Promise<
+  Partial<Record<'pan' | 'panName' | 'passportNumber' | 'passportName' | 'aadhaarLast4', string>>
+> => {
   const record = await findRecord(payload, memberId)
   if (!record) return {}
   const { key } = dataKeyFor(record, memberId)
@@ -522,7 +524,10 @@ export const storeKycDocument = async (
     overrideAccess: true,
   })
   if (existing.totalDocs >= 20)
-    throw new KycError('Too many documents have been uploaded. Please contact us.', 409)
+    throw new KycError(
+      'You have uploaded as many documents as we can take here. Please write to hello@pjk.co.in and we will help.',
+      409,
+    )
 
   const { data, contentType, extension } = await cleanDocument(bytes)
   const storageName = `${member.id}/${randomBytes(16).toString('hex')}.${extension}.enc`

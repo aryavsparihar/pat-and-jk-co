@@ -91,12 +91,14 @@ export const IdentityCode: React.FC<{
           {code.code}
         </p>
         <p aria-hidden className="muted mt-3 text-base tabular-nums">
-          {expired ? 'This code has run out.' : `Valid for ${clock(left)}`}
+          {expired
+            ? 'Your code has run out. Please ask for a new one.'
+            : `Valid for ${clock(left)}`}
         </p>
       </div>
       <p aria-live="polite" className="sr-only">
         {expired
-          ? 'Your code has run out. You can get a new one.'
+          ? 'Your code has run out. Please ask for a new one.'
           : left <= 60_000
             ? 'One minute left on your code.'
             : ''}
