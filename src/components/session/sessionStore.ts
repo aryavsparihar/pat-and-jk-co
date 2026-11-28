@@ -41,6 +41,8 @@ const RECHECK_MS = 60_000
 /** Pages that only make sense while signed in: left at once when the session ends */
 const SIGNED_IN_PAGE = /^\/account(?:\/|$)/
 const LEAVE_AFTER_MS = 2000
+/** Set once this page has started signing out itself, and knows where it is going */
+let leaving = false
 
 let state: SessionState = 'unknown'
 /** Whether the member signed in holds an open artist ID (for Your works in the account menu) */
@@ -66,7 +68,7 @@ const set = (next: SessionState, isArtist = false) => {
   // says why on the sign-in page) goes where it was going; that leaves the page and ends this
   if (ended && SIGNED_IN_PAGE.test(window.location.pathname)) {
     window.setTimeout(() => {
-      if (state === 'none' && SIGNED_IN_PAGE.test(window.location.pathname))
+      if (!leaving && state === 'none' && SIGNED_IN_PAGE.test(window.location.pathname))
         // eslint-disable-next-line @next/next/no-location-assign-relative-destination
         window.location.assign('/collaborate/signin')
     }, LEAVE_AFTER_MS)
@@ -91,6 +93,16 @@ const storage = {
 }
 
 /** Asks the server, now; concurrent callers share one request */
+/**
+ * Called by anything on this page that signs out and then goes somewhere itself (Sign Out, the
+ * idle sign-out). The session can be seen to end before that sign-out returns, when the server is
+ * slow; without this the account page would be left for the plain sign-in page first, and an idle
+ * member would never be told why they were signed out.
+ */
+export const markLeaving = () => {
+  leaving = true
+}
+
 export const refreshSession = (): Promise<void> => {
   inflight ??= (async () => {
     try {

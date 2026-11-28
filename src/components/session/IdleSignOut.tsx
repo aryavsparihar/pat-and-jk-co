@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react'
 
 import { AFK_LIMIT_MINUTES } from './afk'
 import { useAfkSignOut } from './useAfkSignOut'
-import { announceSessionChange, refreshSession, useSession } from './sessionStore'
+import { announceSessionChange, markLeaving, refreshSession, useSession } from './sessionStore'
 
 /**
  * "Still there?" on every page of the site: the dialog a minute before a signed-in browser that
@@ -22,6 +22,7 @@ export const IdleSignOut: React.FC = () => {
 
   const signOut = useCallback(async () => {
     setLeaving(true)
+    markLeaving()
     try {
       await fetch(session === 'staff' ? '/api/users/logout' : '/next/members/sign-out', {
         body: '{}',
