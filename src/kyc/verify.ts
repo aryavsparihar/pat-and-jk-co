@@ -1,11 +1,6 @@
 import { z } from 'zod'
 
-import {
-  isAadhaarLast4,
-  looksLikeFullAadhaar,
-  normalisePan,
-  panProblem,
-} from './values'
+import { isAadhaarLast4, looksLikeFullAadhaar, normalisePan, panProblem } from './values'
 
 /**
  * "Confirm who you are": the identity check after approval (the founder's Verify design and brief
@@ -75,7 +70,8 @@ export const VERIFY_ERRORS = {
     'This page is for applicants we have approved. Your account has nothing to confirm yet.',
   codeWindow: 'A code can only be given while your details are open for checking.',
   photoWindow: 'The photo can only be added while your details are open for checking.',
-  nameFirst: (doc: string) => `Please give your name as it is on your ${doc} before adding the photo.`,
+  nameFirst: (doc: string) =>
+    `Please give your name as it is on your ${doc} before adding the photo.`,
 } as const
 
 const documentId = z.coerce.number().int().positive().optional()
@@ -159,10 +155,15 @@ export const checkVerify = (
   kind: VerifyKind,
   body: unknown,
   { draft = false }: { draft?: boolean } = {},
-):
-  | { ok: true; input: VerifyInput }
-  | { ok: false; errors: Record<string, string> } => {
-  const parsed = shape.safeParse(body ?? {})
+): { ok: true; input: VerifyInput } | { ok: false; errors: Record<string, string> } => {
+  // A choice not made yet comes as null or an empty string: the same as not given
+  const given = (value: unknown): value is object =>
+    Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+  const blankless = (value: Record<string, unknown>) =>
+    Object.fromEntries(Object.entries(value).filter(([, v]) => v !== null && v !== ''))
+  const raw = given(body) ? blankless(body as Record<string, unknown>) : {}
+  if (given(raw.documents)) raw.documents = blankless(raw.documents as Record<string, unknown>)
+  const parsed = shape.safeParse(raw)
   if (!parsed.success) {
     const errors: Record<string, string> = {}
     for (const issue of parsed.error.issues) {
@@ -235,7 +236,11 @@ export const checkVerify = (
       need('abroadId', otherIdKind, VERIFY_ERRORS.idChoice)
       need('documents.other-id', docs['other-id'], VERIFY_ERRORS.abroadSecondId)
     }
-    need('addressOnIdMatches', typeof v.addressOnIdMatches === 'boolean', VERIFY_ERRORS.addressMatches)
+    need(
+      'addressOnIdMatches',
+      typeof v.addressOnIdMatches === 'boolean',
+      VERIFY_ERRORS.addressMatches,
+    )
     if (v.addressOnIdMatches === false) {
       need('addressNote', clean(v.addressNote), VERIFY_ERRORS.addressNote)
       need('documents.address-proof', docs['address-proof'], VERIFY_ERRORS.addressProof)

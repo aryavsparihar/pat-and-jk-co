@@ -134,6 +134,8 @@ test('a masked e-Aadhaar goes through the check', async ({ page, context }) => {
   await page.getByLabel('The PDF’s password').fill('ASHA1990')
   await page.getByLabel('Yes', { exact: true }).check()
   await photo(page)
+  // The PAN card, the masked e-Aadhaar and the photo have all reached us
+  await expect(page.getByText('Received, and encrypted.')).toHaveCount(3)
   await page.getByRole('button', { name: 'Send for checking' }).click()
   await expect(page.getByRole('heading', { name: 'Thank you' })).toBeVisible()
 
