@@ -24,7 +24,7 @@ import {
 import { checkMaskedAadhaar, type AadhaarCheck } from './aadhaarCheck'
 import { deleteEncrypted, kycPrefix, readEncrypted, storeEncrypted } from './documentStore'
 import { AADHAAR_CHECK_MODE } from './settings'
-import type { BankInput, KycDocumentKind, KycInput } from './schema'
+import { BANK_ERRORS, type BankInput, type KycDocumentKind, type KycInput } from './schema'
 import { maskPassport, type VerifyInput } from './verify'
 import { maskAadhaar, maskAccount, maskIfsc, maskPan, namesPlausiblyMatch } from './values'
 import { actingFor } from '@/security/audit'
@@ -406,6 +406,9 @@ export const maskedKyc = async (payload: Payload, memberId: number) => {
           ifscMasked: record.ifscMasked,
           bankName: record.bankName,
           accountType: record.accountType,
+          location: record.bankLocation ?? 'india',
+          country: record.bankCountry ?? null,
+          currency: record.currency ?? null,
         }
       : null,
     payoutRequestedAt: record.payoutRequestedAt ?? null,
@@ -845,22 +848,60 @@ export const requestBankChange = async (
     sealField(key, value, fieldContext(member.id, field))
   const cancelToken = randomBytes(32).toString('base64url')
 
+  // Payouts go to the artist's own name only (founder's brief, section 11): the holder must
+  // plausibly be the person named on their PAN or passport
+  const raw = record as unknown as Record<string, string | null | undefined>
+  const ownName = [
+    ['panNameSealed', 'panName'],
+    ['passportNameSealed', 'passportName'],
+  ]
+    .map(([column, field]) =>
+      raw[column] ? openField(key, raw[column]!, fieldContext(member.id, field!)) : null,
+    )
+    .find(Boolean)
+  if (ownName && !namesPlausiblyMatch(ownName, bank.holderName))
+    throw new KycError(BANK_ERRORS.notOwnName, 422)
+
+  const abroad = bank.location === 'abroad'
+  const lastFour = (value: string) =>
+    `${'X'.repeat(Math.max(0, value.length - 4))}${value.slice(-4)}`
   const updated = await payload.update({
     collection: 'kyc-records',
     id: record.id,
     data: {
-      pendingBank: {
-        pendingAccountNumberSealed: seal('accountNumber', bank.accountNumber),
-        pendingIfscSealed: seal('ifsc', bank.ifsc),
-        pendingHolderNameSealed: seal('holderName', bank.holderName),
-        pendingBranchNameSealed: seal('branchName', bank.branchName),
-        pendingAccountMasked: maskAccount(bank.accountNumber),
-        pendingIfscMasked: maskIfsc(bank.ifsc),
-        pendingBankName: bank.bankName,
-        pendingAccountType: bank.accountType,
-        requestedAt: new Date().toISOString(),
-        cancelTokenHash: tokenHash(cancelToken),
-      },
+      pendingBank: abroad
+        ? {
+            pendingAccountNumberSealed: seal('accountNumber', bank.accountNumber),
+            // The SWIFT or BIC code is kept where an IFSC would be, and the bank's name and
+            // branch address where the branch would be: each says where the money goes
+            pendingIfscSealed: seal('ifsc', bank.swift),
+            pendingHolderNameSealed: seal('holderName', bank.holderName),
+            pendingBranchNameSealed: seal('branchName', bank.bankAddress),
+            pendingAccountMasked: lastFour(bank.accountNumber),
+            pendingIfscMasked: `${bank.swift.slice(0, 6)}${'x'.repeat(bank.swift.length - 6)}`,
+            pendingBankName: bank.bankAddress.split(/[,\n]/)[0]!.trim().slice(0, 120),
+            pendingAccountType: null,
+            pendingBankLocation: 'abroad',
+            pendingBankCountry: bank.bankCountry,
+            pendingCurrency: bank.currency,
+            requestedAt: new Date().toISOString(),
+            cancelTokenHash: tokenHash(cancelToken),
+          }
+        : {
+            pendingAccountNumberSealed: seal('accountNumber', bank.accountNumber),
+            pendingIfscSealed: seal('ifsc', bank.ifsc),
+            pendingHolderNameSealed: seal('holderName', bank.holderName),
+            pendingBranchNameSealed: seal('branchName', bank.branchName),
+            pendingAccountMasked: maskAccount(bank.accountNumber),
+            pendingIfscMasked: maskIfsc(bank.ifsc),
+            pendingBankName: bank.bankName,
+            pendingAccountType: bank.accountType,
+            pendingBankLocation: 'india',
+            pendingBankCountry: 'India',
+            pendingCurrency: 'INR',
+            requestedAt: new Date().toISOString(),
+            cancelTokenHash: tokenHash(cancelToken),
+          },
     } as never,
     overrideAccess: true,
     context: { disableRevalidate: true, ...actingFor(member, 'members') },
@@ -884,6 +925,9 @@ const clearPending = {
     pendingIfscMasked: null,
     pendingBankName: null,
     pendingAccountType: null,
+    pendingBankLocation: null,
+    pendingBankCountry: null,
+    pendingCurrency: null,
     requestedAt: null,
     cancelTokenHash: null,
   },
@@ -951,7 +995,13 @@ export const approveBankChange = async (
     : null
   const panName = record.panNameSealed
     ? openField(key, record.panNameSealed, fieldContext(memberId, 'panName'))
-    : null
+    : (record as { passportNameSealed?: string | null }).passportNameSealed
+      ? openField(
+          key,
+          (record as { passportNameSealed: string }).passportNameSealed,
+          fieldContext(memberId, 'passportName'),
+        )
+      : null
   const nameMismatch = Boolean(holderName && panName && !namesPlausiblyMatch(panName, holderName))
 
   const updated = await payload.update({
@@ -966,6 +1016,9 @@ export const approveBankChange = async (
       ifscMasked: pending.pendingIfscMasked,
       bankName: pending.pendingBankName,
       accountType: pending.pendingAccountType,
+      bankLocation: pending.pendingBankLocation ?? 'india',
+      bankCountry: pending.pendingBankCountry ?? 'India',
+      currency: pending.pendingCurrency ?? 'INR',
       accountIndex,
       nameMismatch,
       duplicates:

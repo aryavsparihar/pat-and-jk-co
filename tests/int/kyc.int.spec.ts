@@ -14,6 +14,7 @@ import { POST as changeBank } from '@/app/(frontend)/next/members/kyc/bank-chang
 import { POST as uploadDocument } from '@/app/(frontend)/next/members/kyc/document/route'
 import { GET as readKyc, POST as saveKycStep } from '@/app/(frontend)/next/members/kyc/route'
 import { kycPrefix, readEncrypted, storeEncrypted } from '@/kyc/documentStore'
+import { bankSchema } from '@/kyc/schema'
 import {
   approveBankChange,
   kycPurgeCandidates,
@@ -905,7 +906,7 @@ describe('payout details, only when a sale needs them', () => {
     const { requestBankChange } = await import('@/kyc/service')
     const { cancelToken } = await requestBankChange(payload, {
       member: member as Member,
-      bank: goodBank(FAKE.newAccount),
+      bank: bankSchema.parse(goodBank(FAKE.newAccount)),
     })
     expect((await call(cancelBankChange, '', { token: 'not-the-token' })).status).toBe(404)
     expect((await call(cancelBankChange, '', { token: cancelToken })).status).toBe(200)
