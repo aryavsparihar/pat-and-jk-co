@@ -15,6 +15,7 @@ import {
   uniqueEmail,
   confirmArtistApplication,
   fillAboutYou,
+  goToStep,
 } from '../helpers/e2e'
 import { execute } from '../../src/utilities/sql.js'
 
@@ -228,7 +229,7 @@ test('an upload that fails says so and adds nothing; a cancelled one changes not
   await startApplication(page)
   await fillEarlySteps(page)
   await page.reload()
-  await page.getByRole('button', { name: /Step 4: Your work/ }).click()
+  await goToStep(page, 'Your work')
   await expect(page.getByRole('heading', { name: 'Your work', exact: true })).toBeVisible()
   const before = await page.getByText(/of 10 added/).textContent()
   // Cancelled: the chooser closes with nothing chosen
