@@ -62,13 +62,19 @@ const startApplication = async (page: Page) => {
 }
 
 test('wrong and malformed input is refused with a reason, on every form', async ({ page }) => {
-  // The contact form: nothing filled in, then a broken address
+  // The contact form: nothing filled in, then a broken address. The browser shows the message,
+  // in the founder's words rather than its own
+  const shown = (label: RegExp) =>
+    page.getByLabel(label).evaluate((el: HTMLInputElement) => el.validationMessage)
   await page.goto('/contact')
   await page.getByRole('button', { name: /^Send/ }).click()
-  await expect(page.getByText(/required|Please/i).first()).toBeVisible()
-  await page.getByLabel('Email').fill('not-an-address')
+  expect(await shown(/^Name/)).toBe('Please fill this in.')
+  expect(await shown(/^I’m writing about/)).toBe('Please choose what you are writing about.')
+  await page.getByLabel(/^Email/).fill('not-an-address')
   await page.getByRole('button', { name: /^Send/ }).click()
-  await expect(page.getByText('Please enter a valid email address')).toBeVisible()
+  expect(await shown(/^Email/)).toBe(
+    'Please enter a full email address, for example name@example.com.',
+  )
 
   // The staff gate: a non-company address
   await page.goto('/admin-access')
