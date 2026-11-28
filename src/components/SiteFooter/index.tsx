@@ -56,8 +56,9 @@ const twoLines = (lines: string[]) => {
  * The footer of the founder's design (Footer.html; the brief, section 2): the small wreath between
  * two gold lines, then the green block with the monogram, the line about the house, PJK's four
  * social accounts, the office with Get directions, the three link columns and Get in touch with
- * Help, and the bottom bar with the copyright, the privacy policy and Back to top. Cookie settings
- * joins the bar for visitors in Europe and the UK, with the page it opens.
+ * Help, and the bottom bar with the copyright, the privacy policy and Back to top. The design's
+ * Cookie settings link is for when non-essential cookies are used (the brief, section 13); the
+ * site sets only the cookies it needs to work, so there are no choices to offer and no link.
  */
 export const SiteFooter: React.FC<Props> = ({ settings }) => {
   const year = new Date().getFullYear()
