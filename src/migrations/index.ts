@@ -54,6 +54,7 @@ import * as migration_20261128_111507_artist_application_redesign from './202611
 import * as migration_20261128_114125_trade_application_redesign from './20261128_114125_trade_application_redesign';
 import * as migration_20261128_115403_guest_curators from './20261128_115403_guest_curators';
 import * as migration_20261128_123032_identity_after_approval from './20261128_123032_identity_after_approval';
+import * as migration_20261128_124235_payouts_abroad from './20261128_124235_payouts_abroad';
 
 export const migrations = [
   {
@@ -334,6 +335,11 @@ export const migrations = [
   {
     up: migration_20261128_123032_identity_after_approval.up,
     down: migration_20261128_123032_identity_after_approval.down,
-    name: '20261128_123032_identity_after_approval'
+    name: '20261128_123032_identity_after_approval',
+  },
+  {
+    up: migration_20261128_124235_payouts_abroad.up,
+    down: migration_20261128_124235_payouts_abroad.down,
+    name: '20261128_124235_payouts_abroad'
   },
 ];

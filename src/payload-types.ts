@@ -2181,6 +2181,9 @@ export interface KycRecord {
   branchNameSealed?: string | null;
   accountMasked?: string | null;
   ifscMasked?: string | null;
+  bankLocation?: ('india' | 'abroad') | null;
+  bankCountry?: string | null;
+  currency?: string | null;
   bankName?: string | null;
   accountType?: ('savings' | 'current') | null;
   /**
@@ -2208,6 +2211,9 @@ export interface KycRecord {
     pendingBranchNameSealed?: string | null;
     pendingAccountMasked?: string | null;
     pendingIfscMasked?: string | null;
+    pendingBankLocation?: ('india' | 'abroad') | null;
+    pendingBankCountry?: string | null;
+    pendingCurrency?: string | null;
     pendingBankName?: string | null;
     pendingAccountType?: ('savings' | 'current') | null;
     requestedAt?: string | null;
@@ -4105,6 +4111,9 @@ export interface KycRecordsSelect<T extends boolean = true> {
   branchNameSealed?: T;
   accountMasked?: T;
   ifscMasked?: T;
+  bankLocation?: T;
+  bankCountry?: T;
+  currency?: T;
   bankName?: T;
   accountType?: T;
   nameMismatch?: T;
@@ -4130,6 +4139,9 @@ export interface KycRecordsSelect<T extends boolean = true> {
         pendingBranchNameSealed?: T;
         pendingAccountMasked?: T;
         pendingIfscMasked?: T;
+        pendingBankLocation?: T;
+        pendingBankCountry?: T;
+        pendingCurrency?: T;
         pendingBankName?: T;
         pendingAccountType?: T;
         requestedAt?: T;

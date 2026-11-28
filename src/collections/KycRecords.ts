@@ -29,8 +29,34 @@ const bankFields = (prefix: '' | 'pending'): Field[] => {
     sealed(n('ifscSealed')),
     sealed(n('holderNameSealed')),
     sealed(n('branchNameSealed')),
-    masked(n('accountMasked'), 'Account number'),
-    masked(n('ifscMasked'), 'IFSC'),
+    masked(n('accountMasked'), 'Account number or IBAN'),
+    masked(n('ifscMasked'), 'IFSC, or SWIFT or BIC'),
+    {
+      // A bank in India (IFSC) or elsewhere (SWIFT or BIC, the bank's country and currency)
+      name: n('bankLocation'),
+      label: 'Where the bank is',
+      type: 'select',
+      options: [
+        { label: 'In India', value: 'india' },
+        { label: 'Outside India', value: 'abroad' },
+      ],
+      access: { create: nobody, update: nobody },
+      admin: { readOnly: true },
+    },
+    {
+      name: n('bankCountry'),
+      label: 'Bank’s country',
+      type: 'text',
+      access: { create: nobody, update: nobody },
+      admin: { readOnly: true },
+    },
+    {
+      name: n('currency'),
+      label: 'Account’s currency',
+      type: 'text',
+      access: { create: nobody, update: nobody },
+      admin: { readOnly: true },
+    },
     {
       name: n('bankName'),
       label: 'Bank',
