@@ -58,9 +58,34 @@ export const WithdrawButton: React.FC<{ kind: 'artist' | 'partner'; reference: s
   return (
     <>
       <button className="link link-caps min-h-11" onClick={() => setOpen(true)} type="button">
-        Withdraw<span className="sr-only"> application {reference}</span>
+        Withdraw this application<span className="sr-only"> ({reference})</span>
       </button>
-      {open && <WithdrawDialog kind={kind} onClose={() => setOpen(false)} reference={reference} />}
+      {open && (
+        <WithdrawDialog
+          draft={false}
+          kind={kind}
+          onClose={() => setOpen(false)}
+          reference={reference}
+        />
+      )}
+    </>
+  )
+}
+
+/** "Delete this draft": an application not yet sent goes altogether, after a plain question */
+export const DeleteDraftButton: React.FC<{ kind: 'artist' | 'partner'; reference: string }> = ({
+  kind,
+  reference,
+}) => {
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <button className="link link-caps min-h-11" onClick={() => setOpen(true)} type="button">
+        Delete this draft<span className="sr-only"> ({reference})</span>
+      </button>
+      {open && (
+        <WithdrawDialog draft kind={kind} onClose={() => setOpen(false)} reference={reference} />
+      )}
     </>
   )
 }
@@ -68,8 +93,9 @@ export const WithdrawButton: React.FC<{ kind: 'artist' | 'partner'; reference: s
 const WithdrawDialog: React.FC<{
   kind: 'artist' | 'partner'
   reference: string
+  draft: boolean
   onClose: () => void
-}> = ({ kind, reference, onClose }) => {
+}> = ({ kind, reference, draft, onClose }) => {
   const dialog = useRef<HTMLDialogElement>(null)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
@@ -82,7 +108,10 @@ const WithdrawDialog: React.FC<{
   const withdraw = async () => {
     setBusy(true)
     setMessage(null)
-    const result = await api('/next/members/application/withdraw', { body: { type: kind } })
+    const result = await api(
+      draft ? '/next/members/application/delete-draft' : '/next/members/application/withdraw',
+      { body: { type: kind } },
+    )
     if (!result.ok) {
       setBusy(false)
       return setMessage(result.data.message ?? 'That could not be done just now.')
@@ -98,12 +127,12 @@ const WithdrawDialog: React.FC<{
       ref={dialog}
     >
       <h2 className="display-sm" id="withdraw-title">
-        Withdraw application {reference}?
+        {draft ? `Delete draft ${reference}?` : `Withdraw application ${reference}?`}
       </h2>
       <p className="measure mt-3">
-        We will stop considering it, and it stays on record as withdrawn.
-        {kind === 'artist' && ' Your identity details and documents are deleted now.'} You can start
-        a new application whenever you like, with your other answers filled in.
+        {draft
+          ? 'Everything you have filled in, and any pictures you added, are deleted. This cannot be undone. You can start a new application whenever you like.'
+          : 'We will stop considering it, and it stays on record as withdrawn. You can start a new application whenever you like, with your other answers filled in.'}
       </p>
       <div className="mt-8 flex flex-wrap items-center gap-x-8 gap-y-3">
         <button
@@ -112,7 +141,13 @@ const WithdrawDialog: React.FC<{
           onClick={() => void withdraw()}
           type="button"
         >
-          {busy ? <Sending label="Withdrawing" /> : 'Withdraw it'}
+          {busy ? (
+            <Sending label={draft ? 'Deleting' : 'Withdrawing'} />
+          ) : draft ? (
+            'Delete it'
+          ) : (
+            'Withdraw it'
+          )}
         </button>
         <button className="link link-caps min-h-11" onClick={onClose} type="button">
           Keep it
