@@ -80,7 +80,12 @@ export function ApplicationSteps<S extends string>({
             key={step}
           >
             {state === 'done' ? (
-              <button className="apply-step-inner" onClick={() => onGo(step)} type="button">
+              <button
+                aria-label={`${label}, done`}
+                className="apply-step-inner"
+                onClick={() => onGo(step)}
+                type="button"
+              >
                 <span aria-hidden className="apply-bead apply-bead-done">
                   <svg
                     fill="none"
@@ -93,10 +98,7 @@ export function ApplicationSteps<S extends string>({
                     <path d="M1 5l3.5 3.5L11 1" />
                   </svg>
                 </span>
-                <span className="apply-step-label">
-                  {label}
-                  <span className="sr-only">, done</span>
-                </span>
+                <span className="apply-step-label">{label}</span>
               </button>
             ) : (
               <span className="apply-step-inner">
